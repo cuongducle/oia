@@ -63,8 +63,8 @@ describe("BR-SKL skills registry stays in sync with packages/skills", () => {
       expect(existsSync(path.join(skillsDir, s.slug, "SKILL.md")), s.slug).toBe(true);
     }
   });
-  it("every pixforge-* directory has a registry entry (no drift either way)", () => {
-    const dirs = readdirSync(skillsDir).filter((d) => d.startsWith("pixforge-"));
+  it("every oia-* directory has a registry entry (no drift either way)", () => {
+    const dirs = readdirSync(skillsDir).filter((d) => d.startsWith("oia-"));
     expect(dirs.sort()).toEqual(SKILLS.map((s) => s.slug).sort());
   });
   it("SKILL.md frontmatter name matches the slug", () => {

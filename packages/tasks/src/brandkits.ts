@@ -7,13 +7,13 @@ function uniqueId(prefix: string): string {
   __seq += 1;
   return `${prefix}_${Date.now().toString(36)}_${__seq.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
-import { brandKitSchema, BRANDKIT_LIMITS, type BrandKit } from "@pixforge/schema";
-import type { LlmProvider } from "@pixforge/providers";
+import { brandKitSchema, BRANDKIT_LIMITS, type BrandKit } from "@oia/schema";
+import type { LlmProvider } from "@oia/providers";
 
 /** BR-BK store: JSON-file self-hosting; only one kit may be default at a time. */
 export class BrandKitStore {
   private kits: BrandKit[] = [];
-  constructor(private file = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "brandkits.json")) {}
+  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "brandkits.json")) {}
 
   async load() { try { this.kits = JSON.parse(await readFile(this.file, "utf8")); } catch { this.kits = []; } }
   private async save() {

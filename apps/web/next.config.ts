@@ -3,11 +3,11 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   devIndicators: false,
   transpilePackages: [
-    "@pixforge/agent",
-    "@pixforge/canvas",
-    "@pixforge/providers",
-    "@pixforge/protocol",
-    "@pixforge/schema",
+    "@oia/agent",
+    "@oia/canvas",
+    "@oia/providers",
+    "@oia/protocol",
+    "@oia/schema",
   ],
   webpack: (cfg, { isServer }) => {
     if (!isServer) {

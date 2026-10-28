@@ -8,10 +8,10 @@ import { STUDIO_TEMPLATES } from "@/libs/studio-templates";
 import { ScenePreview } from "@/components/ScenePreview";
 
 const AI_TOOLS = [
-  { name:"Presentation Creator", desc:"Turn a topic or outline into a presentation worth sharing.", href:"/skills/pixforge-generate-presentation", kind:"slides" },
+  { name:"Presentation Creator", desc:"Turn a topic or outline into a presentation worth sharing.", href:"/skills/oia-generate-presentation", kind:"slides" },
   { name:"XHS Creator", desc:"Create a cohesive vertical carousel for Xiaohongshu/RED.", href:"/tools/xhs-creator", kind:"social" },
-  { name:"Background Remover", desc:"Isolate your subject with a transparent background, ready for your next design.", href:"/skills/pixforge-remove-background", kind:"background" },
-  { name:"Image Translator", desc:"Translate the words in an image while preserving its layout.", href:"/skills/pixforge-image-translate", kind:"translate" },
+  { name:"Background Remover", desc:"Isolate your subject with a transparent background, ready for your next design.", href:"/skills/oia-remove-background", kind:"background" },
+  { name:"Image Translator", desc:"Translate the words in an image while preserving its layout.", href:"/skills/oia-image-translate", kind:"translate" },
   { name:"PPT Translator", desc:"Translate an entire PowerPoint into the language you need.", href:"/tools/ppt-translator", kind:"ppt", soon:true },
 ];
 function Preview({kind}:{kind:string}) {

@@ -21,8 +21,8 @@ export default async function SkillLanding({ params }: { params: Promise<{ slug:
 cp -r packages/skills/skills/${skill.slug} ~/.claude/skills/
 
 # Configure
-export PIXFORGE_BASE_URL=https://your-pixforge.example/api
-export PIXFORGE_API_KEY=pf-…
+export OIA_BASE_URL=https://your-oia.example/api
+export OIA_API_KEY=pf-…
 
 # Run
 ${skill.usage}`}</pre>

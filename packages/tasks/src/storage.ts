@@ -18,7 +18,7 @@ export interface FileStore {
 export class LocalFileStore implements FileStore {
   private md5Index = new Map<string, string>(); // md5 → key
   constructor(
-    private root = process.env.PIXFORGE_DATA_DIR ?? ".data/files",
+    private root = process.env.OIA_DATA_DIR ?? ".data/files",
     private publicBase = "/api/files",
   ) {}
 

@@ -1,11 +1,11 @@
-import type { FabricObject, Template } from "@pixforge/schema";
+import type { FabricObject, Template } from "@oia/schema";
 
 const W = 900, H = 1200;
 function text(value: string, x: number, y: number, width: number, size: number, color: string, extra: Record<string, unknown> = {}): FabricObject {
   return { type: "Textbox", text: value, left: x, top: y, width, fontSize: size, fill: color, fontFamily: "Be Vietnam Pro", lineHeight: 0.98, fontWeight: 500, ...extra };
 }
 function template(id: string, name: string, color: string, artwork: string, objects: FabricObject[]): Template {
-  return { id: `studio-${id}`, name, authorName: "PixForge Studio", featured: true, tipCredits: 0, createdAt: 0,
+  return { id: `studio-${id}`, name, authorName: "Oia Studio", featured: true, tipCredits: 0, createdAt: 0,
     scene: { version: "6.9.1", objects: [
       { type: "Rect", name: "clip", width: W, height: H, left: 0, top: 0, fill: color, selectable: false },
       { type: "Image", name: "artwork", src: `/studio/${artwork}.webp`, left: 0, top: 0, width: W, height: H, crossOrigin: "anonymous" },

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { runDesignerAgent, detectLanguage, foldAscii } from "../src/index.js";
-import type { ImageProvider, LlmProvider } from "@pixforge/providers";
-import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@pixforge/schema";
-import { parseMarkers } from "@pixforge/protocol";
+import type { ImageProvider, LlmProvider } from "@oia/providers";
+import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@oia/schema";
+import { parseMarkers } from "@oia/protocol";
 
 const plan = JSON.stringify({ title: "Coffee milk tea poster 20% off", imagePrompt: "pastel milk tea poster", copy: "20% OFF" });
 

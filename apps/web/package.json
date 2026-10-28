@@ -1,5 +1,5 @@
 {
-  "name": "@pixforge/web",
+  "name": "@oia/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,12 +10,12 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@pixforge/agent": "workspace:*",
-    "@pixforge/canvas": "workspace:*",
-    "@pixforge/protocol": "workspace:*",
-    "@pixforge/providers": "workspace:*",
-    "@pixforge/schema": "workspace:*",
-    "@pixforge/tasks": "workspace:*",
+    "@oia/agent": "workspace:*",
+    "@oia/canvas": "workspace:*",
+    "@oia/protocol": "workspace:*",
+    "@oia/providers": "workspace:*",
+    "@oia/schema": "workspace:*",
+    "@oia/tasks": "workspace:*",
     "fabric": "^6.9.1",
     "heic2any": "^0.0.4",
     "jspdf": "^4.2.1",

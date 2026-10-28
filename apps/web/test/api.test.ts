@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { POST as createSession } from "../app/api/chat/session/route";
 import { POST as sendChat } from "../app/api/chat/send/route";
-import { chatEventSchema } from "@pixforge/schema";
-import { stripMarkers } from "@pixforge/protocol";
+import { chatEventSchema } from "@oia/schema";
+import { stripMarkers } from "@oia/protocol";
 
 describe("BR-API /api/chat/session", () => {
   it("returns CommonResult {code:0, data.sessionId}", async () => {

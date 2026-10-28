@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { runDesignerAgent, foldAscii } from "../src/index.js";
-import { decodeSseText, reduceEvents, parseMarkers, stripMarkers } from "@pixforge/protocol";
-import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@pixforge/schema";
-import type { ImageProvider, LlmProvider } from "@pixforge/providers";
+import { decodeSseText, reduceEvents, parseMarkers, stripMarkers } from "@oia/protocol";
+import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@oia/schema";
+import type { ImageProvider, LlmProvider } from "@oia/providers";
 
 /**
  * INTEGRATION: agent → SSE text → protocol decode → schema — the real production path

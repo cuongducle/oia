@@ -1,4 +1,4 @@
-import type { SceneCanvas } from "@pixforge/schema";
+import type { SceneCanvas } from "@oia/schema";
 
 /**
  * Multi-page behavior:

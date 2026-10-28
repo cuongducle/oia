@@ -1,5 +1,5 @@
 {
-  "name": "@pixforge/protocol",
+  "name": "@oia/protocol",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,6 +10,6 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "@pixforge/schema": "workspace:*", "zod": "^3.25.0" },
+  "dependencies": { "@oia/schema": "workspace:*", "zod": "^3.25.0" },
   "devDependencies": { "typescript": "^5.9.2", "vitest": "^3.2.4" }
 }

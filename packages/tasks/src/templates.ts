@@ -1,11 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { templateSchema, type Template } from "@pixforge/schema";
+import { templateSchema, type Template } from "@oia/schema";
 
 /** BR-TPL store: publish designs as templates; paginated + featured listing; author tip credits. */
 export class TemplateStore {
   private items: Template[] = [];
-  constructor(private file = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "templates.json")) {}
+  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "templates.json")) {}
 
   async load() { try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; } }
   private async save() {

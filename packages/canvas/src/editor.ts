@@ -1,5 +1,5 @@
 import * as fabric from "fabric";
-import type { SceneCanvas } from "@pixforge/schema";
+import type { SceneCanvas } from "@oia/schema";
 import { TEXT_PRESET_SPECS, SHAPES, SIZE_PRESETS, DEFAULT_POSTER, type TextPreset, type ShapeKind, type SizePresetName } from "./presets.js";
 
 /** Fabric wrapper — canvas setup + scene JSON loading. */

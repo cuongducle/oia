@@ -1,5 +1,5 @@
-import { runDesignerAgent } from "@pixforge/agent";
-import { getImageProvider, getLlmProvider } from "@pixforge/providers";
+import { runDesignerAgent } from "@oia/agent";
+import { getImageProvider, getLlmProvider } from "@oia/providers";
 import { getRuntime } from "@/libs/runtime";
 
 export const dynamic = "force-dynamic";

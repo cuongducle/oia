@@ -30,7 +30,7 @@ export function hashKey(plaintext: string): string {
 
 export class ApiKeyStore {
   private records: ApiKeyRecord[] = [];
-  constructor(private file = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "api-keys.json")) {}
+  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "api-keys.json")) {}
 
   async load(): Promise<void> {
     try {

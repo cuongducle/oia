@@ -1,6 +1,6 @@
 import { getRuntime, requireApiKey } from "@/libs/runtime";
-import { TaskNotFound } from "@pixforge/tasks";
-import type { TaskType } from "@pixforge/schema";
+import { TaskNotFound } from "@oia/tasks";
+import type { TaskType } from "@oia/schema";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;

@@ -8,9 +8,9 @@ import { GET as brandCtx } from "../app/api/brand/context/route";
 import { GET as listTpl, POST as publishTpl } from "../app/api/templates/route";
 import { POST as tipTpl } from "../app/api/templates/[id]/tip/route";
 
-process.env.PIXFORGE_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-m4-"));
+process.env.OIA_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-m4-"));
 process.env.LLM_PROVIDER = "mock";
-beforeAll(() => { delete process.env.PIXFORGE_REQUIRE_KEY; });
+beforeAll(() => { delete process.env.OIA_REQUIRE_KEY; });
 
 const R = (u: string, m: string, b?: unknown) =>
   new Request(`http://x${u}`, { method: m, body: b === undefined ? undefined : JSON.stringify(b), headers: { "content-type": "application/json" } });

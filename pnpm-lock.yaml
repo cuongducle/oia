@@ -17,22 +17,22 @@ importers:
 
   apps/web:
     dependencies:
-      '@pixforge/agent':
+      '@oia/agent':
         specifier: workspace:*
         version: link:../../packages/agent
-      '@pixforge/canvas':
+      '@oia/canvas':
         specifier: workspace:*
         version: link:../../packages/canvas
-      '@pixforge/protocol':
+      '@oia/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@pixforge/providers':
+      '@oia/providers':
         specifier: workspace:*
         version: link:../../packages/providers
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../../packages/schema
-      '@pixforge/tasks':
+      '@oia/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks
       fabric:
@@ -87,13 +87,13 @@ importers:
 
   apps/worker:
     dependencies:
-      '@pixforge/providers':
+      '@oia/providers':
         specifier: workspace:*
         version: link:../../packages/providers
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../../packages/schema
-      '@pixforge/tasks':
+      '@oia/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks
       bullmq:
@@ -115,13 +115,13 @@ importers:
 
   packages/agent:
     dependencies:
-      '@pixforge/protocol':
+      '@oia/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@pixforge/providers':
+      '@oia/providers':
         specifier: workspace:*
         version: link:../providers
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
@@ -141,7 +141,7 @@ importers:
         specifier: ^6.7.1
         version: 6.9.1
     devDependencies:
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../schema
       typescript:
@@ -172,7 +172,7 @@ importers:
 
   packages/protocol:
     dependencies:
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../schema
       zod:
@@ -215,10 +215,10 @@ importers:
 
   packages/tasks:
     dependencies:
-      '@pixforge/providers':
+      '@oia/providers':
         specifier: workspace:*
         version: link:../providers
-      '@pixforge/schema':
+      '@oia/schema':
         specifier: workspace:*
         version: link:../schema
       bullmq:

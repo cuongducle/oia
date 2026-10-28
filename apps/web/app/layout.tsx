@@ -13,8 +13,8 @@ const bvpro = Be_Vietnam_Pro({
 const display = Instrument_Serif({ subsets: ["latin"], weight: "400", display: "swap", variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "PixForge — Create & edit every layer of your AI visuals",
-  description: "Open-source, BYOK AI visual generator with a layer-based Fabric editor.",
+  title: "Oia — Open image agent",
+  description: "Open-source, BYOK image agent with a layer-based Fabric editor.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

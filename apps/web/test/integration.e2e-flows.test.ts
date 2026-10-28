@@ -2,10 +2,10 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { decodeSseText } from "@pixforge/protocol";
+import { decodeSseText } from "@oia/protocol";
 
 /** INTEGRATION: real user flows across multiple APIs — using the actual route handlers + runtime. */
-process.env.PIXFORGE_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-int-"));
+process.env.OIA_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-int-"));
 process.env.IMAGE_PROVIDER = "mock";
 process.env.LLM_PROVIDER = "mock";
 
@@ -29,8 +29,8 @@ const R = (u: string, m: string, b?: unknown, headers?: Record<string, string>) 
   new Request(`http://x${u}`, { method: m, body: b === undefined ? undefined : JSON.stringify(b), headers: { "content-type": "application/json", ...headers } });
 const json = async (p: Promise<Response>) => (await p).json();
 
-beforeAll(() => { delete process.env.PIXFORGE_REQUIRE_KEY; });
-afterAll(() => { delete process.env.PIXFORGE_REQUIRE_KEY; });
+beforeAll(() => { delete process.env.OIA_REQUIRE_KEY; });
+afterAll(() => { delete process.env.OIA_REQUIRE_KEY; });
 
 describe("INT-FLOW 1: new user → poster → editor → share", () => {
   it("full chain: session → send SSE (2 pages + outline) → persist → replay → project → share", async () => {
@@ -70,7 +70,7 @@ describe("INT-FLOW 2: API key guard toggles like production", () => {
   it("no key → 401; valid key → pass; wrong key → 401; guard off → open", async () => {
     let plaintext = "";
     try {
-    process.env.PIXFORGE_REQUIRE_KEY = "1";
+    process.env.OIA_REQUIRE_KEY = "1";
     const noAuth = await submitTask(R("/api/tasks/generate-poster", "POST", { prompt: "x" }), { params: Promise.resolve({ id: "generate-poster" }) });
     expect(noAuth.status).toBe(401);
 
@@ -83,10 +83,10 @@ describe("INT-FLOW 2: API key guard toggles like production", () => {
     const okRes = await submitTask(R("/api/tasks/generate-poster", "POST", { prompt: "x" }, { authorization: plaintext }), { params: Promise.resolve({ id: "generate-poster" }) });
     expect((await okRes.json()).code).toBe(0);
 
-    delete process.env.PIXFORGE_REQUIRE_KEY;
+    delete process.env.OIA_REQUIRE_KEY;
     const free = await submitTask(R("/api/tasks/generate-poster", "POST", { prompt: "x" }), { params: Promise.resolve({ id: "generate-poster" }) });
     expect((await free.json()).code).toBe(0);
-    } finally { delete process.env.PIXFORGE_REQUIRE_KEY; }
+    } finally { delete process.env.OIA_REQUIRE_KEY; }
   });
 });
 

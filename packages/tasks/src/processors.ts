@@ -1,5 +1,5 @@
 import type { FileStore } from "./storage.js";
-import { getImageProvider, getLlmProvider } from "@pixforge/providers";
+import { getImageProvider, getLlmProvider } from "@oia/providers";
 
 /**
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.

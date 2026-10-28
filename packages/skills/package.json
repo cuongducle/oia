@@ -1,7 +1,7 @@
 {
-  "name": "@pixforge/skills",
+  "name": "@oia/skills",
   "version": "0.1.0",
   "private": true,
   "description": "Agent Skills (SKILL.md standard) — install into Claude Code/Codex/Cursor/Gemini CLI.",
-  "scripts": { "test": "node skills/pixforge-setup/scripts/check_env.mjs || true" }
+  "scripts": { "test": "node skills/oia-setup/scripts/check_env.mjs || true" }
 }

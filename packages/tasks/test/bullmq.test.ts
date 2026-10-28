@@ -7,8 +7,8 @@ describe("BR-W worker queue", () => {
     expect(buildJobName("generate-poster")).toBe("task:generate-poster");
     expect(splitJobName("task:remove-background")).toBe("remove-background");
   });
-  it("queue name is fixed (pixforge-tasks)", () => {
-    expect(QUEUE_NAME).toBe("pixforge-tasks");
+  it("queue name is fixed (oia-tasks)", () => {
+    expect(QUEUE_NAME).toBe("oia-tasks");
   expect(QUEUE_NAME).not.toMatch(/:/); // BullMQ 6 forbids ":" in queue names
   });
   it("BR-W4: without REDIS_URL the in-process fallback runs the handler immediately (dev/CI)", async () => {

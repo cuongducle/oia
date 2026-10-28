@@ -1,4 +1,4 @@
-import { chatEventSchema, type ChatEvent } from "@pixforge/schema";
+import { chatEventSchema, type ChatEvent } from "@oia/schema";
 
 export type StreamItem =
   | { type: "heartbeat" }

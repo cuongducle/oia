@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { decodeSseText, reduceEvents } from "../src/index.js";
 import { stripMarkers, parseMarkers } from "../src/index.js";
-import { sceneCanvasSchema } from "@pixforge/schema";
+import { sceneCanvasSchema } from "@oia/schema";
 
 const fixture = readFileSync(new URL("./fixtures/sse_poster.txt", import.meta.url), "utf8");
 
-describe("golden replay: PixForge SSE stream (local mock agent)", () => {
+describe("golden replay: Oia SSE stream (local mock agent)", () => {
   const items = [...decodeSseText(fixture)];
 
   it("has at least 10 data events plus heartbeats", () => {

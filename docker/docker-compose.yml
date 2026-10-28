@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    environment: { POSTGRES_USER: pixforge, POSTGRES_PASSWORD: pixforge, POSTGRES_DB: pixforge }
+    environment: { POSTGRES_USER: oia, POSTGRES_PASSWORD: oia, POSTGRES_DB: oia }
     ports: ["5432:5432"]
   redis:
     image: redis:7-alpine
@@ -9,5 +9,5 @@ services:
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
-    environment: { MINIO_ROOT_USER: pixforge, MINIO_ROOT_PASSWORD: pixforge-secret }
+    environment: { MINIO_ROOT_USER: oia, MINIO_ROOT_PASSWORD: oia-secret }
     ports: ["9000:9000", "9001:9001"]

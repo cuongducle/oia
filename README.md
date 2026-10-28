@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/screenshots/banner.png" width="100%" alt="PixForge — Generate the image. Keep the control. Three real studio templates: matcha, music festival, and botanical skincare.">
+  <img src="docs/screenshots/banner.png" width="100%" alt="Oia — Generate the image. Keep the control. Three real studio templates: matcha, music festival, and botanical skincare.">
 </p>
 
 <p align="center">
-  <strong>An open-source AI design studio. Generate artwork. Edit the composition. Make it yours.</strong>
+  <strong>Open image agent. Generate artwork. Edit the composition. Make it yours.</strong>
 </p>
 
 <p align="center">
@@ -20,19 +20,19 @@
 
 A campaign headline changes. An event date moves. A client wants the logo larger. These are layout and copy edits—not reasons to generate a whole new image.
 
-**PixForge pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
+**Oia pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
 
 Run it on your own machine or server. Bring your own supported provider. Keep your projects under your control.
 
 ## What editable actually means
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="100%" alt="Real PixForge editor with the Matcha Every Day headline selected as a native text object. Selection handles, text-formatting controls, page thumbnails, and export are visible.">
+  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor with the Matcha Every Day headline selected as a native text object. Selection handles, text-formatting controls, page thumbnails, and export are visible.">
   <br>
   <sub>Actual editor, bundled Matcha template. The selected headline is a text object—not lettering baked into the photograph.</sub>
 </p>
 
-**The image and the design are different things.** A PixForge document contains separate canvas objects:
+**The image and the design are different things.** An Oia document contains separate canvas objects:
 
 | Object | What you can change |
 | :--- | :--- |
@@ -43,7 +43,7 @@ Run it on your own machine or server. Bring your own supported provider. Keep yo
 
 Move a native headline without moving the photograph. Fix its wording without calling an image model. Duplicate a page and adapt the copy for another placement. Undo changes and let autosave preserve the project.
 
-> **Layers, not magic image decomposition.** PixForge does not turn every object or letter inside a generated image into an editable layer. Generated scenes currently contain an artwork image and, when supplied by the planner, a separate copy textbox on the first page. Bundled templates include more deliberately composed text and shape objects. Text already embedded in the artwork remains pixels.
+> **Layers, not magic image decomposition.** Oia does not turn every object or letter inside a generated image into an editable layer. Generated scenes currently contain an artwork image and, when supplied by the planner, a separate copy textbox on the first page. Bundled templates include more deliberately composed text and shape objects. Text already embedded in the artwork remains pixels.
 
 ## A studio around your image model
 
@@ -65,9 +65,9 @@ The Toolbox also brings together format conversion, image resizing, chart creati
 
 ## When to use this instead of an image chat
 
-**Use an image chat when the image itself is the deliverable. Use PixForge when you also need to assemble, revise, and reuse a design.** It adds a workflow around image models—not a claim of a better underlying model.
+**Use an image chat when the image itself is the deliverable. Use Oia when you also need to assemble, revise, and reuse a design.** It adds a workflow around image models—not a claim of a better underlying model.
 
-| Your task | With an image-only result | With PixForge |
+| Your task | With an image-only result | With Oia |
 | :--- | :--- | :--- |
 | Change a headline or event date | Edit the image or regenerate it | Edit the native textbox, if the copy is a separate layer |
 | Move a logo or adjust a composition | Open a separate editor | Work on canvas objects in the same studio |
@@ -83,13 +83,13 @@ The Toolbox also brings together format conversion, image resizing, chart creati
 **Requirements:** Node.js 22 and pnpm 10. No provider key, PostgreSQL, or Redis is needed to explore the default local setup.
 
 ```bash
-git clone https://github.com/cuongducle/pixforge.git
-cd pixforge
+git clone https://github.com/cuongducle/oia.git
+cd oia
 pnpm install
 
 # Build the workspace packages before starting the web app.
 pnpm exec turbo run build --filter='./packages/*'
-pnpm --filter @pixforge/web dev
+pnpm --filter @oia/web dev
 ```
 
 Open **[localhost:3100](http://localhost:3100)**. Start with a bundled template to try real text and object editing. The default mock provider is for testing the workflow; it does not generate production AI artwork.
@@ -117,25 +117,25 @@ For example, to use your existing Codex login:
 
 ```bash
 codex login
-IMAGE_PROVIDER=codex pnpm --filter @pixforge/web dev
+IMAGE_PROVIDER=codex pnpm --filter @oia/web dev
 ```
 
 Codex image generation depends on CLI support and account access, and consumes the applicable account allowance. Other paid providers bill through your own account. **Self-hosted does not mean generation is free.** Provider names beyond the implemented registry should not be treated as working integrations.
 
 ## Build it into your workflow
 
-Submit tasks from a script, another app, or a coding agent. Create a key in **For Agents** and set `PIXFORGE_REQUIRE_KEY=1` to enforce keys on the guarded task endpoints.
+Submit tasks from a script, another app, or a coding agent. Create a key in **For Agents** and set `OIA_REQUIRE_KEY=1` to enforce keys on the guarded task endpoints.
 
 ```bash
 curl -X POST http://localhost:3100/api/tasks/generate-poster \
   -H 'Content-Type: application/json' \
-  -H "Authorization: ${PIXFORGE_API_KEY}" \
+  -H "Authorization: ${OIA_API_KEY}" \
   -d '{"prompt":"A minimal coffee campaign poster"}'
 ```
 
 The default submission returns a task ID; poll `GET /api/tasks/{taskId}` for the result. Responses use a `{code, data, msg}` envelope. Task records have a 24-hour TTL.
 
-Installable instructions for coding agents live in [`packages/skills/skills`](packages/skills/skills). Configure `PIXFORGE_BASE_URL` and `PIXFORGE_API_KEY` for your instance.
+Installable instructions for coding agents live in [`packages/skills/skills`](packages/skills/skills). Configure `OIA_BASE_URL` and `OIA_API_KEY` for your instance.
 
 <details>
 <summary><strong>Development, tests, and project structure</strong></summary>
@@ -176,11 +176,11 @@ The planned product direction is a shared **macOS and Windows desktop app**, wit
 ## Deployment & current boundaries
 
 - **Designed for a trusted self-hosted environment.** API-key checks on guarded routes are not a complete, application-wide authentication system. Put the app behind access control before exposing it publicly.
-- **Local storage by default.** Project and asset persistence uses the app's local data directory. Use a persistent volume or set `PIXFORGE_DATA_DIR`; back it up before upgrading.
+- **Local storage by default.** Project and asset persistence uses the app's local data directory. Use a persistent volume or set `OIA_DATA_DIR`; back it up before upgrading.
 - **Artwork remains raster.** Object-level canvas edits do not edit pixels inside the underlying image. Reference-image support also varies by provider.
 - **Some tools need extra setup or are unfinished.** Background removal requires `rembg`. PPT Translator is coming soon; the image-translation task is not implemented.
 - **Your provider remains involved.** Prompts and images used for generation go to the configured provider. Running the studio locally does not make external model calls private to your machine.
 
 ## Open source
 
-PixForge is released under the [MIT license](LICENSE). Explore the code, adapt the studio to your workflow, and contribute through [issues](https://github.com/cuongducle/pixforge/issues) or pull requests.
+Oia is released under the [MIT license](LICENSE). Explore the code, adapt the studio to your workflow, and contribute through [issues](https://github.com/cuongducle/oia/issues) or pull requests.

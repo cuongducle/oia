@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Paperclip, SlidersHorizontal, ChevronDown, LockKeyhole, X, LoaderCircle, RectangleVertical, Presentation, PanelsTopLeft, Smartphone, Download, Pencil, Scan, Images } from "lucide-react";
-import type { ChatEvent, CanvasMsgMeta, TaskMeta, BrandKit, Template } from "@pixforge/schema";
-import { stripMarkers } from "@pixforge/protocol";
+import type { ChatEvent, CanvasMsgMeta, TaskMeta, BrandKit, Template } from "@oia/schema";
+import { stripMarkers } from "@oia/protocol";
 import { ScenePreview } from "@/components/ScenePreview";
 import { Dialog } from "@/components/Dialog";
 import { STUDIO_TEMPLATES } from "@/libs/studio-templates";
@@ -69,7 +69,7 @@ export default function Home() {
     let cancelled = false;
     if (!canvasMeta) return;
     void (async () => {
-      const { createEditor } = await import("@pixforge/canvas");
+      const { createEditor } = await import("@oia/canvas");
       if (cancelled || !canvasElRef.current) return;
       const c = fabricRef.current ?? await createEditor(canvasElRef.current);
       if (cancelled) { void c.dispose(); return; }
@@ -130,8 +130,8 @@ export default function Home() {
     finally { setBusy(false); }
   }
   function openTemplate(tpl: Template) {
-    localStorage.setItem("pixforge:scene", JSON.stringify(tpl.scene));
-    localStorage.setItem("pixforge:project", JSON.stringify({ name: tpl.name }));
+    localStorage.setItem("oia:scene", JSON.stringify(tpl.scene));
+    localStorage.setItem("oia:project", JSON.stringify({ name: tpl.name }));
     location.href = "/editor";
   }
   async function exportResult(format: "png" | "pdf" | "pptx" | "zip") {
@@ -143,10 +143,10 @@ export default function Home() {
       const png = c.toDataURL({ format: "png", multiplier: 1 });
       const dl = (blob: Blob, name: string) => { const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=u; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(u),1000); };
       const blob = await (await fetch(png)).blob();
-      if (format === "png") dl(blob,"pixforge.png");
-      if (format === "pdf") { const { jsPDF } = await import("jspdf"); const pdf = new jsPDF({ orientation:w>h?"landscape":"portrait",unit:"px",format:[w,h] }); pdf.addImage(png,"PNG",0,0,w,h); dl(pdf.output("blob"),"pixforge.pdf"); }
-      if (format === "zip") { const JSZip = (await import("jszip")).default; const zip = new JSZip(); zip.file("1.png",blob); dl(await zip.generateAsync({type:"blob"}),"pixforge.zip"); }
-      if (format === "pptx") { localStorage.setItem("pixforge:scene",JSON.stringify(canvasMeta?.canvas)); location.href="/editor"; }
+      if (format === "png") dl(blob,"oia.png");
+      if (format === "pdf") { const { jsPDF } = await import("jspdf"); const pdf = new jsPDF({ orientation:w>h?"landscape":"portrait",unit:"px",format:[w,h] }); pdf.addImage(png,"PNG",0,0,w,h); dl(pdf.output("blob"),"oia.pdf"); }
+      if (format === "zip") { const JSZip = (await import("jszip")).default; const zip = new JSZip(); zip.file("1.png",blob); dl(await zip.generateAsync({type:"blob"}),"oia.zip"); }
+      if (format === "pptx") { localStorage.setItem("oia:scene",JSON.stringify(canvasMeta?.canvas)); location.href="/editor"; }
     } finally { c.setZoom(oldZoom); c.setDimensions({ width: oldW, height: oldH }); c.requestRenderAll(); }
   }
   const all = [...STUDIO_TEMPLATES, ...community];

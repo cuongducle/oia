@@ -1,14 +1,14 @@
-# PixForge Desktop: cross-platform architecture research
+# Oia Desktop: cross-platform architecture research
 
 **Status: research and proposed architecture, not an implemented desktop release.**
 
 Research date: October 28, 2026. Target platforms: macOS and Windows. The planned public website provides product information, documentation, and downloads rather than a hosted editor.
 
-This report reviews source code and documentation; it does not report execution tests of the referenced applications. PixForge-specific observations refer to the existing web implementation at commit `af498629d795a9d802b9b3b36fa16ba33cc06302`. Important upstream findings were checked against the pinned commits below rather than relying solely on search indexes.
+This report reviews source code and documentation; it does not report execution tests of the referenced applications. Oia-specific observations refer to the existing web implementation at commit `af498629d795a9d802b9b3b36fa16ba33cc06302`. Important upstream findings were checked against the pinned commits below rather than relying solely on search indexes.
 
 ## 1. Executive summary
 
-Recommended direction for PixForge:
+Recommended direction for Oia:
 
 - Build one shared Electron application for macOS and Windows rather than two separate editors.
 - Use React + Vite with electron-vite for the desktop UI. Keep Next.js for the website and retain the current web app during migration.
@@ -19,7 +19,7 @@ Recommended direction for PixForge:
 - Package and test on each target operating system. A successful macOS build is not evidence that Windows works.
 - Bundle the runtime needed for the core workflow. Opening the editor must not require users to install Node.js, pnpm, Redis, or Docker. External model generation still requires a configured provider and, where applicable, network access.
 
-These are recommendations for PixForge, not claims that every referenced project implements every mechanism described here.
+These are recommendations for Oia, not claims that every referenced project implements every mechanism described here.
 
 ## 2. Reference projects
 
@@ -45,7 +45,7 @@ Observed:
 
 Adopt: responsibility boundaries, process lifecycle management, CLI resolution, and explicit binary/architecture checks.
 
-Do not copy wholesale: the large service-registration system, multiple product editions, numerous integrations, or the entire release infrastructure. PixForge does not yet need that complexity.
+Do not copy wholesale: the large service-registration system, multiple product editions, numerous integrations, or the entire release infrastructure. Oia does not yet need that complexity.
 
 Sources: [build configuration][C1], [utility-process design][C2], [CLI resolver][C3], [release workflow][C4].
 
@@ -62,7 +62,7 @@ Observed:
 
 Adopt: a platform layer instead of operating-system conditionals and direct Node calls scattered through UI components; treat updates as a user-facing flow with progress, errors, and retry behavior.
 
-Do not copy unchanged: preload exposes `invoke: ipcRenderer.invoke`. PixForge should expose specific allowed operations rather than arbitrary channel invocation. The reviewed builder configuration also disables Windows update code-signature verification; this is not a security default to adopt.
+Do not copy unchanged: preload exposes `invoke: ipcRenderer.invoke`. Oia should expose specific allowed operations rather than arbitrary channel invocation. The reviewed builder configuration also disables Windows update code-signature verification; this is not a security default to adopt.
 
 Sources: [build configuration][B1], [Platform interface][B2], [preload][B3], [AppUpdater][B4], [installer configuration][B5].
 
@@ -101,7 +101,7 @@ Sources: [FFmpeg management][L1], [build workflow][L2], [package configuration][
 
 ## 3. Keep Next.js inside desktop, or extract the UI?
 
-At the reviewed PixForge baseline, Next.js contains 19 API route files. The editor calls those APIs directly for project persistence, uploads, templates, and SSE chat.
+At the reviewed Oia baseline, Next.js contains 19 API route files. The editor calls those APIs directly for project persistence, uploads, templates, and SSE chat.
 
 | Approach | Advantages | Trade-offs | Assessment |
 |---|---|---|---|
@@ -203,7 +203,7 @@ The safeStorage documentation has version-dependent synchronous/asynchronous API
 - Do not disable webSecurity to make image/canvas loading or file paths work.
 - Previously saved projects must remain viewable offline, with exports available for formats that do not require external services.
 
-## 6. Codex and external tools: concrete PixForge risks
+## 6. Codex and external tools: concrete Oia risks
 
 At the reviewed baseline, `packages/providers/src/image/codex.ts`:
 
@@ -250,11 +250,11 @@ Follow Electron's security guidance [E1]:
 Proposed API examples, not implemented code:
 
 ```typescript
-window.pixforge.projects.save(project)
-window.pixforge.generation.start(request)
-window.pixforge.jobs.cancel(jobId)
-window.pixforge.jobs.onEvent(jobId, listener) // returns unsubscribe
-window.pixforge.files.chooseExportDestination(options)
+window.oia.projects.save(project)
+window.oia.generation.start(request)
+window.oia.jobs.cancel(jobId)
+window.oia.jobs.onEvent(jobId, listener) // returns unsubscribe
+window.oia.files.chooseExportDestination(options)
 ```
 
 ## 8. macOS and Windows distribution
@@ -301,7 +301,7 @@ Do not expose certificates or release permissions to untrusted pull requests. Se
 
 Sources: [LosslessCut workflow][L2], [Cherry Studio workflow][C4], [electron-builder updates][E3], [code signing][E4].
 
-## 9. Required PixForge verification
+## 9. Required Oia verification
 
 - Launch from the Dock/Start Menu on a machine without Node, pnpm, Redis, or Codex.
 - Open a template, edit text, move objects, undo/redo, save, and restart.
@@ -342,7 +342,7 @@ Do not provide a precise schedule before a packaging prototype has run on Window
 
 - GitHub metadata at the reviewed snapshots identifies Cherry Studio as AGPL-3.0, Chatbox as GPL-3.0, and LosslessCut in the GPL-2.0 family.
 - AFFiNE has directory-specific licensing: much of the repository is MIT, with separate terms for some areas.
-- Studying architecture does not permit copying arbitrary code into PixForge while assuming the result remains MIT. Check the license of each file and preserve applicable obligations before reusing code.
+- Studying architecture does not permit copying arbitrary code into Oia while assuming the result remains MIT. Check the license of each file and preserve applicable obligations before reusing code.
 - These repositories were not exhaustively read or audited. Findings apply to the files and mechanisms inspected.
 - Reference packaged applications were not executed or benchmarked for size, memory, or startup time. No unverified performance figures are claimed.
 

@@ -4,7 +4,7 @@
 
 - `pnpm typecheck`: 15/15 tasks passed.
 - `pnpm build`: 9/9 tasks passed, including production Next.js compilation, type validation, and static page generation.
-- `REDIS_URL=redis://:pixforge@127.0.0.1:6379 pnpm exec turbo run test --force`: **152 passing tests** across seven packages, including real Redis/worker integration and authenticated Codex image generation. A subsequent cached run also passed after the final UI-only edits.
+- `REDIS_URL=redis://:oia@127.0.0.1:6379 pnpm exec turbo run test --force`: **152 passing tests** across seven packages, including real Redis/worker integration and authenticated Codex image generation. A subsequent cached run also passed after the final UI-only edits.
 - Added tests cover English document/default locale, legacy Vietnamese preference fallback, English validation messages, Vietnamese UI-string regression scanning (AST, excluding comments/user data), artboard dimensions, zoom-independent insertion, resize/text history events, editable templates, filtering, and first-save scene preservation.
 - Strengthened the presentation integration test: inspect PPTX embedded image files, not just the outer ZIP signature. It failed against the old processor and passes after embedding real image bytes.
 - `git diff --check`: clean.

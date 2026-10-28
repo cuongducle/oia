@@ -1,6 +1,6 @@
 import { getRuntime, requireApiKey } from "@/libs/runtime";
-import { getLlmProvider } from "@pixforge/providers";
-import { extractBrandKit } from "@pixforge/tasks";
+import { getLlmProvider } from "@oia/providers";
+import { extractBrandKit } from "@oia/tasks";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;

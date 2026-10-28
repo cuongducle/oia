@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fitArtboard, templateCategory, filterTemplates, imageSource } from "../libs/studio-ui";
 import { STUDIO_TEMPLATES } from "../libs/studio-templates";
-import { sceneCanvasSchema } from "@pixforge/schema";
+import { sceneCanvasSchema } from "@oia/schema";
 
 // Visual requirements: docs/design-direction.md; original editor fit/page behavior in ui-audit/orig-editor.png.
 describe("Studio UI: canvas geometry", () => {

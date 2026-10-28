@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!uploadId || !parts.length) {
     return Response.json({ code: 1, data: null, msg: "uploadId + parts[] required" }, { status: 400 });
   }
-  const pendingDir = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "pending");
+  const pendingDir = path.join(process.env.OIA_DATA_DIR ?? ".data", "pending");
   const chunks: Buffer[] = [];
   for (const p of [...parts].sort((a, b) => a.partNumber - b.partNumber)) {
     chunks.push(await readFile(path.join(pendingDir, `${uploadId}.${p.partNumber}`)));

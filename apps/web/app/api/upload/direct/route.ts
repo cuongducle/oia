@@ -1,5 +1,5 @@
 import { getRuntime } from "@/libs/runtime";
-import { checkNsfw } from "@pixforge/providers";
+import { checkNsfw } from "@oia/providers";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;

@@ -1,5 +1,5 @@
 {
-  "name": "@pixforge/worker",
+  "name": "@oia/worker",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "demo": "tsc -p tsconfig.json && WORKER_DEMO=1 node dist/index.js"
   },
   "dependencies": {
-    "@pixforge/providers": "workspace:*",
-    "@pixforge/schema": "workspace:*",
-    "@pixforge/tasks": "workspace:*",
+    "@oia/providers": "workspace:*",
+    "@oia/schema": "workspace:*",
+    "@oia/tasks": "workspace:*",
     "bullmq": "^6.5.0",
     "ioredis": "^6.0.0"
   },

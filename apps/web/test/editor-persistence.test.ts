@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-process.env.PIXFORGE_DATA_DIR = mkdtempSync(path.join(tmpdir(),"pf-ui-persist-"));
+process.env.OIA_DATA_DIR = mkdtempSync(path.join(tmpdir(),"pf-ui-persist-"));
 import { POST } from "../app/api/projects/route";
 import { GET } from "../app/api/projects/[id]/route";
 import { STUDIO_TEMPLATES } from "../libs/studio-templates";

@@ -1,4 +1,4 @@
-import type { TaskType } from "@pixforge/schema";
+import type { TaskType } from "@oia/schema";
 
 /** M0: in-process queue — swapped for BullMQ (Redis) when scaling workers. */
 export interface TaskJob {

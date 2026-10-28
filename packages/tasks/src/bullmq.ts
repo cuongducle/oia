@@ -1,10 +1,10 @@
 import { Queue, Worker, type Processor } from "bullmq";
-import type { TaskType } from "@pixforge/schema";
+import type { TaskType } from "@oia/schema";
 import type { TaskJob } from "./queue.js";
 
 /**
  * BR-W: worker queue.
- * - With REDIS_URL set → BullMQ (queue "pixforge-tasks"); job name = task type
+ * - With REDIS_URL set → BullMQ (queue "oia-tasks"); job name = task type
  * - Without Redis → InProcessQueue (dev/CI need no docker)
  * - Job payloads keep the TaskJob shape — the two backends are interchangeable
  */
@@ -12,7 +12,7 @@ import type { TaskJob } from "./queue.js";
  * BullMQ queue names must not contain ":" (BullMQ 6 forbids it; ":" separates the Redis key namespace).
  * This only shows up with real Redis; in-process runs never catch it.
  */
-export const QUEUE_NAME = "pixforge-tasks";
+export const QUEUE_NAME = "oia-tasks";
 
 export function buildJobName(type: TaskType): string {
   return `task:${type}`;
@@ -45,7 +45,7 @@ export async function createQueueBackend(
     };
 // A dedicated prefix isolates deployments/tests sharing one Redis (prevents
 // parallel runs from stealing each other’s jobs — found via a full pnpm test)
-    const prefix = opts.queuePrefix ?? process.env.PIXFORGE_QUEUE_PREFIX ?? "bull";
+    const prefix = opts.queuePrefix ?? process.env.OIA_QUEUE_PREFIX ?? "bull";
     const queue = new Queue(QUEUE_NAME, { connection: connection as never, prefix });
     const dispatch: Processor = async (bullJob) => {
       const job = bullJob.data as TaskJob;

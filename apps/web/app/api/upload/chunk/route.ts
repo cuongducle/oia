@@ -5,7 +5,7 @@ import path from "node:path";
 
 export const dynamic = "force-dynamic";
 
-const g = globalThis as unknown as { __pfChunks?: Map<string, { partNumber: number; etag: string; bytes: Buffer }[]> };
+const g = globalThis as unknown as { __oiaChunks?: Map<string, { partNumber: number; etag: string; bytes: Buffer }[]> };
 
 /** POST /api/upload/chunk (form: uploadId, partNumber, file) → {partNumber, etag}. */
 export async function POST(req: Request) {
@@ -20,9 +20,9 @@ export async function POST(req: Request) {
   }
   const bytes = Buffer.from(await file.arrayBuffer());
   const etag = createHash("md5").update(bytes).digest("hex");
-  g.__pfChunks ??= new Map();
-  g.__pfChunks.set(uploadId, [...(g.__pfChunks.get(uploadId) ?? []), { partNumber, etag, bytes }]);
-  await mkdir(path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "pending"), { recursive: true });
-  await writeFile(path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "pending", `${uploadId}.${partNumber}`), bytes);
+  g.__oiaChunks ??= new Map();
+  g.__oiaChunks.set(uploadId, [...(g.__oiaChunks.get(uploadId) ?? []), { partNumber, etag, bytes }]);
+  await mkdir(path.join(process.env.OIA_DATA_DIR ?? ".data", "pending"), { recursive: true });
+  await writeFile(path.join(process.env.OIA_DATA_DIR ?? ".data", "pending", `${uploadId}.${partNumber}`), bytes);
   return Response.json({ code: 0, data: { partNumber, etag }, msg: "" });
 }

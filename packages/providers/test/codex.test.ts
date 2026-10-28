@@ -31,7 +31,7 @@ describe("BR-CODEX provider $imagegen (Codex CLI + Sign in with ChatGPT)", () =>
   it("INTEGRATION generates a real image when logged in to codex", { timeout: 360_000 }, async () => {
     const p = new CodexImageProvider();
     if (!(await p.isAvailable())) return; // soft skip — never fails CI
-    const result = await p.generate({ prompt: "pastel poster, big bold text 'PIXFORGE OK'", width: 1024, height: 1365 });
+    const result = await p.generate({ prompt: "pastel poster, big bold text 'OIA OK'", width: 1024, height: 1365 });
     expect(result.provider).toBe("codex");
     expect(result.url).toMatch(/^data:image\/png;base64,/);
     expect(result.url.length).toBeGreaterThan(10_000);

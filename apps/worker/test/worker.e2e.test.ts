@@ -52,7 +52,7 @@ async function waitForFile(root: string, timeoutMs = 40_000): Promise<string | n
     try {
       child = spawn("node", ["dist/index.js"], {
         cwd: process.cwd(),
-        env: { ...process.env, REDIS_URL, PIXFORGE_DATA_DIR: dataDir, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock", PIXFORGE_QUEUE_PREFIX: "e2e" },
+        env: { ...process.env, REDIS_URL, OIA_DATA_DIR: dataDir, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock", OIA_QUEUE_PREFIX: "e2e" },
         stdio: ["ignore", "pipe", "pipe"],
       });
       let ready = false;
@@ -66,9 +66,9 @@ async function waitForFile(root: string, timeoutMs = 40_000): Promise<string | n
       // submit from the TEST process (plain queue, no competing worker here)
       const { Queue } = await import("bullmq");
       const u = new URL(REDIS_URL);
-      const queue = new Queue("pixforge-tasks", {
+      const queue = new Queue("oia-tasks", {
         connection: { host: u.hostname, port: Number(u.port || 6379), password: u.password || undefined } as never,
-        prefix: "e2e", // matches the child worker’s PIXFORGE_QUEUE_PREFIX — isolated from other tests
+        prefix: "e2e", // matches the child worker’s OIA_QUEUE_PREFIX — isolated from other tests
       });
       await queue.add("task:generate-poster", {
         taskId: `task_e2e_${Date.now()}`,

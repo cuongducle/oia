@@ -1,4 +1,4 @@
-import type { Template } from "@pixforge/schema";
+import type { Template } from "@oia/schema";
 
 export function fitArtboard(width: number, height: number, availableWidth: number, availableHeight: number): number {
   const w = Math.max(1, width), h = Math.max(1, height);

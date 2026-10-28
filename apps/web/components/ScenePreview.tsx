@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { SceneCanvas } from "@pixforge/schema";
+import type { SceneCanvas } from "@oia/schema";
 import type { StaticCanvas } from "fabric";
 
 /** Render the actual editable scene, not its first image layer or a decorative placeholder. */

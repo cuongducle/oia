@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, X, Trash2, Palette, Save, Upload, ArrowRight } from "lucide-react";
-import type { BrandKit } from "@pixforge/schema";
+import type { BrandKit } from "@oia/schema";
 import Link from "next/link";
 
 export default function BrandKitPage(){

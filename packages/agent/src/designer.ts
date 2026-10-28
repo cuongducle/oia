@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { ImageProvider, LlmProvider } from "@pixforge/providers";
-import type { ChatEvent, SceneCanvas } from "@pixforge/schema";
+import type { ImageProvider, LlmProvider } from "@oia/providers";
+import type { ChatEvent, SceneCanvas } from "@oia/schema";
 
 export interface DesignerAgentDeps {
   llm: LlmProvider;

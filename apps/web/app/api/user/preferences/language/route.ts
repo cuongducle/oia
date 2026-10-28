@@ -3,7 +3,7 @@ import path from "node:path";
 
 export const dynamic = "force-dynamic";
 const LANGUAGES = ["en","zh","ja","ko","es","fr","it","ru","hi","id","tr","pl"];
-function prefsFile() { return path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "user-prefs.json"); }
+function prefsFile() { return path.join(process.env.OIA_DATA_DIR ?? ".data", "user-prefs.json"); }
 export async function GET() {
   try {
     const p = JSON.parse(await readFile(prefsFile(), "utf8"));

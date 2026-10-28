@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type * as fabricNS from "fabric";
-import type { SceneCanvas, ChatEvent, Template } from "@pixforge/schema";
+import type { SceneCanvas, ChatEvent, Template } from "@oia/schema";
 import {
   SIZE_PRESETS, SHAPES, TEXT_PRESET_SPECS, planExport, resizeWithLock,
   addPage, removePage as removePageModel, duplicatePage, blankScene, applySizeToAllPages,
   type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage,
-} from "@pixforge/canvas";
-import { stripMarkers } from "@pixforge/protocol";
+} from "@oia/canvas";
+import { stripMarkers } from "@oia/protocol";
 import { Share2, Download, Cloud, ArrowLeft, Undo2, Redo2, LayoutTemplate, Image as ImageIcon, Type, Shapes, Table2, PenLine, Settings2, History, Plus, X, ArrowUp, Sparkles, Hand, Minus, Maximize, Copy, Globe, AlignLeft, AlignCenter, AlignRight, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown } from "lucide-react";
 import { fitArtboard, sceneSize } from "@/libs/studio-ui";
 import { Dialog } from "@/components/Dialog";
@@ -135,7 +135,7 @@ export default function EditorPage() {
     let cancelled = false;
     let owned: fabricNS.Canvas | null = null;
     (async () => {
-      const { createEditor } = await import("@pixforge/canvas");
+      const { createEditor } = await import("@oia/canvas");
       if (cancelled || !canvasElRef.current) return;
       const editor = await createEditor(canvasElRef.current);
       owned = editor;
@@ -155,8 +155,8 @@ export default function EditorPage() {
           initialScene = j.data.pages[0]?.canvas ?? null;
         } else { throw new Error("Project not found"); }
       } else {
-        const raw = localStorage.getItem("pixforge:scene");
-        const meta = localStorage.getItem("pixforge:project");
+        const raw = localStorage.getItem("oia:scene");
+        const meta = localStorage.getItem("oia:project");
         if (meta) initialName = JSON.parse(meta).name ?? "Untitled project";
         if (raw) initialScene = JSON.parse(raw);
       }
@@ -192,7 +192,7 @@ export default function EditorPage() {
       undoStack.current = [JSON.stringify(editor.toObject())];
       setTimeout(() => captureThumb(0), 150);
 
-      (window as unknown as { __pfCanvas?: fabricNS.Canvas }).__pfCanvas = editor;
+      (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas = editor;
       const pushHistory = () => {
         if (restoring.current) return;
         undoStack.current.push(JSON.stringify(editor.toObject()));
@@ -456,16 +456,16 @@ export default function EditorPage() {
   }
 
   async function addText(kind: TextPreset) {
-    const { addTextPreset } = await import("@pixforge/canvas");
+    const { addTextPreset } = await import("@oia/canvas");
     const family = getComputedStyle(document.body).fontFamily.split(",")[0].replaceAll('"', "");
     callCanvas((c) => addTextPreset(c, kind, family));
   }
   async function addShape(kind: ShapeKind) {
-    const { addShape } = await import("@pixforge/canvas");
+    const { addShape } = await import("@oia/canvas");
     callCanvas((c) => addShape(c, kind));
   }
   async function applyPreset(name: SizePresetName) {
-    const { applySizePreset } = await import("@pixforge/canvas");
+    const { applySizePreset } = await import("@oia/canvas");
     const c = fabricRef.current; if (!c) return;
     applySizePreset(c, name);
     const dims = SIZE_PRESETS[name];
@@ -473,13 +473,13 @@ export default function EditorPage() {
     sceneDimensions.current = dims; fitView(); scheduleSave();
   }
   async function applyCustom(w: number, h: number) {
-    const { resizeCanvas } = await import("@pixforge/canvas");
+    const { resizeCanvas } = await import("@oia/canvas");
     const c = fabricRef.current; if (!c) return;
     resizeCanvas(c, w, h);
     sceneDimensions.current = {width:w,height:h}; fitView(); scheduleSave();
   }
-  async function patchText(patch: Parameters<typeof import("@pixforge/canvas").patchSelectedText>[1]) {
-    const { patchSelectedText } = await import("@pixforge/canvas");
+  async function patchText(patch: Parameters<typeof import("@oia/canvas").patchSelectedText>[1]) {
+    const { patchSelectedText } = await import("@oia/canvas");
     callCanvas((c) => patchSelectedText(c, patch));
     scheduleSave();
   }
@@ -573,7 +573,7 @@ export default function EditorPage() {
       {/* Top bar */}
       <div className="edTop">
         <button className="iconBtn" onClick={() => router.push("/")} aria-label="Back to Home"><ArrowLeft size={18}/></button>
-        <span className="wordmark hideOnMobile" style={{fontSize:19,marginRight:12}}>Pix<span>Forge</span></span>
+        <span className="wordmark hideOnMobile" style={{fontSize:19,marginRight:12}}>O<span>ia</span></span>
         <input className="nameInput" aria-label="Project name" value={projectName} onChange={(e) => { setProjectName(e.target.value); }} onBlur={scheduleSave} />
         <button className="iconBtn" onClick={undo} disabled={!canUndo} title="Undo" aria-label="Undo"><Undo2 size={17}/></button>
         <button className="iconBtn" onClick={redoOp} disabled={!canRedo} title="Redo" aria-label="Redo"><Redo2 size={17}/></button>
@@ -813,18 +813,18 @@ function AsyncLayerBtns() {
     </span>
   );
   async function runLayer(a: "layerFront" | "layerForward" | "layerBackward" | "layerBack") {
-    const c = (window as unknown as { __pfCanvas?: fabricNS.Canvas }).__pfCanvas;
+    const c = (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas;
     if (!c) return;
     const obj = c.getActiveObject();
     if (!obj) return;
-    const { applyLayerAction } = await import("@pixforge/canvas");
+    const { applyLayerAction } = await import("@oia/canvas");
     applyLayerAction(obj as unknown as Parameters<typeof applyLayerAction>[0], a);
     c.requestRenderAll();
   }
   async function runDup() {
-    const c = (window as unknown as { __pfCanvas?: fabricNS.Canvas }).__pfCanvas;
+    const c = (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas;
     if (!c) return;
-    const { duplicateSelected } = await import("@pixforge/canvas");
+    const { duplicateSelected } = await import("@oia/canvas");
     duplicateSelected(c);
   }
 }

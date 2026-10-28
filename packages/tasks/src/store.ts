@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus } from "@pixforge/schema";
+import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus } from "@oia/schema";
 
 /**
  * Task behavior (per the public API reference):

@@ -2,8 +2,8 @@ import {
   TaskStore, LocalFileStore, ApiKeyStore, createQueueBackend,
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
   BrandKitStore, TemplateStore, extractBrandKit, ProjectStore, ChatSessionStore,
-} from "@pixforge/tasks";
-import { getLlmProvider } from "@pixforge/providers";
+} from "@oia/tasks";
+import { getLlmProvider } from "@oia/providers";
 import path from "node:path";
 
 /** Runtime singleton — reused across routes (globalThis guards against hot-reload duplicates). */
@@ -17,11 +17,11 @@ interface Rt {
   chatSessions: ChatSessionStore;
 }
 
-const g = globalThis as unknown as { __pfRt?: Rt };
+const g = globalThis as unknown as { __oiaRt?: Rt };
 
 export async function getRuntime(): Promise<Rt> {
-  if (g.__pfRt) return g.__pfRt;
-  const dataDir = process.env.PIXFORGE_DATA_DIR ?? path.join(process.cwd(), ".data");
+  if (g.__oiaRt) return g.__oiaRt;
+  const dataDir = process.env.OIA_DATA_DIR ?? path.join(process.cwd(), ".data");
   const files = new LocalFileStore(path.join(dataDir, "files"));
   const keys = new ApiKeyStore(path.join(dataDir, "api-keys.json"));
   await keys.load();
@@ -48,13 +48,13 @@ export async function getRuntime(): Promise<Rt> {
     throw new Error("image-translate needs the vision (OCR) module — scheduled later (BR-PROC: fail clearly, never hang)");
   });
 
-  g.__pfRt = { taskStore, files, keys, brandKits, templates, projects, chatSessions };
-  return g.__pfRt;
+  g.__oiaRt = { taskStore, files, keys, brandKits, templates, projects, chatSessions };
+  return g.__oiaRt;
 }
 
-/** BR-KEY guard: with PIXFORGE_REQUIRE_KEY=1 a valid key is required (authorization header). */
+/** BR-KEY guard: with OIA_REQUIRE_KEY=1 a valid key is required (authorization header). */
 export async function requireApiKey(req: Request): Promise<Response | null> {
-  if (process.env.PIXFORGE_REQUIRE_KEY !== "1") return null;
+  if (process.env.OIA_REQUIRE_KEY !== "1") return null;
   const { keys } = await getRuntime();
   const auth = (req.headers.get("authorization") ?? "").trim();
       if (!auth) return unauthorized("missing authorization header");

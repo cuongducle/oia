@@ -43,7 +43,7 @@ export default function ForAgents() {
 
   return (
     <main className="stub">
-      <header className="sectionHeading"><div><h1>For Agents</h1><p>Bring PixForge into your automation workflow.</p></div></header>
+      <header className="sectionHeading"><div><h1>For Agents</h1><p>Bring Oia into your automation workflow.</p></div></header>
       <div className="tabs" style={{ marginBottom: 26 }}>
         <button className={tab === "api" ? "tabBtn active" : "tabBtn"} onClick={() => setTab("api")}>API management</button>
         <button className={tab === "skills" ? "tabBtn active" : "tabBtn"} onClick={() => setTab("skills")}>Skills</button>
@@ -54,9 +54,9 @@ export default function ForAgents() {
           <h3>Agent Skills (SKILL.md)</h3>
           <p className="hintP">Install in ~/.claude/skills (or .agents/skills, .cursor/skills…):</p>
           <pre style={{ background: "#18181b", color: "#f4f4f5", padding: 14, borderRadius: 12, fontSize: 12, overflowX: "auto" }}>
-{`cp -r packages/skills/skills/pixforge-* ~/.claude/skills/
-export PIXFORGE_BASE_URL=${baseUrl}
-export PIXFORGE_API_KEY=${"<your-key>"}`}</pre>
+{`cp -r packages/skills/skills/oia-* ~/.claude/skills/
+export OIA_BASE_URL=${baseUrl}
+export OIA_API_KEY=${"<your-key>"}`}</pre>
           <Link href="/docs" style={{ color: "#7c3aed", fontSize: 13 }}>Full API Reference →</Link>
         </section>
       )}
@@ -122,8 +122,8 @@ export PIXFORGE_API_KEY=${"<your-key>"}`}</pre>
       <section style={{ marginTop: 28 }}>
         <h3>Skills</h3>
         <p className="hintP">
-          Install agent skills (SKILL.md): copy <code>packages/skills/skills/pixforge-*</code> into <code>~/.claude/skills/</code> (or the equivalent directory),
-          set <code>PIXFORGE_BASE_URL={baseUrl}</code> + <code>PIXFORGE_API_KEY</code>.
+          Install agent skills (SKILL.md): copy <code>packages/skills/skills/oia-*</code> into <code>~/.claude/skills/</code> (or the equivalent directory),
+          set <code>OIA_BASE_URL={baseUrl}</code> + <code>OIA_API_KEY</code>.
         </p>
       </section>
       </>

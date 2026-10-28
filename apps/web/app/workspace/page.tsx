@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Upload, Search, FolderOpen, MessageSquare, ArrowUpRight } from "lucide-react";
-import type { Project } from "@pixforge/schema";
+import type { Project } from "@oia/schema";
 import { ScenePreview } from "@/components/ScenePreview";
 
 interface ChatRow { id:number; name:string; updatedAt:number }

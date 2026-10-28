@@ -1,5 +1,5 @@
 {
-  "name": "@pixforge/providers",
+  "name": "@oia/providers",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",

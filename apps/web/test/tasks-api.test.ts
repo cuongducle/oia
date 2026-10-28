@@ -8,11 +8,11 @@ import { POST as chunkUpload } from "../app/api/upload/chunk/route";
 import { POST as chunkComplete } from "../app/api/upload/chunk-complete/route";
 
 // data goes to a temp dir — keeps the repo clean
-process.env.PIXFORGE_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-web-"));
+process.env.OIA_DATA_DIR = mkdtempSync(path.join(tmpdir(), "pf-web-"));
 process.env.IMAGE_PROVIDER = "mock";
 process.env.LLM_PROVIDER = "mock";
 
-beforeAll(() => { delete process.env.PIXFORGE_REQUIRE_KEY; });
+beforeAll(() => { delete process.env.OIA_REQUIRE_KEY; });
 
 function jsonReq(url: string, method: string, body?: unknown): Request {
   return new Request(`http://x${url}`, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { "content-type": "application/json" } });

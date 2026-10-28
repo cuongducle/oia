@@ -21,7 +21,7 @@ export function Sidebar() {
   return <>
     <aside className={`appSidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="sidebarBrand">
-        <Link href="/" className="wordmark" aria-label="PixForge — Home">{collapsed ? "P" : <>Pix<span>Forge</span></>}</Link>
+        <Link href="/" className="wordmark" aria-label="Oia — Home">{collapsed ? "O" : <>O<span>ia</span></>}</Link>
         <button className="iconBtn collapseBtn" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}>
           {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>
@@ -40,9 +40,9 @@ export function Sidebar() {
       </div>
     </aside>
     {helpOpen && <Dialog onClose={() => setHelpOpen(false)} labelledBy="help-title">
-        <div className="sectionHeading"><h2 id="help-title">Getting started with PixForge</h2><button autoFocus className="iconBtn" onClick={() => setHelpOpen(false)} aria-label="Close help"><X size={18} /></button></div>
+        <div className="sectionHeading"><h2 id="help-title">Getting started with Oia</h2><button autoFocus className="iconBtn" onClick={() => setHelpOpen(false)} aria-label="Close help"><X size={18} /></button></div>
         <p>Describe an idea on Home or choose a template. Open the editor to refine every layer and export when you are ready.</p>
-        <p>PixForge uses the AI provider configured in your self-hosted instance. Connect automation tools through the API in For Agents.</p>
+        <p>Oia uses the AI provider configured in your self-hosted instance. Connect automation tools through the API in For Agents.</p>
         <Link className="primaryBtn" href="/docs" onClick={() => setHelpOpen(false)}>Read the docs <ArrowUpRight size={15} /></Link>
     </Dialog>}
   </>;

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { projectSchema, type Project } from "@pixforge/schema";
+import { projectSchema, type Project } from "@oia/schema";
 
 /**
  * BR-PERSIST — project store (JSON-file self-hosting; postgres for multi-user).
@@ -10,7 +10,7 @@ import { projectSchema, type Project } from "@pixforge/schema";
  */
 export class ProjectStore {
   private items: Project[] = [];
-  constructor(private file = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "projects.json")) {}
+  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "projects.json")) {}
 
   async load() { try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; } }
   private async save() {
@@ -80,7 +80,7 @@ let __chatSeq = 0;
 
 export class ChatSessionStore {
   private data: Map<number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }> = new Map();
-  constructor(private file = path.join(process.env.PIXFORGE_DATA_DIR ?? ".data", "chat-sessions.json")) {}
+  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "chat-sessions.json")) {}
 
   async load() {
     try {

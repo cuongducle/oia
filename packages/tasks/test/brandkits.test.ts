@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { BrandKitStore, extractBrandKit } from "../src/brandkits.js";
-import type { LlmProvider } from "@pixforge/providers";
+import type { LlmProvider } from "@oia/providers";
 
 let dir: string; let store: BrandKitStore;
 beforeAll(async () => {

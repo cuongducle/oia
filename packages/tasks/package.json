@@ -1,5 +1,5 @@
 {
-  "name": "@pixforge/tasks",
+  "name": "@oia/tasks",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,8 +16,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@pixforge/providers": "workspace:*",
-    "@pixforge/schema": "workspace:*",
+    "@oia/providers": "workspace:*",
+    "@oia/schema": "workspace:*",
     "bullmq": "^6.5.0",
     "ioredis": "^6.0.0",
     "pptxgenjs": "^4.0.1"
