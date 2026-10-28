@@ -1,14 +1,40 @@
-# PixForge
+<p align="center">
+  <img width="100%" src="docs/screenshots/banner.svg" alt="PixForge — self-hosted AI visual design studio">
+</p>
 
-Open-source, self-hostable AI visual design studio. Describe what you want, let the agent compose it, then edit every layer yourself — posters, presentations, social posts, and more.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-7050e5" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/tests-152%20passing-65a68d" alt="tests">
+  <img src="https://img.shields.io/badge/Next.js-15-242529" alt="Next.js 15">
+  <img src="https://img.shields.io/badge/Fabric.js-7-1246ed" alt="Fabric.js 7">
+  <img src="https://img.shields.io/badge/self--hosted-BYOK-f59e0b" alt="Self-hosted, BYOK">
+</p>
 
-- **Agent chat → design**: streaming SSE agent (`Designer Agent → Image Generator → Manager Agent`) with a live task timeline and progressive canvas updates.
-- **Layer-based editor**: Fabric.js canvas — every generated design stays fully editable (move, restyle, retype text), with multi-page projects, undo/redo, autosave, and sharing.
-- **Export anywhere**: PNG, JPG, PDF (mixed page sizes), PPTX, ZIP.
-- **BYOK generation**: bring your own provider keys — or use the Codex CLI with an existing ChatGPT login. A mock provider ships by default so everything runs keyless.
-- **Toolbox**: quick tools (converters, resizer, charts, AI editor…) plus dedicated skills like the Xiaohongshu/RED carousel creator.
-- **Brand kit**: logos, colors, fonts, and guidance applied to every generation.
-- **For agents**: an HTTP API with API keys and installable `SKILL.md` agent skills (Claude Code, Codex, Cursor, Gemini CLI).
+PixForge is an open-source, self-hostable AI visual design studio. Describe what you want, watch the agent compose it live, then edit every layer yourself — posters, presentations, social posts, and more. Your keys, your server, your data.
+
+<p align="center">
+  <img width="100%" src="docs/screenshots/editor.png" alt="PixForge editor — a generated matcha poster kept fully editable on a Fabric canvas">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img width="100%" src="docs/screenshots/home.png" alt="Home — prompt composer and editable template gallery"></td>
+    <td width="50%"><img width="100%" src="docs/screenshots/toolbox.png" alt="Toolbox — AI skills and quick tools"></td>
+  </tr>
+</table>
+
+## Highlights
+
+| | |
+| --- | --- |
+| **Agent chat → design** | Streaming SSE agent (`Designer Agent → Image Generator → Manager Agent`) with a live task timeline and progressive canvas updates |
+| **Truly editable output** | Every design lands as a layered Fabric.js scene — move, restyle, and retype anything; nothing is a flattened image |
+| **Real editor** | Multi-page projects, undo/redo, autosave, sharing, zoom/pan, text and shape tools, artboard presets |
+| **Export anywhere** | PNG · JPG · PDF (mixed page sizes) · PPTX · ZIP |
+| **BYOK generation** | `mock` · `codex` (your ChatGPT login, no API key) · `openai` · `fal` · `replicate` · `comfyui` |
+| **For agents too** | HTTP API with API keys plus installable `SKILL.md` skills for Claude Code, Codex, Cursor, Gemini CLI |
+
+Also included: a Toolbox of quick tools (converters, resizer, charts, AI editor, Xiaohongshu/RED carousel creator), a Brand Kit applied to every generation, and community templates.
 
 ## Quick start
 
@@ -31,18 +57,18 @@ pnpm build && pnpm typecheck
 REDIS_URL=redis://localhost:6379 pnpm test
 ```
 
-## Providers (BYOK)
+## Bring your own keys
 
-Copy `.env.example` to `.env` and fill in what you have. Leave everything blank to keep the offline mock provider.
+Copy `.env.example` to `.env` and fill in what you have — leave it blank to keep the offline mock provider.
 
 | Variable | Options |
 | --- | --- |
 | `IMAGE_PROVIDER` | `mock` (default) · `codex` · `openai` · `fal` · `replicate` · `comfyui` |
 | `LLM_PROVIDER` | `mock` (default) · `openai` · `openrouter` · `ollama` |
 
-**Codex image generation without any API key**: run `codex login` once (Sign in with ChatGPT), set `IMAGE_PROVIDER=codex`. Generation uses your ChatGPT plan quota via the CLI's `$imagegen`.
+**Image generation without an API key:** run `codex login` once (Sign in with ChatGPT), set `IMAGE_PROVIDER=codex` — generation runs through the Codex CLI's `$imagegen` on your existing plan quota.
 
-## Self-host API
+## Self-host API & agent skills
 
 ```bash
 pnpm --filter @pixforge/web dev
@@ -52,9 +78,10 @@ curl -X POST localhost:3100/api/tasks/generate-poster \
   -d '{"prompt":"pastel coffee poster","noWait":true}'
 ```
 
-Set `PIXFORGE_REQUIRE_KEY=1` in production to require `authorization: pf-…` on resource endpoints. Responses use a `{code, data, msg}` envelope; tasks poll via `GET /api/tasks/{taskId}` (24h TTL). Chunked upload: `POST /api/upload/chunk-init → /chunk → /chunk-complete`.
-
-Agent skills live in `packages/skills/skills/pixforge-*` — copy the ones you need into `~/.claude/skills/` (or your agent's skill directory) and set `PIXFORGE_BASE_URL` + `PIXFORGE_API_KEY`.
+- Responses use a `{code, data, msg}` envelope; poll `GET /api/tasks/{taskId}` (24h TTL)
+- Chunked upload: `POST /api/upload/chunk-init → /chunk → /chunk-complete`
+- Set `PIXFORGE_REQUIRE_KEY=1` in production to require `authorization: pf-…`
+- Skills in `packages/skills/skills/pixforge-*` — copy into `~/.claude/skills/` (or your agent's directory) and set `PIXFORGE_BASE_URL` + `PIXFORGE_API_KEY`
 
 ## Monorepo layout
 
@@ -75,6 +102,6 @@ docs/               design direction and verification notes
 
 ## Status
 
-Honest availability: the editor, generation pipeline, exports, quick tools, brand kit, and agent API are implemented and tested (152 tests, including real Redis worker runs and an authenticated Codex image integration test). Background removal requires the `rembg` CLI. PPT Translator is a coming-soon landing page. Multilingual generation follows your prompt's language; the interface is English.
+The editor, generation pipeline, exports, quick tools, brand kit, and agent API are implemented and tested (152 tests, including real Redis worker runs and an authenticated Codex image integration). Background removal requires the `rembg` CLI. PPT Translator is a coming-soon landing page. Multilingual generation follows your prompt's language; the interface is English.
 
 MIT licensed. See [LICENSE](LICENSE).

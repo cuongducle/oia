@@ -1,0 +1,11 @@
+<svg width="1200" height="240" viewBox="0 0 1200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="1" y="1" width="1198" height="238" rx="20" fill="#fafaf9" stroke="#e5e5e8" stroke-width="2"/>
+  <rect x="40" y="40" width="10" height="160" rx="5" fill="#7050e5"/>
+  <text x="76" y="122" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="-2.5">
+    <tspan fill="#242529">Pix</tspan><tspan fill="#7050e5">Forge</tspan>
+  </text>
+  <text x="78" y="162" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="22" fill="#6e707b" letter-spacing="0.2">Self-hosted AI visual design studio — agent chat, BYOK generation, editable layers</text>
+  <circle cx="1140" cy="60" r="7" fill="#7050e5"/>
+  <circle cx="1118" cy="60" r="7" fill="#b9a9ec"/>
+  <circle cx="1096" cy="60" r="7" fill="#e5e5e8"/>
+</svg>
