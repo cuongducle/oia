@@ -1,0 +1,22 @@
+# build
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# runtime data
+.data/
+
+# env
+.env
+.env.*
+!.env.example
+
+# local research notes (not published)
+docs/private/
+
+# misc
+.DS_Store
+*.log

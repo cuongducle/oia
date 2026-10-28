@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["REDIS_URL", "PIXFORGE_DATA_DIR", "PIXFORGE_QUEUE_PREFIX", "PIXFORGE_NSFW", "PIXFORGE_REQUIRE_KEY", "IMAGE_PROVIDER", "LLM_PROVIDER", "OPENAI_API_KEY", "FAL_KEY", "CODEX_BIN"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "test": { "dependsOn": ["^build"] },
+    "typecheck": { "dependsOn": ["^build"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

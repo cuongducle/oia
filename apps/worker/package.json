@@ -1,0 +1,26 @@
+{
+  "name": "@pixforge/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "demo": "tsc -p tsconfig.json && WORKER_DEMO=1 node dist/index.js"
+  },
+  "dependencies": {
+    "@pixforge/providers": "workspace:*",
+    "@pixforge/schema": "workspace:*",
+    "@pixforge/tasks": "workspace:*",
+    "bullmq": "^6.5.0",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
