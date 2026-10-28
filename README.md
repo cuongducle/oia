@@ -167,6 +167,12 @@ packages/skills     Coding-agent instructions
 
 </details>
 
+## Desktop direction (planned)
+
+The planned product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. See the [desktop architecture research](docs/desktop-architecture.md) for the Electron proposal, reference projects, migration sequence, and platform verification requirements.
+
+**Desktop installers are not available yet.** The setup instructions above describe the current self-hosted web implementation, not a packaged desktop release.
+
 ## Deployment & current boundaries
 
 - **Designed for a trusted self-hosted environment.** API-key checks on guarded routes are not a complete, application-wide authentication system. Put the app behind access control before exposing it publicly.
