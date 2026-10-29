@@ -342,3 +342,54 @@ describe("STAGE-0 TP.3/TP.8: mode passthrough + zone-anchored cover crop", () =>
     expect(artwork.cropX).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe("STAGE-0 remediation: A5 reusePlan / B3 provider attribution / A4 resetAt", () => {
+  it("A5: reusePlan skips the planner entirely — zero llm turns on a stage-aware retry", async () => {
+    let llmCalls = 0;
+    const llmSpy: LlmProvider = { name: "planner-x", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { llmCalls++; return plan; } };
+    const out: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent(
+      { prompt: "banner", reusePlan: { title: "T", imagePrompt: "p", blocks: [{ role: "price", text: "20%" }] } },
+      { llm: llmSpy, image },
+    )) out.push(ev);
+    expect(llmCalls).toBe(0); // the cached plan rides again
+    expect(out.some((e) => e.content.includes("[[canvas::"))).toBe(true); // image stage still ran
+  });
+
+  it("A5: onPlan stashes the successful plan for the route's retry cache", async () => {
+    let stashed: unknown = null;
+    const out: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "poster", onPlan: (p) => (stashed = p) }, { llm, image })) out.push(ev);
+    expect(stashed).toMatchObject({ title: "Coffee milk tea poster 20% off" });
+  });
+
+  it("B3: a planner failure is attributed to the PLANNER, never the image provider", async () => {
+    const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in" });
+    // the mock throws ProviderError carrying its own name — verify a GENERIC Error path too
+    const genericLlm: LlmProvider = {
+      name: "planner-real", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat() { throw new Error("boom"); },
+    };
+    const out: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "x" }, { llm: genericLlm, image: failing })) out.push(ev);
+    const failure = out.find((e) => e.error)!;
+    expect(failure.provider).toBe("planner-real"); // the throwing stage, not deps.image.name
+    expect(failure.errorClass).toBe("unknown");
+  });
+
+  it("A4: a quota failure carries resetAt on the event (Q3)", async () => {
+    const quotaLlm = new FailingMockLlmProvider({ errorClass: "quota_exceeded" });
+    // simulate resetAt by wrapping a ProviderError with resetAt through the image stage
+    const { ProviderError } = await import("@oia/providers");
+    const quotaImg: ImageProvider = {
+      name: "codex", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async generate() { throw new ProviderError("quota_exceeded", "codex quota exhausted", { provider: "codex", resetAt: "2026-10-30T08:00:00Z" }); },
+    };
+    const out: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "x" }, { llm, image: quotaImg })) out.push(ev);
+    const failure = out.find((e) => e.error)!;
+    expect(failure.errorClass).toBe("quota_exceeded");
+    expect(failure.resetAt).toBe("2026-10-30T08:00:00Z");
+    expect(failure.provider).toBe("codex");
+  });
+});

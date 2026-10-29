@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { projectSchema, type Project } from "@oia/schema";
-import { atomicWriteJson } from "./atomic.js";
+import { atomicWriteJson, sweepTempFiles } from "./atomic.js";
 import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import type { FileStore } from "./storage.js";
 
@@ -21,7 +21,10 @@ export class ProjectStore {
     private files?: FileStore,
   ) {}
 
-  async load() { try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; } }
+  async load() {
+    await sweepTempFiles(this.file); // C6: clear orphaned .tmp siblings from a crash mid-rename
+    try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; }
+  }
   private async save() {
     await atomicWriteJson(this.file, this.items);
   }
@@ -96,12 +99,14 @@ let __chatSeq = 0;
 
 export class ChatSessionStore {
   private data: Map<number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }> = new Map();
+  private __lastUpdated = 0;
   constructor(
     private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "chat-sessions.json"),
     private files?: FileStore,
   ) {}
 
   async load() {
+    await sweepTempFiles(this.file); // C6: clear orphaned .tmp siblings
     try {
       const arr = JSON.parse(await readFile(this.file, "utf8")) as [number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }][];
       this.data = new Map(arr);
@@ -115,6 +120,7 @@ export class ChatSessionStore {
     __chatSeq += 1;
   const id = Date.now() * 1000 + (__chatSeq % 1000); // unique even for back-to-back calls in the same ms
     this.data.set(id, { id, name: name?.slice(0, 80) || "New chat", messages: [], createdAt: id, updatedAt: id });
+    this.__lastUpdated = Math.max(this.__lastUpdated + 1, id); // monotonic — same-ms bursts must not tie
     void this.save();
     return { id, name: this.data.get(id)!.name };
   }
@@ -129,7 +135,10 @@ export class ChatSessionStore {
     const canvas = (assistant.renderData as { msgMeta?: { type: string; canvas?: unknown }[] } | undefined)?.msgMeta?.find((m) => m.type === "canvas")?.canvas;
     s.messages.push({ role: "user", content: user, createdAt: Date.now() });
     s.messages.push({ role: "assistant", content: assistant.content, renderData: assistant.renderData, canvas, createdAt: Date.now() });
-    s.updatedAt = Date.now();
+    // monotonic updatedAt: equal timestamps in a same-ms burst made recent() return the
+    // OLDEST session first (stable sort keeps insertion order) — found via the retry test
+    s.updatedAt = Math.max(this.__lastUpdated + 1, Date.now());
+    this.__lastUpdated = s.updatedAt;
     await this.save();
     return s;
   }

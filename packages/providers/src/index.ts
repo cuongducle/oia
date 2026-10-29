@@ -21,11 +21,13 @@ export {
   findSessionImage,
   newestGeneratedImage,
   classifyCodexFailure,
+  noteCancelledImageJob,
+  waitForStableFile,
   CODEX_DEFAULT_MODEL,
   CODEX_IMAGE_DEFAULT_MODEL,
   CODEX_REASONING_EFFORT,
 } from "./codex/bridge.js";
-export { CliRuntime, assertRunOk, createScratchDir, removeScratchDir, writeTranscript, readTranscripts, asciiUuid } from "./cli/runtime.js";
+export { CliRuntime, createScratchDir, removeScratchDir, writeTranscript, asciiUuid } from "./cli/runtime.js";
 export {
   openAiImages,
   trueRatioSize,

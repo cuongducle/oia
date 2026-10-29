@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import type { ProviderDiagnostic } from "../types.js";
 import { ProviderError } from "../types.js";
+import type { ErrorClass } from "@oia/schema";
 import { CliRuntime, createScratchDir, removeScratchDir, writeTranscript } from "../cli/runtime.js";
 
 /**
@@ -48,6 +49,8 @@ export interface CodexExecResult {
   durationMs: number;
   /** The role-scoped scratch dir (planner: empty -C dir; image: writable job dir). */
   scratchDir: string;
+  /** Correlation: the caller's jobId (TP.4 — one banner attempt reconstructable). */
+  jobId: string;
 }
 
 export const CODEX_DEFAULT_MODEL = process.env.CODEX_LLM_MODEL ?? "gpt-6-luna";
@@ -109,6 +112,36 @@ export async function findSessionImage(threadId: string, rootOverride?: string):
   return best?.file ?? null;
 }
 
+/**
+ * TP.5/A8 — cancel ledger: a killed image job may still flush its PNG moments later.
+ * The fallback scan ignores files whose mtime sits at/below a cancel mark (+1s tolerance):
+ * a LATER job's image always lands strictly after the kill, the killed job's late write
+ * does not — no cross-job misattribution.
+ */
+const gLedger = globalThis as unknown as { __oiaCodexCancelMarks?: number[] };
+export function noteCancelledImageJob(at: number = Date.now()): void {
+  gLedger.__oiaCodexCancelMarks ??= [];
+  gLedger.__oiaCodexCancelMarks.push(at);
+  if (gLedger.__oiaCodexCancelMarks.length > 20) gLedger.__oiaCodexCancelMarks.shift();
+}
+function notFromACancelledJob(mtimeMs: number): boolean {
+  return !(gLedger.__oiaCodexCancelMarks ?? []).some((m) => mtimeMs <= m + 1000);
+}
+
+/** Wait for a just-written file to settle (size stable across two reads) — a codex exit
+ *  code does not guarantee the PNG flush finished (B8). Returns false on timeout. */
+export async function waitForStableFile(file: string, maxMs = 2000, probeMs = 150): Promise<boolean> {
+  const size = async () => (await stat(file).catch(() => null))?.size ?? -1;
+  let last = await size();
+  for (const t0 = Date.now(); Date.now() - t0 < maxMs; ) {
+    await new Promise((r) => setTimeout(r, probeMs));
+    const now = await size();
+    if (now === last && now >= 0) return true; // stable
+    last = now;
+  }
+  return last >= 0;
+}
+
 /** Last resort: newest image anywhere under generated_images (provenance-marked by the caller). */
 export async function newestGeneratedImage(withinMs = 10 * 60_000, rootOverride?: string): Promise<string | null> {
   const root = rootOverride ?? path.join(homedir(), ".codex", "generated_images");
@@ -124,7 +157,10 @@ export async function newestGeneratedImage(withinMs = 10 * 60_000, rootOverride?
     for (const f of files.filter((f) => /\.(png|jpe?g|webp)$/i.test(f))) {
       const file = path.join(dir, f);
       const s = await stat(file).catch(() => null);
-      if (s && Date.now() - s.mtimeMs <= withinMs && (!best || s.mtimeMs > best.mtimeMs)) best = { file, mtimeMs: s.mtimeMs };
+      if (!s) continue;
+      if (Date.now() - s.mtimeMs > withinMs) continue;
+      if (!notFromACancelledJob(s.mtimeMs)) continue; // A8: late write from a killed job
+      if (!best || s.mtimeMs > best.mtimeMs) best = { file, mtimeMs: s.mtimeMs };
     }
   }
   return best?.file ?? null;
@@ -142,7 +178,13 @@ export function classifyCodexFailure(res: { code: number | null; stdout: string;
     return new ProviderError("rate_limited", "codex hit a rate limit", { provider: "codex", detail: text.slice(0, 300) });
   }
   if (/usage limit|quota|exceeded your|limit reached/i.test(text)) {
-    return new ProviderError("quota_exceeded", "codex quota exhausted", { provider: "codex", detail: text.slice(0, 300) });
+    // Q3: keep the reset time the CLI shows ("Your limit resets at 2026-10-30T08:00:00Z")
+    const reset = /resets?\s+(?:at|on)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}[T ][0-9:.]+(?:Z|[+-][0-9]{2}:?[0-9]{2})?)/i.exec(text);
+    return new ProviderError("quota_exceeded", "codex quota exhausted", {
+      provider: "codex",
+      detail: text.slice(0, 300),
+      ...(reset ? { resetAt: reset[1] } : {}),
+    } as { provider: string; detail: string; resetAt?: string });
   }
   if (/content policy|safety|refus/i.test(text)) {
     return new ProviderError("content_refused", "codex refused the request", { provider: "codex", detail: text.slice(0, 300) });
@@ -208,19 +250,27 @@ export class CodexBridge {
       for (const img of opts.images ?? []) args.push("-i", img);
     }
 
-    const res = await this.runtime.run({
-      bin: this.bin,
-      args,
-      stdin: opts.prompt,
-      timeoutMs: opts.timeoutMs,
-      signal: opts.signal,
-      jobId: opts.jobId,
-      cwd: scratchDir,
-    });
+    let res;
+    try {
+      res = await this.runtime.run({
+        bin: this.bin,
+        args,
+        stdin: opts.prompt,
+        timeoutMs: opts.timeoutMs,
+        signal: opts.signal,
+        jobId: opts.jobId,
+        cwd: scratchDir,
+      });
+    } catch (err) {
+      // B2: the scratch dir existed before spawn — an ENOENT/unknown spawn failure must not leak it
+      await removeScratchDir(scratchDir);
+      throw err;
+    }
     const out: CodexExecResult = {
       ...res,
       threadId: parseThreadId(res.stdout),
       scratchDir,
+      jobId: opts.jobId,
     };
     // failed runs clean their own scratch — no orphan dirs from aborted/errored jobs
     if (out.code !== 0 || out.timedOut || out.aborted) await removeScratchDir(scratchDir);
@@ -268,7 +318,7 @@ export class CodexBridge {
     try {
       raw = await readFile(file, "utf8");
     } catch {
-      await writeTranscript(res.scratchDir.split("/").pop() ?? "unknown", {
+      await writeTranscript(res.jobId, {
         note: "plan.json missing after exec",
         stdoutTail: res.stdout.slice(-300),
       });

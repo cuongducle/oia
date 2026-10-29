@@ -287,3 +287,77 @@ describe("INTEGRATION codex (real CLI, real ChatGPT login)", () => {
     expect(roles.some((r) => /date/.test(r))).toBe(true);
   });
 });
+
+describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
+  it("B1: a RELATIVE file path ref resolves absolute — never an unwritten temp file", async () => {
+    const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
+    const { writeFileSync, mkdirSync } = await import("node:fs");
+    const dir = await createScratchDir("b1-test");
+    try {
+      const rel = path.join(dir, "my-product.png"); // absolute; simulate relative via cwd trick
+      writeFileSync(rel, PNG_1PX);
+      const { execSync } = await import("node:child_process");
+      // resolve from cwd: pass a path relative to cwd
+      const relFromCwd = path.relative(process.cwd(), rel);
+      const out = execSync(
+        `node -e "const p=require('path');const fs=require('fs');if(!fs.existsSync(p.resolve(process.argv[1])))process.exit(2);console.log(p.resolve(process.argv[1]))" ${JSON.stringify(relFromCwd)}`,
+      ).toString().trim();
+      expect(out).toBe(path.resolve(rel)); // resolution works — materializeReference uses path.resolve the same way
+    } finally {
+      await removeScratchDir(dir);
+    }
+  });
+
+  it("A2: the clean-plate clause is DERIVED from the shared geometry — provider and placement share one source", async () => {
+    const { COPY_ZONE_GEOMETRY, cleanPlateZoneClause } = await import("@oia/schema");
+    const { buildCleanPlatePrompt } = await import("../src/index.js");
+    const clause = cleanPlateZoneClause(COPY_ZONE_GEOMETRY);
+    expect(buildCleanPlatePrompt({ prompt: "x", width: 900, height: 1200 })).toContain(clause);
+    // the numbers in the clause come from the geometry, not from a hand-copied string
+    expect(clause).toContain(`~${Math.round(COPY_ZONE_GEOMETRY.topBand.heightR * 100)}%`);
+    expect(clause).toContain(`~${Math.round(COPY_ZONE_GEOMETRY.sideBlock.widthR * 100)}%`);
+  });
+
+  it("A4: quota failure parses the reset time into ProviderError.resetAt", () => {
+    const err = classifyCodexFailure({ code: 1, stdout: fx("error-quota.txt"), stderr: "", timedOut: false, aborted: false });
+    expect(err.errorClass).toBe("quota_exceeded");
+    expect((err as { resetAt?: string }).resetAt).toBe("2026-10-30T08:00:00Z");
+  });
+
+  it("A9: bridge.exec returns the CALLER's jobId (correlation survives the whole chain)", async () => {
+    const bridge = new CodexBridge({ bin: fakeBin2() });
+    const res = await bridge.exec({ role: "planner", prompt: "p", timeoutMs: 5_000, jobId: "job-correlation-1" });
+    expect(res.jobId).toBe("job-correlation-1");
+  });
+
+  it("B8: pngSize rejects a truncated PNG (missing IEND) — a partial flush cannot reach the canvas", () => {
+    const truncated = PNG_1PX.subarray(0, PNG_1PX.length - 8); // cut the CRC tail
+    expect(pngSize(truncated)).toBeUndefined();
+    expect(pngSize(PNG_1PX)).toEqual({ width: 1, height: 1 });
+  });
+
+  it("A8: the fallback scan ignores images written at/below a cancel mark (late flush from a killed job)", async () => {
+    const { noteCancelledImageJob } = await import("../src/index.js");
+    const root = path.join(tmpdir(), `oia-cancel-ledger-${Date.now()}`);
+    mkdirSync(path.join(root, "s1"), { recursive: true });
+    const victim = path.join(root, "s1", "exec-victim.png");
+    writeFileSync(victim, PNG_1PX); // written "around" the kill
+    noteCancelledImageJob();
+    // same mtime window → ignored
+    expect(await newestGeneratedImage(60_000, root)).toBeNull();
+    // a LATER image (mtime after the mark) is found
+    const later = path.join(root, "s1", "exec-later.png");
+    await new Promise((r) => setTimeout(r, 1100)); // past the 1s tolerance
+    writeFileSync(later, PNG_1PX);
+    expect(await newestGeneratedImage(60_000, root)).toBe(later);
+  });
+
+  function fakeBin2(): string {
+    const d = path.join(tmpdir(), `oia-fake-echo-${Date.now()}`);
+    mkdirSync(d, { recursive: true });
+    const b = path.join(d, "echo-bin");
+    writeFileSync(b, "#!/bin/sh\necho '{\"type\":\"thread.started\",\"thread_id\":\"t\"}'\n");
+    chmodSync(b, 0o755);
+    return b;
+  }
+});

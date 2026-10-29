@@ -124,7 +124,9 @@ export default function Home() {
     } catch { setError("The reference image could not be uploaded. Please try again."); }
     finally { setUploading(false); }
   }
-  async function submit() {
+  /** TP.4 stage-aware retry: retryOf points at the failed job — the route reuses the
+   *  cached plan so a retry that only needs the image spends zero planner turns. */
+  async function submit(retryOf?: string) {
     if (!prompt.trim() || busy || uploading) return;
     setBusy(true); setError(""); setTimeline([]); setNarrative(""); setErrorAction(null); setJobId(null);
     const streamAbort = new AbortController();
@@ -138,6 +140,7 @@ export default function Home() {
         ...(pages !== "auto" ? { pages: Number(pages) } : {}), ...(outlineMode ? { outlineMode: true } : {}),
         ...(skill ? { skill } : {}), ...(refs.length ? { referenceImages: refs } : {}),
         mode: editableText ? "clean-plate" : "poster",
+        ...(retryOf ? { retryOf } : {}),
       }) });
       if (!res.ok || !res.body) throw new Error("Could not connect to the assistant. Check your AI provider settings.");
       const reader = res.body.getReader(), decoder = new TextDecoder(); let buf = "";
@@ -153,7 +156,7 @@ export default function Home() {
           if (ev.error) {
             const p = presentError(ev.errorClass);
             setErrorAction(p);
-            setError(tt(p.messageKey));
+            setError(ev.resetAt ? `${tt(p.messageKey)} (${tt("error.resetAt").replace("{time}", ev.resetAt)})` : tt(p.messageKey));
           }
           if (ev.renderData?.taskMeta?.length) setTimeline(ev.renderData.taskMeta);
           if (ev.content) setNarrative(n => n + stripMarkers(ev.content) + " ");
@@ -213,7 +216,7 @@ export default function Home() {
         <button className="advancedToggle" aria-expanded={advanced} aria-controls="advanced-settings" onClick={() => setAdvanced(!advanced)}><SlidersHorizontal size={16} /><span>Advanced settings</span><ChevronDown size={13} /></button>
         {busy
           ? <button className="generateBtn" onClick={stop} aria-label={tt("editor.stop")} title={tt("editor.stop")} style={{ background:"#dc2626" }}><Square size={18} /></button>
-          : <button className="generateBtn" onClick={submit} disabled={busy || uploading || !prompt.trim()} aria-label={busy ? "Designing" : "Generate design"}><ArrowRight size={21} /></button>}
+          : <button className="generateBtn" onClick={() => void submit()} disabled={busy || uploading || !prompt.trim()} aria-label={busy ? "Designing" : "Generate design"}><ArrowRight size={21} /></button>}
       </div>
       {advanced && <div id="advanced-settings" className="advancedSettings">
         <label className="field">Pages<select value={pages} onChange={e => setPages(e.target.value)}><option value="auto">Auto</option>{Array.from({length:9},(_,i)=><option key={i} value={i+1}>{i+1} {i===0?"page":"pages"}</option>)}</select></label>
@@ -227,7 +230,7 @@ export default function Home() {
     <div className="formatRow" aria-label="Suggested formats">{FORMATS.map(({name,Icon,prompt:p})=><button key={name} className={`formatBtn ${activeFormat===name?"active":""}`} onClick={()=>{setActiveFormat(name);setPrompt(p);}}><Icon size={17}/>{name}</button>)}</div>
     {mockMode && <div role="status" className="notice" style={{ borderColor:"#f59e0b", background:"#fffbeb" }}>{tt("provider.mockBanner")}</div>}
     {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && <p className="hintP" role="status" style={{ display:"flex", gap: 8, alignItems: "center" }}><span>🪙</span><span>{tt("quota.chip").replace("{image}", String(quota.image)).replace("{planner}", String(quota.planner))}{quota.limitHits > 0 ? ` · ${tt("quota.limitHits").replace("{n}", String(quota.limitHits))}` : ""}</span></p>}
-    {error && <div role="alert" className="notice error">{error}{errorAction && errorAction.actionKind !== "none" && <> · <button className="linklike" onClick={() => { if (errorAction.actionKind === "retry") void submit(); else setError(tt(errorAction.actionKind === "login" ? "error.hintLogin" : "error.hintGuide")); }}>{tt(errorAction.actionLabelKey!)}</button></>}</div>}
+    {error && <div role="alert" className="notice error">{error}{errorAction && errorAction.actionKind !== "none" && <> · <button className="linklike" onClick={() => { if (errorAction.actionKind === "retry") void submit(jobId ?? undefined); else setError(tt(errorAction.actionKind === "login" ? "error.hintLogin" : "error.hintGuide")); }}>{tt(errorAction.actionLabelKey!)}</button></>}</div>}
     {busy && <p className="hintP" role="status">Your assistant is designing. Your creation will appear here…</p>}
     {timeline.length>0 && <div className="timeline">{timeline.map(t=><div key={t.id} className={`t ${t.type} ${t.status==="1"?"done":""}`}>{t.content} · {t.status==="0"?"In progress":"Done"}</div>)}</div>}
     {narrative && <div className="narrative">{narrative.trim()}</div>}

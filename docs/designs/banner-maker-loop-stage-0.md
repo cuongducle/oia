@@ -434,13 +434,13 @@ Verified facts (2026-10-28, Codex CLI 0.163.0 `exec --help`):
 
 ---
 
-## Appendix — Implementation status (2026-10-30, cuongducle)
+## Appendix — Implementation status (updated 2026-10-30 after self-review remediation, cuongducle)
 
-All five slices are implemented and merged behind green tests (build 9/9, tests 16/16
-force-run, typecheck clean; real-machine verification noted per slice). This appendix
-records what shipped, execution decisions taken inside the design's latitude, defects
-found on the way, and what remains gated for later steps. The design text above is the
-approved record and is unchanged.
+All five slices are implemented (build 9/9, tests 16/16 force-run, typecheck clean).
+A self-review after the initial implementation found nine design clauses silently
+dropped and eight real defects; a remediation pass fixed them. The tables below are
+the honest record: DONE means shipped with tests; DEFERRED means not shipped, with
+the reason — nothing is silently missing.
 
 ### Shipped per slice
 
@@ -498,6 +498,32 @@ approved record and is unchanged.
   presets: Shopee 1024×1024, Lazada 800×800, TikTok Shop 1080×1080 (existing
   TikTok 9:16 untouched). README: provider matrix gains `LLM_PROVIDER=codex`,
   the refinement warning is replaced by the non-destruction guarantee.
+
+### Design clauses vs implementation (the honest ledger)
+
+| Design clause | Status | Where / why |
+| --- | --- | --- |
+| TP.7 no-base64 on the wire (B7) | **DONE (remediated)** | SSE events are assetized in the route before enqueue — verified on a live server: 0 `data:` occurrences in a full stream; artwork+thumbnail dedupe to one asset |
+| Anti-drift single-constants module (TP.1) | **DONE (remediated)** | zone geometry moved to `@oia/schema` (`COPY_ZONE_GEOMETRY`); the clean-plate clause is DERIVED from it and the placement consumes the same ratios — the provider no longer hand-copies the text (anti-drift test pins it) |
+| G3 max-one-metered-job / refuse `rate_limited` | **DONE (remediated)** | in-flight guard in the chat route; mock providers bypass (tests stay parallel); refusal carries attemptNumber 0 |
+| Q3 quota reset time surfaced | **DONE (remediated)** | parsed into `ProviderError.resetAt` → event `resetAt` → appended to the Vietnamese message (fixture-pinned) |
+| TP.4 stage-aware retry (reuse the plan) | **DONE (remediated)** | designer `onPlan` stashes the plan per session; a retry with `retryOf` skips the planner (route test: 1 planner turn across two runs) |
+| format_drift warning on repeated fallback | **DONE (remediated, log-level)** | consecutive fallback-scan locates emit a `format_drift` warning on the result + a warn log (no UI surface in Stage 0) |
+| TP.5 late-written image vs later fallback scan | **DONE (remediated)** | bridge cancel ledger: fallback scan ignores files whose mtime sits at/below a cancel mark (+1 s tolerance) |
+| jobId correlation end-to-end (TP.4) | **DONE (remediated)** | route pre-generates jobId → designer → providers → bridge → CLI transcripts (bridge returns the caller's jobId; no more scratch-UUID pseudo-ids) |
+| "Never crop into the reference product bbox" | **DEFERRED** | requires knowing where the product landed in the GENERATED image — no detector exists pre-generation; the dead `protectBox` parameter was removed and the re-entry point documented in copy-zones.ts |
+| confirmRequest round-trip (TP.10) | **DEFERRED** | schema side shipped; the editor's only flow is the preserving merge (nothing user-owned can be lost); the explicit "replace everything" confirmation activates when such an action exists in the UI |
+| Worker/queue topology | **DEFERRED (pre-existing)** | `TaskStore.submit` runs handlers in the web process; the BullMQ worker is a parallel deployment path the task API does not currently route through. Slice 4's cross-process cancel contract is real and tested, but serves a topology the API does not exercise — recorded here rather than hidden |
+| Truncated-PNG guard (B8) | **DONE (remediated)** | exit-0 ≠ flushed: stable-size wait + full PNG validation (IEND) before the canvas |
+| Scratch-dir leaks (B2) | **DONE (remediated)** | spawn rejection now cleans the scratch dir |
+| Relative-path reference refs (B1) | **DONE (remediated)** | resolved absolute + probed; never an unwritten temp file |
+| Planner failures mislabeled as image-provider (B3) | **DONE (remediated)** | `fail(err, providerHint)` — attribution from the throwing stage |
+| msgId collisions (B6) | **DONE (remediated)** | `nextMsgId()` monotonic; used by designer and route |
+| TaskStore cancel status race (B7-tasks) | **DONE (remediated)** | cancel aborts only; the completion path records `cancelled` (afterCompletion keeps a produced result — no lying states) |
+| Dead exports (assertRunOk/mkTmpDir/createEmptyDir/version/readTranscripts/onStdoutLine) | **DONE (removed)** | unused public surface deleted; `testing/` helpers remain exported deliberately (shared by agent/tasks/web suites) |
+| Orphaned .tmp files after a crash | **DONE (remediated)** | both stores sweep temp siblings on load |
+| ChatSessionStore.recent() same-ms tie bug | **DONE (found via retry test)** | equal updatedAt made the OLDEST session "most recent" (stable sort) — updatedAt is now monotonic |
+| zoneForRole English-only keywords | **DONE (remediated)** | Vietnamese hints match (trên/đỉnh/bên phải/dưới…) |
 
 ### Execution decisions inside the design's latitude
 

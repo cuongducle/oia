@@ -2,6 +2,12 @@ import { z } from "zod";
 import { sceneCanvasSchema } from "./scene.js";
 import { errorClassSchema } from "./plan.js";
 
+/** Monotonic msgId: Date.now() alone collides for same-ms streams (design B-blocker note). */
+let __msgSeq = 0;
+export function nextMsgId(): number {
+  return Date.now() * 1000 + (++__msgSeq % 1000);
+}
+
 /** SSE event in the chat/send stream. */
 export const taskMetaSchema = z.object({
   id: z.string(),
@@ -60,6 +66,8 @@ export const chatEventSchema = z.object({
   provider: z.string().optional(),
   /** Cancel outcome flag (job outcome, not an error class): artwork was already produced. */
   afterCompletion: z.boolean().optional(),
+  /** TP.4/Q3 — quota reset time when known (parsed from provider output, ISO string). */
+  resetAt: z.string().optional(),
 });
 
 export type ChatEvent = z.infer<typeof chatEventSchema>;

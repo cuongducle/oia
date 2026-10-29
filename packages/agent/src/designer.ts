@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, GenerationMode } from "@oia/schema";
-import { parsePlannerPlan, normalizeBlocks } from "@oia/schema";
+import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, GenerationMode, PlannerPlan } from "@oia/schema";
+import { parsePlannerPlan, normalizeBlocks, nextMsgId } from "@oia/schema";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -31,6 +31,11 @@ export interface DesignerAgentInput {
   signal?: AbortSignal;
   /** TP.4/TP.5 — correlation id; when provided (the SSE route pre-generates it so /api/chat/cancel can address the job), every event carries it. */
   jobId?: string;
+  /** TP.4 stage-aware retry: a cached plan from a failed-image run — the planner stage
+   *  is skipped entirely (zero planner turns spent on a retry that only needs the image). */
+  reusePlan?: PlannerPlan;
+  /** TP.4: the route stashes the successful plan per session so a retry reuses it. */
+  onPlan?: (plan: PlannerPlan) => void;
 }
 
 const uuid32 = () => randomUUID().replace(/-/g, "");
@@ -126,7 +131,7 @@ export async function* runDesignerAgent(
   deps: DesignerAgentDeps,
 ): AsyncGenerator<ChatEvent> {
   const jobId = input.jobId ?? randomUUID();
-  const msgId = Date.now();
+  const msgId = nextMsgId(); // monotonic — Date.now() alone collides for same-ms streams
   const brandId = input.brandId ?? 0;
   const width = input.width ?? 1360;
   const height = input.height ?? 2048;
@@ -146,13 +151,16 @@ export async function* runDesignerAgent(
     ...extra,
   });
 
-  const fail = (err: unknown): ChatEvent => {
-    const pe = ProviderError.from(err, deps.image.name);
+  // B3: provider attribution comes from the THROWING stage — a planner failure is never
+  // labeled with the image provider's name. ProviderError keeps its own provider when set.
+  const fail = (err: unknown, providerHint: string): ChatEvent => {
+    const pe = ProviderError.from(err, providerHint);
     return ev("", {
       error: pe.message,
       errorClass: pe.errorClass,
-      provider: pe.provider ?? deps.image.name,
+      provider: pe.provider ?? providerHint,
       attemptNumber: 1, // metered jobs run exactly once (G3)
+      resetAt: pe.resetAt, // Q3: quota reset time when the provider showed one
       renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null },
     });
   };
@@ -164,6 +172,10 @@ export async function* runDesignerAgent(
   yield ev(`<Collapse>[[task::node::${nodeId}]]`);
 
   let plan: ReturnType<typeof parsePlannerPlan>;
+  if (input.reusePlan) {
+    // TP.4 stage-aware retry: the cached plan rides again — the planner never runs
+    plan = input.reusePlan;
+  } else
   try {
     const planRaw = await deps.llm.chat(
       [
@@ -186,16 +198,17 @@ export async function* runDesignerAgent(
         },
         { role: "user", content: input.prompt },
       ],
-      { json: true, signal: input.signal },
+      { json: true, signal: input.signal, jobId: input.jobId },
     );
     plan = parsePlannerPlan(planRaw);
     if (!plan) {
       throw new ProviderError("plan_parse_failed", "the planner returned a malformed plan", { provider: deps.llm.name });
     }
+    input.onPlan?.(plan); // stash for stage-aware retry (TP.4)
   } catch (err) {
     if (input.signal?.aborted) return; // TP.5: silent stop — the route emits the terminal cancelled event
     // G2/G7: planner failure aborts BEFORE image generation — explicit failure event, one attempt, no silent fallback
-    yield fail(err);
+    yield fail(err, deps.llm.name);
     return;
   }
 
@@ -231,6 +244,7 @@ export async function* runDesignerAgent(
         prompt: imagePrompts[pi], width, height, mode,
         referenceImages: pi === 0 ? input.referenceImages : undefined,
         signal: input.signal,
+        jobId: input.jobId, // A9: one correlation id across events, records, and CLI transcripts
       });
       const canvasId = uuid32();
       const scene = buildScene({
@@ -246,7 +260,7 @@ export async function* runDesignerAgent(
       yield ev(`[[canvas::canvas::${canvasId}]] `, { renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
     } catch (err) {
       if (input.signal?.aborted) return;
-      yield fail(err);
+      yield fail(err, deps.image.name);
       return;
     }
   }

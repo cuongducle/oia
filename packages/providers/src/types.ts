@@ -12,13 +12,16 @@ export class ProviderError extends Error {
   readonly errorClass: ErrorClass;
   readonly provider?: string;
   readonly detail?: unknown;
+  /** Q3: quota reset time when the provider shows one (ISO string). */
+  readonly resetAt?: string;
 
-  constructor(errorClass: ErrorClass, message: string, opts: { provider?: string; detail?: unknown } = {}) {
+  constructor(errorClass: ErrorClass, message: string, opts: { provider?: string; detail?: unknown; resetAt?: string } = {}) {
     super(message);
     this.name = "ProviderError";
     this.errorClass = errorClass;
     this.provider = opts.provider;
     this.detail = opts.detail;
+    this.resetAt = opts.resetAt;
   }
 
   /** Best-effort coercion: unknown errors become `unknown`, ProviderErrors pass through. */
@@ -50,6 +53,8 @@ export interface ImageGenInput {
   mode?: GenerationMode;
   /** TP.5 — cooperative cancellation, threaded end to end. */
   signal?: AbortSignal;
+  /** TP.4 — correlation id from the designer/route; providers forward it to CLI transcripts. */
+  jobId?: string;
 }
 
 export interface ImageGenResult {
@@ -61,6 +66,8 @@ export interface ImageGenResult {
   height?: number;
   /** How the output file was located (Codex channel): "parsed" (session dir) > "hint" (stdout marker) > "fallback-scan". */
   provenance?: "parsed" | "hint" | "fallback-scan";
+  /** A6 — non-fatal diagnostics (e.g. "format_drift" when the locator fell back repeatedly). */
+  warnings?: string[];
 }
 
 export interface ImageProvider {
@@ -79,6 +86,8 @@ export interface LlmMessage {
 export interface LlmChatOpts {
   json?: boolean;
   signal?: AbortSignal;
+  /** TP.4 — correlation id forwarded to CLI transcripts. */
+  jobId?: string;
 }
 
 export interface LlmProvider {

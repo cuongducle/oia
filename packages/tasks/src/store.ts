@@ -156,7 +156,15 @@ export class TaskStore {
       const result = await handler(params, { jobId: status.jobId!, signal: ac.signal });
       status.taskResult = { download: this.finalDownload(type, result) };
       if (result.note) status.taskNote = result.note;
-      status.progress = "succeeded";
+      if (ac.signal.aborted) {
+        // B7: the handler finished but was cancelled after completion — the quota was spent,
+        // so the result is kept (afterCompletion principle) and the outcome stays honest
+        status.progress = "failed";
+        status.errorClass = "cancelled";
+        status.msg = "cancelled after completion — result kept";
+      } else {
+        status.progress = "succeeded";
+      }
     } catch (err) {
       status.progress = "failed";
       status.msg = err instanceof Error ? err.message : String(err);
@@ -171,18 +179,14 @@ export class TaskStore {
     return status;
   }
 
-  /** TP.5: cancel a running task — local abort + cross-process publish (worker jobs know the taskId). */
+  /** TP.5: cancel a running task — local abort + cross-process publish (worker jobs know the taskId).
+   *  B7: this does NOT write a terminal status — the completion path records the cancelled
+   *  outcome (a handler that ignores the signal may still finish; the record must not lie). */
   async cancel(taskId: string): Promise<boolean> {
     const entry = this.tasks.get(taskId);
     if (!entry || entry.status.progress !== "processing") return false;
     const aborted = abortLocal(entry.status.jobId!);
     await this.opts.onCancel?.(entry.status.jobId!, entry.status.taskId);
-    if (aborted) {
-      entry.status.progress = "failed";
-      entry.status.errorClass = "cancelled";
-      entry.status.msg = "cancelled";
-      await this.persist(entry.status);
-    }
     return aborted;
   }
 

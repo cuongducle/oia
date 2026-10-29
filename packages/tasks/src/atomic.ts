@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -38,6 +38,19 @@ export async function renameWithRetry(
 
 /** Per-file single-writer chains — concurrent writers serialize, never interleave. */
 const chains = new Map<string, Promise<unknown>>();
+
+/** Remove orphaned temp siblings (`.name.tmp-*`) left by a crash between write and rename. */
+export async function sweepTempFiles(file: string): Promise<void> {
+  try {
+    const dir = path.dirname(file);
+    const base = `.${path.basename(file)}.tmp-`;
+    for (const f of await readdir(dir)) {
+      if (f.startsWith(base)) await rm(path.join(dir, f), { force: true }).catch(() => {});
+    }
+  } catch {
+    /* directory may not exist yet */
+  }
+}
 
 export async function atomicWriteJson(file: string, data: unknown): Promise<void> {
   const prev = chains.get(file) ?? Promise.resolve();

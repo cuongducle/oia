@@ -1,6 +1,6 @@
 import { spawn } from "cross-spawn";
 import kill from "tree-kill";
-import { mkdir, mkdtemp, readdir, rm, writeFile, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
@@ -18,6 +18,8 @@ import { ProviderError } from "../types.js";
  * - transcript capture with prompt/image content redacted by default (hashes only, 24 h retention)
  *
  * Knows nothing about Codex — the Codex bridge sits on top (codex/bridge.ts).
+ * Output is collected whole and returned on close; no streaming line API
+ * (a chunk boundary can split a JSON line — parse from the completed stdout).
  */
 
 export interface CliRunOptions {
@@ -30,9 +32,6 @@ export interface CliRunOptions {
   signal?: AbortSignal;
   /** Correlation id for transcripts (the shared jobId). */
   jobId?: string;
-  /** Streaming stdout lines (e.g. --json events) for incremental parsing. */
-  onStdoutLine?: (line: string) => void;
-  /** Redaction override for the transcript's stdin record (default: sha256 + length only). */
   env?: NodeJS.ProcessEnv;
 }
 
@@ -43,22 +42,6 @@ export interface CliRunResult {
   timedOut: boolean;
   aborted: boolean;
   durationMs: number;
-}
-
-/** Map a finished (or failed) run onto the stable error classes; throws ProviderError. */
-export function assertRunOk(res: CliRunResult, provider: string, what: string): void {
-  if (res.aborted) {
-    throw new ProviderError("cancelled", `${what} was cancelled`, { provider });
-  }
-  if (res.timedOut) {
-    throw new ProviderError("timeout", `${what} timed out after ${Math.round(res.durationMs / 1000)}s`, { provider });
-  }
-  if (res.code !== 0) {
-    throw new ProviderError("unknown", `${what} exited with code ${res.code}`, {
-      provider,
-      detail: res.stderr.slice(0, 400),
-    });
-  }
 }
 
 const TRANSCRIPT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -79,7 +62,6 @@ function redact(text: string | undefined): { sha256: string; length: number } | 
 export async function writeTranscript(jobId: string, entry: Record<string, unknown>): Promise<void> {
   try {
     const root = await transcriptsRoot();
-    // retention sweep (best-effort)
     for (const f of await readdir(root)) {
       const file = path.join(root, f);
       const s = await stat(file).catch(() => null);
@@ -91,25 +73,9 @@ export async function writeTranscript(jobId: string, entry: Record<string, unkno
   }
 }
 
-export async function readTranscripts(jobId: string): Promise<string[]> {
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const file = path.join(await transcriptsRoot(), `${jobId}.jsonl`);
-    return (await readFile(file, "utf8")).trim().split("\n").filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
 /** Per-job scratch directory under tmp: /oia/<scope>-<uuid> (ASCII only). */
 export async function createScratchDir(scope: string): Promise<string> {
   const dir = path.join(tmpdir(), "oia", `${scope}-${randomUUID()}`);
-  await mkdir(dir, { recursive: true });
-  return dir;
-}
-
-export async function createEmptyDir(parent: string, name: string): Promise<string> {
-  const dir = path.join(parent, name);
   await mkdir(dir, { recursive: true });
   return dir;
 }
@@ -126,8 +92,9 @@ export function asciiUuid(): string {
 export class CliRuntime {
   /**
    * Spawn `bin args` with stdin prompt support, timeout and abort ⇒ process-tree kill.
-   * Never throws for process-level outcomes — inspect the result or use assertRunOk.
-   * Throws ProviderError("provider_missing") only when the binary cannot be spawned (ENOENT).
+   * Never throws for process-level outcomes — inspect the result (timedOut/aborted/code)
+   * and map to error classes at the bridge level. Throws ProviderError("provider_missing")
+   * only when the binary cannot be spawned (ENOENT).
    */
   run(opts: CliRunOptions): Promise<CliRunResult> {
     const started = Date.now();
@@ -177,13 +144,9 @@ export class CliRuntime {
       };
       opts.signal?.addEventListener("abort", onAbort, { once: true });
 
-      child.stdout?.on("data", (d: Buffer) => {
-        const chunk = d.toString();
-        stdout += chunk;
-        if (opts.onStdoutLine) {
-          for (const line of chunk.split("\n")) if (line.trim()) opts.onStdoutLine(line);
-        }
-      });
+      // NOTE: stdout grows unboundedly in memory; a runaway binary could balloon it.
+      // Codex exec output is small (events + prose) — accepted risk, documented here.
+      child.stdout?.on("data", (d: Buffer) => (stdout += d.toString()));
       child.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
       child.stdin?.on("error", () => {}); // EPIPE when the child exits early — close below decides
       if (opts.stdin !== undefined) {
@@ -204,21 +167,4 @@ export class CliRuntime {
       child.on("close", (code: number | null) => finish(code));
     });
   }
-
-  /** Cheap version probe — resolves when the binary exists and exits 0/1 with --version output. */
-  async version(bin: string, timeoutMs = 10_000): Promise<{ ok: boolean; version?: string; detail?: string }> {
-    try {
-      const res = await this.run({ bin, args: ["--version"], timeoutMs });
-      const m = res.stdout.match(/(\d+\.\d+\.\d+[^\s]*)/);
-      return { ok: res.code === 0 || res.code === 1, version: m?.[1] };
-    } catch (err) {
-      if (err instanceof ProviderError && err.errorClass === "provider_missing") return { ok: false, detail: err.message };
-      return { ok: false, detail: err instanceof Error ? err.message : String(err) };
-    }
-  }
-}
-
-/** Convenience mkdtemp for tests and scratch subdirectories. */
-export async function mkTmpDir(prefix: string): Promise<string> {
-  return mkdtemp(path.join(tmpdir(), prefix));
 }

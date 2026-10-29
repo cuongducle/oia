@@ -1,12 +1,14 @@
 import type { PlanBlock } from "@oia/schema";
+import { COPY_ZONE_GEOMETRY, cleanPlateZoneClause } from "@oia/schema";
 
 /**
- * TP.1/TP.3/TP.8 — the single constants module pairing copy zones between the
- * image-prompt template and textbox placement (prevents prompt/canvas drift).
+ * TP.1/TP.3/TP.8 — placement pairs with the clean-plate prompt through the SHARED
+ * geometry in @oia/schema (COPY_ZONE_GEOMETRY) — the single source of truth both the
+ * prompt clause and this placement derive from, so they cannot drift apart.
  *
  * Zone geometry (Stage-0 design, shared with the crop anchor):
  * - top band   = 8–24% of canvas height, full width
- * - side block = right 34% width, 28–72% height
+ * - side block = right 34% width, 28–72% height (upper/lower halves)
  * Role→zone defaults: headline/title/subtitle → top band; price/discount → side
  * upper; date/name/slogan/unknown → side lower; styleHint overrides the default.
  * Overflow stacks downward with a 4%-height gap, clamped to the canvas.
@@ -22,21 +24,26 @@ export interface ZoneRect {
   heightR: number;
 }
 
+const G = COPY_ZONE_GEOMETRY;
 export const COPY_ZONES: Record<ZoneId, ZoneRect> = {
-  topBand: { leftR: 0.05, topR: 0.08, widthR: 0.9, heightR: 0.16 },
-  sideUpper: { leftR: 0.66, topR: 0.28, widthR: 0.3, heightR: 0.22 },
-  sideLower: { leftR: 0.66, topR: 0.5, widthR: 0.3, heightR: 0.22 },
+  topBand: { leftR: G.topBand.leftR, topR: G.topBand.topR, widthR: G.topBand.widthR, heightR: G.topBand.heightR },
+  sideUpper: { leftR: G.sideBlock.leftR, topR: G.sideBlock.topR, widthR: G.sideBlock.widthR * 0.88, heightR: G.sideBlock.heightR / 2 },
+  sideLower: { leftR: G.sideBlock.leftR, topR: G.sideBlock.topR + G.sideBlock.heightR / 2 + 0.01, widthR: G.sideBlock.widthR * 0.88, heightR: G.sideBlock.heightR / 2 - 0.01 },
 };
 
-/** The calm-space clause shared with the clean-plate image prompt (image/codex.ts imports this text's numbers). */
-export const CLEAN_PLATE_ZONE_CLAUSE =
-  "Keep the top band (upper ~16% of the height) and a right-side column (right ~34% of the width) calm and uncluttered so text placed there stays readable.";
+/** The calm-space clause shared with the clean-plate image prompt — re-exported from
+ *  @oia/schema (derived from the geometry; never hand-copied). */
+export const CLEAN_PLATE_ZONE_CLAUSE = cleanPlateZoneClause();
 
-/** styleHint keywords override the role default. */
+/** styleHint keywords override the role default — Vietnamese sellers get Vietnamese
+ *  hints from the planner ("trên", "bên phải", "dưới"…), so both languages match. */
 export function zoneForRole(role: string, styleHint?: string | null): ZoneId {
   const hint = (styleHint ?? "").toLowerCase();
-  if (/\btop\b|header|banner strip/.test(hint)) return "topBand";
-  if (/\bside\b|\bright\b/.test(hint)) return hint.includes("lower") || hint.includes("bottom") ? "sideLower" : "sideUpper";
+  if (/\btop\b|header|banner strip|tr\u00ean|\u0111\u1ec9nh|\u0111\u1ea7u trang/.test(hint)) return "topBand";
+  if (/d\u01b0\u1edbi|\u0111\u00e1y|cu\u1ed1i/.test(hint)) return "sideLower";
+  if (/\bside\b|\bright\b|b\u00ean ph\u1ea3i|ph\u1ea3i|g\u00f3c ph\u1ea3i/.test(hint)) {
+    return /lower|bottom/.test(hint) ? "sideLower" : "sideUpper";
+  }
   if (/\bbottom\b/.test(hint)) return "sideLower";
   const r = role.toLowerCase();
   if (/headline|^title$|subtitle|slogan/.test(r)) return "topBand";
@@ -113,7 +120,6 @@ export function fitCoverWithZones(
   imgH: number,
   canvasW: number,
   canvasH: number,
-  opts: { protectBox?: { x: number; y: number; w: number; h: number } } = {},
 ): CoverCrop {
   const imgRatio = imgW / imgH;
   const canvasRatio = canvasW / canvasH;
@@ -121,29 +127,19 @@ export function fitCoverWithZones(
   const cropW = Math.min(imgW, canvasW / scale);
   const cropH = Math.min(imgH, canvasH / scale);
 
-  let cropX = 0;
-  let cropY = 0;
   if (Math.abs(imgRatio - canvasRatio) < 0.01) {
     return { cropX: 0, cropY: 0, cropW: imgW, cropH: imgH, scale };
   }
   if (imgRatio > canvasRatio) {
     // image is wider — horizontal overflow: anchor RIGHT (the sideBlock side)
-    cropX = imgW - cropW;
-    cropY = 0;
-  } else {
-    // image is taller — vertical overflow: anchor TOP (the topBand side)
-    cropX = 0;
-    cropY = 0;
+    return { cropX: imgW - cropW, cropY: 0, cropW, cropH, scale };
   }
-  // never crop into the reference product's bounding box (image px) — shift the window if needed
-  const b = opts.protectBox;
-  if (b) {
-    if (imgRatio > canvasRatio && (b.x < cropX || b.x + b.w > cropX + cropW)) {
-      cropX = Math.min(Math.max(0, b.x), imgW - cropW);
-    }
-    if (imgRatio <= canvasRatio && (b.y < cropY || b.y + b.h > cropY + cropH)) {
-      cropY = Math.min(Math.max(0, b.y), imgH - cropH);
-    }
-  }
-  return { cropX, cropY, cropW, cropH, scale };
+  // image is taller — vertical overflow: anchor TOP (the topBand side)
+  return { cropX: 0, cropY: 0, cropW, cropH, scale };
 }
+
+// NOTE (A7, deferred honestly): "never crop into the reference product's bounding box"
+// requires knowing where the product landed in the GENERATED image — no detector exists
+// pre-generation and none ships in Stage 0. When a product-bbox source exists (desktop
+// era candidate: reference-position echo from the model, or a detection step), add the
+// window-shift logic back HERE, next to the anchors above.

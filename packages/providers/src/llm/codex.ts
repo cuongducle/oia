@@ -46,12 +46,12 @@ export class CodexLlmProvider implements LlmProvider {
    * Strict parse-out: anything that is not a valid plan throws `plan_parse_failed`.
    */
   async chat(messages: LlmMessage[], opts?: LlmChatOpts): Promise<string> {
-    const plan = await this.plan(messages, opts?.signal);
+    const plan = await this.plan(messages, opts?.signal, opts?.jobId);
     return JSON.stringify(plan);
   }
 
   /** One text-only exec; returns the parsed plan (strict). */
-  async plan(messages: LlmMessage[], signal?: AbortSignal): Promise<PlannerPlan> {
+  async plan(messages: LlmMessage[], signal?: AbortSignal, jobId?: string): Promise<PlannerPlan> {
     const scratch = await createScratchDir("codex-planner-io");
     try {
       const schemaFile = path.join(scratch, "plan.schema.json");
@@ -69,7 +69,7 @@ export class CodexLlmProvider implements LlmProvider {
         lastMessageFile,
         timeoutMs: this.timeoutMs,
         signal,
-        jobId: `planner-${randomUUID()}`,
+        jobId: jobId ?? `planner-${randomUUID()}`,
       });
       try {
         const raw = await this.bridge.readPlanFile(lastMessageFile, res);

@@ -1,10 +1,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { cleanPlateZoneClause } from "@oia/schema";
 import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { ProviderError } from "../types.js";
-import { CodexBridge, classifyCodexFailure, findSessionImage, newestGeneratedImage, parseImagePath } from "../codex/bridge.js";
-import { asciiUuid, removeScratchDir } from "../cli/runtime.js";
+import {
+  CodexBridge, classifyCodexFailure, findSessionImage, newestGeneratedImage, parseImagePath,
+  noteCancelledImageJob, waitForStableFile,
+} from "../codex/bridge.js";
+import { asciiUuid, createScratchDir, removeScratchDir } from "../cli/runtime.js";
 
 /**
  * Codex `$imagegen` channel — the keyless artwork path over the user's ChatGPT login.
@@ -13,10 +17,12 @@ import { asciiUuid, removeScratchDir } from "../cli/runtime.js";
  *
  * Mode-aware prompts (TP.3): poster keeps the text fidelity guard (baked text is
  * deliberate design); clean-plate forbids ADDED typography and reserves calm copy
- * zones — product packaging/label lettering is always preserved.
+ * zones — the zone clause is DERIVED from the shared geometry in @oia/schema
+ * (single source of truth — prompt and canvas placement cannot drift apart).
  * Reference images (TP.9): materialized to ASCII-named temp files and attached via `-i`.
  * Output location (spike S1): session directory via --json thread id; the stdout
- * `File:` marker is a hint; the shared-tree scan is a provenance-marked last resort.
+ * `File:` marker is a hint; the shared-tree scan is a provenance-marked last resort
+ * (A8: never an image written around a cancelled job — see the bridge cancel ledger).
  */
 
 export const IMAGE_TIMEOUT_MS = Number(process.env.CODEX_IMAGE_TIMEOUT_MS ?? 300_000);
@@ -39,14 +45,15 @@ export function buildPosterPrompt(input: ImageGenInput): string {
   );
 }
 
-/** TP.3 — clean-plate mode: text-free artwork with reserved copy zones (no duplicated copy). */
+/** TP.3 — clean-plate mode: text-free artwork with reserved copy zones (no duplicated copy).
+ *  The clause comes from the shared zone geometry (@oia/schema) — never hand-copied here. */
 export function buildCleanPlatePrompt(input: ImageGenInput): string {
   const orientation = orientationFor(input.width, input.height);
   return (
     `$imagegen Create a ${orientation} image. ` +
     `Subject: ${input.prompt}. ` +
     `Do NOT add any text, lettering, numbers, words, captions, logos, or watermarks to the artwork — the copy will be added later as separate editable layers. ` +
-    `Keep the top band (upper ~16% of the height) and a right-side column (right ~34% of the width) calm and uncluttered so text placed there stays readable.` +
+    cleanPlateZoneClause() +
     (input.referenceImages?.length
       ? ` Any text that is part of the product's own packaging or printed label must be preserved exactly and remain legible — never alter brand lettering.`
       : "")
@@ -70,29 +77,52 @@ function orientationFor(width: number, height: number): "landscape" | "vertical"
   return ratio > 1.1 ? "landscape" : ratio < 0.9 ? "vertical" : "square";
 }
 
-/** PNG IHDR reader — the actual output size recorded on the job result (TP.8). */
+/** PNG IHDR reader + IEND check — the actual output size recorded on the job result (TP.8),
+ *  and a complete-PNG guard (a truncated flush fails the IEND check — B8). */
 export function pngSize(buf: Buffer): { width: number; height: number } | undefined {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return undefined;
+  const iend = Buffer.from("IEND");
+  const tail = buf.subarray(buf.length - 12, buf.length - 4); // IEND chunk: len(4) + type(4) + crc(4)
+  if (!tail.subarray(4, 8).equals(iend)) return undefined; // truncated
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-/** Materialize a reference (data URL / http URL / absolute path) into an ASCII-named temp file. */
+/** Materialize a reference (data URL / http URL / absolute file path) into an ASCII-named temp file. */
 async function materializeReference(ref: string, dir: string): Promise<string> {
-  const file = path.join(dir, `${asciiUuid()}.png`);
   if (ref.startsWith("data:")) {
     const b64 = ref.slice(ref.indexOf(",") + 1);
+    const file = path.join(dir, `${asciiUuid()}.png`);
     await writeFile(file, Buffer.from(b64, "base64"));
     return file;
   }
   if (/^https?:\/\//i.test(ref)) {
     const res = await fetch(ref).catch(() => null);
     if (!res?.ok) throw new ProviderError("network", `could not fetch reference image (HTTP ${res?.status ?? "network"})`, { provider: "codex" });
+    const file = path.join(dir, `${asciiUuid()}.png`);
     await writeFile(file, Buffer.from(await res.arrayBuffer()));
     return file;
   }
-  // assume an absolute file path (tests / local flows)
-  await readFile(ref); // probe readability — throws with a clear fs error path
-  return ref.startsWith("/") || /^[A-Za-z]:[\\/]/.test(ref) ? ref : file;
+  // local file path: probe readability, resolve to ABSOLUTE — a relative path must never
+  // fall through to an unwritten temp file (B1: that attached a 0-byte png to `-i`)
+  const abs = path.resolve(ref);
+  await readFile(abs); // throws a clear fs error when unreadable
+  return abs;
+}
+
+/** A6 — format_drift watch: consecutive fallback-scan locates mean the documented output
+ *  shape moved; surface a warning (log + result.warnings) instead of silence. */
+const gDrift = globalThis as unknown as { __oiaCodexFallbackStreak?: number };
+function noteLocatorProvenance(provenance: ImageGenResult["provenance"], jobId: string | undefined): string[] {
+  if (provenance === "fallback-scan") {
+    gDrift.__oiaCodexFallbackStreak = (gDrift.__oiaCodexFallbackStreak ?? 0) + 1;
+    if (gDrift.__oiaCodexFallbackStreak >= 2) {
+      console.warn(`[codex] format_drift: output locator fell back to the mtime scan ${gDrift.__oiaCodexFallbackStreak}× in a row (jobId=${jobId ?? "n/a"}) — stdout shape may have changed`);
+      return ["format_drift"];
+    }
+    return [];
+  }
+  gDrift.__oiaCodexFallbackStreak = 0;
+  return [];
 }
 
 export class CodexImageProvider implements ImageProvider {
@@ -114,7 +144,6 @@ export class CodexImageProvider implements ImageProvider {
   }
 
   async generate(input: ImageGenInput): Promise<ImageGenResult> {
-    const { createScratchDir } = await import("../cli/runtime.js");
     const refDir = await createScratchDir("codex-refs");
     let refFiles: string[] = [];
     try {
@@ -128,9 +157,13 @@ export class CodexImageProvider implements ImageProvider {
         images: refFiles,
         timeoutMs: this.timeoutMs,
         signal: input.signal,
-        jobId: `image-${randomUUID()}`,
+        jobId: input.jobId ?? `image-${randomUUID()}`,
       });
-      if (res.code !== 0 || res.timedOut || res.aborted) throw classifyCodexFailure(res);
+      if (res.code !== 0 || res.timedOut || res.aborted) {
+        // A8: a killed job's late-flushed PNG must not leak into a later fallback scan
+        noteCancelledImageJob();
+        throw classifyCodexFailure(res);
+      }
 
       // Locator ladder (spike S1): session directory > stdout hint > provenance-marked fallback scan
       let file: string | null = null;
@@ -155,17 +188,27 @@ export class CodexImageProvider implements ImageProvider {
         });
       }
 
+      // B8: exit 0 does not guarantee the PNG flush finished — wait for a stable size
+      await waitForStableFile(file);
       const buf = await readFile(file);
       await this.bridge.cleanup(res);
       if (!buf.length) throw new ProviderError("no_output", "codex image file is empty", { provider: "codex" });
       const size = pngSize(buf);
+      if (!size) {
+        throw new ProviderError("format_drift", "codex image file is not a complete PNG (truncated after exit)", {
+          provider: "codex",
+          detail: `${file} (${buf.length} bytes)`,
+        });
+      }
+      const warnings = noteLocatorProvenance(provenance, input.jobId);
       return {
         url: `data:image/png;base64,${buf.toString("base64")}`,
         provider: "codex",
         model: "chatgpt-imagegen (gpt-image family, plan usage)",
-        width: size?.width,
-        height: size?.height,
+        width: size.width,
+        height: size.height,
         provenance,
+        warnings,
       };
     } finally {
       await removeScratchDir(refDir);
