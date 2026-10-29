@@ -346,6 +346,18 @@ Do not provide a precise schedule before a packaging prototype has run on Window
 - These repositories were not exhaustively read or audited. Findings apply to the files and mechanisms inspected.
 - Reference packaged applications were not executed or benchmarked for size, memory, or startup time. No unverified performance figures are claimed.
 
+## Handoff from Stage 0 (2026-10-29)
+
+The Stage 0 banner-loop design ([`docs/designs/banner-maker-loop-stage-0.md`](designs/banner-maker-loop-stage-0.md), approved 2026-10-29) made decisions this desktop design inherits rather than re-derives:
+
+1.  **Runtime already built.** Stage 0 ships the generic `CliRuntime` (binary resolution, stdin discipline, timeout, abort) plus the Codex bridge, verified on macOS. This design owns the **Windows-specific** remainder — PATHEXT/`.cmd` handling, tree termination on Windows, Windows path fixtures — and the physical-machine verification gate (spike S3), including re-checking openai/codex#40233 at gate time.
+2.  **Standard libraries.** Process plumbing is `cross-spawn` + `tree-kill` (owner-approved); no hand-rolled platform code.
+3.  **IPC event contract.** The new ChatEvent fields — `jobId`, `errorClass`/`attemptNumber`/`provider` on failures, terminal `cancelled` with `afterCompletion`, `renderData.confirmRequest` — and the object `origin` provenance field must keep their shapes across the HTTP→IPC transport change. **Reattach-by-jobId** (reconnect + event replay) was cut from the web shell and is a desktop-era candidate here.
+4.  **Web app fate (decided).** The web app is transitional and retires when the desktop app ships; the public website becomes a landing/download page only.
+5.  **Data import is mandatory.** Existing `.data` (projects, sessions, templates) must be importable into the desktop app — a required input of this design, not a nicety (see §5.1).
+6.  **Codex bridge invariant.** Every `codex exec` invocation: stdin prompts, `--ignore-user-config`, pinned model, role-scoped sandbox (`read-only` planner / `workspace-write` scratch for images), `-i` ASCII-named references. The desktop shell reuses the bridge; it does not reimplement it.
+7.  **Provider posture.** OpenAI channel pins `gpt-image-2.5-sunburst` on both calls (`OPENAI_IMAGE_MODEL` override); the 14-class error taxonomy is provider-agnostic; asset references use the `/api/files/<key>` URL form; Codex-channel preset ratios are gated by spike S1's observed set with zone-anchored crop as fallback.
+
 ## Pinned source references and documentation
 
 [C1]: https://github.com/CherryHQ/cherry-studio/blob/7211babe8b870bb3bc011d13ed4f868f7551edd4/electron.vite.config.ts
