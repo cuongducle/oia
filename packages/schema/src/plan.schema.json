@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oia.dev/schemas/plan.schema.json",
+  "title": "OiaPlannerPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "imagePrompt",
+    "imagePrompts",
+    "outline",
+    "copy",
+    "blocks"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short project title, same language as the user request."
+    },
+    "imagePrompt": {
+      "type": "string",
+      "description": "Art-direction prompt for the image model (English art direction is fine); do not include copy that exists as blocks."
+    },
+    "imagePrompts": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Only for multi-page series: one prompt per page. Null otherwise."
+    },
+    "outline": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Only in outline mode: 3-6 short planning bullets. Null otherwise."
+    },
+    "copy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Legacy single-copy field. Prefer blocks[]; null when blocks are used."
+    },
+    "blocks": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Free-form text blocks that become editable native text layers. Zero/one/many — decide from the request. Null only when the plan format predates blocks.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "text",
+          "styleHint"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "Free-form: headline, price, discount, date, name, slogan, subtitle…"
+          },
+          "text": {
+            "type": "string",
+            "description": "The exact copy, in the user's language."
+          },
+          "styleHint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional styling/placement hint (e.g. 'large bold, top'). Null when none."
+          }
+        }
+      }
+    }
+  }
+}

@@ -77,3 +77,38 @@ describe("golden replay: Oia SSE stream (local mock agent)", () => {
     expect(stripMarkers(content)).not.toMatch(/\[\[/);
   });
 });
+
+describe("STAGE-0 tolerant decoding of the new event fields (jobId / errorClass / cancelled)", () => {
+  const mk = (extra: Record<string, unknown>) =>
+    `data:${JSON.stringify({ msgId: 1, content: "", status: 0, error: "", renderData: { msgMeta: [], fileMeta: [], taskMeta: [], exportMeta: null }, brandId: 0, ...extra })}\n\n`;
+
+  it("jobId + errorClass + attemptNumber + provider decode through chatEventSchema", () => {
+    const items = [...decodeSseText(mk({ jobId: "j-123", error: "boom", errorClass: "quota_exceeded", attemptNumber: 1, provider: "codex" }))];
+    const ev = items[0];
+    expect(ev.type).toBe("event");
+    if (ev.type === "event") {
+      expect(ev.event.jobId).toBe("j-123");
+      expect(ev.event.errorClass).toBe("quota_exceeded");
+    }
+    const reduced = reduceEvents(items);
+    expect(reduced.jobId).toBe("j-123");
+    expect(reduced.failure?.errorClass).toBe("quota_exceeded");
+    expect(reduced.failure?.attemptNumber).toBe(1);
+    expect(reduced.failure?.provider).toBe("codex");
+  });
+
+  it("terminal cancelled status decodes and reduces", () => {
+    const items = [...decodeSseText(mk({ status: "cancelled", afterCompletion: true }))];
+    const ev = items[0];
+    expect(ev.type === "event" && ev.event.status).toBe("cancelled");
+    expect(reduceEvents(items).cancelled).toBe(true);
+  });
+
+  it("legacy events (no new fields) decode unchanged", () => {
+    const items = [...decodeSseText(mk({}))];
+    expect(items[0].type).toBe("event");
+    const reduced = reduceEvents(items);
+    expect(reduced.cancelled).toBe(false);
+    expect(reduced.failure).toBeUndefined();
+  });
+});

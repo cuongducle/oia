@@ -23,6 +23,11 @@ export const fabricObjectSchema = z
     fontSize: z.number().nullable().optional(),
     name: z.string().nullable().optional(),
     selectable: z.boolean().nullable().optional(),
+    /** TP.10 provenance — objects without `origin` (legacy scenes) default to "user". */
+    origin: z.enum(["user", "agent", "generated"]).nullable().optional(),
+    /** Fabric crop fields (zone-anchored cover-crop, TP.8 size policy). */
+    cropX: z.number().nullable().optional(),
+    cropY: z.number().nullable().optional(),
   })
   .passthrough();
 
@@ -56,3 +61,34 @@ export type FabricObject = z.infer<typeof fabricObjectSchema>;
 export type SceneCanvas = z.infer<typeof sceneCanvasSchema>;
 export type Page = z.infer<typeof pageSchema>;
 export type Project = z.infer<typeof projectSchema>;
+
+/**
+ * TP.7 — the no-base64 rule is enforced ON SAVE, not on load: legacy projects and
+ * sessions containing data URLs still open (read-tolerant); a migrate-on-save pass
+ * extracts embedded bytes into the asset store and rewrites references.
+ * Asset-reference syntax: scene `src`/`thumbnail` hold `/api/files/<key>` exactly
+ * as `LocalFileStore.put()` returns it — same-origin, browser-loadable.
+ */
+const DATA_URL_RE = /^data:/i;
+const ASSET_REF_RE = /^\/api\/files\//;
+
+export function isAssetReference(src: string): boolean {
+  return ASSET_REF_RE.test(src);
+}
+
+/** Returns the paths of save-blocking base64 violations (empty list = saveable). */
+export function validateSceneForSave(scene: SceneCanvas, where = "canvas"): string[] {
+  const violations: string[] = [];
+  scene.objects?.forEach((o, i) => {
+    if (typeof o.src === "string" && DATA_URL_RE.test(o.src)) violations.push(`${where}.objects[${i}].src`);
+  });
+  return violations;
+}
+
+export function validateProjectForSave(project: Project): string[] {
+  const violations: string[] = [];
+  for (const [pi, page] of project.pages.entries()) {
+    violations.push(...validateSceneForSave(page.canvas, `pages[${pi}].canvas`));
+  }
+  return violations;
+}

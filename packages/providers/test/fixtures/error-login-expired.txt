@@ -1,0 +1,2 @@
+{"type":"thread.started","thread_id":"01login-0000-0000-0000-000000000000"}
+{"type":"turn.failed","error":{"message":"Stored tokens are invalid or expired. Please log in again with `codex login`."}}

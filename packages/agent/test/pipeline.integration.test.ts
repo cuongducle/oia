@@ -15,9 +15,12 @@ const plan = JSON.stringify({
   outline: ["pastel layout", "centered coffee cup"],
 });
 
-const llm: LlmProvider = { name: "stub", async chat() { return plan; } };
+const stubCaps = { referenceImages: true, sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false }, transparentBg: false, isMock: false };
+const llm: LlmProvider = { name: "stub", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { return plan; } };
 const image: ImageProvider = {
   name: "stub",
+  capabilities: stubCaps,
+  async isAvailable() { return { ok: true }; },
   async generate({ width, height }) { return { url: `https://cdn.test/${width}x${height}.png`, provider: "stub", model: "x" }; },
 };
 

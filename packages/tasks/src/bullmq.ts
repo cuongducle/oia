@@ -1,6 +1,7 @@
 import { Queue, Worker, type Processor } from "bullmq";
 import type { TaskType } from "@oia/schema";
 import type { TaskJob } from "./queue.js";
+import { retryPolicyFor } from "./retry-policy.js";
 
 /**
  * BR-W: worker queue.
@@ -59,8 +60,8 @@ export async function createQueueBackend(
       async submit(job) {
         await queue.add(buildJobName(job.type), job, {
           jobId: job.taskId,
-          attempts: 3,
-          backoff: { type: "exponential", delay: 3000 },
+          // TP.4: per-class policy — metered generation jobs run exactly once
+          ...retryPolicyFor(job.type),
         });
       },
       async close() {

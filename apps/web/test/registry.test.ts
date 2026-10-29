@@ -47,9 +47,11 @@ describe("BR-I18N English default; Vietnamese removed by request", () => {
     expect(detectLocale("xx-XX")).toBe("en");
     expect(detectLocale(null)).toBe("en");
   });
-it("every locale translates the full key set (structural test)", () => {
+it("every locale translates the full core key set; en/zh stay complete and in sync (structural test)", () => {
+    const enCount = translatedKeyCount("en");
+    expect(enCount).toBe(translatedKeyCount("zh")); // the two full dictionaries never drift
     for (const l of LOCALES) {
-      expect(translatedKeyCount(l), l).toBe(22);
+      expect(translatedKeyCount(l), l).toBeGreaterThanOrEqual(22); // core keys translated everywhere
     }
     expect(t("ja", "editor.untitled")).toBe("無題のプロジェクト");
     expect(t("tr", "home.generate")).toBe("Oluştur");

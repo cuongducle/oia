@@ -28,3 +28,18 @@ describe("BR-W worker queue", () => {
     expect(job).toMatchObject({ taskId: "t1", sessionId: 9, type: "image-edit" });
   });
 });
+
+describe("STAGE-0 TP.4: per-class retry policy — metered generation runs exactly once", () => {
+  it("metered task classes get attempts: 1 (no backoff re-spend)", async () => {
+    const { retryPolicyFor, isMeteredTaskType } = await import("../src/retry-policy.js");
+    for (const t of ["generate-poster", "image-edit", "generate-presentation", "generate-logo", "generate-xhs-images"] as const) {
+      expect(retryPolicyFor(t)).toEqual({ attempts: 1 });
+      expect(isMeteredTaskType(t)).toBe(true);
+    }
+  });
+  it("non-metered classes keep the resilient default", async () => {
+    const { retryPolicyFor } = await import("../src/retry-policy.js");
+    expect(retryPolicyFor("remove-background")).toEqual({ attempts: 3, backoff: { type: "exponential", delay: 3000 } });
+    expect(retryPolicyFor("ppt-translate")).toEqual({ attempts: 3, backoff: { type: "exponential", delay: 3000 } });
+  });
+});

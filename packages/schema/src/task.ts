@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { errorClassSchema } from "./plan.js";
 
 export const taskTypeSchema = z.enum([
   "remove-background",
@@ -71,5 +72,12 @@ export const taskStatusSchema = z.object({
   taskResult: z.object({ download: z.string().optional() }).nullable(),
   taskNote: z.string().nullable(),
   msg: z.string().default(""),
+  /** TP.4 durability: every task record carries these (nullable for legacy rows). */
+  jobId: z.string().nullable().optional(),
+  attemptNumber: z.number().nullable().optional(),
+  provider: z.string().nullable().optional(),
+  errorClass: errorClassSchema.nullable().optional(),
+  /** A user-initiated retry creates a NEW job linked to the original (G3). */
+  retryOf: z.string().nullable().optional(),
 });
 export type TaskStatus = z.infer<typeof taskStatusSchema>;

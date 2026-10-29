@@ -1,38 +1,41 @@
-import type { ImageProvider, ImageGenInput, ImageGenResult } from "../types.js";
+import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
+import { ProviderError } from "../types.js";
+import { OPENAI_IMAGE_CAPABILITIES, OPENAI_IMAGE_MODEL_DEFAULT, openAiImages } from "../wire/openai-images.js";
 
-/** gpt-image (OpenAI Images API) — BYOK: OPENAI_API_KEY. */
+/**
+ * OpenAI Images adapter (BYOK: OPENAI_API_KEY) — a thin adapter over the shared
+ * openai-images wire (TP.9/TP.11): generations without references, edits with them,
+ * both pinning one configured model. True-ratio sizes replace the old 3-size snapping.
+ */
 export class OpenAiImageProvider implements ImageProvider {
   readonly name = "openai";
+  readonly capabilities: ProviderCapabilities = OPENAI_IMAGE_CAPABILITIES;
   constructor(
     private apiKey = process.env.OPENAI_API_KEY ?? "",
-    private model = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-1",
+    private model = OPENAI_IMAGE_MODEL_DEFAULT,
   ) {}
-  async generate(input: ImageGenInput): Promise<ImageGenResult> {
-      if (!this.apiKey) throw new Error("OPENAI_API_KEY is not configured (BYOK)");
-    const res = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: { authorization: `Bearer ${this.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: this.model,
-        prompt: input.prompt,
-        size: sizeFor(input.width, input.height),
-        n: 1,
-      }),
-    });
-    if (!res.ok) throw new Error(`OpenAI image HTTP ${res.status}: ${await res.text()}`);
-    const json = (await res.json()) as { data: { url?: string; b64_json?: string }[] };
-    const d = json.data[0];
-    return {
-      url: d.url ?? `data:image/png;base64,${d.b64_json}`,
-      provider: "openai",
-      model: this.model,
-    };
-  }
-}
 
-function sizeFor(w: number, h: number): "1024x1024" | "1536x1024" | "1024x1536" {
-  const r = w / h;
-  if (r > 1.1) return "1536x1024";
-  if (r < 0.9) return "1024x1536";
-  return "1024x1024";
+  async isAvailable(): Promise<ProviderDiagnostic> {
+    if (!this.apiKey) {
+      return { ok: false, errorClass: "provider_missing", detail: "OPENAI_API_KEY is not configured (BYOK)" };
+    }
+    return { ok: true, detail: "api key present (not validated until first call)" };
+  }
+
+  async generate(input: ImageGenInput): Promise<ImageGenResult> {
+    if (!this.apiKey) throw new ProviderError("provider_missing", "OPENAI_API_KEY is not configured (BYOK)", { provider: "openai" });
+    if (input.referenceImages?.length && !this.capabilities.referenceImages) {
+      throw new ProviderError("capability_unsupported", "this provider does not accept reference images", { provider: this.name });
+    }
+    const res = await openAiImages({
+      apiKey: this.apiKey,
+      model: this.model,
+      prompt: input.prompt,
+      width: input.width,
+      height: input.height,
+      references: input.referenceImages,
+      signal: input.signal,
+    });
+    return { url: res.url, provider: "openai", model: res.model, width: res.width, height: res.height };
+  }
 }

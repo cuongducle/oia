@@ -1,0 +1,6 @@
+codex
+Created the square product banner using built-in imagegen.
+
+File: [shopee banner](C:\Users\seller\AppData\Local\codex\generated_images\9f2c31e0-1111-4222-8333-abcdefabcdef\exec-77788899-aaaa-bbbb-cccc-dddd00001111.png)
+
+Done — the label text on the bottle was preserved.

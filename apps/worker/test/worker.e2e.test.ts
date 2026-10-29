@@ -13,13 +13,22 @@ import net from "node:net";
  */
 const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379";
 
+/** Probe with a real PING (not a bare TCP connect): a Redis answering NOAUTH/ERR
+ *  (another project's passworded container on :6379) is NOT usable — soft-skip then. */
 async function redisUp(): Promise<boolean> {
   const u = new URL(REDIS_URL);
   return new Promise((resolve) => {
     const s = net.connect({ host: u.hostname, port: Number(u.port || 6379) });
-    const t = setTimeout(() => { s.destroy(); resolve(false); }, 600);
-    s.on("connect", () => { clearTimeout(t); s.destroy(); resolve(true); });
-    s.on("error", () => { clearTimeout(t); resolve(false); });
+    let buf = "";
+    const done = (ok: boolean) => { clearTimeout(t); s.destroy(); resolve(ok); };
+    const t = setTimeout(() => done(false), 1500);
+    s.on("connect", () => s.write(u.password ? `AUTH ${u.password}\r\nPING\r\n` : "PING\r\n"));
+    s.on("data", (d) => {
+      buf += d.toString();
+      if (buf.includes("+PONG")) done(true);
+      else if (buf.trimStart().startsWith("-")) done(false);
+    });
+    s.on("error", () => done(false));
   });
 }
 

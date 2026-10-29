@@ -3,13 +3,15 @@ import {
   createQueueBackend, LocalFileStore,
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
 } from "@oia/tasks";
+import { assertNoMixedMockConfig } from "@oia/providers";
 
 /**
  * Oia worker — shares processors with the web app (packages/tasks) and points the FileStore
  * at the same OIA_DATA_DIR → a separate worker deployment writes results to the right place.
- * - Có REDIS_URL: BullMQ (queue oia-tasks, 3 attempts backoff exp)
+ * - Có REDIS_URL: BullMQ (queue oia-tasks; per-class retry policy — metered jobs attempts=1)
  * - No: in-process (demo/CI)
  */
+assertNoMixedMockConfig(); // TP.4: mock/real mix never boots — identical guard to the web app
 const dataDir = process.env.OIA_DATA_DIR ?? path.join(process.cwd(), ".data");
 const files = new LocalFileStore(path.join(dataDir, "files"));
 

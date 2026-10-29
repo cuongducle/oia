@@ -6,6 +6,7 @@ export * from "./apikeys.js";
 export * from "./storage.js";
 export * from "./bullmq.js";
 export * from "./queue.js";
+export * from "./retry-policy.js";
 export * from "./upload.js";
 export { TaskStore, TaskNotFound, ok, fail } from "./store.js";
 export type { SubmitOptions, TaskHandlerResult, Clock } from "./store.js";

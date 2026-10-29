@@ -9,13 +9,24 @@ function parseRedis(url: string): { host: string; port: number; password?: strin
   const u = new URL(url);
   return { host: u.hostname, port: Number(u.port || 6379), password: u.password || undefined };
 }
-async function redisUp(timeoutMs = 600): Promise<boolean> {
-  const { host, port } = parseRedis(REDIS_URL);
+/**
+ * Probe with a real PING (not a bare TCP connect): a Redis that answers NOAUTH/ERR
+ * (e.g. another project's passworded container on :6379) is NOT usable — soft-skip then.
+ */
+async function redisUp(timeoutMs = 1500): Promise<boolean> {
+  const { host, port, password } = parseRedis(REDIS_URL);
   return new Promise((resolve) => {
     const s = net.connect({ host, port });
-    const t = setTimeout(() => { s.destroy(); resolve(false); }, timeoutMs);
-    s.on("connect", () => { clearTimeout(t); s.destroy(); resolve(true); });
-    s.on("error", () => { clearTimeout(t); resolve(false); });
+    let buf = "";
+    const done = (ok: boolean) => { clearTimeout(t); s.destroy(); resolve(ok); };
+    const t = setTimeout(() => done(false), timeoutMs);
+    s.on("connect", () => s.write(password ? `AUTH ${password}\r\nPING\r\n` : "PING\r\n"));
+    s.on("data", (d) => {
+      buf += d.toString();
+      if (buf.includes("+PONG")) done(true);          // usable Redis
+      else if (buf.trimStart().startsWith("-")) done(false); // NOAUTH / ERR / DENIED — not usable
+    });
+    s.on("error", () => done(false));
   });
 }
 

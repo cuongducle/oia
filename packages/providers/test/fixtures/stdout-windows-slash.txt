@@ -1,0 +1,6 @@
+codex
+Created the vertical sale poster using built-in imagegen.
+
+File: [tiki sale](c:/Users/seller/.codex/generated_images/aa11bb22-cc33-dd44-ee55-ff6677889900/exec-deadbeef-1234-5678-9abc-def012345678.png)
+
+Done.

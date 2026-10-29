@@ -3,7 +3,7 @@ import {
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
   BrandKitStore, TemplateStore, extractBrandKit, ProjectStore, ChatSessionStore,
 } from "@oia/tasks";
-import { getLlmProvider } from "@oia/providers";
+import { getLlmProvider, assertNoMixedMockConfig } from "@oia/providers";
 import path from "node:path";
 
 /** Runtime singleton — reused across routes (globalThis guards against hot-reload duplicates). */
@@ -21,6 +21,8 @@ const g = globalThis as unknown as { __oiaRt?: Rt };
 
 export async function getRuntime(): Promise<Rt> {
   if (g.__oiaRt) return g.__oiaRt;
+  // TP.2/TP.4 (Slice 1): a mock provider paired with a real provider never boots silently
+  assertNoMixedMockConfig();
   const dataDir = process.env.OIA_DATA_DIR ?? path.join(process.cwd(), ".data");
   const files = new LocalFileStore(path.join(dataDir, "files"));
   const keys = new ApiKeyStore(path.join(dataDir, "api-keys.json"));

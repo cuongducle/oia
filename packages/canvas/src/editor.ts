@@ -5,7 +5,10 @@ import { TEXT_PRESET_SPECS, SHAPES, SIZE_PRESETS, DEFAULT_POSTER, type TextPrese
 /** Fabric wrapper — canvas setup + scene JSON loading. */
 export async function createEditor(canvasEl: HTMLCanvasElement, scene?: SceneCanvas) {
   // Artboard identity must survive editor autosave and thumbnail serialization.
-  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name"])];
+  // `origin` (TP.10 provenance: user | agent | generated) must survive too — without
+  // whitelisting it, toObject() silently strips provenance on every save/reload and
+  // the non-destruction survival rule becomes unenforceable.
+  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name", "origin"])];
   const canvas = new fabric.Canvas(canvasEl, {
     preserveObjectStacking: true,
     selection: true,
