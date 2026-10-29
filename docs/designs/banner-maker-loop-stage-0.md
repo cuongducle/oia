@@ -542,4 +542,7 @@ approved record and is unchanged.
 * `schemaVersion` + full migrations remain Stage-2 work (TP.7 scope stopped at
   corruption/data-loss paths).
 * Moderated seller sessions (the Stage-0 exit criteria) have not run yet; the
-  loop is now ready for them: CUJs 1–5 and 7 are test-covered end to end.
+  loop is now ready for them: CUJs 1–5 and 7 are test-covered end to end. The
+  moderation kit (T-1 checklist, session flow, verbatim Vietnamese task cards,
+  observation sheets, scoring rules) is at
+  [`docs/validation/seller-sessions-kit.md`](../validation/seller-sessions-kit.md).
