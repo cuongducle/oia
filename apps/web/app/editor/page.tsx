@@ -481,10 +481,10 @@ export default function EditorPage() {
     } catch (e) { if ((e as Error).name !== "AbortError") setNotice("The AI edit could not be completed. Check your provider settings and try again."); }
     finally { setAiBusy(false); aiStreamAbortRef.current = null; }
   }
+  /** TP.5 — cancel API only; the server emits the terminal event and closes the stream
+   *  (aborting the reader would swallow the cancelled message — see Home stop()). */
   async function stopAiEdit() {
     if (aiJobRef.current) await fetch("/api/chat/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId: aiJobRef.current }) }).catch(() => {});
-    aiStreamAbortRef.current?.abort();
-    setAiBusy(false);
   }
 
   async function addText(kind: TextPreset) {

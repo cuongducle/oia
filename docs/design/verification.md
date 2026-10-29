@@ -50,3 +50,23 @@ Browser automation used the logged-in Chrome extension through `bsk`. Screenshot
 - The running preview uses `IMAGE_PROVIDER=mock` to make interaction testing deterministic. Real Codex generation passed its separate authenticated integration test; BYOK/provider deployment still requires the appropriate environment configuration.
 - Existing user-authored Vietnamese project names and conversation text are intentionally preserved. The application interface, curated examples, accessibility labels, and exposed skill examples are English.
 - Two blank projects created during the first-save regression investigation were removed; pre-existing projects and conversations were not deleted or renamed.
+
+## Stage-0 remediation checks (2026-10-30, real Chrome + live codex)
+
+Environment: macOS, codex-cli 0.163.0 logged in (`IMAGE_PROVIDER=codex LLM_PROVIDER=codex`, fresh `OIA_DATA_DIR`, no Redis), production `next start` on :3100, Chrome via browser-skill.
+
+**Real Codex flow (one quota-billed run):**
+- Prompt "banner trà sữa giảm 20% ngày 8/11" (clean-plate default ON) → planner + one image turn (~40 s); the stored project contains `block:headline "TRÀ SỮA"`, `block:discount "GIẢM 20%"`, `block:date "NGÀY 8/11"` as separate editable textboxes, artwork as `/api/files/<key>` (asset ref, origin "generated").
+- `/api/provider/status` quota counters moved 0 → {planner: 1, image: 1}; chip visible on Home.
+- Home → "Open editor" hands off by projectId; editor loads the project by id.
+
+**Stop control (found and fixed a real bug in this pass):**
+- First attempt: pressing Dừng killed the CLI tree (0 orphan `codex exec` processes, image counter unchanged) but the client aborted its own stream reader before the terminal event arrived — the seller never saw the cancelled message. Fixed: Stop calls only the cancel API; the server emits the terminal `cancelled` event and closes the stream. Re-verified in Chrome: alert shows "Đã dừng tạo ảnh theo yêu cầu." and no orphan processes remain.
+
+**Mock labeling:** restarted with the default mock pair — the status banner reads "Chế độ thử nghiệm — ảnh placeholder, không phải AI thật".
+
+**Marketplace presets:** editor Settings → Recommended Size shows Shopee Product (1:1) 1024×1024, Lazada Product (1:1) 800×800, TikTok Shop Product (1:1) 1080×1080 (existing TikTok 9:16 intact).
+
+**CI:** GitHub Actions green on the remediation commit (1m53s).
+
+**Limits:** one real generation per pass (quota); stop verified twice on macOS only (Windows remains gated to the desktop design per the Stage-0 doc).

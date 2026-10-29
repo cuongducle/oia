@@ -166,11 +166,12 @@ export default function Home() {
     } catch (e) { if ((e as Error).name !== "AbortError") setError(e instanceof Error ? e.message : "Something went wrong. Please try again."); }
     finally { setBusy(false); streamAbortRef.current = null; }
   }
-  /** TP.5 — Stop kills immediately: cancel API (server aborts the CLI process tree) + local stream abort. */
+  /** TP.5 — Stop kills immediately via the cancel API (server aborts the CLI process tree).
+   *  The client stream is NOT aborted: the server then emits the terminal `cancelled` event
+   *  and closes the stream itself — aborting the reader here would swallow that message
+   *  (found in real-Chrome QA: the seller never saw "Đã dừng tạo ảnh theo yêu cầu."). */
   async function stop() {
     if (jobId) await fetch("/api/chat/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId }) }).catch(() => {});
-    streamAbortRef.current?.abort();
-    setBusy(false);
   }
   /** TP.7 (Slice 2) — handoff by projectId; localStorage scene blobs are gone. */
   async function openInEditor(name: string, scene: SceneCanvas) {
