@@ -79,3 +79,15 @@ export interface ProviderStatus {
   llm: { name: string; capabilities: ProviderCapabilities; diagnostic: ProviderDiagnostic };
   quota: QuotaCounters & { session: { planner: number; image: number } };
 }
+
+import type { ServiceContext } from "./context.js";
+
+/** TP.6 — health snapshot over a service context (both shells render this the same way). */
+export async function providerStatusSnapshot(ctx: ServiceContext): Promise<ProviderStatus> {
+  const [imageDiag, llmDiag] = await Promise.all([ctx.chat.image.isAvailable(), ctx.chat.llm.isAvailable()]);
+  return {
+    image: { name: ctx.chat.image.name, capabilities: ctx.chat.image.capabilities, diagnostic: imageDiag },
+    llm: { name: ctx.chat.llm.name, capabilities: ctx.chat.llm.capabilities, diagnostic: llmDiag },
+    quota: ctx.chat.meter.snapshot(),
+  };
+}

@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle (+ agent draft)
 * **Date:** 2026-10-30
-* **Status:** APPROVED (owner, 2026-10-30 — "làm đi": Q1–Q10 accepted with the recommended defaults). **D1 shipped** (see the implementation note under TP-D2). D2+ remain gated on the Stage-0 seller-session exit.
+* **Status:** APPROVED (owner, 2026-10-30 — Q1–Q10 accepted with the recommended defaults). **D1 shipped** (TP-D2 note below). **D2 gate OVERRIDDEN by owner (2026-10-30, "đã bảo skip seller")** — seller sessions are skipped by explicit owner decision; the loop therefore ships UNVALIDATED by real sellers and that risk is carried on the register below. D2 first increment shipped the same day.
 * **Predecessors:**
   * [`../desktop-architecture.md`](../desktop-architecture.md) — cross-platform research (reference apps, packaging, storage, security)
   * [`banner-maker-loop-stage-0.md`](banner-maker-loop-stage-0.md) — the engine + the honest done/deferred ledger; **Windows work and the S3 gate are owned by THIS design** (moved here 2026-10-29)
@@ -163,7 +163,7 @@ a non-technical user can produce.
 | --- | --- | --- |
 | D0 | This design + owner gates Q1–Q10 | ✅ approved 2026-10-30 |
 | D1 | TP-D2 service extraction **on the web** — web still green | ✅ shipped 2026-10-30 (18/18 test packages green incl. new @oia/services contract tests; live-server smoke) |
-| D2 | TP-D1 shell + renderer port (macOS, mock providers end-to-end in the shell) | **Stage-0 exit met** (seller sessions) |
+| D2 | TP-D1 shell + renderer port (macOS, mock providers end-to-end in the shell) | gate OVERRIDDEN by owner 2026-10-30; **increment 1 shipped**: electron-vite shell (main/preload/renderer), typed zod-validated IPC over @oia/services (chat run/stream/cancel, provider status, projects create/get), renderer Home scaffold (composer, clean-plate toggle, stop, timeline, Vietnamese error map via @oia-web single source, fabric canvas preview), `DESKTOP_SMOKE` scripted e2e (OK, 8 events, no base64 on the wire). Remaining: full renderer port (editor/templates) |
 | D3 | TP-D3 codex in-app runtime + login (macOS, real login) | D2 |
 | D4 | TP-D5 persistence v2 + `.data` importer | D2 |
 | D5 | TP-D4 Windows build + fixes | D3+D4 on macOS |
@@ -194,7 +194,7 @@ the Stage-0 exit criteria — the unproven-loop rule. D0–D1 may proceed now.
 | Windows `image_gen` hang with local refs (#40233) | S3 physical gate re-checks at gate time; fallback documented |
 | Codex CLI redistribution licensing unknown | spike S5 BEFORE D3; guided download is the fallback |
 | Renderer port scope creep (studio design system) | banner lane only (Q10); port Home/Editor, not the whole studio |
-| Loop unproven with sellers | D2+ hard gate on Stage-0 exit |
+| Loop unproven with sellers | gate OVERRIDDEN by owner (2026-10-30) — sessions skipped; risk ACCEPTED and carried: no seller has completed the loop, so packaging proceeds without the exit evidence the Stage-0 design required |
 | Signing/SmartScreen cold-start friction (Windows) | Q9 budget + beta channel through the landing page |
 | Migration failure destroys user data | quarantine-not-delete rule + pre-migration snapshot in the bundle |
 

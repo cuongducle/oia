@@ -1,5 +1,6 @@
 import {
   createServiceContext,
+  providerStatusSnapshot,
   type ServiceContext,
 } from "@oia/services";
 import path from "node:path";
@@ -16,15 +17,9 @@ export async function getRuntime(): Promise<ServiceContext> {
   return g.__oiaRt;
 }
 
-/** TP.6 — health panel snapshot: provider matrix + diagnostics + quota counters. */
+/** TP.6 — health panel snapshot (shared implementation in @oia/services). */
 export async function providerStatus() {
-  const rt = await getRuntime();
-  const [imageDiag, llmDiag] = await Promise.all([rt.chat.image.isAvailable(), rt.chat.llm.isAvailable()]);
-  return {
-    image: { name: rt.chat.image.name, capabilities: rt.chat.image.capabilities, diagnostic: imageDiag },
-    llm: { name: rt.chat.llm.name, capabilities: rt.chat.llm.capabilities, diagnostic: llmDiag },
-    quota: rt.chat.meter.snapshot(),
-  };
+  return providerStatusSnapshot(await getRuntime());
 }
 
 /** BR-KEY guard: with OIA_REQUIRE_KEY=1 a valid key is required (authorization header). */
