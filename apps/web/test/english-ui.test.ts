@@ -30,6 +30,9 @@ describe("English-only application interface", () => {
       };
       visit(source);
     }
+    // Stage 0 (2026-10-29, docs/designs/banner-maker-loop-stage-0.md) ships Vietnamese-first SELLER
+    // strings (mode toggle, mock banner, stop, errorClass map) — they live ONLY in i18n keys
+    // (libs/i18n.ts is not scanned by this test); the studio chrome itself stays English.
     expect(issues).toEqual([]);
   });
 });

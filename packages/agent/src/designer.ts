@@ -29,6 +29,8 @@ export interface DesignerAgentInput {
   mode?: GenerationMode;
   /** TP.5 — cooperative cancellation; checked between stages and threaded into providers. */
   signal?: AbortSignal;
+  /** TP.4/TP.5 — correlation id; when provided (the SSE route pre-generates it so /api/chat/cancel can address the job), every event carries it. */
+  jobId?: string;
 }
 
 const uuid32 = () => randomUUID().replace(/-/g, "");
@@ -123,7 +125,7 @@ export async function* runDesignerAgent(
   input: DesignerAgentInput,
   deps: DesignerAgentDeps,
 ): AsyncGenerator<ChatEvent> {
-  const jobId = randomUUID();
+  const jobId = input.jobId ?? randomUUID();
   const msgId = Date.now();
   const brandId = input.brandId ?? 0;
   const width = input.width ?? 1360;
@@ -191,6 +193,7 @@ export async function* runDesignerAgent(
       throw new ProviderError("plan_parse_failed", "the planner returned a malformed plan", { provider: deps.llm.name });
     }
   } catch (err) {
+    if (input.signal?.aborted) return; // TP.5: silent stop — the route emits the terminal cancelled event
     // G2/G7: planner failure aborts BEFORE image generation — explicit failure event, one attempt, no silent fallback
     yield fail(err);
     return;

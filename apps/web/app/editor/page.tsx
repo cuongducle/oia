@@ -14,6 +14,8 @@ import { Share2, Download, Cloud, ArrowLeft, Undo2, Redo2, LayoutTemplate, Image
 import { fitArtboard, sceneSize } from "@/libs/studio-ui";
 import { Dialog } from "@/components/Dialog";
 import { ScenePreview } from "@/components/ScenePreview";
+import { presentError } from "@/libs/provider-errors";
+import { t } from "@/libs/i18n";
 
 type Panel = "templates" | "assets" | "text" | "shapes" | "tables" | "draw" | "settings";
 
@@ -55,6 +57,17 @@ export default function EditorPage() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiTimeline, setAiTimeline] = useState<{ content: string; type: string }[]>([]);
+  // TP.5: the AI dock streams the same SSE path — its Stop uses the same cancel API
+  const aiJobRef = useRef<string | null>(null);
+  const aiStreamAbortRef = useRef<AbortController | null>(null);
+  const [aiError, setAiError] = useState<{ message: string; actionLabel?: string; actionKind?: string } | null>(null);
+  // TP.11: reference-composer path is capability-gated — unsupported providers never receive refs silently
+  const [refCapable, setRefCapable] = useState(true);
+  useEffect(() => {
+    void fetch("/api/provider/status").then(r => r.json()).then(j => {
+      if (j.code === 0) setRefCapable(Boolean(j.data.image?.capabilities?.referenceImages));
+    }).catch(() => {});
+  }, []);
   const [aiNarrative, setAiNarrative] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<{ id: number; name: string }[]>([]);
@@ -146,6 +159,8 @@ export default function EditorPage() {
       let initialScene: SceneCanvas | null = null;
       let initialName = "Untitled project";
       let initialPages: EditorPage[] | null = null;
+      // TP.7 (Slice 2): handoff is by projectId only — the localStorage scene-blob path is gone
+      // (a multi-MB Codex PNG at ~1.33× base64 against the ~5MB quota was a blank-canvas risk).
       if (pid) {
         const j = await (await fetch(`/api/projects/${pid}`)).json();
         if (j.code === 0) {
@@ -154,11 +169,6 @@ export default function EditorPage() {
           initialPages = j.data.pages;
           initialScene = j.data.pages[0]?.canvas ?? null;
         } else { throw new Error("Project not found"); }
-      } else {
-        const raw = localStorage.getItem("oia:scene");
-        const meta = localStorage.getItem("oia:project");
-        if (meta) initialName = JSON.parse(meta).name ?? "Untitled project";
-        if (raw) initialScene = JSON.parse(raw);
       }
       if (cancelled) return;
       setProjectName(initialName);
@@ -423,25 +433,34 @@ export default function EditorPage() {
   }
   async function runAiEdit() {
     if (aiBusy || !aiPrompt.trim()) return;
-    setAiBusy(true); setAiTimeline([]); setAiNarrative("");
+    setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
+    const streamAbort = new AbortController();
+    aiStreamAbortRef.current = streamAbort;
     try {
       const scene = fabricRef.current?.toObject();
+      const refs = refCapable
+        ? scene?.objects?.filter((o: { src?: string }) => o.src).map((o: { src: string }) => o.src).slice(0, 2)
+        : undefined; // capability-gated (TP.11): never send refs to a provider that cannot use them
       const res = await fetch("/api/chat/send", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt, referenceImages: scene?.objects?.filter((o: { src?: string }) => o.src).map((o: { src: string }) => o.src).slice(0, 2) }),
+        method: "POST", headers: { "content-type": "application/json" }, signal: streamAbort.signal,
+        body: JSON.stringify({ prompt: aiPrompt, referenceImages: refs }),
       });
       if (!res.ok || !res.body) throw new Error("Could not connect to your AI provider.");
       const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
       for (;;) {
         const { done, value } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n"); buf = lines.pop() ?? "";
+        buf += dec.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.startsWith("data:")) continue;
-          const payload = line.slice(5);
-          if (payload === "[Heartbeat]") continue;
+          const payload = line.slice(5); if (payload === "[Heartbeat]") continue;
           let ev: ChatEvent; try { ev = JSON.parse(payload) as ChatEvent; } catch { continue; }
-          if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((t) => ({ content: t.content, type: t.type })));
+          if (ev.jobId) aiJobRef.current = ev.jobId;
+          if (ev.status === "cancelled") { setAiError({ message: t("en", "error.cancelled") }); continue; }
+          if (ev.error) {
+            const p = presentError(ev.errorClass);
+            setAiError({ message: t("en", p.messageKey), actionLabel: p.actionLabelKey ? t("en", p.actionLabelKey) : undefined, actionKind: p.actionKind });
+          }
+          if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, type: tm.type })));
           if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
           for (const m of ev.renderData?.msgMeta ?? []) {
             if (m.type === "canvas") {
@@ -451,8 +470,13 @@ export default function EditorPage() {
           }
         }
       }
-    } catch { setNotice("The AI edit could not be completed. Check your provider settings and try again."); }
-    finally { setAiBusy(false); }
+    } catch (e) { if ((e as Error).name !== "AbortError") setNotice("The AI edit could not be completed. Check your provider settings and try again."); }
+    finally { setAiBusy(false); aiStreamAbortRef.current = null; }
+  }
+  async function stopAiEdit() {
+    if (aiJobRef.current) await fetch("/api/chat/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId: aiJobRef.current }) }).catch(() => {});
+    aiStreamAbortRef.current?.abort();
+    setAiBusy(false);
   }
 
   async function addText(kind: TextPreset) {
@@ -738,12 +762,15 @@ export default function EditorPage() {
               </div>
             )}
             <div className="timeline" style={{ margin: 0 }}>
-              {aiTimeline.map((t) => <div key={t.content + t.type} className={`t ${t.type}`}>{t.content}</div>)}
+              {aiTimeline.map((tm) => <div key={tm.content + tm.type} className={`t ${tm.type}`}>{tm.content}</div>)}
             </div>
+            {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
             {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
             <div className="aiComposer">
               <textarea aria-label="AI edit request" value={aiPrompt} rows={3} placeholder="Describe the changes you have in mind…" onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void runAiEdit();}}}/>
-              <div className="aiComposerControls"><button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{fontSize:10,margin:0}}>Layer by layer</span><button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy?"Editing":"Send edit request"}>{aiBusy ? "…" : <ArrowUp size={17}/>}</button></div>
+              <div className="aiComposerControls"><button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{fontSize:10,margin:0}}>Layer by layer</span>{aiBusy
+                ? <button className="generateBtn" style={{ background: "#dc2626" }} onClick={stopAiEdit} aria-label={t("en","editor.stop")} title={t("en","editor.stop")} aria-disabled={false}><span style={{ width: 12, height: 12, background: "#fff", display: "inline-block" }} /></button>
+                : <button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy?"Editing":"Send edit request"}><ArrowUp size={17}/></button>}</div>
             </div>
           </aside>
         )}

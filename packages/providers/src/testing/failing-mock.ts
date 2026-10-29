@@ -2,8 +2,17 @@ import type { ImageProvider, LlmProvider, ImageGenInput, ImageGenResult, Provide
 import { ProviderError } from "../index.js";
 import type { ErrorClass } from "@oia/schema";
 
-/**
- * Injectable failing providers (Group F): a configurable errorClass and latency,
+/** Sleep that cuts short on abort — mirrors cooperative providers (TP.5). */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const t = setTimeout(done, ms);
+    function done() { signal?.removeEventListener("abort", done); clearTimeout(t); resolve(); }
+    signal?.addEventListener("abort", done, { once: true });
+  });
+}
+
+/** Injectable failing providers (Group F): a configurable errorClass and latency,
  * shared by agent/tasks/web test suites — CI can exercise every failure path
  * without network or credentials.
  */
@@ -21,6 +30,8 @@ export interface FailingMockOptions {
   latencyMs?: number;
   /** Fail only on the Nth call (default: every call). */
   failOnCall?: number;
+  /** When false, isAvailable() reports the configured errorClass (pre-flight testing). */
+  available?: boolean;
 }
 
 export class FailingMockImageProvider implements ImageProvider {
@@ -42,6 +53,9 @@ export class FailingMockImageProvider implements ImageProvider {
   }
 
   async isAvailable(): Promise<ProviderDiagnostic> {
+    if (this.opts.available === false) {
+      return { ok: false, errorClass: this.opts.errorClass ?? "provider_missing", detail: "failing mock: configured unavailable" };
+    }
     return { ok: true, detail: "failing mock — always available, generate() throws" };
   }
 }
@@ -52,9 +66,9 @@ export class FailingMockLlmProvider implements LlmProvider {
   private calls = 0;
   constructor(private opts: FailingMockOptions = {}) {}
 
-  async chat(_messages: LlmMessage[], _opts?: LlmChatOpts): Promise<string> {
+  async chat(_messages: LlmMessage[], opts?: LlmChatOpts): Promise<string> {
     this.calls++;
-    if (this.opts.latencyMs) await new Promise((r) => setTimeout(r, this.opts.latencyMs));
+    await abortableSleep(this.opts.latencyMs ?? 0, opts?.signal);
     const shouldFail = this.opts.failOnCall === undefined || this.calls === this.opts.failOnCall;
     if (shouldFail) {
       throw new ProviderError(this.opts.errorClass ?? "plan_parse_failed", this.opts.message ?? `failing-mock: ${this.opts.errorClass ?? "plan_parse_failed"}`, {
@@ -65,6 +79,9 @@ export class FailingMockLlmProvider implements LlmProvider {
   }
 
   async isAvailable(): Promise<ProviderDiagnostic> {
+    if (this.opts.available === false) {
+      return { ok: false, errorClass: this.opts.errorClass ?? "provider_missing", detail: "failing mock: configured unavailable" };
+    }
     return { ok: true, detail: "failing mock — always available, chat() throws" };
   }
 }

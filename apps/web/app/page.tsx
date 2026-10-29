@@ -1,13 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Paperclip, SlidersHorizontal, ChevronDown, LockKeyhole, X, LoaderCircle, RectangleVertical, Presentation, PanelsTopLeft, Smartphone, Download, Pencil, Scan, Images } from "lucide-react";
-import type { ChatEvent, CanvasMsgMeta, TaskMeta, BrandKit, Template } from "@oia/schema";
+import { ArrowRight, Paperclip, SlidersHorizontal, ChevronDown, LockKeyhole, X, LoaderCircle, RectangleVertical, Presentation, PanelsTopLeft, Smartphone, Download, Pencil, Scan, Images, Square } from "lucide-react";
+import type { ChatEvent, CanvasMsgMeta, TaskMeta, BrandKit, Template, SceneCanvas } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { ScenePreview } from "@/components/ScenePreview";
 import { Dialog } from "@/components/Dialog";
 import { STUDIO_TEMPLATES } from "@/libs/studio-templates";
 import { filterTemplates, templateCategory, type StudioCategory } from "@/libs/studio-ui";
+import { presentError } from "@/libs/provider-errors";
+import { t } from "@/libs/i18n";
+
+/** Stage 0: these strings ship Vietnamese-first by design (persona = Vietnamese sellers). */
+const tt = (key: Parameters<typeof t>[1]) => t("en", key);
+
+interface ProviderStatusData {
+  image: { name: string; capabilities: { isMock: boolean } };
+  llm: { name: string; capabilities: { isMock: boolean } };
+  quota: { day: string; planner: number; image: number; limitHits: number };
+}
 
 const FORMATS = [
   { name: "Poster", Icon: RectangleVertical, prompt: "Design a poster for " },
@@ -43,12 +54,26 @@ export default function Home() {
   const [galleryTab, setGalleryTab] = useState<"featured" | "all">("featured");
   const [category, setCategory] = useState<StudioCategory>("all");
   const [activeFormat, setActiveFormat] = useState("Poster");
+  // ---- Stage 0 (Slice 2): stop control, provider status, mode toggle ----
+  const [jobId, setJobId] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const [mockMode, setMockMode] = useState(false);
+  const [quota, setQuota] = useState<ProviderStatusData["quota"] | null>(null);
+  const [editableText, setEditableText] = useState(true); // "Chữ sửa được ngay" — the banner flow defaults to clean-plate (TP.3)
+  const [errorAction, setErrorAction] = useState<ReturnType<typeof presentError> | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
       fetch("/api/brandkit", { signal: controller.signal }).then(r => r.json()).then(j => { if (j.code === 0) setKits(j.data); }),
       fetch("/api/templates?pageSize=100", { signal: controller.signal }).then(r => r.json()).then(j => { if (j.code === 0) setCommunity(j.data.items); }),
+      // TP.6: mock labeling + quota chip — the degradation lane (upload/paste/templates) needs no provider
+      fetch("/api/provider/status", { signal: controller.signal }).then(r => r.json()).then(j => {
+        if (j.code === 0) {
+          setMockMode(Boolean(j.data.image?.capabilities?.isMock || j.data.llm?.capabilities?.isMock));
+          setQuota(j.data.quota);
+        }
+      }),
     ]).catch(e => { if (e.name !== "AbortError") setError("Community templates could not be loaded. You can still use the studio collection."); });
     const params = new URLSearchParams(location.search);
     if (params.get("brandKit")) setKitId(params.get("brandKit")!);
@@ -101,15 +126,18 @@ export default function Home() {
   }
   async function submit() {
     if (!prompt.trim() || busy || uploading) return;
-    setBusy(true); setError(""); setTimeline([]); setNarrative("");
+    setBusy(true); setError(""); setTimeline([]); setNarrative(""); setErrorAction(null); setJobId(null);
+    const streamAbort = new AbortController();
+    streamAbortRef.current = streamAbort;
     try {
       const base = aspect === "1:1" ? [1024,1024] : aspect === "3:4" ? [1024,1365] : aspect === "2:3" ? [1024,1536] : aspect === "9:16" ? [1080,1920] : [1360,2048];
       const scale = resolution === "1k" ? .75 : 1;
-      const res = await fetch("/api/chat/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      const res = await fetch("/api/chat/send", { method: "POST", headers: { "content-type": "application/json" }, signal: streamAbort.signal, body: JSON.stringify({
         prompt, brandKitId: kitId || undefined, sessionId: sessionId ?? undefined,
         ...(aspect !== "auto" || resolution !== "2k" ? { width: Math.round(base[0] * scale), height: Math.round(base[1] * scale) } : {}),
         ...(pages !== "auto" ? { pages: Number(pages) } : {}), ...(outlineMode ? { outlineMode: true } : {}),
         ...(skill ? { skill } : {}), ...(refs.length ? { referenceImages: refs } : {}),
+        mode: editableText ? "clean-plate" : "poster",
       }) });
       if (!res.ok || !res.body) throw new Error("Could not connect to the assistant. Check your AI provider settings.");
       const reader = res.body.getReader(), decoder = new TextDecoder(); let buf = "";
@@ -120,19 +148,38 @@ export default function Home() {
           if (!line.startsWith("data:")) continue;
           const payload = line.slice(5); if (payload.trim() === "[Heartbeat]") continue;
           let ev: ChatEvent; try { ev = JSON.parse(payload); } catch { continue; }
-          if (ev.error) setError(ev.error);
+          if (ev.jobId) setJobId(ev.jobId);
+          if (ev.status === "cancelled") { setError(tt("error.cancelled")); continue; }
+          if (ev.error) {
+            const p = presentError(ev.errorClass);
+            setErrorAction(p);
+            setError(tt(p.messageKey));
+          }
           if (ev.renderData?.taskMeta?.length) setTimeline(ev.renderData.taskMeta);
           if (ev.content) setNarrative(n => n + stripMarkers(ev.content) + " ");
           for (const meta of ev.renderData?.msgMeta ?? []) if (meta.type === "canvas") setCanvasMeta(meta);
         }
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong. Please try again."); }
-    finally { setBusy(false); }
+    } catch (e) { if ((e as Error).name !== "AbortError") setError(e instanceof Error ? e.message : "Something went wrong. Please try again."); }
+    finally { setBusy(false); streamAbortRef.current = null; }
+  }
+  /** TP.5 — Stop kills immediately: cancel API (server aborts the CLI process tree) + local stream abort. */
+  async function stop() {
+    if (jobId) await fetch("/api/chat/cancel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId }) }).catch(() => {});
+    streamAbortRef.current?.abort();
+    setBusy(false);
+  }
+  /** TP.7 (Slice 2) — handoff by projectId; localStorage scene blobs are gone. */
+  async function openInEditor(name: string, scene: SceneCanvas) {
+    setError("");
+    try {
+      const j = await (await fetch("/api/projects", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, scene }) })).json();
+      if (j.code !== 0) throw new Error(j.msg);
+      location.href = `/editor?id=${j.data.id}`;
+    } catch { setError("The editor could not be opened. Please try again."); }
   }
   function openTemplate(tpl: Template) {
-    localStorage.setItem("oia:scene", JSON.stringify(tpl.scene));
-    localStorage.setItem("oia:project", JSON.stringify({ name: tpl.name }));
-    location.href = "/editor";
+    void openInEditor(tpl.name, tpl.scene);
   }
   async function exportResult(format: "png" | "pdf" | "pptx" | "zip") {
     const c = fabricRef.current; if (!c) return;
@@ -146,7 +193,7 @@ export default function Home() {
       if (format === "png") dl(blob,"oia.png");
       if (format === "pdf") { const { jsPDF } = await import("jspdf"); const pdf = new jsPDF({ orientation:w>h?"landscape":"portrait",unit:"px",format:[w,h] }); pdf.addImage(png,"PNG",0,0,w,h); dl(pdf.output("blob"),"oia.pdf"); }
       if (format === "zip") { const JSZip = (await import("jszip")).default; const zip = new JSZip(); zip.file("1.png",blob); dl(await zip.generateAsync({type:"blob"}),"oia.zip"); }
-      if (format === "pptx") { localStorage.setItem("oia:scene",JSON.stringify(canvasMeta?.canvas)); location.href="/editor"; }
+      if (format === "pptx") { await openInEditor("Your design", canvasMeta!.canvas); } // handoff by projectId — no localStorage blobs
     } finally { c.setZoom(oldZoom); c.setDimensions({ width: oldW, height: oldH }); c.requestRenderAll(); }
   }
   const all = [...STUDIO_TEMPLATES, ...community];
@@ -164,18 +211,23 @@ export default function Home() {
         <select aria-label="Resolution" value={resolution} onChange={e => setResolution(e.target.value)}><option value="2k">2K</option><option value="1k">1K</option></select>
         <span className="composerDivider" />
         <button className="advancedToggle" aria-expanded={advanced} aria-controls="advanced-settings" onClick={() => setAdvanced(!advanced)}><SlidersHorizontal size={16} /><span>Advanced settings</span><ChevronDown size={13} /></button>
-        <button className="generateBtn" onClick={submit} disabled={busy || uploading || !prompt.trim()} aria-label={busy ? "Designing" : "Generate design"}>{busy ? <LoaderCircle className="spin" size={20} /> : <ArrowRight size={21} />}</button>
+        {busy
+          ? <button className="generateBtn" onClick={stop} aria-label={tt("editor.stop")} title={tt("editor.stop")} style={{ background:"#dc2626" }}><Square size={18} /></button>
+          : <button className="generateBtn" onClick={submit} disabled={busy || uploading || !prompt.trim()} aria-label={busy ? "Designing" : "Generate design"}><ArrowRight size={21} /></button>}
       </div>
       {advanced && <div id="advanced-settings" className="advancedSettings">
         <label className="field">Pages<select value={pages} onChange={e => setPages(e.target.value)}><option value="auto">Auto</option>{Array.from({length:9},(_,i)=><option key={i} value={i+1}>{i+1} {i===0?"page":"pages"}</option>)}</select></label>
         <label className="field">Skill<select value={skill} onChange={e => setSkill(e.target.value)}><option value="">Choose automatically</option>{["Long Image Maker","Xiaohongshu Post Maker","Presentation Maker","File Translator","Background Remover","Image Resizer"].map(s=><option key={s}>{s}</option>)}</select></label>
         <label className="field">Brand kit<select value={kitId} onChange={e=>setKitId(e.target.value)}><option value="">None</option>{kits.map(k=><option key={k.id} value={k.id}>{k.name}</option>)}</select></label>
         <label className="switchRow"><button type="button" role="switch" aria-checked={outlineMode} aria-label="Create an outline first" className={`switch ${outlineMode?"on":""}`} onClick={()=>setOutlineMode(!outlineMode)} />Create an outline first</label>
+        <label className="switchRow"><button type="button" role="switch" aria-checked={editableText} aria-label={tt("mode.toggle")} title={tt("mode.toggleHint")} className={`switch ${editableText?"on":""}`} onClick={()=>setEditableText(!editableText)} />{tt("mode.toggle")}</label>
       </div>}
       {refs.length > 0 && <div className="attachmentList">{refs.map((u,i)=><div key={u} className="attachment"><img src={u} alt={`Reference ${i+1}`} /><button className="iconBtn" aria-label={`Remove reference image ${i+1}`} onClick={()=>setRefs(r=>r.filter(x=>x!==u))}><X size={13} /></button></div>)}</div>}
     </section>
     <div className="formatRow" aria-label="Suggested formats">{FORMATS.map(({name,Icon,prompt:p})=><button key={name} className={`formatBtn ${activeFormat===name?"active":""}`} onClick={()=>{setActiveFormat(name);setPrompt(p);}}><Icon size={17}/>{name}</button>)}</div>
-    {error && <div role="alert" className="notice error">{error}</div>}
+    {mockMode && <div role="status" className="notice" style={{ borderColor:"#f59e0b", background:"#fffbeb" }}>{tt("provider.mockBanner")}</div>}
+    {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && <p className="hintP" role="status" style={{ display:"flex", gap: 8, alignItems: "center" }}><span>🪙</span><span>{tt("quota.chip").replace("{image}", String(quota.image)).replace("{planner}", String(quota.planner))}{quota.limitHits > 0 ? ` · ${tt("quota.limitHits").replace("{n}", String(quota.limitHits))}` : ""}</span></p>}
+    {error && <div role="alert" className="notice error">{error}{errorAction && errorAction.actionKind !== "none" && <> · <button className="linklike" onClick={() => { if (errorAction.actionKind === "retry") void submit(); else setError(tt(errorAction.actionKind === "login" ? "error.hintLogin" : "error.hintGuide")); }}>{tt(errorAction.actionLabelKey!)}</button></>}</div>}
     {busy && <p className="hintP" role="status">Your assistant is designing. Your creation will appear here…</p>}
     {timeline.length>0 && <div className="timeline">{timeline.map(t=><div key={t.id} className={`t ${t.type} ${t.status==="1"?"done":""}`}>{t.content} · {t.status==="0"?"In progress":"Done"}</div>)}</div>}
     {narrative && <div className="narrative">{narrative.trim()}</div>}
@@ -183,7 +235,7 @@ export default function Home() {
       <div className="canvasWrap" style={{maxWidth:600,margin:"0 auto",overflow:"hidden"}}><canvas ref={canvasElRef}/></div>
       <div className="resultActions">
         <button onClick={()=>setPreview(canvasMeta.thumbnail || null)}><Scan size={14}/> Preview</button>
-        <button onClick={()=>openTemplate({name:"Your design",scene:canvasMeta.canvas} as Template)}><Pencil size={14}/> Open editor</button>
+        <button onClick={()=>openInEditor("Your design", canvasMeta.canvas)}><Pencil size={14}/> Open editor</button>
         <button onClick={()=>{if(canvasMeta.thumbnail)setRefs(r=>[...r,canvasMeta.thumbnail!]);}}><Images size={14}/> Use as reference</button>
         <button onClick={()=>exportResult("png")}><Download size={14}/> PNG</button>
         <select aria-label="Export result" defaultValue="" onChange={e=>{if(e.target.value)void exportResult(e.target.value as "pdf"|"zip"|"pptx");e.target.value="";}}><option value="" disabled>Export…</option><option value="pdf">PDF</option><option value="zip">ZIP</option><option value="pptx">PPTX in editor</option></select>

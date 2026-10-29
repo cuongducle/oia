@@ -60,6 +60,10 @@ const dict = {
     "error.action.retry": "Thử lại",
     "error.action.login": "Đăng nhập lại",
     "error.action.guide": "Xem hướng dẫn",
+    "error.hintLogin": "Mở terminal, chạy lệnh “codex login”, đăng nhập ChatGPT rồi thử lại.",
+    "error.hintGuide": "Xem README mục Codex CLI để cài đặt công cụ AI.",
+    "quota.chip": "AI hôm nay: {image} ảnh · {planner} lượt đọc yêu cầu",
+    "quota.limitHits": "{n} lần chạm hạn mức",
   },
   zh: {
     "nav.home": "首页",
@@ -105,6 +109,10 @@ const dict = {
     "error.action.retry": "重试",
     "error.action.login": "重新登录",
     "error.action.guide": "查看指南",
+    "error.hintLogin": "打开终端运行 “codex login”，登录 ChatGPT 后重试。",
+    "error.hintGuide": "查看 README 的 Codex CLI 安装说明。",
+    "quota.chip": "今日 AI：{image} 张图 · {planner} 次需求读取",
+    "quota.limitHits": "{n} 次触及额度上限",
   },
 } as const satisfies Record<"en" | "zh", Record<string, string>>;
 
