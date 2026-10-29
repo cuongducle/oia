@@ -14,7 +14,7 @@ export function makeGeneratePoster(ctx: ProcCtx) {
     const prompt = String(params.prompt ?? "");
     const size = String(params.size ?? "1360x2048").split("x").map(Number);
     const img = await getImageProvider().generate({ prompt, width: size[0], height: size[1] });
-    const bytes = await fetchBytes(img.url);
+    const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
   };
@@ -27,7 +27,7 @@ export function makeImageEdit(ctx: ProcCtx) {
     const prompt = String(params.prompt ?? "");
     if (!refs.length || !prompt) throw new Error("image-edit requires reference[] + prompt");
     const img = await getImageProvider().generate({ prompt, width: 1024, height: 1024, referenceImages: refs });
-    const bytes = await fetchBytes(img.url);
+    const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
   };
@@ -60,7 +60,7 @@ export function makeGenericImageTask(ctx: ProcCtx, opts: { buildPrompt: (p: Reco
   return async (params: Record<string, unknown>) => {
     const prompt = opts.buildPrompt(params);
     const img = await getImageProvider().generate({ prompt, width: 1024, height: 1365 });
-    const bytes = await fetchBytes(img.url);
+    const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
   };
@@ -100,7 +100,7 @@ export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?:
     for (const s of outline.slides) {
       const slide = pptx.addSlide();
       const img = await getImageProvider().generate({ prompt: s.imagePrompt, width: 1024, height: 1365 });
-      const bytes = await fetchBytes(img.url);
+      const bytes = await fetchBytes(img.url, ctx.store);
       await ctx.store.put(bytes, "png");
       slide.addImage({ data: `image/png;base64,${Buffer.from(bytes).toString("base64")}`, x: 0.4, y: 0.4, w: 3.4, h: 4.5 });
       slide.addText(s.title, { x: 4.2, y: 0.5, fontSize: 28, bold: true });
@@ -119,10 +119,16 @@ interface PptxT {
   write(o: { outputType: string }): Promise<unknown>;
 }
 
-async function fetchBytes(url: string): Promise<Uint8Array> {
+/** data: | http(s) | same-origin asset ref (/api/files/<key>) — resolved through the store when present. */
+async function fetchBytes(url: string, store?: FileStore): Promise<Uint8Array> {
   if (url.startsWith("data:")) {
     const b64 = url.split(",")[1] ?? "";
     return new Uint8Array(Buffer.from(b64, "base64"));
+  }
+  // TP.7: scenes reference assets as /api/files/<key> — same-origin browser URLs that
+  // Node fetch cannot resolve; read the bytes from the file store instead
+  if (store && url.startsWith("/api/files/")) {
+    return store.read(url.replace(/^\/api\/files\//, ""));
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetch ${url} HTTP ${res.status}`);

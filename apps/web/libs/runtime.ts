@@ -109,15 +109,16 @@ export async function getRuntime(): Promise<Rt> {
   assertNoMixedMockConfig();
   const dataDir = process.env.OIA_DATA_DIR ?? path.join(process.cwd(), ".data");
   const files = new LocalFileStore(path.join(dataDir, "files"));
+  await files.hydrate(); // md5 dedupe survives restarts — migrate-on-save reuses existing assets
   const keys = new ApiKeyStore(path.join(dataDir, "api-keys.json"));
   await keys.load();
   const brandKits = new BrandKitStore(path.join(dataDir, "brandkits.json"));
   await brandKits.load();
   const templates = new TemplateStore(path.join(dataDir, "templates.json"));
   await templates.load();
-  const projects = new ProjectStore(path.join(dataDir, "projects.json"));
+  const projects = new ProjectStore(path.join(dataDir, "projects.json"), files);
   await projects.load();
-  const chatSessions = new ChatSessionStore(path.join(dataDir, "chat-sessions.json"));
+  const chatSessions = new ChatSessionStore(path.join(dataDir, "chat-sessions.json"), files);
   await chatSessions.load();
 
   const taskStore = new TaskStore();

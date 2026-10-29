@@ -16,7 +16,8 @@ export interface FileStore {
 }
 
 export class LocalFileStore implements FileStore {
-  private md5Index = new Map<string, string>(); // md5 → key
+  private md5Index = new Map<string, string>(); // full md5 → key (in-process)
+  private prefixIndex = new Map<string, string>(); // 8-char md5 prefix → key (hydrated from disk filenames)
   constructor(
     private root = process.env.OIA_DATA_DIR ?? ".data/files",
     private publicBase = "/api/files",
@@ -31,7 +32,7 @@ export class LocalFileStore implements FileStore {
   async put(bytes: Uint8Array, ext: string): Promise<{ key: string; url: string; md5: string }> {
     const md5 = createHash("md5").update(bytes).digest("hex");
     const existing = await this.findByMd5(md5);
-    if (existing) return { key: this.md5Index.get(md5)!, url: existing, md5 };
+    if (existing) return { key: this.md5Index.get(md5) ?? this.prefixIndex.get(md5.slice(0, 8))!, url: existing, md5 };
 
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const key = `uploads/${day}/${md5.slice(0, 8)}-${Date.now().toString(36)}.${ext}`;
@@ -43,20 +44,21 @@ export class LocalFileStore implements FileStore {
   }
 
   async findByMd5(md5: string): Promise<string | null> {
-    const key = this.md5Index.get(md5);
+    const key = this.md5Index.get(md5) ?? this.prefixIndex.get(md5.slice(0, 8));
     return key ? `${this.publicBase}/${key}` : null;
   }
 
-/** Reload the md5 index from disk (dedupe survives server restarts). */
+/** Reload the md5 index from disk (dedupe survives server restarts).
+ *  Filenames carry the 8-char md5 prefix — indexed by prefix and matched by prefix in findByMd5. */
   async hydrate(): Promise<void> {
     const dir = path.join(this.root, "uploads");
     try {
       for (const day of await readdir(dir)) {
         for (const f of await readdir(path.join(dir, day)).catch(() => [])) {
-          if (/^([0-9a-f]{8})-/.test(f)) {
-            const md5prefix = f.slice(0, 8);
+          const m = f.match(/^([0-9a-f]{8})-/);
+          if (m) {
   // an 8-char md5 prefix is enough for practical dedupe (collisions overwrite)
-            this.md5Index.set(md5prefix + "*".repeat(24), path.join("uploads", day, f));
+            this.prefixIndex.set(m[1], path.join("uploads", day, f));
           }
         }
       }

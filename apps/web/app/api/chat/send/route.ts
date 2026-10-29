@@ -136,14 +136,17 @@ export async function POST(req: Request) {
         if (finalEvent?.renderData && lastCanvas) {
           finalEvent.renderData.msgMeta = [{ type: "canvas", id: "final", canvas: lastCanvas }];
         }
-        // TP.7 (Slice 2): session persistence stops failing silently — log with the jobId so
-        // "my banner vanished from history" is diagnosable; full surfacing lands with the job records (Slice 3)
-        void chatSessions
-          .append(session.id, prompt, {
+        // TP.7 (Slice 2/3): session persistence is awaited before the stream closes —
+        // replay-after-stream-end can never race the write ("sharing awaits persistence"
+        // precedent); failures are logged with the jobId, never silent
+        try {
+          await chatSessions.append(session.id, prompt, {
             content: String((lastEvent as { content?: string } | null)?.content ?? ""),
             renderData: finalEvent?.renderData,
-          })
-          .catch((err) => console.error(`[chat] session persistence failed jobId=${jobId} session=${session.id}`, err));
+          });
+        } catch (err) {
+          console.error(`[chat] session persistence failed jobId=${jobId} session=${session.id}`, err);
+        }
         if (!closed) {
           closed = true;
           try { controller.close(); } catch { /* already closed */ }

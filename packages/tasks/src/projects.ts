@@ -1,21 +1,29 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { projectSchema, type Project } from "@oia/schema";
+import { atomicWriteJson } from "./atomic.js";
+import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
+import type { FileStore } from "./storage.js";
 
 /**
  * BR-PERSIST — project store (JSON-file self-hosting; postgres for multi-user).
  * - create blank or from a scene ("Edit as project")
  * - saveScene keeps pages[] fully intact
  * - list sorted by updatedAt DESC (recent projects)
+ * - TP.7 (Slice 3): every save is atomic (temp+rename, EPERM/EBUSY retry, single writer)
+ *   and migrate-on-save extracts base64 into the asset store (no base64 in new saves)
  */
 export class ProjectStore {
   private items: Project[] = [];
-  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "projects.json")) {}
+  constructor(
+    private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "projects.json"),
+    /** When provided, saves own migrate-on-save + the no-base64 rule. */
+    private files?: FileStore,
+  ) {}
 
   async load() { try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; } }
   private async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.items, null, 2));
+    await atomicWriteJson(this.file, this.items);
   }
 
   async create(input: { name?: string; scene?: unknown; pages?: unknown; width?: number; height?: number }): Promise<Project> {
@@ -32,6 +40,7 @@ export class ProjectStore {
       createdAt: now, updatedAt: now,
     });
     this.items.unshift(p);
+    if (this.files) await migrateProjectForSave(p, this.files); // TP.7: base64 → asset refs BEFORE first persist
     await this.save();
     return p;
   }
@@ -44,7 +53,12 @@ export class ProjectStore {
     if (patch.name !== undefined) p.name = patch.name.slice(0, 120);
     if (patch.pages !== undefined) {
       const parsed = projectSchema.pick({ pages: true }).parse({ pages: patch.pages });
+      // migrate the INCOMING copy before it becomes shared state — concurrent saves stay
+      // self-consistent (p.pages is replaced only after its own migration+validation passed)
+      if (this.files) await migrateProjectForSave({ ...p, pages: parsed.pages } as Project, this.files);
       p.pages = parsed.pages;
+    } else if (this.files) {
+      await migrateProjectForSave(p, this.files); // legacy base64 discovered on a name-only save
     }
     p.updatedAt = Date.now();
     // keep the recent order: move to the front
@@ -75,12 +89,17 @@ export interface StoredMessage {
 /**
  * BR-PERSIST’ — chat session store: names derive from the first prompt;
  * messages keep renderData for timeline replay.
+ * TP.7 (Slice 3): atomic writes + migrate-on-save — chat-sessions.json stops
+ * embedding data-URL canvases (asset references instead, same rule as scenes).
  */
 let __chatSeq = 0;
 
 export class ChatSessionStore {
   private data: Map<number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }> = new Map();
-  constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "chat-sessions.json")) {}
+  constructor(
+    private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "chat-sessions.json"),
+    private files?: FileStore,
+  ) {}
 
   async load() {
     try {
@@ -89,8 +108,7 @@ export class ChatSessionStore {
     } catch { this.data = new Map(); }
   }
   private async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify([...this.data.entries()], null, 2));
+    await atomicWriteJson(this.file, [...this.data.entries()]);
   }
 
   create(name?: string): { id: number; name: string } {
@@ -107,6 +125,7 @@ export class ChatSessionStore {
   async append(id: number, user: string, assistant: { content: string; renderData?: unknown }) {
     const s = this.data.get(id) ?? (() => { __chatSeq += 1; const created = { id, name: user.slice(0, 60), messages: [] as StoredMessage[], createdAt: id, updatedAt: id }; this.data.set(id, created); return created; })();
     if (s.messages.length === 0) s.name = user.slice(0, 60);
+    if (this.files) await migrateRenderData(assistant.renderData, this.files); // thumbnails + canvases → asset refs
     const canvas = (assistant.renderData as { msgMeta?: { type: string; canvas?: unknown }[] } | undefined)?.msgMeta?.find((m) => m.type === "canvas")?.canvas;
     s.messages.push({ role: "user", content: user, createdAt: Date.now() });
     s.messages.push({ role: "assistant", content: assistant.content, renderData: assistant.renderData, canvas, createdAt: Date.now() });
