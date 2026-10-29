@@ -1,6 +1,7 @@
 import * as fabric from "fabric";
 import type { SceneCanvas } from "@oia/schema";
 import { TEXT_PRESET_SPECS, SHAPES, SIZE_PRESETS, DEFAULT_POSTER, type TextPreset, type ShapeKind, type SizePresetName } from "./presets.js";
+import { stampUser } from "./provenance.js";
 
 /** Fabric wrapper — canvas setup + scene JSON loading. */
 export async function createEditor(canvasEl: HTMLCanvasElement, scene?: SceneCanvas) {
@@ -42,6 +43,7 @@ export function addTextPreset(canvas: fabric.Canvas, kind: TextPreset, fontFamil
     textAlign: "center",
     editable: true,
   });
+  stampUser(text); // TP.10: user-added layers carry provenance and never get wiped by AI refinement
   canvas.add(text);
   canvas.setActiveObject(text);
   canvas.requestRenderAll();
@@ -83,6 +85,7 @@ export function addShape(canvas: fabric.Canvas, kind: ShapeKind): fabric.Object 
       break;
     default: throw new Error(`unknown shape: ${kind satisfies never}`);
   }
+  stampUser(obj); // TP.10: user-added layers carry provenance
   canvas.add(obj);
   canvas.setActiveObject(obj);
   canvas.requestRenderAll();

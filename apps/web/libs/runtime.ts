@@ -2,6 +2,7 @@ import {
   TaskStore, LocalFileStore, ApiKeyStore, createQueueBackend,
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
   BrandKitStore, TemplateStore, extractBrandKit, ProjectStore, ChatSessionStore,
+  createCancelPublisher, type CancelBridge,
 } from "@oia/tasks";
 import {
   getLlmProvider, getImageProvider, assertNoMixedMockConfig,
@@ -99,6 +100,8 @@ interface Rt {
   chatSessions: ChatSessionStore;
   /** Stage 0: shared chat providers (registry-built, mock-guarded, quota-metered). */
   chat: { llm: LlmProvider; image: ImageProvider; meter: QuotaMeter };
+  /** Stage 0: cross-process cancel publisher (null when no Redis — in-process only). */
+  cancelPublisher: CancelBridge | null;
 }
 
 const g = globalThis as unknown as { __oiaRt?: Rt };
@@ -121,7 +124,21 @@ export async function getRuntime(): Promise<Rt> {
   const chatSessions = new ChatSessionStore(path.join(dataDir, "chat-sessions.json"), files);
   await chatSessions.load();
 
-  const taskStore = new TaskStore();
+  // TP.5 (Slice 4): durable task records + cross-process cancel when a worker runs behind Redis
+  const taskStore = new TaskStore({
+    logFile: path.join(dataDir, "task-log.jsonl"),
+    onCancel: async (jobId, taskId) => {
+      await g.__oiaRt?.cancelPublisher?.publish(jobId, taskId);
+    },
+  });
+  let cancelPublisher: CancelBridge | null = null;
+  if (process.env.REDIS_URL) {
+    cancelPublisher = await createCancelPublisher({ redisUrl: process.env.REDIS_URL }).catch((err) => {
+      console.error("[runtime] cancel publisher unavailable (worker cancels will not cross processes)", err);
+      return null;
+    });
+  }
+
   taskStore.register("generate-poster", makeGeneratePoster({ store: files }));
   taskStore.register("image-edit", makeImageEdit({ store: files }));
   taskStore.register("remove-background", makeRemoveBackground({ store: files }));
@@ -142,7 +159,7 @@ export async function getRuntime(): Promise<Rt> {
     meter,
   };
 
-  g.__oiaRt = { taskStore, files, keys, brandKits, templates, projects, chatSessions, chat };
+  g.__oiaRt = { taskStore, files, keys, brandKits, templates, projects, chatSessions, chat, cancelPublisher };
   return g.__oiaRt;
 }
 

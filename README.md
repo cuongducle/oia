@@ -76,7 +76,7 @@ The Toolbox also brings together format conversion, image resizing, chart creati
 | Deliver files | Convert and assemble them elsewhere | Export images, PDF, PPTX, and ZIP from the editor |
 | Automate recurring tasks | Depends on the service and its API | Use the self-hosted task API and coding-agent skills |
 
-**Important:** the current AI refinement flow can replace the active page with a newly generated scene. It is not a surgical, selection-only edit and does not guarantee preservation of your existing layers. Use direct canvas editing for precise changes to existing objects.
+**Non-destruction guarantee:** AI refinement never deletes your own layers. Objects you add (uploads, product photos, hand-placed text, tables) are stamped `origin: "user"` and survive every AI refinement on top of the regenerated scene — position intact. Layer objects without provenance (legacy projects) default to the same protection. Removing them is a manual, explicit act.
 
 ## Quick start
 
@@ -106,19 +106,24 @@ The **current provider registry** implements:
 
 | Role | Provider | Setup |
 | :--- | :--- | :--- |
-| Image | `mock` | Default; no credentials |
+| Image | `mock` | Default; no credentials (labeled **“Chế độ thử nghiệm”** in the UI) |
 | Image | `codex` | Installed Codex CLI with image generation available and an authenticated ChatGPT login |
-| Image | `openai` | `OPENAI_API_KEY` |
+| Image | `openai` | `OPENAI_API_KEY` (generations **and** edits with reference images; one pinned model) |
 | Image | `fal` | `FAL_KEY` |
 | Planner | `mock` | Default; no credentials |
+| Planner | `codex` | Same Codex login — text-only `codex exec`, structured plan, no API key |
 | Planner | `openai` | `OPENAI_API_KEY` |
 
-For example, to use your existing Codex login:
+A mixed mock/real pair (for example a mock planner feeding the real Codex image channel) **refuses to boot** — canned planner output never rides a real generation channel silently.
+
+For example, to use your existing Codex login for **both** roles (the recommended keyless pair — one login, one channel, two uses):
 
 ```bash
 codex login
-IMAGE_PROVIDER=codex pnpm --filter @oia/web dev
+IMAGE_PROVIDER=codex LLM_PROVIDER=codex pnpm --filter @oia/web dev
 ```
+
+For Vietnamese sellers this enables the banner loop end to end: describe the banner in Vietnamese → the planner reads price/date/name out of the request (editable text blocks, font Be Vietnam Pro) → clean-plate artwork (no baked text) is generated through your ChatGPT plan quota → attach the real product photo as a **reference image** (`codex exec -i`) so the scene is built around the actual product → export at marketplace sizes (Shopee / Lazada / TikTok Shop presets).
 
 Codex image generation depends on CLI support and account access, and consumes the applicable account allowance. Other paid providers bill through your own account. **Self-hosted does not mean generation is free.** Provider names beyond the implemented registry should not be treated as working integrations.
 

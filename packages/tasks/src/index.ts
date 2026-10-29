@@ -13,3 +13,4 @@ export * from "./upload.js";
 export { TaskStore, TaskNotFound, ok, fail } from "./store.js";
 export type { SubmitOptions, TaskHandlerResult, Clock } from "./store.js";
 export type { TaskHandler as StoreTaskHandler } from "./store.js";
+export * from "./cancel.js";

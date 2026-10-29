@@ -25,13 +25,13 @@ describe("BR-ED2 Shapes (9 shapes in 3 rows)", () => {
 });
 
 describe("BR-ED3 Settings (Recommended Size table)", () => {
-  it("all 9 presets with the exact pixel sizes", () => {
+  it("all 12 presets with the exact pixel sizes (9 original + 3 Vietnamese marketplace frames — Slice 5)", () => {
     expect(SIZE_PRESETS["Instagram Post (1:1)"]).toEqual({ width: 1080, height: 1080 });
     expect(SIZE_PRESETS["YouTube Thumbnail (16:9)"]).toEqual({ width: 2560, height: 1440 });
-    expect(SIZE_PRESETS["TikTok"]).toEqual({ width: 1080, height: 1920 });
+    expect(SIZE_PRESETS["TikTok (9:16)"]).toEqual({ width: 1080, height: 1920 });
     expect(SIZE_PRESETS["RedNote"]).toEqual({ width: 1242, height: 1660 });
     expect(SIZE_PRESETS["A4 (1:1.41)"]).toEqual({ width: 2480, height: 3508 });
-    expect(Object.keys(SIZE_PRESETS)).toHaveLength(9);
+    expect(Object.keys(SIZE_PRESETS)).toHaveLength(12); // 9 + 3 marketplace frames (Slice 5)
   });
   it("default agent poster is 1360×2048", () => {
     expect(DEFAULT_POSTER).toEqual({ width: 1360, height: 2048 });

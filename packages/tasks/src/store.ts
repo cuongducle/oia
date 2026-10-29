@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { appendFile, mkdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus } from "@oia/schema";
+import { ProviderError } from "@oia/providers";
+import { registerCancelable, releaseCancelable, abortLocal } from "./cancel.js";
 
 /**
  * Task behavior (per the public API reference):
@@ -8,15 +12,31 @@ import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, typ
  * - noWait=false (default): return the taskId immediately; noWait=true: wait for the result
  * - remove-background: output is always .png (transparency preserved)
  * - Tasks producing multiple images return a single ZIP url
+ *
+ * Stage 0 (TP.4/TP.5, Slice 4):
+ * - task records are durable: every transition appends to a JSONL job log (TTL-swept on load)
+ *   instead of memory-only (an in-memory Map was wiped on restart)
+ * - every record carries jobId / attemptNumber / provider / errorClass; user-initiated retries
+ *   create a NEW task linked with retryOf
+ * - cancel(taskId): aborts the local AbortController and (when wired) publishes the
+ *   cross-process cancel so a worker-process job dies too
  */
 
 export interface SubmitOptions {
   sessionId?: number;
   noWait?: boolean;
   source?: "skill" | "web" | "agent";
+  /** G3: a user-initiated retry links to the original task, never an automatic re-run. */
+  retryOf?: string;
 }
 export type TaskHandlerResult = { urls: string[]; note?: string };
-export type TaskHandler = (params: Record<string, unknown>) => Promise<TaskHandlerResult>;
+
+/** Handlers may thread cooperative cancellation into providers (TP.5). */
+export interface TaskContext {
+  jobId: string;
+  signal: AbortSignal;
+}
+export type TaskHandler = (params: Record<string, unknown>, ctx: TaskContext) => Promise<TaskHandlerResult>;
 
 export interface Clock { now(): number }
 
@@ -33,10 +53,53 @@ export class TaskStore {
   private seqSession = 0;
 
   constructor(
-    private opts: { ttlMs?: number; clock?: Clock } = {},
+    private opts: {
+      ttlMs?: number;
+      clock?: Clock;
+      /** JSONL job log — task records survive restarts (swept by TTL on load). */
+      logFile?: string;
+      /** Cross-process cancel hook (Redis publish) — wired by the runtime when REDIS_URL is set. */
+      onCancel?: (jobId: string, taskId: string) => void | Promise<void>;
+    } = {},
   ) {
     this.opts.ttlMs ??= 24 * 60 * 60 * 1000; // 24h per the API reference
     this.opts.clock ??= { now: () => Date.now() };
+  }
+
+  /** Replay the durable job log (last transition per task wins; TTL-expired rows dropped). */
+  async load(): Promise<void> {
+    if (!this.opts.logFile) return;
+    let raw: string;
+    try {
+      raw = await readFile(this.opts.logFile, "utf8");
+    } catch {
+      return; // no log yet
+    }
+    const now = this.now();
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      try {
+        const rec = JSON.parse(line) as { taskId: string; sessionId: number; status: TaskStatus; createdAt: number };
+        if (now - rec.createdAt > this.opts.ttlMs!) continue;
+        const prev = this.tasks.get(rec.taskId);
+        this.tasks.set(rec.taskId, { status: rec.status, createdAt: prev?.createdAt ?? rec.createdAt });
+        if (!this.sessions.has(rec.sessionId)) this.sessions.set(rec.sessionId, { createdAt: rec.createdAt, taskIds: [] });
+        const sess = this.sessions.get(rec.sessionId)!;
+        if (!sess.taskIds.includes(rec.taskId)) sess.taskIds.push(rec.taskId);
+      } catch {
+        /* malformed line — skip */
+      }
+    }
+  }
+
+  private async persist(status: TaskStatus): Promise<void> {
+    if (!this.opts.logFile) return;
+    try {
+      await mkdir(path.dirname(this.opts.logFile), { recursive: true });
+      await appendFile(this.opts.logFile, `${JSON.stringify({ taskId: status.taskId, sessionId: status.sessionId, status, createdAt: this.now() })}\n`);
+    } catch {
+      /* the durable log is diagnostics — never fail a task on it */
+    }
   }
 
   register(type: TaskType, handler: TaskHandler) {
@@ -69,9 +132,14 @@ export class TaskStore {
     if (!this.sessions.has(sessionId)) this.sessions.set(sessionId, { createdAt: this.now(), taskIds: [] });
 
     const taskId = `task_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const status: TaskStatus = { taskId, sessionId, progress: "processing", taskResult: null, taskNote: null, msg: "" };
+    const jobId = randomUUID(); // TP.4: correlation id shared by events, logs, and cancels
+    const status: TaskStatus = {
+      taskId, sessionId, progress: "processing", taskResult: null, taskNote: null, msg: "",
+      jobId, attemptNumber: 1, retryOf: opts.retryOf ?? null,
+    };
     this.tasks.set(taskId, { status, createdAt: this.now() });
     this.sessions.get(sessionId)!.taskIds.push(taskId);
+    await this.persist(status);
 
     const run = this.runToCompletion(type, params, status);
     if (opts.noWait) return run; // sync mode: wait for the final result
@@ -80,18 +148,42 @@ export class TaskStore {
   }
 
   private async runToCompletion(type: TaskType, params: Record<string, unknown>, status: TaskStatus): Promise<TaskStatus> {
+    const ac = new AbortController();
+    registerCancelable(status.jobId!, ac);
     try {
       const handler = this.handlers.get(type);
       if (!handler) throw new Error(`no handler registered for ${type}`);
-      const result = await handler(params);
+      const result = await handler(params, { jobId: status.jobId!, signal: ac.signal });
       status.taskResult = { download: this.finalDownload(type, result) };
       if (result.note) status.taskNote = result.note;
       status.progress = "succeeded";
     } catch (err) {
       status.progress = "failed";
       status.msg = err instanceof Error ? err.message : String(err);
+      const pe = ProviderError.from(err);
+      status.errorClass = pe.errorClass;
+      status.provider = pe.provider ?? null;
+      status.attemptNumber = 1; // metered jobs run exactly once (G3) — retries are new tasks (retryOf)
+    } finally {
+      releaseCancelable(status.jobId!);
+      await this.persist(status);
     }
     return status;
+  }
+
+  /** TP.5: cancel a running task — local abort + cross-process publish (worker jobs know the taskId). */
+  async cancel(taskId: string): Promise<boolean> {
+    const entry = this.tasks.get(taskId);
+    if (!entry || entry.status.progress !== "processing") return false;
+    const aborted = abortLocal(entry.status.jobId!);
+    await this.opts.onCancel?.(entry.status.jobId!, entry.status.taskId);
+    if (aborted) {
+      entry.status.progress = "failed";
+      entry.status.errorClass = "cancelled";
+      entry.status.msg = "cancelled";
+      await this.persist(entry.status);
+    }
+    return aborted;
   }
 
 /** Output rules: remove-background stays .png; multiple urls become one ZIP. */

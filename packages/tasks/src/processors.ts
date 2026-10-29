@@ -1,5 +1,6 @@
 import type { FileStore } from "./storage.js";
-import { getImageProvider, getLlmProvider } from "@oia/providers";
+import { getImageProvider, getLlmProvider, ProviderError } from "@oia/providers";
+import type { TaskContext } from "./store.js";
 
 /**
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.
@@ -10,10 +11,10 @@ export interface ProcCtx { store: FileStore }
 
 /** generate-poster: image provider → file.png → URL (scene JSON is assembled by the agent/web layer). */
 export function makeGeneratePoster(ctx: ProcCtx) {
-  return async (params: Record<string, unknown>) => {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const prompt = String(params.prompt ?? "");
     const size = String(params.size ?? "1360x2048").split("x").map(Number);
-    const img = await getImageProvider().generate({ prompt, width: size[0], height: size[1] });
+    const img = await getImageProvider().generate({ prompt, width: size[0], height: size[1], signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -22,11 +23,16 @@ export function makeGeneratePoster(ctx: ProcCtx) {
 
 /** image-edit (inpaint): reference[0] is the source image + prompt; used when the provider supports references. */
 export function makeImageEdit(ctx: ProcCtx) {
-  return async (params: Record<string, unknown>) => {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const refs = (params.reference as string[]) ?? [];
     const prompt = String(params.prompt ?? "");
     if (!refs.length || !prompt) throw new Error("image-edit requires reference[] + prompt");
-    const img = await getImageProvider().generate({ prompt, width: 1024, height: 1024, referenceImages: refs });
+    // TP.11 (no-silent-fallback): reference-capable tasks check provider capabilities before accepting refs
+    const provider = getImageProvider();
+    if (!provider.capabilities.referenceImages) {
+      throw new ProviderError("capability_unsupported", `provider ${provider.name} does not accept reference images`, { provider: provider.name });
+    }
+    const img = await provider.generate({ prompt, width: 1024, height: 1024, referenceImages: refs, signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -57,9 +63,9 @@ export function makeRemoveBackground(ctx: ProcCtx) {
 
 /** Generic image tasks (logo/xhs/illustrations/storyboard) — type-specific buildPrompt → provider → file. */
 export function makeGenericImageTask(ctx: ProcCtx, opts: { buildPrompt: (p: Record<string, unknown>) => string }) {
-  return async (params: Record<string, unknown>) => {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const prompt = opts.buildPrompt(params);
-    const img = await getImageProvider().generate({ prompt, width: 1024, height: 1365 });
+    const img = await getImageProvider().generate({ prompt, width: 1024, height: 1365, signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -82,13 +88,13 @@ export function parseOutline(raw: string, maxSlides = 30): SlideOutline {
 }
 
 export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?: number } = {}) {
-  return async (params: Record<string, unknown>) => {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const n = Math.min(Number(params.n ?? 5), opts.maxSlidesPerRun ?? 8);
     const lang = String(params.language ?? "en");
     const plan = await getLlmProvider().chat([
       { role: "system", content: `You are a presentation planner. Reply JSON {title, slides:[{title, bullets[], imagePrompt}]}. Language: ${lang}. Produce exactly ${n} slides.` },
       { role: "user", content: String(params.prompt ?? "topic") },
-    ], { json: true });
+    ], { json: true, signal: tctx.signal });
     const outline = parseOutline(plan, n);
 
     const pptxMod = await import("pptxgenjs");
@@ -99,7 +105,7 @@ export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?:
 
     for (const s of outline.slides) {
       const slide = pptx.addSlide();
-      const img = await getImageProvider().generate({ prompt: s.imagePrompt, width: 1024, height: 1365 });
+      const img = await getImageProvider().generate({ prompt: s.imagePrompt, width: 1024, height: 1365, signal: tctx.signal });
       const bytes = await fetchBytes(img.url, ctx.store);
       await ctx.store.put(bytes, "png");
       slide.addImage({ data: `image/png;base64,${Buffer.from(bytes).toString("base64")}`, x: 0.4, y: 0.4, w: 3.4, h: 4.5 });

@@ -431,3 +431,115 @@ Verified facts (2026-10-28, Codex CLI 0.163.0 `exec --help`):
 *   pi provider architecture (reference for TP.11): <https://github.com/earendil-works/pi>
 *   EGM workflow: <https://github.com/google/elephant-goldfish-model>
 *   Quota cost: Codex docs state image generations consume included limits ~3–5× faster than comparable turns; the older "~15k tokens/image" figure was a single-account experiment (in-code comment, 2026-10-27) — Stage 0 measures actuals instead of quoting it.
+
+---
+
+## Appendix — Implementation status (2026-10-30, cuongducle)
+
+All five slices are implemented and merged behind green tests (build 9/9, tests 16/16
+force-run, typecheck clean; real-machine verification noted per slice). This appendix
+records what shipped, execution decisions taken inside the design's latitude, defects
+found on the way, and what remains gated for later steps. The design text above is the
+approved record and is unchanged.
+
+### Shipped per slice
+
+* **Slice 1 — the loop.** Schema contracts (`blocks[]`, 14-class error taxonomy,
+  `origin` provenance, capabilities data, generated `plan.schema.json` with drift
+  test); generic `CliRuntime` (cross-spawn + tree-kill, stdin discipline, timeout /
+  abort ⇒ process-tree kill, per-job scratch, redacted transcripts 24 h) and the
+  Codex bridge (pinned `-m` + reasoning effort, `--ignore-user-config`, role-scoped
+  sandbox, session-directory locator per S1, POSIX/`C:\`/`C:/` parsing); the
+  `CodexLlmProvider`; mode-aware Codex image prompts (poster / clean-plate) with
+  `-i` reference attachment and PNG-IHDR size recording; the shared openai-images
+  wire (generations + edits, true-ratio sizes, `gpt-image-2.5-sunburst` pin);
+  copy-zones module (prompt↔canvas pairing, zone-anchored cover-crop); designer
+  rework (jobId correlation, named `block:<role>` textboxes in Be Vietnam Pro,
+  first page only, planner-failure aborts before image, AbortSignal threading,
+  `origin: "generated"` stamping); per-class retry policy (metered = attempts 1);
+  the errorClass → Vietnamese message map; the bidirectional mixed mock/real
+  startup guard; stdout fixtures (3 OS forms + quota/login errors), failing-mock
+  providers, fake-binary CliRuntime tests. Real-machine verified: image generation
+  via the new bridge (~30 s, provenance "parsed") and a Vietnamese planner plan
+  (blocks price/discount + date, ~6 s) on codex-cli 0.163.0.
+* **Slice 2 — control + handoff.** SSE route owns a per-job AbortController
+  (pre-generated jobId); Stop via `POST /api/chat/cancel` kills immediately,
+  disconnect gets a ~10 s grace window, an internal 480 s budget behaves like a
+  user cancel; terminal `cancelled` event with `afterCompletion`; Stop UI on Home
+  and in the editor AI dock; TP.6 pre-flight (zero metered attempts on a doomed
+  job), `/api/provider/status` (capabilities + diagnostics + quota counters), the
+  "Chế độ thử nghiệm" mock banner, capability-gated reference composer; TP.7
+  handoff by projectId only (template open, pptx branch, post-generation open —
+  the `oia:scene`/`oia:project` localStorage keys are neither written nor read;
+  a static test guards the removal). Verified on a live `next start`: jobId on
+  8/8 events, status API, idempotent cancel.
+* **Slice 3 — data.** migrate-on-save (the no-base64 rule enforced on save, reads
+  tolerant; `PersistenceError` refuses unextractable data URLs listing
+  violations); thumbnails and artwork dedupe to one asset; atomic JSON
+  persistence (temp + rename, EPERM/EBUSY/EACCES retry backoff, per-file
+  single-writer chain); chat-sessions.json stops embedding data-URL canvases; the
+  SSE route awaits session persistence before closing the stream; processors
+  resolve `/api/files/<key>` through the FileStore. Verified end to end on a live
+  server.
+* **Slice 4 — platform.** Durable task records (JSONL job log with TTL replay;
+  records carry jobId/attemptNumber/provider/errorClass/retryOf); the
+  cross-process cancel contract — Redis pub/sub `oia:cancel:<id>`, worker-side
+  subscriber aborting in-flight handlers, `POST /api/tasks/cancel`, TaskHandler
+  ctx threading signals into providers; reference-capable tasks refuse refs on
+  incapable providers (`capability_unsupported`); worker logs carry the jobId
+  with prompt text redacted (sha256 + length). Test-covered, validation-unexercised
+  by seller sessions as designed (no Stage-0 session runs the worker).
+* **Slice 5 — safety + presets.** The TP.10 non-destruction rule:
+  `mergeScenePreservingUserObjects` — AI refinement rebuilds the page but every
+  user-added layer (origin "user"; legacy no-origin objects default to user,
+  clip rects excluded) survives on top, position intact; user-creation paths
+  (text presets, shapes, image upload, tables) stamp `origin: "user"`; the
+  "place a layer → refine → assert survival" test is in canvas/test. Marketplace
+  presets: Shopee 1024×1024, Lazada 800×800, TikTok Shop 1080×1080 (existing
+  TikTok 9:16 untouched). README: provider matrix gains `LLM_PROVIDER=codex`,
+  the refinement warning is replaced by the non-destruction guarantee.
+
+### Execution decisions inside the design's latitude
+
+* **Provider defaults stay mock/mock** (not codex-by-default): a fresh clone keeps
+  running keyless offline; the recommended pair is documented in `.env.example`
+  and the README, and the mixed-config guard makes a silent half-real boot
+  impossible. This preserves TP.6.3's "default mock provider labeling" story.
+* **Seller-facing strings ship Vietnamese-first via i18n keys only** (mode toggle,
+  mock banner, stop control, the errorClass map, quota chip). The studio chrome
+  stays English; the English-only UI test is unchanged and still passes because
+  no Vietnamese literal lives in a .tsx file.
+* **The cancel channel carries both ids** (`oia:cancel:<jobId>` and
+  `oia:cancel:<taskId>`): the web's TaskStore keys records by jobId while the
+  worker's BullMQ jobs are keyed by taskId — publishing both makes the contract
+  unambiguous regardless of which process serves the job.
+* **TP.10 confirm round-trip**: the schema side (`renderData.confirmRequest`)
+  shipped in Slice 1; the editor's default refinement path is the preserving
+  merge, so nothing user-owned is ever lost without the rule already holding.
+  The explicit "replace everything on this page" confirmation activates when a
+  page-replacing action exists in the UI (currently none does — refinement is
+  the only flow).
+
+### Defects found and fixed while implementing (pre-existing)
+
+* `LocalFileStore.hydrate()` indexed md5 prefixes masked as `prefix + "****"`
+  while `findByMd5` looked up full hashes — dedupe silently died on every
+  restart. Now a prefix index matched by 8-char filename prefix (Slice 3).
+* Redis soft-skip probes were bare TCP connects — a passworded foreign container
+  on :6379 faked "up" and hung BullMQ tests with NOAUTH. Probes now send a real
+  PING (Slice 1, both test files).
+* `parsePlannerPlan` stripped code fences AFTER JSON.parse — a fenced plan is
+  not valid JSON at the outer level, so fenced output never parsed. Fences are
+  stripped first (Slice 1).
+
+### Still gated (per the design)
+
+* Windows resolution/verification (PATHEXT, `.cmd`, `taskkill`, physical-machine
+  gate + S3) — owned by the step-3 desktop design; the gate checklist re-checks
+  openai/codex#40233.
+* Worker-cancel and durable job logs are exercised by tests only — no Stage-0
+  seller session runs the worker (chat path only, no Redis).
+* `schemaVersion` + full migrations remain Stage-2 work (TP.7 scope stopped at
+  corruption/data-loss paths).
+* Moderated seller sessions (the Stage-0 exit criteria) have not run yet; the
+  loop is now ready for them: CUJs 1–5 and 7 are test-covered end to end.

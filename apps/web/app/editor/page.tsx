@@ -16,6 +16,7 @@ import { Dialog } from "@/components/Dialog";
 import { ScenePreview } from "@/components/ScenePreview";
 import { presentError } from "@/libs/provider-errors";
 import { t } from "@/libs/i18n";
+import { mergeScenePreservingUserObjects, stampUser } from "@oia/canvas";
 
 type Panel = "templates" | "assets" | "text" | "shapes" | "tables" | "draw" | "settings";
 
@@ -365,6 +366,7 @@ export default function EditorPage() {
     const fabric = await import("fabric");
     const img = await fabric.FabricImage.fromURL(url, { crossOrigin: "anonymous" });
     img.scaleToWidth((c.getWidth() / c.getZoom()) * 0.8);
+    stampUser(img as unknown as import("@oia/schema").FabricObject); // TP.10: user upload — never wiped by refinement
     c.add(img); c.setActiveObject(img); c.requestRenderAll();
   }
   async function insertTable(n: number) {
@@ -377,6 +379,7 @@ export default function EditorPage() {
     for (let r = 0; r <= n; r++) objs.push(new fabric.Line([x0, y0 + (H / n) * r, x0 + W, y0 + (H / n) * r], { stroke: "#18181b", strokeWidth: 2 }));
     for (let col = 0; col <= n; col++) objs.push(new fabric.Line([x0 + (W / n) * col, y0, x0 + (W / n) * col, y0 + H], { stroke: "#18181b", strokeWidth: 2 }));
     const grid = new fabric.Group(objs, {});
+    stampUser(grid as unknown as import("@oia/schema").FabricObject); // TP.10: user insert
     c.add(grid); c.setActiveObject(grid); c.requestRenderAll();
   }
   async function toggleDraw() {
@@ -465,7 +468,12 @@ export default function EditorPage() {
           for (const m of ev.renderData?.msgMeta ?? []) {
             if (m.type === "canvas") {
               const c = fabricRef.current; if (!c) break;
-              await replaceCurrentScene(m.canvas as SceneCanvas);
+              // TP.10 non-destruction: the refined page REPLACES the canvas, but every
+              // user-added layer (origin "user", legacy default included) survives on top —
+              // the worst-case failure (refinement wipes the user's hand-composited product
+              // photo) is structurally impossible now
+              const merged = mergeScenePreservingUserObjects(c.toObject(), m.canvas as SceneCanvas);
+              await replaceCurrentScene(merged.scene);
             }
           }
         }

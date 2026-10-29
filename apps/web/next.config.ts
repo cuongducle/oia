@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const config: NextConfig = {
   devIndicators: false,
+  // bullmq/ioredis optional deps (@valkey/valkey-glide) must stay server-side runtime requires,
+  // not bundled — the web process only touches them when REDIS_URL is set
+  serverExternalPackages: ["bullmq", "ioredis"],
   transpilePackages: [
     "@oia/agent",
     "@oia/canvas",
