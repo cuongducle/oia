@@ -32,6 +32,9 @@ importers:
       '@oia/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@oia/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       '@oia/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks
@@ -217,6 +220,31 @@ importers:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.5)(jsdom@20.0.3(canvas@2.11.2))
+
+  packages/services:
+    dependencies:
+      '@oia/agent':
+        specifier: workspace:*
+        version: link:../agent
+      '@oia/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@oia/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@oia/tasks':
+        specifier: workspace:*
+        version: link:../tasks
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.5
+        version: 22.20.5
       typescript:
         specifier: ^5.9.2
         version: 5.9.3

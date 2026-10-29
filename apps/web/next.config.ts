@@ -7,6 +7,7 @@ const config: NextConfig = {
   serverExternalPackages: ["bullmq", "ioredis"],
   transpilePackages: [
     "@oia/agent",
+    "@oia/services",
     "@oia/canvas",
     "@oia/providers",
     "@oia/protocol",

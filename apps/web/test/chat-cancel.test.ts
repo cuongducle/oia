@@ -80,7 +80,7 @@ describe("STAGE-0 TP.5: cancellation — Stop kills the job and emits the termin
       expect(noId.status).toBe(400);
 
       // jobId is discoverable from the registry (the client reads it from the first event)
-      const { jobControllers } = await import("../libs/job-controllers");
+      const { jobControllers } = await import("@oia/services");
       const jobId = [...jobControllers().keys()][0];
       expect(jobId).toBeTruthy();
       const cancelRes = await cancelChat(new Request("http://x/api/chat/cancel", { method: "POST", body: JSON.stringify({ jobId }) }));

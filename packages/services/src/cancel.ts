@@ -1,8 +1,9 @@
 /**
- * TP.5 (Slice 2) — in-process jobId → AbortController registry.
- * The chat SSE path always runs in the web process (with or without REDIS_URL), so an
- * in-memory map addresses every in-flight chat job; worker-queue cancellation via Redis
- * pub/sub lands in Slice 4 with the worker-side consumption.
+ * TP-D2 (D1) — in-process jobId → AbortController registry, shared by both shells.
+ * The chat stream runs in the SAME process as the service (web request handler or the
+ * Electron main process), so an in-memory map addresses every in-flight job.
+ * Cross-process (worker/Redis) cancellation remains a web-deployment concern in
+ * packages/tasks and is intentionally NOT part of the desktop surface (Q6).
  */
 const g = globalThis as unknown as { __oiaJobControllers?: Map<string, AbortController> };
 

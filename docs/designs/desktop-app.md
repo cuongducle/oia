@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle (+ agent draft)
 * **Date:** 2026-10-30
-* **Status:** DRAFT — owner gates open (Q1–Q10 below); not yet reviewed/approved
+* **Status:** APPROVED (owner, 2026-10-30 — "làm đi": Q1–Q10 accepted with the recommended defaults). **D1 shipped** (see the implementation note under TP-D2). D2+ remain gated on the Stage-0 seller-session exit.
 * **Predecessors:**
   * [`../desktop-architecture.md`](../desktop-architecture.md) — cross-platform research (reference apps, packaging, storage, security)
   * [`banner-maker-loop-stage-0.md`](banner-maker-loop-stage-0.md) — the engine + the honest done/deferred ledger; **Windows work and the S3 gate are owned by THIS design** (moved here 2026-10-29)
@@ -80,16 +80,16 @@ persistence, and the zero-terminal onboarding that the web app can never give.
 
 | # | Decision | Recommendation | Status |
 | --- | --- | --- | --- |
-| Q1 | App framework | **Electron + electron-vite** (research rec; engine is Node — Tauri would need a Node sidecar anyway) | OPEN |
-| Q2 | Renderer strategy | **Port the existing React pages to Vite** (components/libs already framework-agnostic: `@oia/canvas`, `libs/*`); do NOT embed a Next server (research: not required; double runtime) | OPEN |
-| Q3 | Web app fate | Transitional → **retire at desktop ship** (already decided 2026-10-28) — confirm no extension | OPEN (confirm) |
-| Q4 | Codex runtime | **Detect → guide → auto-provision**: PATH binary if present, else download the official CLI per-OS with checksum at first run; never bundle without license check (spike S5) | OPEN |
-| Q5 | In-app login | Wrap `codex login` (browser + local callback) in an in-app flow; no terminal (spike S6 verifies the flow + flags on both OS) | OPEN |
-| Q6 | Queue/worker | **In-process only** on desktop (no Redis, no worker process); BullMQ stays web-only until web retires | OPEN |
-| Q7 | IPC boundary | Typed IPC with runtime validation (zod), contextIsolation on, no nodeIntegration in the renderer; service layer extracted from the route handlers (TP-D2) | OPEN |
-| Q8 | Persistence | TP-D5 = old "step 2" pulled forward: `schemaVersion`, migrations, per-project files, `userData` root, `.data` importer | OPEN |
-| Q9 | Signing & updates | macOS: Apple Developer Program + notarization. Windows: signed installer (Azure Trusted Signing if eligible, else cert) + SmartScreen reality; electron-updater + GitHub releases. **Recurring cost — owner accepts before D6** | OPEN |
-| Q10 | Scope | Banner lane only (M6): composer, chat loop, editor, templates, marketplace presets, export PNG/JPG/PDF/PPTX | OPEN |
+| Q1 | App framework | **Electron + electron-vite** (research rec; engine is Node — Tauri would need a Node sidecar anyway) | ACCEPTED 2026-10-30 |
+| Q2 | Renderer strategy | **Port the existing React pages to Vite** (components/libs already framework-agnostic: `@oia/canvas`, `libs/*`); do NOT embed a Next server (research: not required; double runtime) | ACCEPTED 2026-10-30 |
+| Q3 | Web app fate | Transitional → **retire at desktop ship** (already decided 2026-10-28) — confirm no extension | ACCEPTED 2026-10-30 (confirmed: retire at ship) |
+| Q4 | Codex runtime | **Detect → guide → auto-provision**: PATH binary if present, else download the official CLI per-OS with checksum at first run; never bundle without license check (spike S5) | ACCEPTED 2026-10-30 |
+| Q5 | In-app login | Wrap `codex login` (browser + local callback) in an in-app flow; no terminal (spike S6 verifies the flow + flags on both OS) | ACCEPTED 2026-10-30 |
+| Q6 | Queue/worker | **In-process only** on desktop (no Redis, no worker process); BullMQ stays web-only until web retires | ACCEPTED 2026-10-30 |
+| Q7 | IPC boundary | Typed IPC with runtime validation (zod), contextIsolation on, no nodeIntegration in the renderer; service layer extracted from the route handlers (TP-D2) | ACCEPTED 2026-10-30 |
+| Q8 | Persistence | TP-D5 = old "step 2" pulled forward: `schemaVersion`, migrations, per-project files, `userData` root, `.data` importer | ACCEPTED 2026-10-30 |
+| Q9 | Signing & updates | macOS: Apple Developer Program + notarization. Windows: signed installer (Azure Trusted Signing if eligible, else cert) + SmartScreen reality; electron-updater + GitHub releases. **Recurring cost — owner accepts before D6** | ACCEPTED 2026-10-30 |
+| Q10 | Scope | Banner lane only (M6): composer, chat loop, editor, templates, marketplace presets, export PNG/JPG/PDF/PPTX | ACCEPTED 2026-10-30 |
 
 ## Critical User Journeys
 
@@ -115,13 +115,18 @@ channels — no generic `invoke` passthrough); renderer is the ported React app 
 `@oia/canvas`, `@oia/protocol`, i18n, provider-errors reused as-is. External content is
 never loaded into a privileged context.
 
-### TP-D2 — Service boundary (the M5 extraction, done once)
-The 19 fetch routes keep their web shape but thin down to adapters over a new
-`packages/services` (or `apps/desktop/services`) layer: chat streaming (an async
-generator the renderer consumes as IPC events), projects CRUD + migrate-on-save, file
-store, chat sessions, provider status/quota, task submit/cancel. Both shells call the
-same services; nothing is implemented twice. This ships **on the web first** and the web
-keeps working (D1 slice) — extraction is verifiable before any Electron exists.
+### TP-D2 — Service boundary (the M5 extraction, done once) — SHIPPED as D1
+`packages/services` exists and owns: `createServiceContext` (stores + metered providers
++ task processors + optional Redis cancel publisher — the ONE context both shells
+construct), `runChat` (the full chat orchestration: pre-flight, G3 guard, 480 s budget,
+assetization, stage-aware retry, terminal cancelled, session persistence — transport-free,
+sink-based), the cancel registry, and the quota meter. The web app is now a THIN adapter
+layer (SSE frames, heartbeat, disconnect grace over `runChat`; JSON routes over the same
+context) — task processors are registered once inside the context, so the desktop shell
+inherits them without duplication. Refined during D1: the stores themselves
+(projects/sessions/templates/files) already are transport-free services — wrapping them
+again would be indirection without logic, so the service layer owns ORCHESTRATION only
+(chat, context, status, cancel) and the stores remain the CRUD surface both shells call.
 
 ### TP-D3 — Codex runtime management (zero-terminal)
 Reuse `CliRuntime`/bridge unchanged on top of a `RuntimeProvisioner`: detect (PATH →
@@ -156,8 +161,8 @@ a non-technical user can produce.
 
 | Slice | What | Gate |
 | --- | --- | --- |
-| D0 | This design + owner gates Q1–Q10 | owner review (EGM) |
-| D1 | TP-D2 service extraction **on the web** — web still green | none (pure refactor; parallel-safe with seller sessions) |
+| D0 | This design + owner gates Q1–Q10 | ✅ approved 2026-10-30 |
+| D1 | TP-D2 service extraction **on the web** — web still green | ✅ shipped 2026-10-30 (18/18 test packages green incl. new @oia/services contract tests; live-server smoke) |
 | D2 | TP-D1 shell + renderer port (macOS, mock providers end-to-end in the shell) | **Stage-0 exit met** (seller sessions) |
 | D3 | TP-D3 codex in-app runtime + login (macOS, real login) | D2 |
 | D4 | TP-D5 persistence v2 + `.data` importer | D2 |
