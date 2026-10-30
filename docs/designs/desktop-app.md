@@ -183,7 +183,7 @@ Owner gates are marked 👤; everything else is implementable work.
 ### D2 remainder — renderer port (macOS, mock-first) — **SHIPPED 2026-10-30**
 
 **Studio-refresh parity pass (2026-10-30, later the same day):** a visual audit against
-`docs/private/ui-audit/orig-*.png` (SurgePix) and the web studio refresh
+`docs/private/ui-audit/orig-*.png` (đối thủ tham chiếu) and the web studio refresh
 (`docs/designs/design-direction.md`) found the port had been written against the PRE-refresh
 web design. Pass shipped (verified by the extended `shot` run + vision review):
 protocol no longer leaks the literal `<Result>` marker; the mock designer emits a
