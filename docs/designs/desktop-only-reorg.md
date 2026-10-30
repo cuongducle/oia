@@ -27,7 +27,7 @@ oia/
 ├── config/                    # (mới, tối giản — học Orca nhưng không nhân bản)
 │   ├── knip.json              # dò code chết (đã tận tụng 1 lần với packages/db)
 │   └── baselines/             # ratchet: số nợ kỹ thuật chỉ được GIẢM
-│       └── oia-web-imports.baseline.txt   # khởi tạo = 5, về 0 ở bước 2
+│       └── oia-web-imports.baseline.txt   # hiện = 0 (khởi tạo 5 ở bước 2, về 0 ngay)
 │
 ├── apps/
 │   └── desktop/               # shell duy nhất
