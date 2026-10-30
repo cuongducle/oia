@@ -63,3 +63,24 @@ describe("BR-EX Extract-from-file (auto-build brand kit)", () => {
     expect(kit.logos).not.toContain("not-a-url");
   });
 });
+
+/** T2 regression — corrupt brandkits.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TP.7 durable load — BrandKitStore", () => {
+  it("corrupt file → quarantined; the store still works afterwards", async () => {
+    const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const dir = mkdtempSync(pathMod.join(tmpdir(), "pf-corrupt-bk-"));
+    const file = pathMod.join(dir, "brandkits.json");
+    writeFileSync(file, "]]garbage");
+
+    const { BrandKitStore } = await import("../src/brandkits.js");
+    const store = new BrandKitStore(file);
+    await store.load();
+    expect(store.list()).toHaveLength(0);
+
+    const q = readdirSync(dir).find((f) => f.startsWith("brandkits.json.corrupt-"));
+    expect(q).toBeDefined();
+    expect(readFileSync(pathMod.join(dir, q!), "utf8")).toBe("]]garbage");
+  });
+});

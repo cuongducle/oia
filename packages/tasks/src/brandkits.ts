@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /** Unique id even when several are created in the same millisecond (flaky-bug guard, BR-BK3). */
 let __seq = 0;
@@ -15,10 +15,9 @@ export class BrandKitStore {
   private kits: BrandKit[] = [];
   constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "brandkits.json")) {}
 
-  async load() { try { this.kits = JSON.parse(await readFile(this.file, "utf8")); } catch { this.kits = []; } }
+  async load() { this.kits = (await loadJsonArrayDurable<BrandKit>(this.file)) ?? []; }
   private async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.kits, null, 2));
+    await atomicWriteJson(this.file, this.kits);
   }
 
 /** Zod validation (BR-BK1..4) — errors carry clear messages. */

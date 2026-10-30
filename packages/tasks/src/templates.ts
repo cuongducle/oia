@@ -1,16 +1,16 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { templateSchema, type Template } from "@oia/schema";
+import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /** BR-TPL store: publish designs as templates; paginated + featured listing; author tip credits. */
 export class TemplateStore {
   private items: Template[] = [];
   constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "templates.json")) {}
 
-  async load() { try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; } }
+  async load() { this.items = (await loadJsonArrayDurable<Template>(this.file)) ?? []; }
   private async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.items, null, 2));
+    await atomicWriteJson(this.file, this.items);
   }
 
 /** Publish: scene JSON stored intact (BR-TPL1) — thumbnail taken from the first Image object. */

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /**
  * BR-KEY — API keys "For Agents":
@@ -33,13 +33,10 @@ export class ApiKeyStore {
   constructor(private file = path.join(process.env.OIA_DATA_DIR ?? ".data", "api-keys.json")) {}
 
   async load(): Promise<void> {
-    try {
-      this.records = JSON.parse(await readFile(this.file, "utf8"));
-    } catch { this.records = []; }
+    this.records = (await loadJsonArrayDurable<ApiKeyRecord>(this.file)) ?? [];
   }
   private async save(): Promise<void> {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    await writeFile(this.file, JSON.stringify(this.records, null, 2));
+    await atomicWriteJson(this.file, this.records);
   }
 
   async create(name: string, ttlDays: number | null = null): Promise<{ record: ApiKeyRecord; plaintext: string }> {

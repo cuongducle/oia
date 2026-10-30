@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { projectSchema, SCENE_VERSION, OIA_SCHEMA_VERSION, type Project } from "@oia/schema";
-import { atomicWriteJson, sweepTempFiles } from "./atomic.js";
+import { atomicWriteJson, loadJsonArrayDurable, sweepTempFiles } from "./atomic.js";
 import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import type { FileStore } from "./storage.js";
 
@@ -23,7 +23,8 @@ export class ProjectStore {
 
   async load() {
     await sweepTempFiles(this.file); // C6: clear orphaned .tmp siblings from a crash mid-rename
-    try { this.items = JSON.parse(await readFile(this.file, "utf8")); } catch { this.items = []; }
+    // corrupt → quarantined, never blanked-in-memory then overwritten (TP.7 read side)
+    this.items = (await loadJsonArrayDurable<Project>(this.file)) ?? [];
   }
   private async save() {
     await atomicWriteJson(this.file, this.items);
@@ -99,6 +100,8 @@ export interface StoredMessage {
  */
 let __chatSeq = 0;
 
+type StoredSessionEntry = [number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }];
+
 export class ChatSessionStore {
   private data: Map<number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }> = new Map();
   private __lastUpdated = 0;
@@ -109,10 +112,9 @@ export class ChatSessionStore {
 
   async load() {
     await sweepTempFiles(this.file); // C6: clear orphaned .tmp siblings
-    try {
-      const arr = JSON.parse(await readFile(this.file, "utf8")) as [number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }][];
-      this.data = new Map(arr);
-    } catch { this.data = new Map(); }
+    // corrupt → quarantined, never blanked-in-memory then overwritten (TP.7 read side)
+    const arr = await loadJsonArrayDurable<StoredSessionEntry>(this.file);
+    this.data = new Map(arr ?? []);
   }
   private async save() {
     await atomicWriteJson(this.file, [...this.data.entries()]);

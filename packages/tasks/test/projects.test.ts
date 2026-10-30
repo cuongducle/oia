@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ProjectStore, ChatSessionStore } from "../src/projects.js";
@@ -52,5 +52,71 @@ describe("BR-PERSIST' Chat session store", () => {
     await chats.append(s2.id, "hi", { content: "" });
     const names = chats.recent().map((x) => x.name);
     expect(names.indexOf("new")).toBeLessThan(names.indexOf("old"));
+  });
+});
+
+/**
+ * T2 regression — a corrupt store file must never be silently blanked and then
+ * overwritten with `[]` by the next autosave (the old `catch { items = [] }`
+ * pattern destroyed every project the first time one byte went bad).
+ */
+describe("TP.7 durable load — corrupt file is quarantined, not overwritten", () => {
+  const quarantineOf = (dir: string, base: string) =>
+    readdirSync(dir).find((f) => f.startsWith(`${base}.corrupt-`));
+
+  it("projects.json corrupt → bytes preserved in a .corrupt sibling; store starts empty and SAVES do not destroy them", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-prj-"));
+    const file = path.join(dir, "prj.json");
+    const poison = '{"items": [{"id": "prj_real", '; // truncated mid-write
+    writeFileSync(file, poison);
+
+    const store = new ProjectStore(file);
+    await store.load();
+    expect(store.recent()).toHaveLength(0); // starts empty
+    // load() MOVED the poison aside (rename) — the bytes were never overwritten or deleted
+    const moved = quarantineOf(dir, "prj.json");
+    expect(moved).toBeDefined();
+    expect(readFileSync(path.join(dir, moved!), "utf8")).toBe(poison);
+
+    await store.create({ name: "fresh start" }); // triggers save()
+    const q = quarantineOf(dir, "prj.json");
+    expect(q).toBe(moved); // the corrupt bytes were moved aside, not deleted
+    expect(readFileSync(path.join(dir, q!), "utf8")).toBe(poison);
+    expect(JSON.parse(readFileSync(file, "utf8"))).toBeInstanceOf(Array); // fresh valid file
+  });
+
+  it("chat-sessions.json corrupt → quarantined the same way", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-chats-"));
+    const file = path.join(dir, "chats.json");
+    writeFileSync(file, "not json at all");
+    const store = new ChatSessionStore(file);
+    await store.load();
+    expect(quarantineOf(dir, "chats.json")).toBeDefined(); // load() moved the poison
+    store.create("after corruption"); // save() is fire-and-forget here — poll for the fresh file
+    let fresh = false;
+    for (let i = 0; i < 40 && !fresh; i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      fresh = existsSync(file);
+    }
+    expect(fresh).toBe(true);
+    expect(readFileSync(path.join(dir, quarantineOf(dir, "chats.json")!), "utf8")).toBe("not json at all");
+  });
+
+  it("valid JSON that is NOT an array is corruption too ({} would break every consumer)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-shape-"));
+    const file = path.join(dir, "prj.json");
+    writeFileSync(file, "{}");
+    const store = new ProjectStore(file);
+    await store.load();
+    expect(store.recent()).toHaveLength(0);
+    expect(quarantineOf(dir, "prj.json")).toBeDefined();
+  });
+
+  it("a MISSING file is a legitimate fresh start — no quarantine noise", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-fresh-"));
+    const store = new ProjectStore(path.join(dir, "prj.json"));
+    await store.load();
+    expect(store.recent()).toHaveLength(0);
+    expect(readdirSync(dir)).toHaveLength(0);
   });
 });

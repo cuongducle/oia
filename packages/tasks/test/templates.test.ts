@@ -41,3 +41,26 @@ describe("BR-TPL community templates (Publish to Community)", () => {
     expect(store.list({ pageSize: 1 }).items[0].name).toBe("NEWEST");
   });
 });
+
+/** T2 regression — corrupt templates.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TP.7 durable load — TemplateStore", () => {
+  it("corrupt file → quarantined; publish works on the fresh file", async () => {
+    const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const dir = mkdtempSync(pathMod.join(tmpdir(), "pf-corrupt-tpl-"));
+    const file = pathMod.join(dir, "templates.json");
+    writeFileSync(file, "[{\"broken\":");
+
+    const { TemplateStore } = await import("../src/templates.js");
+    const store = new TemplateStore(file);
+    await store.load();
+    expect(store.list({ page: 1, pageSize: 10 }).items).toHaveLength(0);
+
+    await store.publish({ name: "after recovery", scene: { version: "7.3.1", objects: [] } });
+    const q = readdirSync(dir).find((f) => f.startsWith("templates.json.corrupt-"));
+    expect(q).toBeDefined();
+    expect(readFileSync(pathMod.join(dir, q!), "utf8")).toBe("[{\"broken\":");
+    expect(Array.isArray(JSON.parse(readFileSync(file, "utf8")))).toBe(true);
+  });
+});

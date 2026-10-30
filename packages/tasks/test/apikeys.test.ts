@@ -45,3 +45,29 @@ beforeAll(async () => {
     expect(store.list().find((r) => r.id === record.id)).toBeUndefined();
   });
 });
+
+/** T2 regression — corrupt api-keys.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TP.7 durable load — ApiKeyStore", () => {
+  it("corrupt file → quarantined; a fresh key round-trips on the NEW file", async () => {
+    const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const dir = mkdtempSync(pathMod.join(tmpdir(), "pf-corrupt-keys-"));
+    const file = pathMod.join(dir, "api-keys.json");
+    writeFileSync(file, "{oops");
+
+    const { ApiKeyStore } = await import("../src/apikeys.js");
+    const store = new ApiKeyStore(file);
+    await store.load();
+    expect(store.list()).toHaveLength(0);
+
+    const created = await store.create("recovered"); // save() must not touch the quarantined bytes
+    const q = readdirSync(dir).find((f) => f.startsWith("api-keys.json.corrupt-"));
+    expect(q).toBeDefined();
+    expect(readFileSync(pathMod.join(dir, q!), "utf8")).toBe("{oops");
+
+    const reopened = new ApiKeyStore(file);
+    await reopened.load();
+    expect(reopened.verify(created.plaintext)?.id).toBe(created.record.id); // fresh file round-trips
+  });
+});
