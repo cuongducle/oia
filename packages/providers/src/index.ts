@@ -29,6 +29,24 @@ export {
 } from "./codex/bridge.js";
 export { CliRuntime, createScratchDir, removeScratchDir, writeTranscript, asciiUuid } from "./cli/runtime.js";
 export {
+  RuntimeProvisioner,
+  resolveCodexBin,
+  codexPackageAsset,
+  extractAuthUrl,
+  parseSum,
+  type RuntimeDetection,
+  type RuntimeSource,
+  type RuntimeState,
+  type RuntimeStatus,
+  type LoginMethod,
+  type LoginHandlers,
+  type InstallPhase,
+  type InstallProgress,
+  type ManagedManifest,
+  type ProvisionerOptions,
+  type DetectOptions,
+} from "./cli/provision.js";
+export {
   openAiImages,
   trueRatioSize,
   mapOpenAiError,

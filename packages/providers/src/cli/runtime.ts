@@ -33,6 +33,13 @@ export interface CliRunOptions {
   /** Correlation id for transcripts (the shared jobId). */
   jobId?: string;
   env?: NodeJS.ProcessEnv;
+  /**
+   * TP-D3/S6 — incremental stderr OBSERVATION for interactive child flows (the codex
+   * login server prints its auth URL before the process exits). Observability only:
+   * result parsing still happens on the completed stdout/stderr, never on these lines
+   * (a chunk boundary can split a line — the runtime buffers and splits on \n here).
+   */
+  onStderrLine?: (line: string) => void;
 }
 
 export interface CliRunResult {
@@ -110,6 +117,7 @@ export class CliRuntime {
       });
       let stdout = "";
       let stderr = "";
+      let stderrTailBuf = ""; // buffered partial line for onStderrLine (flushed in finish)
       let timedOut = false;
       let aborted = false;
       let settled = false;
@@ -119,6 +127,8 @@ export class CliRuntime {
         settled = true;
         clearTimeout(timer);
         opts.signal?.removeEventListener("abort", onAbort);
+        // flush any trailing partial line (a final stderr line without \n must not be lost)
+        if (opts.onStderrLine && stderrTailBuf.trim()) opts.onStderrLine(stderrTailBuf);
         const res: CliRunResult = { stdout, stderr, code, timedOut, aborted, durationMs: Date.now() - started };
         void writeTranscript(opts.jobId ?? "no-job", {
           bin: opts.bin,
@@ -147,7 +157,14 @@ export class CliRuntime {
       // NOTE: stdout grows unboundedly in memory; a runaway binary could balloon it.
       // Codex exec output is small (events + prose) — accepted risk, documented here.
       child.stdout?.on("data", (d: Buffer) => (stdout += d.toString()));
-      child.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
+      child.stderr?.on("data", (d: Buffer) => {
+        stderr += d.toString();
+        if (!opts.onStderrLine) return;
+        stderrTailBuf += d.toString();
+        const lines = stderrTailBuf.split("\n");
+        stderrTailBuf = lines.pop() ?? ""; // keep the partial tail until its \n arrives
+        for (const line of lines) if (line.trim()) opts.onStderrLine(line);
+      });
       child.stdin?.on("error", () => {}); // EPIPE when the child exits early — close below decides
       if (opts.stdin !== undefined) {
         child.stdin?.write(opts.stdin);
