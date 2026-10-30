@@ -185,7 +185,7 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
     const gate = new Promise<void>((r) => (openGate = r));
     guardCtx.taskStore.register("generate-poster", async () => {
       await gate;
-      return { urls: [], note: "held" };
+      return { urls: ["/api/files/res-held.png"], note: "held" };
     });
 
     const srv = await startLoopback({ ctx: () => guardCtx, userDataDir: root, emit: () => {} });
@@ -266,4 +266,131 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     expect(body.msg).toBe("internal error");
     expect(JSON.stringify(body)).not.toContain("invalid key");
   });
+});
+
+/**
+ * Regression of THIS round's own T1 fix — the track-AFTER-submit guard had two
+ * defects, both reproduced here:
+ * 1. noWait:true pinned the slot (onSettled released a never-tracked id, then the
+ *    late track held it until the fallback TTL — and the TTL then emitted a
+ *    spurious "failed" after a success, B7 violation);
+ * 2. TOCTOU: concurrent submits each passed the busy check before any tracked.
+ * The reservation is now made synchronously before the submit await.
+ */
+describe("guard reservation — synchronous, exactly-once", () => {
+  const meteredCaps = () => ({
+    referenceImages: true,
+    sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
+    transparentBg: false,
+    isMock: false as const,
+  });
+
+  async function guardCtx() {
+    const root = mkdtempSync(path.join(tmpdir(), "oia-loopback-res-"));
+    const gctx = await createServiceContext({
+      dataDir: path.join(root, "data"),
+      env: { ...process.env, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock" },
+    });
+    // metered (isMock:false) image provider — what codex mode looks like to the guard
+    (gctx.chat as { image: unknown }).image = {
+      name: "metered-probe",
+      capabilities: meteredCaps(),
+      isAvailable: async () => ({ ok: true, detail: "probe" }),
+      generate: async () => { throw new Error("nothing metered may actually start in these tests"); },
+    };
+    return { root, gctx, key: (await gctx.keys.create("res-test")).plaintext };
+  }
+
+  it("noWait:true — slot free right after completion; NO spurious 'failed' after a success", async () => {
+    const { root, gctx, key } = await guardCtx();
+    const events: AgentJobEvent[] = [];
+    gctx.taskStore.register("generate-poster", async () => {
+      await new Promise<void>((r) => setTimeout(r, 25)); // brief, deliberate
+      return { urls: ["/api/files/res-sync.png"], note: "sync-mode" };
+    });
+    const srv = await startLoopback({
+      ctx: () => gctx,
+      userDataDir: root,
+      emit: (ev) => events.push(ev),
+      fallbackTtlMs: 150, // if the bug existed, the spurious "failed" lands here — observable
+    });
+    try {
+      const g = `http://127.0.0.1:${srv.port}`;
+      const submit = (body: Record<string, unknown>) =>
+        fetch(`${g}/api/tasks/generate-poster`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: key },
+          body: JSON.stringify(body),
+        });
+
+      const first = await submit({ prompt: "sync mode", noWait: true });
+      expect(first.status).toBe(200);
+      expect(((await first.json()) as { data: { progress: string } }).data.progress).toBe("succeeded");
+
+      // BROKEN code: the late track still holds the slot → 429 here (the 15-min pin)
+      const second = await submit({ prompt: "immediately after" });
+      expect(second.status).toBe(200); // FIXED code: the reservation was released at settle
+
+      await new Promise((r) => setTimeout(r, 400)); // past fallbackTtlMs
+      const failed = events.filter((e) => e.event === "failed");
+      expect(failed).toHaveLength(0); // BROKEN code: TTL fired a "failed" after a success
+      expect(events.some((e) => e.event === "succeeded")).toBe(true);
+    } finally {
+      delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+      await srv.close().catch(() => {});
+    }
+  }, 30_000);
+
+  it("concurrent submits — exactly ONE wins the slot (no TOCTOU window)", async () => {
+    const { root, gctx, key } = await guardCtx();
+    let openGate!: () => void;
+    const gate = new Promise<void>((r) => (openGate = r));
+    gctx.taskStore.register("generate-poster", async () => {
+      await gate;
+      return { urls: ["/api/files/res-held.png"], note: "held" };
+    });
+    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, emit: () => {} });
+    try {
+      const g = `http://127.0.0.1:${srv.port}`;
+      const shot = () =>
+        fetch(`${g}/api/tasks/generate-poster`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: key },
+          body: JSON.stringify({ prompt: "race" }),
+        }).then((r) => r.status);
+      const codes = await Promise.all([shot(), shot(), shot(), shot(), shot()]);
+      expect(codes.filter((c) => c === 200)).toHaveLength(1); // BROKEN code: several 200s — two paid runs at once
+      expect(codes.filter((c) => c === 429)).toHaveLength(4);
+      openGate();
+    } finally {
+      openGate?.();
+      delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+      await srv.close().catch(() => {});
+    }
+  }, 30_000);
+
+  it("a submit that fails validation releases its reservation (no leak on the error path)", async () => {
+    const { root, gctx, key } = await guardCtx();
+    gctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/res-fast.png"], note: "fast" }));
+    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, emit: () => {} });
+    try {
+      const g = `http://127.0.0.1:${srv.port}`;
+      // image-edit requires reference[] + prompt — TaskStore.validate throws → 400
+      const bad = await fetch(`${g}/api/tasks/image-edit`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: key },
+        body: JSON.stringify({}),
+      });
+      expect(bad.status).toBe(400);
+      const next = await fetch(`${g}/api/tasks/generate-poster`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: key },
+        body: JSON.stringify({ prompt: "after a failed submit" }),
+      });
+      expect(next.status).toBe(200); // a leaked reservation would 429 here
+    } finally {
+      delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+      await srv.close().catch(() => {});
+    }
+  }, 30_000);
 });
