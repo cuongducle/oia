@@ -6,6 +6,7 @@ import type { ServiceContext } from "@oia/services";
 import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
+import { IMAGE_EXTS } from "../shared/ipc.js";
 
 /**
  * D9 (reorg step 4b) — the loopback agent API, served from the UTILITY process.
@@ -185,7 +186,13 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
 
         const raw = await readBody(req);
         if (raw === null) return json(res, 413, 413, null, "body too large");
-        const body = JSON.parse(raw.toString("utf8") || "{}") as Record<string, unknown>;
+        let body: Record<string, unknown>;
+        try {
+          body = JSON.parse(raw.toString("utf8") || "{}") as Record<string, unknown>;
+        } catch {
+          // a malformed body is the CLIENT's error — 400, not a leaked 500
+          return json(res, 400, 1, null, "request body is not valid JSON");
+        }
 
         let t: { taskId: string; progress: string };
         try {
@@ -239,16 +246,22 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         if (raw === null) return json(res, 413, 413, null, "body too large");
         const file = parseMultipart(raw, req.headers["content-type"] ?? "");
         if (!file) return json(res, 400, 1, null, "file required (multipart form-data)");
+        // SAME allowlist as the renderer IPC path (shared/ipc.ts) — the loopback
+        // used to accept any extension an agent chose to send
+        const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+        if (!IMAGE_EXTS.has(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
         const nsfw = await checkNsfw(file.bytes, file.name);
         if (!nsfw.allowed) return json(res, 400, 1, null, nsfw.error);
-        const ext = (file.name.split(".").pop() ?? "png").toLowerCase();
         const saved = await ctx().files.put(file.bytes, ext);
         return json(res, 200, 0, { url: saved.url, size: file.bytes.length }, "");
       }
 
       return json(res, 404, 404, null, "not found");
     } catch (err) {
-      return json(res, 500, 1, null, err instanceof Error ? err.message : String(err));
+      // 500s must not leak internals (err.message can carry paths/providers) —
+      // the detail goes to OUR log, the client gets a stable generic message.
+      console.error(`[loopback] 500 ${req.method} ${req.url}:`, err);
+      return json(res, 500, 1, null, "internal error");
     }
   });
 

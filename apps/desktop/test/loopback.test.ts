@@ -230,3 +230,40 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
     }
   }, 30_000);
 });
+
+/** Readiness-review hardening: client errors are 400s, 500s never leak internals, uploads share the IPC image allowlist. */
+describe("loopback error hygiene (T1 follow-ups)", () => {
+  it("a malformed JSON body is a 400 with a stable message — not a leaked 500", async () => {
+    const res = await fetch(`${base()}/api/tasks/generate-poster`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: key },
+      body: "{not json",
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { msg: string };
+    expect(body.msg).toBe("request body is not valid JSON");
+  });
+
+  it("upload/direct accepts ONLY image extensions — same allowlist as the IPC path", async () => {
+    const boundary = "oia-test-boundary";
+    const part = `--${boundary}\r\ncontent-disposition: form-data; name="file"; filename="payload.exe"\r\n\r\nMZ\x00\x00\r\n--${boundary}--\r\n`;
+    const res = await fetch(`${base()}/api/upload/direct`, {
+      method: "POST",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}`, authorization: key },
+      body: part,
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { msg: string };
+    expect(body.msg).toContain("unsupported image type");
+  });
+
+  it("an internal failure returns a generic 500 — err.message never crosses the wire", async () => {
+    // files.read rejects on an invalid key → the outer handler must log it but
+    // answer with the generic message (paths/providers must not leak).
+    const res = await fetch(`${base()}/api/files/..%2F..%2Fetc%2Fpasswd`, { headers: { authorization: key } });
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { msg: string };
+    expect(body.msg).toBe("internal error");
+    expect(JSON.stringify(body)).not.toContain("invalid key");
+  });
+});
