@@ -17,7 +17,7 @@ const mobile = matchMedia('(max-width: 960px)').matches;
   const mat = new THREE.ShaderMaterial({
     uniforms:{uTime:{value:0}},
     vertexShader:'void main(){gl_Position=vec4(position,1.0);}',
-    fragmentShader:'uniform float uTime;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7))+uTime)*43758.5453);}void main(){float n=hash(floor(gl_FragCoord.xy/2.0));gl_FragColor=vec4(vec3(n),0.5);}'
+    fragmentShader:'uniform float uTime;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7))+uTime)*43758.5453);}void main(){vec2 c=gl_FragCoord.xy;float n=hash(c)*0.4+hash(c+vec2(1.0,0.0))*0.3+hash(c+vec2(0.0,1.0))*0.3;gl_FragColor=vec4(vec3(n),0.5);}'
   });
   scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat));
   (function loop(t){ mat.uniforms.uTime.value = t*0.001; renderer.render(scene,cam); requestAnimationFrame(loop); })(0);
