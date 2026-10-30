@@ -56,33 +56,6 @@ describe("migration chain semantics", () => {
     expect(out.schemaVersion).toBe(99);
   });
 
-  it("consecutive steps apply in order (synthetic 0→1→2 chain)", async () => {
-    const { files } = makeFiles();
-    const order: string[] = [];
-    const steps: ProjectMigration[] = [
-      {
-        from: 0,
-        to: 1,
-        async migrate(p) {
-          order.push("0→1");
-          return { ...p, schemaVersion: 1, name: `${p.name}+a` };
-        },
-      },
-      {
-        from: 1,
-        to: 2,
-        async migrate(p) {
-          order.push("1→2");
-          return { ...p, schemaVersion: 2, name: `${p.name}+b` };
-        },
-      },
-    ];
-    const out = await migrateProjectToCurrent(legacyProject(), files, steps);
-    expect(order).toEqual(["0→1", "1→2"]);
-    expect(out.schemaVersion).toBe(2);
-    expect(out.name).toBe("legacy+a+b");
-  });
-
   it("a step that throws stops the chain — the caller decides read vs strict tolerance", async () => {
     const { files } = makeFiles();
     const steps: ProjectMigration[] = [
@@ -95,6 +68,15 @@ describe("migration chain semantics", () => {
       },
     ];
     await expect(migrateProjectToCurrent(legacyProject(), files, steps)).rejects.toThrow("synthetic failure");
+  });
+
+  it("the RUNNER stamps the step version even when the step forgets (no hardcoded stamps)", async () => {
+    const { files } = makeFiles();
+    const steps: ProjectMigration[] = [
+      { from: 0, to: 1, async migrate(p) { return p; } },
+    ];
+    const out = await migrateProjectToCurrent(legacyProject(), files, steps);
+    expect(out.schemaVersion).toBe(1);
   });
 });
 

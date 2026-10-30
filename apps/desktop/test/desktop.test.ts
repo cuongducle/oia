@@ -287,3 +287,20 @@ describe("buildServiceEnv (T3 pure builder)", () => {
     expect(env.CODEX_BIN).toBe("/user/exported/bin"); // not deleted, not overwritten
   });
 });
+
+describe("web .data import — the error lane survives the wire (self-review follow-up)", () => {
+  it("a DataImportError keeps its name + message across the utility wire and surfaces in the UI", async () => {
+    const { serializeUtilityError, deserializeUtilityError } = await import("../src/shared/utility-protocol.js");
+    const { DataImportError } = await import("@oia/tasks");
+    const { bridgeErrorMessage } = await import("../src/renderer/lib/bridge.js");
+
+    const original = new DataImportError("the source projects.json is corrupt (unparseable JSON) — nothing was imported.");
+    const shape = serializeUtilityError(original);
+    expect(shape.name).toBe("DataImportError"); // renderer maps on the NAME — it must survive
+    expect(shape.message).toContain("nothing was imported");
+
+    const revived = deserializeUtilityError(shape);
+    const shown = bridgeErrorMessage(revived, "Import failed — check the folder and try again.");
+    expect(shown).toContain("nothing was imported"); // the honest message reaches the notice, not just the fallback
+  });
+});

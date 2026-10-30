@@ -30,16 +30,16 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
         // workspace thumbnails shipped quarter-size and half-clipped until the owner
         // caught it visually). CSS scales the element into the card (contain).
         const cap = 1600; // memory guard for extreme artboards (bitmap ≈ cap²×4 bytes)
-        const z = Math.min(1, cap / Math.max(w, h));
+        const size = previewRenderSize(w, h, cap);
         canvas = new fabric.StaticCanvas(ref.current, {
-          width: Math.round(w * z), height: Math.round(h * z),
+          width: size.width, height: size.height,
           renderOnAddRemove: false,
         });
         const objects = mapped.objects.map(o => o.fontFamily === "Be Vietnam Pro" ? { ...o, fontFamily: fontStack() } : o);
         await canvas.loadFromJSON({ ...mapped, objects });
         if (disposed) return;
-        if (z < 1) {
-          canvas.viewportTransform = [z, 0, 0, z, 0, 0];
+        if (size.zoom < 1) {
+          canvas.viewportTransform = [size.zoom, 0, 0, size.zoom, 0, 0];
         }
         canvas.renderAll();
         setReady(true);
@@ -52,6 +52,13 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
     <canvas ref={ref} aria-hidden="true" />
     {failed && <span className="previewFailure">Preview unavailable</span>}
   </div>;
+}
+
+/** Thumbnail render size: natural size, capped (memory ≈ cap²×4 bytes; a 4096px
+ *  artboard must not allocate a 134MB bitmap per card). Pure — unit-tested. */
+export function previewRenderSize(w: number, h: number, cap = 1600): { width: number; height: number; zoom: number } {
+  const zoom = Math.min(1, cap / Math.max(w, h));
+  return { width: Math.round(w * zoom), height: Math.round(h * zoom), zoom };
 }
 
 /** The bundled body stack (Be Vietnam Pro ships offline — the persona's diacritics render). */

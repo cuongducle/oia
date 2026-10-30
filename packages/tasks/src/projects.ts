@@ -1,8 +1,7 @@
 import { mkdir, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { existsSync } from "node:fs";
 import { projectSchema, SCENE_VERSION, OIA_SCHEMA_VERSION, type Project } from "@oia/schema";
-import { atomicWriteJson, fireAndForgetWrite, loadJsonArrayDurable, renameWithRetry, sweepTempFiles } from "./atomic.js";
+import { atomicWriteJson, fireAndForgetWrite, loadJsonArrayDurable, pathExists, renameWithRetry, sweepTempFiles } from "./atomic.js";
 import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import { migrateProjectToCurrent } from "./projectMigrations.js";
 import type { FileStore } from "./storage.js";
@@ -47,13 +46,27 @@ export class ProjectStore {
     await atomicWriteJson(this.fileFor(p.id), p);
   }
 
-  private async quarantine(file: string, why: string): Promise<void> {
-    const to = `${file}.corrupt-${Date.now()}`;
-    await renameWithRetry(file, to);
-    console.error(
-      `[projects] ${path.basename(file)} was ${why} — moved to ${path.basename(to)}; ` +
-        `the other projects are untouched. Recover what you need from the quarantined file.`,
-    );
+  /** Single sort invariant (updatedAt DESC) — one home, every mutation path uses it. */
+  private resort(): void {
+    this.items.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  }
+
+  /** Quarantine MUST NEVER take the whole store down: a failed rename (EACCES,
+   *  lock, full disk) is logged and the file is skipped — the per-file blast radius
+   *  stays per-file even on the quarantine path itself (found in self-review). */
+  private async safeQuarantine(file: string, why: string): Promise<boolean> {
+    try {
+      const to = `${file}.corrupt-${Date.now()}`;
+      await renameWithRetry(file, to);
+      console.error(
+        `[projects] ${path.basename(file)} was ${why} — moved to ${path.basename(to)}; ` +
+          `the other projects are untouched. Recover what you need from the quarantined file.`,
+      );
+      return true;
+    } catch (err) {
+      console.error(`[projects] could not quarantine ${path.basename(file)} (${why}): ${String(err)} — skipped, NOT loaded; fix the file/folder and restart.`);
+      return false;
+    }
   }
 
   private async sweepTempFiles(): Promise<void> {
@@ -82,12 +95,13 @@ export class ProjectStore {
           console.error(`[projects] legacy id "${old}" is unsafe as a file name — re-issued as ${p.id}`);
         }
         const target = this.fileFor(p.id);
-        if (existsSync(target)) continue; // per-project file wins (newer)
+        if (await pathExists(target)) continue; // per-project file wins (newer)
         if (this.files) {
           try {
             p = await migrateProjectToCurrent(p, this.files);
-          } catch {
+          } catch (err) {
             // read-tolerant: keep the unmigrated project, strict refusal stays at save time
+            console.error(`[projects] v${p.schemaVersion ?? 0} migration deferred for "${p.name}": ${String(err)}`);
           }
         }
         await atomicWriteJson(target, p);
@@ -101,6 +115,7 @@ export class ProjectStore {
     await this.sweepTempFiles();
     await this.absorbLegacyMonolith();
     this.items = [];
+    const seen = new Set<string>();
     for (const f of await readdir(this.projectsDir)) {
       if (f.startsWith(".") || !f.endsWith(".json")) continue; // temps swept; archives/corrupt live elsewhere
       const file = path.join(this.projectsDir, f);
@@ -108,22 +123,37 @@ export class ProjectStore {
       try {
         raw = await readFile(file, "utf8");
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
-        throw err;
+        // per-file blast radius: an unreadable file (EACCES/EMFILE) is logged and
+        // skipped — it must never brick the whole store's boot (found in self-review)
+        console.error(`[projects] could not read ${path.basename(file)}: ${String(err)} — skipped`);
+        continue;
       }
       let parsed: Project;
       try {
         parsed = projectSchema.parse(JSON.parse(raw));
       } catch {
-        await this.quarantine(file, "unparseable or not a valid project"); // TP.7 read side: bytes survive
+        await this.safeQuarantine(file, "unparseable or not a valid project"); // TP.7 read side: bytes survive
         continue;
       }
       if (f !== `${parsed.id}.json`) {
-        // the one-file-one-project invariant: a mismatched file would duplicate its id
-        // on the next save. Bytes preserved; deterministic single copy.
-        await this.quarantine(file, `id "${parsed.id}" does not match its file name`);
-        continue;
+        // one-file-one-project: RECOVER first (move the bytes to the canonical name);
+        // quarantine only a true duplicate (canonical already exists). A renamed file
+        // must not make the project vanish from the UI (self-review: harsh policy).
+        const canonical = path.join(this.projectsDir, `${parsed.id}.json`);
+        if (await pathExists(canonical)) {
+          await this.safeQuarantine(file, `duplicate of ${path.basename(canonical)} (id "${parsed.id}")`);
+          continue;
+        }
+        try {
+          await renameWithRetry(file, canonical);
+          console.error(`[projects] ${path.basename(file)} did not match its id — recovered as ${path.basename(canonical)}`);
+        } catch (err) {
+          console.error(`[projects] could not recover ${path.basename(file)}: ${String(err)} — skipped`);
+          continue;
+        }
       }
+      if (seen.has(parsed.id)) continue; // a duplicate surfaced later in the dir loses
+      seen.add(parsed.id);
       if (this.files) {
         try {
           const migrated = await migrateProjectToCurrent(parsed, this.files);
@@ -131,13 +161,14 @@ export class ProjectStore {
             parsed = migrated;
             await this.writeProject(parsed); // self-migrating store: one write-back, then no-op boots
           }
-        } catch {
+        } catch (err) {
           // read-tolerant: opens unmigrated; the strict refusal stays at save time
+          console.error(`[projects] v${parsed.schemaVersion ?? 0} migration deferred for "${parsed.name}": ${String(err)}`);
         }
       }
       this.items.push(parsed);
     }
-    this.items.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    this.resort();
   }
 
   async create(input: { name?: string; scene?: unknown; pages?: unknown; width?: number; height?: number }): Promise<Project> {
@@ -177,8 +208,7 @@ export class ProjectStore {
     }
     p.updatedAt = Date.now();
     p.schemaVersion = OIA_SCHEMA_VERSION; // every save stamps the current format version
-    // keep the recent order: move to the front
-    this.items = [p, ...this.items.filter((x) => x.id !== id)];
+    this.resort(); // recent order: the touched project moves to the front
     await this.writeProject(p);
     return p;
   }
@@ -205,12 +235,13 @@ export class ProjectStore {
     if (this.files) {
       try {
         p = await migrateProjectToCurrent(p, this.files);
-      } catch {
+      } catch (err) {
         // read-tolerant: opens unmigrated; the strict refusal stays at save time
+        console.error(`[projects] v${p.schemaVersion ?? 0} migration deferred for "${p.name}": ${String(err)}`);
       }
     }
     this.items.push(p);
-    this.items.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+    this.resort();
     await this.writeProject(p);
     return true;
   }
@@ -289,18 +320,22 @@ export class ChatSessionStore {
 
   /** Reorg step 5 — web `.data` import lane: external sessions join with FRESH ids
    *  (numeric ids from another install would collide). Idempotent: a session whose
-   *  fingerprint (name + timestamps + message count) already exists is skipped.
-   *  Returns how many landed. */
+   *  fingerprint (name + timestamps + message count) already exists is skipped and
+   *  COUNTED — a skip is information, never a silent drop. */
   async importSessions(
     entries: Array<[number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }]>,
-  ): Promise<number> {
+  ): Promise<{ imported: number; skipped: number }> {
     const fingerprint = (e: { name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }) =>
       `${e.name}|${e.createdAt}|${e.updatedAt}|${e.messages.length}`;
     const known = new Set([...this.data.values()].map(fingerprint));
     let nextId = Math.max(0, ...this.data.keys()) + 1;
     let imported = 0;
+    let skipped = 0;
     for (const [, entry] of entries) {
-      if (known.has(fingerprint(entry))) continue; // already imported in an earlier run
+      if (known.has(fingerprint(entry))) {
+        skipped++; // already imported in an earlier run (or a same-ms twin — deterministic either way)
+        continue;
+      }
       const id = nextId++;
       this.data.set(id, {
         id,
@@ -312,6 +347,6 @@ export class ChatSessionStore {
       imported++;
     }
     if (imported) await this.save();
-    return imported;
+    return { imported, skipped };
   }
 }

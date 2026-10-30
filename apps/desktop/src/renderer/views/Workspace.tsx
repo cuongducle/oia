@@ -129,8 +129,8 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
             {importing ? "Importing…" : "⤵ Import from web app"}
           </button>
           <label className="secondaryBtn">
-            ⬆ Import image
-            <input type="file" aria-label="Import image" accept="image/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && create(e.target.files[0])} />
+            ⬆ New from image
+            <input type="file" aria-label="New project from image" accept="image/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && create(e.target.files[0])} />
           </label>
           <button className="primaryBtn" disabled={busy} onClick={() => create()}>
             {busy ? "Creating…" : "＋ New project"}

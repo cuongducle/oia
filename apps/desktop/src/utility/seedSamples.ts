@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { OIA_SCHEMA_VERSION, type Project, type Template } from "@oia/schema";
-import { atomicWriteJson, type ProjectStore } from "@oia/tasks";
+import { atomicWriteJson, pathExists, type ProjectStore } from "@oia/tasks";
 import { STUDIO_TEMPLATES } from "../shared/studio-templates.js";
 
 /**
@@ -29,7 +28,7 @@ export async function seedSampleProjects(opts: {
   templates?: readonly Template[];
 }): Promise<number> {
   const marker = path.join(opts.dataDir, "samples-seeded.json");
-  if (existsSync(marker)) return 0;
+  if (await pathExists(marker)) return 0;
   if (opts.projects.recent().some((p) => !p.sample)) {
     await atomicWriteJson(marker, { seededAt: Date.now() }); // has real work — never seed, never retry
     return 0;

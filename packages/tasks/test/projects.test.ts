@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { chmodSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ProjectStore, ChatSessionStore } from "../src/projects.js";
@@ -176,15 +176,58 @@ describe("per-project files (reorg step 5)", () => {
     expect(readFileSync(path.join(prjDir(dir), quarantineOf(prjDir(dir), "prj_bad.json")!), "utf8")).toBe("{ truncated mid-write");
   });
 
-  it("a project file whose id does not match its file name is quarantined (one-file-one-project invariant)", async () => {
+  it("a misnamed file is RECOVERED to its canonical name (no data loss), a true duplicate is quarantined", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-mismatch-"));
     mkdirSync(prjDir(dir), { recursive: true });
     writeProjectFile(dir, "prj_real");
-    writeProjectFile(dir, "prj_wrongname", { id: "prj_real", name: "duplicate copy" });
+    writeProjectFile(dir, "prj_wrongname", { id: "prj_misnamed", name: "misnamed copy" });
     const store = new ProjectStore(dir);
     await store.load();
-    expect(store.recent().map((p) => p.id)).toEqual(["prj_real"]); // exactly one copy
-    expect(quarantineOf(prjDir(dir), "prj_wrongname.json")).toBeDefined();
+    // recovered under the id it declares — visible, exactly one copy
+    expect(store.recent().map((p) => p.id).sort()).toEqual(["prj_misnamed", "prj_real"]);
+    expect(readdirSync(prjDir(dir)).sort()).toEqual(["prj_misnamed.json", "prj_real.json"]);
+
+    // a TRUE duplicate (canonical name already occupied by another file) still isolates
+    writeProjectFile(dir, "extra_copy", { id: "prj_real", name: "duplicate copy" });
+    const second = new ProjectStore(dir);
+    await second.load();
+    expect(second.recent().map((p) => p.id)).toEqual(["prj_misnamed", "prj_real"]); // one copy each
+    expect(quarantineOf(prjDir(dir), "extra_copy.json")).toBeDefined(); // duplicate bytes preserved
+  });
+
+  it("a FAILED quarantine never bricks the store — the other projects still load (blast radius stays per-file)", async () => {
+    if (process.getuid?.() === 0) return; // root ignores mode bits — the persistenceHealth precedent
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-quarantine-fail-"));
+    mkdirSync(prjDir(dir), { recursive: true });
+    writeProjectFile(dir, "prj_ok1");
+    writeFileSync(path.join(prjDir(dir), "prj_bad1.json"), '{"broken": '); // poison — quarantine will try and FAIL
+    writeFileSync(path.join(prjDir(dir), "prj_bad2.json"), "{");
+    // make the directory read-only: the quarantine RENAME inside must fail (EACCES)
+    chmodSync(prjDir(dir), 0o500);
+    try {
+      const store = new ProjectStore(dir);
+      await store.load(); // must NOT throw
+      expect(store.recent().map((p) => p.id)).toEqual(["prj_ok1"]); // healthy files loaded
+      expect(readdirSync(prjDir(dir)).sort()).toEqual(["prj_bad1.json", "prj_bad2.json", "prj_ok1.json"]); // nothing moved, nothing destroyed
+    } finally {
+      chmodSync(prjDir(dir), 0o700); // restore for tmp cleanup
+    }
+  });
+
+  it("an UNREADABLE file is skipped — the store still boots (per-file blast radius)", async () => {
+    if (process.getuid?.() === 0) return;
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-read-fail-"));
+    mkdirSync(prjDir(dir), { recursive: true });
+    writeProjectFile(dir, "prj_ok1");
+    writeProjectFile(dir, "prj_locked");
+    chmodSync(path.join(prjDir(dir), "prj_locked.json"), 0o000);
+    try {
+      const store = new ProjectStore(dir);
+      await store.load();
+      expect(store.recent().map((p) => p.id)).toEqual(["prj_ok1"]);
+    } finally {
+      chmodSync(path.join(prjDir(dir), "prj_locked.json"), 0o600);
+    }
   });
 
   it("legacy monolith projects.json is absorbed into per-project files and ARCHIVED (bytes never deleted)", async () => {

@@ -42,7 +42,7 @@ const legacyBase64ToAssets: ProjectMigration = {
         violations,
       );
     }
-    return { ...project, schemaVersion: 1 };
+    return project; // the RUNNER stamps the step's version — steps never hardcode it
   },
 };
 
@@ -66,6 +66,7 @@ export async function migrateProjectToCurrent(
   for (const step of steps) {
     if (version !== step.from) continue;
     current = await step.migrate(current, files);
+    if (current.schemaVersion !== step.to) current = { ...current, schemaVersion: step.to }; // single stamping home
     version = step.to;
   }
   return current;

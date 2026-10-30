@@ -115,21 +115,18 @@ async function boot(t: WebImportTarget): Promise<void> {
 }
 
 describe("resolveWebDataDir", () => {
-  it("accepts the .data folder itself and its parent", () => {
+  it("accepts the .data folder itself and its parent", async () => {
     const web = makeWebData();
-    expect(resolveWebDataDir(web)).toBe(web);
-    const parent = path.dirname(web);
-    // parent resolution only triggers when a literal `.data` child exists
+    expect(await resolveWebDataDir(web)).toBe(web);
     const holder = mkdtempSync(path.join(tmpdir(), "oia-holder-"));
     mkdirSync(path.join(holder, ".data"), { recursive: true });
     writeFileSync(path.join(holder, ".data", "projects.json"), "[]");
-    expect(resolveWebDataDir(holder)).toBe(path.join(holder, ".data"));
-    expect(web.length).toBeGreaterThan(0); // silence unused
+    expect(await resolveWebDataDir(holder)).toBe(path.join(holder, ".data"));
   });
 
-  it("a folder with none of the markers is rejected with a clear message", () => {
+  it("a folder with none of the markers is rejected with a clear message", async () => {
     const junk = mkdtempSync(path.join(tmpdir(), "oia-junk-"));
-    expect(() => resolveWebDataDir(junk)).toThrow(DataImportError);
+    await expect(resolveWebDataDir(junk)).rejects.toThrow(DataImportError);
   });
 });
 

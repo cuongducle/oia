@@ -5,7 +5,8 @@ import { sceneCanvasSchema } from "@oia/schema";
 import { fitArtboard, sceneSize, templateCategory, filterTemplates, imageSource } from "../src/renderer/lib/studio-ui.js";
 import { STUDIO_TEMPLATES } from "../src/renderer/lib/studio-templates.js";
 import { QUICK_TOOLS, getTool } from "../src/renderer/lib/tools-registry.js";
-import { EN_MESSAGES, type I18nKey } from "../src/renderer/lib/i18n.js";
+import { EN_MESSAGES } from "../src/renderer/lib/i18n.js";
+import { previewRenderSize } from "../src/renderer/components/ScenePreview.js";
 import { ERROR_PRESENTATION } from "../src/renderer/lib/provider-errors.js";
 import { ERROR_CLASSES } from "@oia/schema";
 import { presentErrorEn } from "../src/renderer/lib/errors.js";
@@ -111,6 +112,23 @@ describe("quick tools registry (4 categories, one honest landing)", () => {
   });
 });
 
+describe("previewRenderSize — the thumbnail memory cap (pure)", () => {
+  it("natural size when under the cap (no zoom path taken)", () => {
+    expect(previewRenderSize(900, 1200)).toEqual({ width: 900, height: 1200, zoom: 1 });
+  });
+  it("oversized artboards scale down proportionally (1360×2048 poster → 1600 cap)", () => {
+    const s = previewRenderSize(1360, 2048);
+    expect(s.zoom).toBeCloseTo(1600 / 2048, 5);
+    expect(s.height).toBe(1600);
+    expect(s.width).toBe(Math.round(1360 * (1600 / 2048)));
+  });
+  it("extreme artboards never exceed the cap in either dimension", () => {
+    const s = previewRenderSize(4096, 8192);
+    expect(Math.max(s.width, s.height)).toBe(1600);
+    expect(s.width).toBe(800); // aspect preserved, no distortion
+  });
+});
+
 describe("i18n is English-only and complete (D8)", () => {
   it("every dictionary entry is a non-empty string", () => {
     for (const [key, value] of Object.entries(EN_MESSAGES)) {
@@ -126,19 +144,24 @@ describe("i18n is English-only and complete (D8)", () => {
     expect(offenders.map(([k]) => k)).toEqual([]);
   });
 
-  it("no Vietnamese text in renderer views/components (the web english-ui gate, re-homed)", () => {
+  it("no Vietnamese text in renderer views/components (the web english-ui gate, re-homed)", async () => {
     const root = path.resolve(import.meta.dirname, "../src/renderer");
     const offenders: string[] = [];
+    let scanned = 0;
     const scan = (dir: string) => {
       for (const f of readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, f.name);
         if (f.isDirectory()) scan(full);
         else if (/\.(tsx?|css)$/.test(f.name)) {
+          scanned++;
           if (VIETNAMESE.test(readFileSync(full, "utf8"))) offenders.push(path.relative(root, full));
         }
       }
     };
     scan(root);
+    // a scanner that scanned nothing passes vacuously — pin a floor so a future
+    // restructure FAILS this test instead of silently going blind (self-review lesson)
+    expect(scanned).toBeGreaterThanOrEqual(20);
     expect(offenders).toEqual([]);
   });
 

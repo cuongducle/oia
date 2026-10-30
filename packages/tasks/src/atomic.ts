@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { noteWriteFailure, noteWriteSuccess } from "./persistenceHealth.js";
 
@@ -39,6 +39,17 @@ export async function renameWithRetry(
 
 /** Per-file single-writer chains — concurrent writers serialize, never interleave. */
 const chains = new Map<string, Promise<unknown>>();
+
+/** Async existence check — the stores run on the utility process's event loop
+ *  (loopback server + task queue live there too); existsSync would block it. */
+export async function pathExists(file: string): Promise<boolean> {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Remove orphaned temp siblings (`.name.tmp-*`) left by a crash between write and rename. */
 export async function sweepTempFiles(file: string): Promise<void> {

@@ -1,7 +1,8 @@
-import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { brandKitSchema, projectSchema, templateSchema, type BrandKit, type Project, type Template } from "@oia/schema";
+import { pathExists } from "./atomic.js";
 import type { LocalFileStore } from "./storage.js";
 import type { BrandKitStore } from "./brandkits.js";
 import type { ChatSessionStore, ProjectStore, StoredMessage } from "./projects.js";
@@ -26,10 +27,14 @@ import type { TemplateStore } from "./templates.js";
 export interface WebImportCounts {
   assets: number;
   assetsSkipped: number;
+  /** Name collision with DIFFERENT bytes (legacy 8-hex prefix era) — desktop
+   *  copy won, the source file is untouched in its folder. */
+  assetsConflicted: number;
   projects: number;
   projectsSkipped: number;
   projectsInvalid: number;
   sessions: number;
+  sessionsSkipped: number;
   brandKits: number;
   brandKitsInvalid: number;
   templates: number;
@@ -61,7 +66,7 @@ function pickSchemaKeys(raw: Record<string, unknown>, shape: Record<string, unkn
 
 /** Never mutate the source to quarantine a corrupt file — abort loudly instead. */
 async function readSourceArray<T>(file: string, what: string): Promise<T[] | null> {
-  if (!existsSync(file)) return null;
+  if (!(await pathExists(file))) return null;
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(file, "utf8"));
@@ -75,12 +80,12 @@ async function readSourceArray<T>(file: string, what: string): Promise<T[] | nul
 }
 
 /** Accept the `.data` folder itself or its parent (the folder the user naturally picks). */
-export function resolveWebDataDir(sourceDir: string): string {
-  const markers = (d: string) =>
-    existsSync(path.join(d, "projects.json")) || existsSync(path.join(d, "chat-sessions.json")) || existsSync(path.join(d, "files", "uploads"));
-  if (markers(sourceDir)) return sourceDir;
+export async function resolveWebDataDir(sourceDir: string): Promise<string> {
+  const markers = async (d: string) =>
+    (await pathExists(path.join(d, "projects.json"))) || (await pathExists(path.join(d, "chat-sessions.json"))) || (await pathExists(path.join(d, "files", "uploads")));
+  if (await markers(sourceDir)) return sourceDir;
   const child = path.join(sourceDir, ".data");
-  if (markers(child)) return child;
+  if (await markers(child)) return child;
   throw new DataImportError(`"${sourceDir}" does not look like a web app data folder — expected projects.json, chat-sessions.json, or files/uploads inside it.`);
 }
 
@@ -93,7 +98,7 @@ async function* walkFiles(dir: string): AsyncGenerator<string> {
 }
 
 export async function importWebData(opts: { sourceDir: string; target: WebImportTarget }): Promise<WebImportCounts> {
-  const source = resolveWebDataDir(opts.sourceDir);
+  const source = await resolveWebDataDir(opts.sourceDir);
   const t = opts.target;
 
   // ── phase 1: read + validate everything, mutate nothing ──────────────────────
@@ -146,26 +151,32 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
     }
   }
 
-  if (!rawProjects && !rawSessions && !rawKits && !rawTemplates && !existsSync(path.join(source, "files", "uploads"))) {
+  if (!rawProjects && !rawSessions && !rawKits && !rawTemplates && !(await pathExists(path.join(source, "files", "uploads")))) {
     throw new DataImportError(`"${source}" contains nothing importable — no projects, sessions, brand kits, templates, or assets found.`);
   }
 
   // ── phase 2: apply — copy assets under their original keys, then merge stores ─
   const counts: WebImportCounts = {
-    assets: 0, assetsSkipped: 0,
+    assets: 0, assetsSkipped: 0, assetsConflicted: 0,
     projects: 0, projectsSkipped: 0, projectsInvalid,
-    sessions: 0,
+    sessions: 0, sessionsSkipped: 0,
     brandKits: 0, brandKitsInvalid,
     templates: 0, templatesInvalid,
   };
 
   const srcUploads = path.join(source, "files");
-  if (existsSync(srcUploads)) {
+  if (await pathExists(srcUploads)) {
     for await (const file of walkFiles(srcUploads)) {
       const rel = path.relative(srcUploads, file);
       const dest = path.join(t.files.root, rel);
-      if (existsSync(dest)) {
-        counts.assetsSkipped++; // same content-addressed name → assume same content
+      if (await pathExists(dest)) {
+        // F3 lesson: legacy 8-hex names are hints, NOT identity — verify the bytes
+        // before claiming "already here"; a silent mismatch would alias two images.
+        if (await sameBytes(file, dest)) counts.assetsSkipped++;
+        else {
+          counts.assetsConflicted++;
+          console.error(`[import] ${rel}: name exists with DIFFERENT bytes (legacy prefix collision?) — desktop copy wins, source file kept untouched in the source folder`);
+        }
         continue;
       }
       await mkdir(path.dirname(dest), { recursive: true });
@@ -175,11 +186,31 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
     await t.files.hydrate(); // re-index: legacy md5 lanes resolve imported keys
   }
 
-  for (const p of projects) counts.projects += (await t.projects.addImported(p)) ? 1 : 0;
-  counts.projectsSkipped = projects.length - counts.projects;
-  counts.sessions = await t.chatSessions.importSessions(sessions);
-  for (const k of kits) counts.brandKits += (await t.brandKits.addImported(k)) ? 1 : 0;
-  for (const tpl of templates) counts.templates += (await t.templates.addImported(tpl)) ? 1 : 0;
+  for (const p of projects) {
+    if (await t.projects.addImported(p)) counts.projects++;
+    else counts.projectsSkipped++;
+  }
+  const sessionsResult = await t.chatSessions.importSessions(sessions);
+  counts.sessions = sessionsResult.imported;
+  counts.sessionsSkipped = sessionsResult.skipped; // fingerprint matches — already here (or an unlucky same-ms twin)
+  for (const k of kits) {
+    if (await t.brandKits.addImported(k)) counts.brandKits++;
+  }
+  for (const tpl of templates) {
+    if (await t.templates.addImported(tpl)) counts.templates++;
+  }
 
   return counts;
+}
+
+/** Size-first, then sha256 — collision verification for the skip lane. */
+async function sameBytes(a: string, b: string): Promise<boolean> {
+  const [sa, sb] = await Promise.all([stat(a).catch(() => null), stat(b).catch(() => null)]);
+  if (!sa || !sb || sa.size !== sb.size) return false;
+  const [ha, hb] = await Promise.all([sha256(a), sha256(b)]);
+  return ha === hb;
+}
+
+async function sha256(file: string): Promise<string> {
+  return createHash("sha256").update(await readFile(file)).digest("hex");
 }
