@@ -49,3 +49,42 @@ Typecheck, production build, regression tests, real Chrome interactions, explici
 ## Product principles
 
 BYOK instead of credits or upsells. The visual design is original and independent. No invented users, ratings, paid upgrades, or earnings claims.
+
+## Source of truth (nơi lấy giá trị — đọc trước khi viết UI mới)
+
+| Quan tâm | Nơi canonical | Ghi chú |
+| --- | --- | --- |
+| Token màu / biến CSS | `apps/desktop/src/renderer/app.css` | Desktop là sản phẩm; `apps/web/app/globals.css` chỉ còn là tham chiếu đóng băng (chết theo bước 6) |
+| Font | `apps/desktop/src/renderer/fonts/` (Be Vietnam Pro, Instrument Serif) | Tự host — không CDN |
+| Component mẫu | `apps/desktop/src/renderer/components/` (Dialog, ScenePreview) | View mới bắt chước sibling gần nhất trước khi tự nghĩ |
+| Icon / hình template | `apps/desktop/src/renderer/public/studio/` | Trùng bộ với web — đã copy ở bước 2 |
+| Registry tool / template | `renderer/lib/tools-registry.ts`, `studio-templates.ts` | Đã là bản sở hữu của desktop |
+
+Không hardcode hex/px trong view khi một biến đã tồn tại. Cần token mới → thêm vào `app.css` rồi dùng — không rải giá trị riêng lẻ.
+
+## UX rules (áp dụng cho mọi view, đặc biệt khi port 4c/4d)
+
+**Feedback theo thời lượng hành động** — câu hỏi đúng không phải "có nên hiện spinner không" mà là "hành động này chạy bao lâu":
+
+| Thời lượng | Feedback |
+| --- | --- |
+| < 100 ms | Không gì cả — hiện gì cũng đọc là glitch |
+| 100 ms – 1 s | Chỉ disable control |
+| 1 – 3 s | Disable + spinner / đổi nhãn |
+| 3 s+ nhiều bước | Nhãn theo giai đoạn ("Planning…" → "Painting…" → "Composing…") |
+| 1 – 6 phút (generation) | Stream tiến trình (đã có qua chat events) + nút Cancel LUÔN hiển thị + không chặn UI |
+
+Hệ quả: **reserve sẵn chỗ** cho trạng thái sắp xuất hiện (nhãn dài hơn, icon thêm vào — fix width trước, đừng để nút nhảy nhót); generation là chuyện bình thường của app này — người dùng phải làm được việc khác trong lúc chờ.
+
+**UI copy không được overclaim.** Không nói "saved / verified / generated" khi code không có state chứng minh — họ hàng trực tiếp của nguyên tắc B7 "records must not lie". Khi đang chờ: ngôn ngữ trung tính ("Saving…"), động từ kết quả chỉ hiện khi có kết quả thật.
+
+**Cancel không phải destructive.** Nút thoát luồng (back, close, dismiss) giữ yên tĩnh — màu và trọng lượng thị giác dành cho hành động khẳng định. Xem chi tiết bảng variant trong STYLEGUIDE của Orca nếu cần chuẩn đối chiếu.
+
+**Port từ web = mirror, không taste lại.** Route web là tham chiếu semantic (xem AGENTS.md "Reuse before reimplementing"); hướng thị giác lấy từ doc này. Đổi gì phải ghi lý do vào commit.
+
+## Khi doc này im lặng
+
+1. Nhìn view sibling gần nhất trong `renderer/views/` — làm theo sibling.
+2. Nhìn `renderer/components/` — có component sẵn không thì dùng.
+3. Là câu hỏi token → `app.css` là canonical: dùng cái có, hoặc thêm mới ở đó.
+4. Vẫn chưa giải quyết → hỏi owner, đừng tự phát minh.

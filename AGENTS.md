@@ -130,8 +130,9 @@ Commit style: imperative subject + structured body explaining WHY (see `git log`
 ## Git / GitHub
 
 - Commit style and gates-run evidence: see STYLEGUIDE "Commits".
-- A failed CI run: `gh run rerun <run-id> --failed` reruns only the failed jobs —
-  preserve the green ones. A code fix always needs a new push and fresh checks,
+- A failed CI run: inspect first (`gh run view <run-id> --log-failed`), then
+  `gh run rerun <run-id> --failed` reruns only the failed jobs — preserve the
+  green ones. A code fix always needs a new push and fresh checks,
   never a rerun of the old SHA.
 - The `@oia-web` ratchet and the smoke gates live in `.github/workflows/ci.yml`;
   if a change legitimately needs to move a baseline DOWN is fine, UP never

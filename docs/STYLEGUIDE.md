@@ -89,3 +89,26 @@ A tag in code is a POINTER to the spec, not a replacement for it.
 - Type assertions are avoided except `as const`. An unavoidable one carries a
   line-specific `SAFETY:` note explaining why the cast cannot lie — reviewers
   grep for this word; if it is missing, the cast is a bug waiting.
+
+## Review records (format cho doc review độc lập)
+
+Khi một design doc được review độc lập (ngoài agent đang implement), kết quả
+thành file cặp `<tên-doc>-review.md` cùng thư mục — theo format đã học từ Orca
+(`native-chat-setup-provisioning-review.md`):
+
+1. **Verdict** lên đầu — accepted / accepted-with-conditions / rejected, kèm
+   trạng thái P0/P1 còn mở (nếu có).
+2. **Root cause / simplest mechanism** — đoạn ngắn giải thích cơ chế thật của
+   vấn đề lớn nhất, không liệt kê triệu chứng.
+3. **Bảng concerns** — mỗi dòng: mối quan tâm | severity (P0–P2) | disposition
+   (accepted / withdrawn / fixed-now / deferred-với-lý-do). Không có concern
+   nào "treo" không disposition.
+4. **Invariants checked** — những bất biến đã xác nhận không vỡ.
+5. **Final verification** — gate nào đã chạy, con số thật (test count), và
+   đặc biệt: **phạm vi claim** — ghi rõ cái gì KHÔNG được kiểm chứng
+   ("no Windows validation is claimed", "reviewer launched no window").
+   Overclaim trong review doc là lỗi nghiêm trọng ngang overclaim trong UI.
+
+Tiền lệ trong repo: review 11 điểm từ ngoài (2026-10-30) được hấp thụ trực tiếp
+vào plan v2 chứ chưa tách file — vì reviewer là một phần luồng làm việc. Từ nay:
+review độc lập đứng ngoài luồng implement → tách file cặp.
