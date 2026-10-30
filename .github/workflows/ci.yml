@@ -29,9 +29,9 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build # workspace dist/types must exist before the desktop typecheck
       - run: pnpm --filter @oia/desktop typecheck
       - run: pnpm --filter @oia/desktop test
-      - run: pnpm --filter @oia/desktop build
       # the scripted end-to-end: mock pair -> runChat over the real Electron main process
       # (--no-sandbox: CI containers run as root; ELECTRON_SKIP_BINARY_DOWNLOAD is NOT set)
       - run: xvfb-run -a npx electron apps/desktop --no-sandbox
