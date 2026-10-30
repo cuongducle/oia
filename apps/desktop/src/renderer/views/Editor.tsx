@@ -12,6 +12,7 @@ import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
+import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../../shared/assets.js";
 
@@ -79,6 +80,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   const [hasScene, setHasScene] = useState(false);
   const [selectedText, setSelectedText] = useState(false);
   const [zoom, setZoom] = useState(0.35);
+  const [zoomText, setZoomText] = useState<string | null>(null); // null = not typing; mirrors the bar while editing
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportScope, setExportScope] = useState<ExportScope>("all");
@@ -293,7 +295,19 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   }
   function zoomBy(d: number) {
     autoFit.current = false;
-    const z = Math.min(2, Math.max(0.05, zoom + d));
+    const z = clampZoom(zoom + d);
+    setZoom(z);
+    if (fabricRef.current) applyZoom(fabricRef.current, z);
+  }
+  /** Typed zoom commits on blur/Enter — committing per keystroke would clamp "1…"
+   * mid-typing and destroy multi-digit input. */
+  function commitZoomText() {
+    if (zoomText === null) return;
+    setZoomText(null);
+    const v = Number(zoomText);
+    if (!Number.isFinite(v)) return;
+    autoFit.current = false;
+    const z = clampZoom(v / 100);
     setZoom(z);
     if (fabricRef.current) applyZoom(fabricRef.current, z);
   }
@@ -843,21 +857,18 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
               className="zoomInput"
               type="number"
               min={5}
-              max={400}
+              max={200}
               aria-label="Zoom percent"
-              value={Math.round(zoom * 100)}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                if (!Number.isFinite(v) || v <= 0) return;
-                const z = Math.min(4, Math.max(0.05, v / 100));
-                setZoom(z);
-                if (fabricRef.current) applyZoom(fabricRef.current, z);
-              }}
+              value={zoomText ?? String(Math.round(zoom * 100))}
+              onFocus={(e) => setZoomText(e.currentTarget.value)}
+              onChange={(e) => setZoomText(e.target.value)}
+              onBlur={commitZoomText}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
             /><span className="zoomAffix" aria-hidden="true">%</span>
             <button onClick={() => zoomBy(0.1)} aria-label="Zoom in"><I d={icons.plus} size={15} /></button>
             <button onClick={fitView} title="Fit to screen" aria-label="Fit to screen"><I d={icons.fit} size={15} /></button>
           </div>
-          <div className="boardLabel">Page {activePage + 1} / {Math.max(1, pages.length)} · {customW} × {customH}</div>
+          <div className="boardLabel">Page {activePage + 1} / {Math.max(1, pages.length)}</div>
           <div className="pageStrip">
             {pages.map((page, i) => (
               <div key={page.id} className={i === activePage ? "pageThumb active" : "pageThumb"}>

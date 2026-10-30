@@ -13,6 +13,10 @@ const MOCK_CAPABILITIES: ProviderCapabilities = {
   isMock: true,
 };
 
+/** Mock promo copy — Vietnamese CONTENT by design (D8: content-level language),
+ * not UI copy; it is what every smoke/shot banner sample says. */
+export const MOCK_PROMO_COPY = "GIẢM GIÁ 20%";
+
 export class MockLlmProvider implements LlmProvider {
   readonly name = "mock";
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
@@ -22,7 +26,7 @@ export class MockLlmProvider implements LlmProvider {
       title: user.slice(0, 60) || "Untitled",
       plan: ["layout", "imagery", "typography"],
       imagePrompt: user,
-      copy: "GIẢM GIÁ 20%",
+      copy: MOCK_PROMO_COPY,
     });
   }
   async isAvailable(): Promise<ProviderDiagnostic> {

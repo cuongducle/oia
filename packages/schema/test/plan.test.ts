@@ -62,8 +62,8 @@ describe("normalizeBlocks (TP.1): legacy copy → one block", () => {
     expect(normalizeBlocks(plan)).toHaveLength(2);
   });
   it("legacy copy becomes one block", () => {
-    expect(normalizeBlocks({ title: "T", imagePrompt: "I", copy: "GIAM GIA 20%" })).toEqual([
-      { role: "copy", text: "GIAM GIA 20%" },
+    expect(normalizeBlocks({ title: "T", imagePrompt: "I", copy: "GIẢM GIÁ 20%" })).toEqual([
+      { role: "copy", text: "GIẢM GIÁ 20%" },
     ]);
   });
   it("zero blocks is valid (poster mode)", () => {

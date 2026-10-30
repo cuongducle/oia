@@ -563,10 +563,11 @@ async function shot(): Promise<void> {
     return;
   }
   // drive the SAME UI a user would: type into the composer and click Create —
-  // gates the real submit path (progress chips, ✓ summary, result card), not just the bridge
+  // gates the real submit path (progress chips, ✓ summary, result card), not just the bridge.
+  // (smoke mode intentionally drives the bridge instead: it gates the ENGINE e2e without UI)
   await win.webContents.executeJavaScript(
     `(() => {
-      const ta = document.querySelector('textarea[aria-label="Design idea"]');
+      const ta = document.querySelector('[data-testid="design-idea"]');
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
       setter.call(ta, 'banner smoke trà sữa giảm 20%');
       ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -604,7 +605,7 @@ async function shot(): Promise<void> {
     for (let i = 0; i < data.length; i += 16) {
       if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
     }
-    return { ok: nonWhite > 50 && !err && gen.length > 0, painted: nonWhite, err, gen };
+    return { ok: nonWhite > 50 && !err && /^✓ Generated in \\d+s$/.test(gen), painted: nonWhite, err, gen };
   })()`, true);
   console.log("[shot] verify:", JSON.stringify(verify));
   if (!verify || !verify.ok) {

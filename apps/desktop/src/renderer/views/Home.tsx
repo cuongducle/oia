@@ -4,9 +4,11 @@ import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
+import { ResultCard } from "../components/ResultCard.js";
 import { Dialog } from "../components/Dialog.js";
 import RuntimePanel from "../RuntimePanel.js";
 import { oia } from "../lib/bridge.js";
+import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
 
@@ -84,6 +86,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
   const startedAtRef = useRef<number | null>(null);
+  // explicit open/close for the AI notes block — no key-remount tricks; a new run reopens it
+  const [notesOpen, setNotesOpen] = useState(false);
   const activeJobRef = useRef<string | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<import("fabric").Canvas | null>(null);
@@ -138,7 +142,10 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       if (ev.content) setNarrative((n) => (n ? `${n}\n${stripMarkers(ev.content)}` : stripMarkers(ev.content)));
       for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") {
         setCanvasMeta(m);
-        if (startedAtRef.current) setGenSeconds(Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)));
+        if (startedAtRef.current) {
+          setGenSeconds(Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)));
+          setNotesOpen(false); // the ✓ line + result card take over; notes stay one click away
+        }
       }
     });
     return () => offRef.current?.();
@@ -156,9 +163,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       if (cancelled) return;
       fabricRef.current = c;
       await c.loadFromJSON(mapAssetUrls(canvasMeta.canvas));
-      const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
-      const w = clip?.width || 1360;
-      const h = clip?.height || 2048;
+      const { w, h } = sceneDims(canvasMeta.canvas);
       c.setDimensions({ width: 600, height: Math.round((600 * h) / w) });
       c.setZoom(600 / w);
       c.requestRenderAll();
@@ -191,6 +196,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   async function submit(retryOf?: string) {
     if (!prompt.trim() || busy || uploading) return;
     setBusy(true);
+    setNotesOpen(true); // stream feedback: show the planner's live text while it works
     startedAtRef.current = retryOf ? startedAtRef.current : Date.now();
     if (!retryOf) setGenSeconds(null);
     activeJobRef.current = retryOf ? null : activeJobRef.current;
@@ -252,8 +258,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   async function exportPng() {
     const c = fabricRef.current;
     if (!c || !canvasMeta) return;
-    const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
-    const w = clip?.width || 1360, h = clip?.height || 2048;
+    const { w, h } = sceneDims(canvasMeta.canvas);
     const oldZoom = c.getZoom(), oldW = c.getWidth(), oldH = c.getHeight();
     c.setZoom(1); c.setDimensions({ width: w, height: h });
     try {
@@ -279,6 +284,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       <section className="promptCard" aria-label="Create a design">
         <textarea
           aria-label="Design idea"
+          data-testid="design-idea"
           value={prompt}
           placeholder="What would you like to create today?"
           rows={3}
@@ -378,7 +384,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           )}
         </div>
       )}
-      {busy && <p className="hintP" role="status">Designing your request — the result will appear below as an editable canvas.</p>}
+      {busy && <p className="hintP">Designing your request — the result will appear below as an editable canvas.</p>}
 
       {busy && timeline.length > 0 && (
         <div className="timeline" role="status" aria-label="Progress">
@@ -393,38 +399,29 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       )}
       {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
       {narrative && (
-        <details className="aiNotes" key={busy ? "working" : "done"} open={busy}>
+        <details className="aiNotes" open={notesOpen} onToggle={(e) => setNotesOpen(e.currentTarget.open)}>
           <summary>{busy ? "Assistant working…" : "AI notes"}</summary>
           <div>{narrative.trim()}</div>
         </details>
       )}
 
-      {canvasMeta && (() => {
-        const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
-        const w = clip?.width || 1360, h = clip?.height || 2048;
-        return (
-          <section className="result" aria-label="Your design" data-testid="home-result">
-            <div className="resultCard">
-              <div className="resultHead">
-                <div className="resultTitle">
-                  <strong>{(resultName || prompt.slice(0, 60) || "New design").replace(/^./, (c) => c.toUpperCase())}</strong>
-                  <span className="resultDims">{w} × {h} px</span>
-                </div>
-                <span className="resultBadge">Ready</span>
-              </div>
-              <div className="canvasWrap">
-                <canvas ref={canvasElRef} />
-              </div>
-              <div className="resultActions">
-                <button className="primary" data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>
-                {canvasMeta.thumbnail && <button onClick={() => setPreview(toDisplayUrl(canvasMeta.thumbnail!))}>Preview</button>}
-                {canvasMeta.thumbnail && <button onClick={() => setRefs((r) => [...r, canvasMeta.thumbnail!])}>{Icon.images} Use as reference</button>}
-                <button onClick={() => void exportPng()}>{Icon.download} Download PNG</button>
-              </div>
-            </div>
-          </section>
-        );
-      })()}
+      {canvasMeta && (
+        <ResultCard
+          name={resultName || prompt.slice(0, 60) || "New design"}
+          w={sceneDims(canvasMeta.canvas).w}
+          h={sceneDims(canvasMeta.canvas).h}
+          ready={!busy}
+          canvasRef={canvasElRef}
+          actions={(
+            <>
+              <button className="primary" data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>
+              {canvasMeta.thumbnail && <button onClick={() => setPreview(toDisplayUrl(canvasMeta.thumbnail!))}>Preview</button>}
+              {canvasMeta.thumbnail && <button onClick={() => setRefs((r) => [...r, canvasMeta.thumbnail!])}>{Icon.images} Use as reference</button>}
+              <button onClick={() => void exportPng()}>{Icon.download} Download PNG</button>
+            </>
+          )}
+        />
+      )}
 
       <section aria-labelledby="gallery-title">
         <div className="sectionHeading">
