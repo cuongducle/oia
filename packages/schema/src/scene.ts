@@ -69,6 +69,9 @@ export const projectSchema = z.object({
   name: z.string().default("Untitled project"),
   /** Oia's own format version (see OIA_SCHEMA_VERSION). Absent = legacy project. */
   schemaVersion: z.number().int().optional(),
+  /** True for the curated sample projects seeded on first run (Workspace badge).
+   *  Additive + optional: old builds simply strip it; no format bump needed. */
+  sample: z.boolean().optional(),
   pages: z.array(pageSchema).min(1),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),

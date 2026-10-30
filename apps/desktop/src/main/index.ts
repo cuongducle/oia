@@ -697,9 +697,10 @@ async function shot(): Promise<void> {
   const wsVerify = await win.webContents.executeJavaScript(`(() => {
     const cards = document.querySelectorAll(".projectGrid article").length;
     const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
+    const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
     const chats = document.querySelectorAll(".chatGrid .chatCard").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: cards >= 1 && preview && chats >= 1 && !err, cards, preview, chats, err };
+    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && !err, cards, preview, samples, chats, err };
   })()`, true);
   console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
   if (!wsVerify || !wsVerify.ok) {

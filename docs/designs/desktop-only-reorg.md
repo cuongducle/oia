@@ -149,6 +149,7 @@ oia/
 - Gate kỹ thuật: **Windows máy thật** (PATH Start Menu, cài đặt sạch, rembg detect, upgrade giữ dữ liệu).
 
 **Hậu kỳ v1 (không chặn)**
+- **Seed sample projects lần đầu chạy (owner yêu cầu, 2026-11-06):** Workspace trống sau khi dọn dữ liệu test — owner muốn thấy sample design sẵn. 4 STUDIO_TEMPLATES giờ thành project khả-chỉnh-sửa lần đầu mở app (`prj_sample_<tplid>`, badge "Sample" qua field `sample` additive-optional trong projectSchema — không bump version). Luật: marker `samples-seeded.json` ghi SAU khi seed xong (crash giữa chừng → boot sau hoàn tất nhờ id ổn định); store đã có work thật → không seed; user xóa sample → không bao giờ quay lại. Gate: `seedSamples.test.ts` (5 test) + shot verify thêm `samples>=1`; dữ liệu vào shared/studio-templates.ts (một nhà cho renderer + utility).
 - PPT Translator: implement thật (hiện chỉ landing).
 - rembg bundle hay hướng dẫn cài — quyết CÙNG signing ở bước 7.
 - knip vào CI hằng ngày.

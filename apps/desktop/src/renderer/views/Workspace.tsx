@@ -155,13 +155,13 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
             </div>
             <div className="projectGrid">
               {visibleProjects.map((p) => (
-                <article key={p.id}>
+                <article key={p.id} data-sample={p.sample ? "true" : undefined}>
                   <button className="projectPreview" aria-label={`Open ${p.name}`} onClick={() => onOpenProject(p.id)}>
                     {p.pages[0] && <ScenePreview scene={p.pages[0].canvas as never} label={p.name} />}
                   </button>
                   <div className="projectMeta">
                     <div className="projectMetaName">
-                      <strong title={p.name}>{p.name}</strong>
+                      <strong title={p.name}>{p.sample && <em className="sampleBadge">Sample</em>}{p.name}</strong>
                       <small>{timeAgo(p.updatedAt ?? Date.now())} · {p.pages.length} {p.pages.length === 1 ? "page" : "pages"}</small>
                     </div>
                     <div className="projectMetaActions">

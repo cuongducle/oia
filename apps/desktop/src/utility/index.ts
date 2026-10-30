@@ -10,6 +10,7 @@ import { checkNsfw } from "@oia/providers";
 import { TaskNotFound, importWebData } from "@oia/tasks";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
+import { seedSampleProjects } from "./seedSamples.js";
 import { unlinkSync } from "node:fs";
 import {
   type UtilityRequest,
@@ -86,6 +87,9 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   });
   discoveryCleanup = loopback.discoveryFile;
   log(`loopback agent API on 127.0.0.1:${loopback.port} (discovery: ${loopback.discoveryFile})`);
+  // First run: curated sample projects (marker file makes this a no-op from boot 2 on)
+  const seeded = await seedSampleProjects({ dataDir, projects: ctx.projects });
+  if (seeded) log(`seeded ${seeded} sample projects`);
 }
 
 function post(message: UtilityResponse | UtilityEvent): void {
