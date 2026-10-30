@@ -1,7 +1,8 @@
-import type { ChatEvent, Project, Template } from "@oia/schema";
+import type { ChatEvent, Project, Template, TaskStatus, BrandKit } from "@oia/schema";
 import type { ChatRequest, ChatOutcome } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
+import type { ApiKeyRecord } from "@oia/tasks";
 
 /**
  * The bridge contract — defined ONCE. preload implements it, the renderer consumes it,
@@ -25,11 +26,27 @@ export interface RuntimeSnapshot {
   effective: "mock" | "codex";
 }
 
+/** A brand-kit draft crossing the bridge: id/createdAt are store-assigned on create. */
+export type BrandKitInput = Omit<BrandKit, "id" | "createdAt"> & { id?: string; createdAt?: number };
+
 /** TP-D3 — one-way progress frames for the long-running runtime flows. */
 export type RuntimeEvent =
   | { type: "install"; phase: InstallProgress["phase"]; pct?: number; detail?: string }
   | { type: "login-url"; url: string }
   | { type: "login-phase"; phase: "starting" | "url" | "exchanging"; detail?: string };
+
+/** For Agents — the loopback endpoint the skills talk to (127.0.0.1, key-authed). */
+export interface AgentApiStatus {
+  port: number | null;
+  /** Agent-job frames seen since app start, newest first (cap ~50, main-side ring). */
+  recentJobs: (AgentJobFrame & { at: number })[];
+}
+
+export interface AgentJobFrame {
+  taskId: string;
+  event: "submitted" | "succeeded" | "failed";
+  taskType: string;
+}
 
 export interface OiaBridge {
   chatRun: (req: ChatRequest) => Promise<{ jobId: string; outcome: ChatOutcome }>;
@@ -65,6 +82,24 @@ export interface OiaBridge {
   uploadAsset: (name: string, bytes: Uint8Array) => Promise<{ url: string; size: number }>;
   /** Native save dialog + write — the desktop replacement for the browser download anchor. */
   saveExport: (fileName: string, bytes: Uint8Array) => Promise<{ saved: boolean; path: string | null }>;
+  /** ---- reorg step 4c: quick tools task lane (web /api/tasks, ported to IPC). ----
+   * Background mode (noWait:false) + poll: the submit RPC returns immediately, so a
+   * 1–6 min generation never sits on one long-lived call (and stays cancellable). */
+  submitTask: (type: string, params: Record<string, unknown>) => Promise<TaskStatus>;
+  /** Terminal record, or null when unknown/expired (24h TTL — the web 404). */
+  getTask: (taskId: string) => Promise<TaskStatus | null>;
+  cancelTask: (taskId: string) => Promise<boolean>;
+  /** ---- reorg step 4d: brand kits + For Agents ---- */
+  listBrandKits: () => Promise<BrandKit[]>;
+  upsertBrandKit: (input: BrandKitInput) => Promise<BrandKit>;
+  removeBrandKit: (id: string) => Promise<boolean>;
+  listApiKeys: () => Promise<ApiKeyRecord[]>;
+  createApiKey: (name: string, ttlDays: number | null) => Promise<{ record: ApiKeyRecord; plaintext: string }>;
+  revokeApiKey: (id: string) => Promise<boolean>;
+  /** Loopback agent API endpoint state (port re-rolls on every utility fork). */
+  agentStatus: () => Promise<AgentApiStatus>;
+  /** Live agent-job lifecycle (loopback submissions), buffered in main + streamed. */
+  onAgentJob: (cb: (ev: AgentJobFrame) => void) => () => void;
   /** TP-D3 — codex runtime management (the zero-terminal onboarding surface). */
   runtimeStatus: () => Promise<RuntimeSnapshot>;
   runtimeInstall: () => Promise<{ runtime: RuntimeStatus }>;

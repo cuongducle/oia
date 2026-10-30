@@ -18,6 +18,19 @@ export const IPC = {
   sessionsGet: "sessions:get",
   filesUpload: "files:upload",
   exportSave: "export:save",
+  // reorg step 4c — quick tools run tasks over IPC (the web fetch lanes, ported)
+  taskSubmit: "task:submit",
+  taskGet: "task:get",
+  taskCancel: "task:cancel",
+  // reorg step 4d — brand kits + the For Agents panel (keys, loopback endpoint, live jobs)
+  brandKitsList: "brandkits:list",
+  brandKitsUpsert: "brandkits:upsert",
+  brandKitsRemove: "brandkits:remove",
+  apiKeysList: "apikeys:list",
+  apiKeysCreate: "apikeys:create",
+  apiKeysRevoke: "apikeys:revoke",
+  agentStatus: "agent:status",
+  agentJobEvent: "agentJob:event", // main → renderer (loopback job lifecycle)
   // TP-D3 — codex runtime management (status / guided download / in-app login)
   runtimeStatus: "runtime:status",
   runtimeInstall: "runtime:install",

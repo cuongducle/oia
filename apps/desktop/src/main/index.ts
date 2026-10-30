@@ -14,7 +14,10 @@ import {
   chatCancelSchema, projectsCreateSchema, projectsGetSchema,
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
   filesUploadSchema, exportSaveSchema,
+  taskSubmitSchema, taskGetSchema, taskCancelSchema,
+  brandKitUpsertSchema, brandKitRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
 } from "../shared/ipc.js";
+import type { AgentJobFrame } from "../shared/bridge.js";
 import { utility } from "./utilityClient.js";
 import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
 import { buildServiceEnv } from "../shared/providers-mode.js";
@@ -129,6 +132,10 @@ function createWindow(): BrowserWindow {
 function cancelAllJobs(): void {
   void utility.call({ cmd: "cancelAll" }).catch(() => {});
 }
+
+/** Agent-job frames seen since app start (newest first, capped) — the For Agents
+ *  panel gets history even for jobs that ran while it was closed. */
+const agentJobRing: (AgentJobFrame & { at: number })[] = [];
 
 function registerIpc(): void {
   registerRuntimeIpc({
@@ -246,6 +253,95 @@ function registerIpc(): void {
       return await utility.call({ cmd: "files.put", name, bytes });
     } catch (err) {
       ipcError(err);
+    }
+  });
+  // ---- reorg step 4c: quick tools task lane ---------------------------------------
+  handle(IPC.taskSubmit, async (_e, raw: unknown) => {
+    try {
+      const { type, params } = taskSubmitSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "tasks.submit", type, params });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.taskGet, async (_e, raw: unknown) => {
+    try {
+      const { taskId } = taskGetSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "tasks.get", taskId });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.taskCancel, async (_e, raw: unknown) => {
+    try {
+      const { taskId } = taskCancelSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "tasks.cancel", taskId });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  // ---- reorg step 4d: brand kits + For Agents --------------------------------------
+  handle(IPC.brandKitsList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "brandKits.list" });
+  });
+  handle(IPC.brandKitsUpsert, async (_e, raw: unknown) => {
+    try {
+      const input = brandKitUpsertSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "brandKits.upsert", input });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.brandKitsRemove, async (_e, raw: unknown) => {
+    try {
+      const { id } = brandKitRemoveSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "brandKits.remove", id });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.apiKeysList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "keys.list" });
+  });
+  handle(IPC.apiKeysCreate, async (_e, raw: unknown) => {
+    try {
+      const { name, ttlDays } = apiKeyCreateSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "keys.create", name, ttlDays });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.apiKeysRevoke, async (_e, raw: unknown) => {
+    try {
+      const { id } = apiKeyRevokeSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "keys.revoke", id });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.agentStatus, async () => {
+    await ensureUtility();
+    const port = (await utility.call({ cmd: "loopback.port" })) as number | null;
+    return { port, recentJobs: agentJobRing.map((j) => ({ ...j })) };
+  });
+  // agentJob events: buffered in main (survive a utility crash+refork) and streamed
+  // to every live window — the For Agents panel reads both.
+  utility.onUtilityEvent((ev) => {
+    if (ev.type !== "agentJob") return;
+    const frame: AgentJobFrame = { taskId: ev.taskId, event: ev.event, taskType: ev.taskType };
+    agentJobRing.unshift({ ...frame, at: Date.now() });
+    agentJobRing.length = Math.min(agentJobRing.length, 50);
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send(IPC.agentJobEvent, frame);
     }
   });
   handle(IPC.exportSave, async (event, raw: unknown) => {
@@ -574,12 +670,177 @@ async function shot(): Promise<void> {
     app.exit(8);
     return;
   }
+  await snap(win, "desktop-workspace.png");
+
+  // ---- reorg 4c: Tools view — grid + one real runner ----------------------------
+  console.log("[shot] opening Tools…");
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "Tools")?.click();
+    return true;
+  })()`, true);
+  let toolsReady = false;
+  for (let i = 0; i < 24; i++) {
+    toolsReady = await win.webContents.executeJavaScript(
+      `document.querySelectorAll(".toolGrid .toolCard").length >= 10`, true,
+    );
+    if (toolsReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const toolsListVerify = await win.webContents.executeJavaScript(`(() => {
+    const cards = document.querySelectorAll(".toolGrid .toolCard").length;
+    const sections = document.querySelectorAll(".toolSection").length;
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: cards >= 10 && sections >= 4 && !err, cards, sections, err };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] tools list verify:", JSON.stringify(toolsListVerify));
+  if (!toolsListVerify || !toolsListVerify.ok) {
+    console.error("DESKTOP_SHOT TOOLS VERIFY FAILED (list)");
+    app.exit(9);
+    return;
+  }
+  const toolOpened = await win.webContents.executeJavaScript(`(() => {
+    const card = [...document.querySelectorAll(".toolCard")].find((c) => c.textContent.includes("PNG to JPG"));
+    if (!card) return false;
+    card.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 600));
+  const toolsVerify = await win.webContents.executeJavaScript(`(() => {
+    const runner = Boolean(document.querySelector(".toolRunner"));
+    const fileInput = Boolean(document.querySelector(".toolRunner input[type=file]"));
+    const actionBtn = Boolean(document.querySelector(".toolRunner .primaryBtn"));
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: runner && fileInput && actionBtn && !err, runner, fileInput, actionBtn, err };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] tools runner verify:", JSON.stringify(toolsVerify));
+  if (!toolOpened || !toolsVerify || !toolsVerify.ok) {
+    console.error("DESKTOP_SHOT TOOLS VERIFY FAILED (runner)");
+    app.exit(9);
+    return;
+  }
+
+  // tool AI end-to-end through the REAL bridge (mock pair): submitTask → taskStore
+  // → poll getTask → result image. This is the 4c gate "tool AI (mock pair)".
+  console.log("[shot] running the YouTube Banner Maker (mock pair)…");
+  const aiOpened = await win.webContents.executeJavaScript(`(() => {
+    const back = [...document.querySelectorAll(".ghostBtn")].find((b) => b.textContent.includes("All tools"));
+    back?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 500));
+  const bannerCard = await win.webContents.executeJavaScript(`(() => {
+    const card = [...document.querySelectorAll(".toolCard")].find((c) => c.textContent.includes("YouTube Banner Maker"));
+    if (!card) return false;
+    card.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 500));
+  const prompted = await win.webContents.executeJavaScript(`(() => {
+    const ta = document.querySelector(".toolRunner textarea");
+    if (!ta) return false;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+    setter.call(ta, "matcha tea banner, calm greens");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  })()`, true);
+  const genClicked = await win.webContents.executeJavaScript(`(() => {
+    const btn = document.querySelector(".toolRunner .primaryBtn");
+    if (!btn || btn.disabled) return false;
+    btn.click();
+    return true;
+  })()`, true);
+  let aiDone = false;
+  let aiVerify: unknown = null;
+  for (let i = 0; i < 60 && !aiDone; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    aiVerify = await win.webContents.executeJavaScript(`(() => {
+      const img = document.querySelector(".aiResult img");
+      const busy = document.querySelector('.toolRunner [role=status]')?.textContent ?? "";
+      const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+      if (img && img.complete && img.naturalWidth > 0) return { ok: true, src: img.src.slice(0, 60) };
+      return { ok: false, busy: busy.slice(0, 60), err };
+    })()`, true).catch(() => null);
+    aiDone = Boolean(aiVerify && (aiVerify as { ok: boolean }).ok);
+  }
+  console.log("[shot] tool AI verify:", JSON.stringify(aiVerify));
+  if (!aiOpened || !bannerCard || !prompted || !genClicked || !aiDone) {
+    console.error("DESKTOP_SHOT TOOL AI VERIFY FAILED");
+    app.exit(12);
+    return;
+  }
+  await snap(win, "desktop-tools-ai.png");
+  await snap(win, "desktop-tools.png");
+
+  // ---- reorg 4d: Brand kit panel — kit form over the real store -----------------
+  console.log("[shot] opening Brand kit…");
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "Brand kit")?.click();
+    return true;
+  })()`, true);
+  let kitReady = false;
+  for (let i = 0; i < 20; i++) {
+    kitReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".kitFields"))`, true,
+    );
+    if (kitReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const kitVerify = await win.webContents.executeJavaScript(`(() => {
+    const fields = Boolean(document.querySelector(".kitFields"));
+    const title = Boolean(document.querySelector(".kitTitleInput"));
+    const save = [...document.querySelectorAll(".kitActions .primaryBtn")].some((b) => b.textContent.includes("Save"));
+    const list = document.querySelectorAll(".kitListItem").length;
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: fields && title && save && !err, fields, title, save, list, err };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] brandkit verify:", JSON.stringify(kitVerify));
+  if (!kitVerify || !kitVerify.ok) {
+    console.error("DESKTOP_SHOT BRANDKIT VERIFY FAILED");
+    app.exit(10);
+    return;
+  }
+  await snap(win, "desktop-brandkit.png");
+
+  // ---- reorg 4d: For Agents — keys form + live loopback base URL ----------------
+  console.log("[shot] opening For agents…");
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "For agents")?.click();
+    return true;
+  })()`, true);
+  let agentsReady = false;
+  for (let i = 0; i < 30; i++) {
+    agentsReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".apiKeyForm")) && (Boolean(document.querySelector(".baseUrlCode")) || document.body.textContent.includes("starting"))`,
+      true,
+    );
+    if (agentsReady) break;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const agentsVerify = await win.webContents.executeJavaScript(`(() => {
+    const form = Boolean(document.querySelector(".apiKeyForm"));
+    const baseUrl = document.querySelector(".baseUrlCode")?.textContent ?? "";
+    const keysTable = Boolean(document.querySelector(".tableScroll table"));
+    const emptyKeys = Boolean(document.querySelector(".emptyState"));
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    const portStr = baseUrl.slice("http://127.0.0.1:".length, baseUrl.length - "/api".length);
+    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && !err;
+    return { ok, form, baseUrl, keysTable, emptyKeys, err };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] agents verify:", JSON.stringify(agentsVerify));
+  if (!agentsVerify || !agentsVerify.ok) {
+    console.error("DESKTOP_SHOT AGENTS VERIFY FAILED");
+    app.exit(11);
+    return;
+  }
+  await snap(win, "desktop-agents.png");
 
   const image = await win.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");
   await mkdir(path.join(here, "../..", "out"), { recursive: true });
   await writeFile(path.join(here, "../..", "out", "desktop-shot.png"), image.toPNG());
-  await writeFile(path.join(here, "../..", "out", "desktop-workspace.png"), image.toPNG());
   console.log("DESKTOP_SHOT wrote out/desktop-shot.png");
   app.exit(savedSeen ? 0 : 6);
 }

@@ -6,7 +6,7 @@ import { resolveEffectiveMode } from "../src/shared/providers-mode.js";
 import type { RuntimeStatus } from "@oia/providers";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../src/shared/assets.js";
 import { IPC } from "../src/shared/channels.js";
-import { filesUploadSchema, exportSaveSchema, projectsSaveSchema } from "../src/shared/ipc.js";
+import { filesUploadSchema, exportSaveSchema, projectsSaveSchema, taskSubmitSchema, brandKitUpsertSchema, apiKeyCreateSchema } from "../src/shared/ipc.js";
 
 /**
  * D2 remediation tests — the contract guards that made the first shell pass look green
@@ -96,6 +96,33 @@ describe("D2 renderer port IPC schemas", () => {
     expect(projectsSaveSchema.safeParse({ id: "prj_1", name: "N", pages: [{ id: "p1" }] }).success).toBe(true);
     expect(projectsSaveSchema.safeParse({ id: "", pages: [] }).success).toBe(false);
     expect(projectsSaveSchema.safeParse({ id: "prj_1", name: "x".repeat(121) }).success).toBe(false);
+  });
+});
+
+// ---- reorg step 4c/4d: quick tools + brand kits + For Agents IPC schemas ----
+describe("task lane + brand kit + api key IPC schemas", () => {
+  it("taskSubmitSchema admits a known type and rejects an unknown one (web parity: strict params stay in TaskStore)", () => {
+    expect(taskSubmitSchema.safeParse({ type: "generate-poster", params: { prompt: "x" } }).success).toBe(true);
+    expect(taskSubmitSchema.safeParse({ type: "generate-poster" }).success).toBe(true); // params default {}
+    expect(taskSubmitSchema.safeParse({ type: "not-a-task", params: {} }).success).toBe(false);
+    expect(taskSubmitSchema.safeParse({ type: "image-edit", params: "junk" }).success).toBe(false);
+  });
+  it("brandKitUpsertSchema enforces the store limits on the wire (and defaults fill like the store)", () => {
+    const good = brandKitUpsertSchema.safeParse({ name: "Kit", colors: ["#7050e5"], fonts: ["Inter"], logos: ["/api/files/uploads/20261106/a.png"], applyByDefault: true });
+    expect(good.success).toBe(true);
+    // the bug this port caught: an uploaded logo (canonical /api/files form) used to fail .url()
+    expect(brandKitUpsertSchema.safeParse({ name: "x", logos: ["javascript:alert(1)"] }).success).toBe(false);
+    expect(brandKitUpsertSchema.safeParse({ name: "x", logos: Array.from({ length: 4 }, () => "https://a/1.png") }).success).toBe(false);
+    expect(brandKitUpsertSchema.safeParse({ name: "x", colors: ["red"] }).success).toBe(false);
+    expect(brandKitUpsertSchema.safeParse({ name: "x", guidance: "a".repeat(2001) }).success).toBe(false);
+    expect(brandKitUpsertSchema.safeParse({ name: "x", oops: true }).success).toBe(false); // strict
+  });
+  it("apiKeyCreateSchema bounds the name + ttl (days, positive, capped)", () => {
+    expect(apiKeyCreateSchema.safeParse({ name: "claude-code", ttlDays: 30 }).success).toBe(true);
+    expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: null }).success).toBe(true);
+    expect(apiKeyCreateSchema.safeParse({ name: "", ttlDays: null }).success).toBe(false);
+    expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 0 }).success).toBe(false);
+    expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 1.5 }).success).toBe(false);
   });
 });
 

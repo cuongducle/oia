@@ -10,12 +10,19 @@ import { z } from "zod";
  */
 export const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
 
+/** Logo references: either an external http(s) URL or the CANONICAL stored-asset form
+ *  `/api/files/<key>` — the shape LocalFileStore.put returns (oia:// is renderer-only).
+ *  The absolute-URL-only rule silently rejected every logo uploaded through the app's
+ *  own uploader (zod .url() refuses relative refs) — found while porting the Brand Kit
+ *  panel in reorg step 4d. */
+export const LOGO_REF = /^(?:https?:\/\/[^\s]+|\/api\/files\/[A-Za-z0-9][A-Za-z0-9._\/-]*)$/;
+
 export const brandKitSchema = z
   .object({
     id: z.string(),
     name: z.string().min(1).max(80).default("Untitled"),
     guidance: z.string().max(2000).default(""),
-    logos: z.array(z.string().url()).max(3).default([]),
+    logos: z.array(z.string().regex(LOGO_REF)).max(3).default([]),
     colors: z.array(z.string().regex(HEX_COLOR)).max(10).default([]),
     fonts: z.array(z.string().min(1).max(60)).max(10).default([]),
     applyByDefault: z.boolean().default(false),

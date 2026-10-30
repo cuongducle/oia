@@ -9,6 +9,7 @@
  * BEFORE it crosses this wire; the utility trusts only its parent (main).
  * Bytes cross as Uint8Array — parentPort.postMessage is structured-clone.
  */
+import type { TaskType } from "@oia/schema";
 
 export type UtilityEnv = Record<string, string | undefined>;
 
@@ -34,7 +35,21 @@ export type UtilityCommand =
   | { cmd: "sessions.list" }
   | { cmd: "sessions.get"; id: number }
   | { cmd: "files.put"; name: string; bytes: Uint8Array }
-  | { cmd: "files.read"; key: string };
+  | { cmd: "files.read"; key: string }
+  /** reorg step 4c — the quick-tools task lane (renderer IPC, NOT the loopback API).
+   *  Same TaskStore + same G3 metered guard; source "web" mirrors the web tools UI. */
+  | { cmd: "tasks.submit"; type: TaskType; params: Record<string, unknown> }
+  | { cmd: "tasks.get"; taskId: string }
+  | { cmd: "tasks.cancel"; taskId: string }
+  /** reorg step 4d — brand kits + API keys (For Agents panel). */
+  | { cmd: "brandKits.list" }
+  | { cmd: "brandKits.upsert"; input: unknown }
+  | { cmd: "brandKits.remove"; id: string }
+  | { cmd: "keys.list" }
+  | { cmd: "keys.create"; name: string; ttlDays: number | null }
+  | { cmd: "keys.revoke"; id: string }
+  /** The live loopback port (For Agents shows the base URL; port changes per fork). */
+  | { cmd: "loopback.port" };
 
 export type UtilityRequest = UtilityCommand & {
   /** Correlation id (envelope) — the response echoes it. Named `rid` to never

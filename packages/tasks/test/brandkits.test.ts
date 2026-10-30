@@ -26,6 +26,11 @@ beforeAll(async () => {
     expect(() => store.validate({ name: "x", colors: ["#12g45z"] })).toThrow(/colors/);
     expect(() => store.validate({ name: "x", colors: ["#A1B2C3"] })).not.toThrow();
   });
+    it("regression (reorg 4d): a logo uploaded through the app's own store VALIDATES — the canonical /api/files form used to fail zod .url()", () => {
+      expect(() => store.validate({ name: "x", logos: ["/api/files/uploads/20261106/logo-1.png"] })).not.toThrow();
+      expect(() => store.validate({ name: "x", logos: ["https://cdn.example/logo.png"] })).not.toThrow();
+      expect(() => store.validate({ name: "x", logos: ["file:///etc/passwd"] })).toThrow(/logos/);
+    });
     it("BR-BK3: defaulting a new kit disables the old one (exactly one active)", async () => {
     const a = await store.upsert({ name: "A", applyByDefault: true });
     const b = await store.upsert({ name: "B", applyByDefault: true });

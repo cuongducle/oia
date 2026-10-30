@@ -7,7 +7,7 @@ function uniqueId(prefix: string): string {
   __seq += 1;
   return `${prefix}_${Date.now().toString(36)}_${__seq.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
-import { brandKitSchema, BRANDKIT_LIMITS, type BrandKit } from "@oia/schema";
+import { brandKitSchema, BRANDKIT_LIMITS, LOGO_REF, type BrandKit } from "@oia/schema";
 import type { LlmProvider } from "@oia/providers";
 
 /** BR-BK store: JSON-file self-hosting; only one kit may be default at a time. */
@@ -80,7 +80,7 @@ export async function extractBrandKit(
     guidance: (draft.guidance ?? "").slice(0, BRANDKIT_LIMITS.guidance),
     colors: (draft.colors ?? []).filter((c) => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c)).slice(0, BRANDKIT_LIMITS.colors),
     fonts: (draft.fonts ?? []).filter((f) => typeof f === "string" && f.length > 0).slice(0, BRANDKIT_LIMITS.fonts) as string[],
-    logos: (draft.logos ?? []).filter((u) => typeof u === "string" && /^https?:\/\//.test(u)).slice(0, BRANDKIT_LIMITS.logos) as string[],
+    logos: (draft.logos ?? []).filter((u) => typeof u === "string" && LOGO_REF.test(u)).slice(0, BRANDKIT_LIMITS.logos) as string[],
     applyByDefault: false,
     createdAt: Date.now(),
   };

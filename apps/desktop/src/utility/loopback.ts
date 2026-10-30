@@ -3,10 +3,10 @@ import { randomUUID } from "node:crypto";
 import { chmod, writeFile, unlink, rename } from "node:fs/promises";
 import path from "node:path";
 import type { ServiceContext } from "@oia/services";
-import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
 import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path — single home in @oia/schema
+import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "./guardedTaskSubmit.js";
 
 /**
  * D9 (reorg step 4b) — the loopback agent API, served from the UTILITY process.
@@ -37,15 +37,9 @@ import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC 
 const MAX_BODY_BYTES = 50 * 1024 * 1024;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
 const RATE_MAX_SUBMITS = 20;
-/** Fallback ONLY: onSettled is the exact signal — this guards a pathological hang
- *  (a handler stuck past every provider timeout) from wedging the codex guard forever. */
-const FALLBACK_TTL_MS = 15 * 60 * 1000;
 
-export interface AgentJobEvent {
+export interface AgentJobEvent extends GuardedJobEvent {
   type: "agentJob";
-  taskId: string;
-  event: "submitted" | "succeeded" | "failed";
-  taskType: string;
 }
 
 interface LoopbackDeps {
@@ -106,15 +100,19 @@ function parseMultipart(body: Buffer, contentType: string): { name: string; byte
 
 export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number; discoveryFile: string; close: () => Promise<void> }> {
   const { ctx, emit } = deps;
-  // G3 — the metered in-flight guard is the SAME one chat uses (meteredGuard), keyed on
-  // the live provider capabilities (isMock), not on an env flag: the env flag missed the
-  // real provider and let a chat job + an agent task run two paid generations at once.
-  const metered = () => !ctx().chat.image.capabilities.isMock;
+  // G3 — the metered in-flight guard is the SHARED guardedTaskSubmit core (the same
+  // one chat and the quick-tools IPC lane use), keyed on the live provider
+  // capabilities (isMock), not on an env flag: the env flag missed the real provider
+  // and let a chat job + an agent task run two paid generations at once.
+  const submitter = createGuardedSubmitter({
+    ctx,
+    source: "agent",
+    fallbackTtlMs: deps.fallbackTtlMs,
+    onJobEvent: (ev) => emit({ type: "agentJob", ...ev }),
+  });
 
   // --- per-key rate limiting --------------------------------------------------------
   const submitsPerKey = new Map<string, number[]>();
-  /** Armed fallback timers (per-request closures own them; close() clears the rest). */
-  const armedFallbacks = new Set<ReturnType<typeof setTimeout>>();
 
   function rateLimited(key: string): boolean {
     const now = Date.now();
@@ -198,57 +196,17 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
           return json(res, 400, 1, null, "request body is not valid JSON");
         }
 
-        // G3 — reserve the ONE shared metered slot SYNCHRONOUSLY, immediately before
-        // submit: no await may sit between the busy check and the reservation. The
-        // earlier track-AFTER-submit version had two defects: (a) a TOCTOU window —
-        // concurrent submits each passed the check before any tracked → two paid
-        // runs at once; (b) noWait:true pinned the slot — submit resolves after
-        // onSettled already released the never-tracked id, then the late track held
-        // the slot until the fallback TTL and a spurious "failed" event followed a
-        // success. The reservation id is opaque; release is keyed on IT, exactly once.
-        const guardId = `agent-${randomUUID()}`;
-        if (metered()) {
-          if (isMeteredBusy()) return json(res, 429, 429, null, "a generation is already running (chat or agent); poll and retry");
-          trackMeteredJob(guardId);
-        }
-
-        let settled = false;
-        let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
-        /** Exactly-once: onSettled (either mode) and the fallback TTL race for the
-         *  same release — the flag also prevents the sync-mode double event. */
-        const settle = (taskId: string, ok: boolean): void => {
-          if (settled) return;
-          settled = true;
-          if (fallbackTimer) {
-            clearTimeout(fallbackTimer);
-            armedFallbacks.delete(fallbackTimer);
-          }
-          releaseMeteredJob(guardId);
-          emit({ type: "agentJob", taskId, event: ok ? "succeeded" : "failed", taskType: type });
-        };
-
+        // G3 — synchronous reservation + exactly-once release live in the shared
+        // guardedTaskSubmit core (extracted from this file in reorg step 4c so the
+        // quick-tools IPC lane keeps IDENTICAL semantics).
         let t: { taskId: string; progress: string };
         try {
           // EXACT web-route semantics: noWait:true awaits completion (sync mode),
           // otherwise returns the snapshot and runs in the background.
-          t = (await ctx().taskStore.submit(parsedType.data as TaskType, body, {
-            sessionId: typeof body.sessionId === "number" ? body.sessionId : undefined,
-            noWait: body.noWait === true,
-            source: "agent",
-            onSettled: (final) => settle(final.taskId, final.progress === "succeeded"),
-          })) as { taskId: string; progress: string };
+          t = await submitter.submit(parsedType.data as TaskType, body);
         } catch (err) {
-          releaseMeteredJob(guardId); // submit itself failed — the reservation must not leak
+          if (err instanceof MeteredBusyError) return json(res, 429, 429, null, err.message);
           return json(res, 400, 1, null, err instanceof Error ? err.message : "submit failed");
-        }
-        emit({ type: "agentJob", taskId: t.taskId, event: "submitted", taskType: type });
-
-        // fallback ONLY (background mode — sync mode has already settled inside
-        // submit): a handler wedged past every provider timeout must not pin the
-        // guard forever. Arms nothing when settled: no pin, no spurious "failed".
-        if (!settled) {
-          fallbackTimer = setTimeout(() => settle(t.taskId, false), deps.fallbackTtlMs ?? FALLBACK_TTL_MS);
-          armedFallbacks.add(fallbackTimer);
         }
         return json(res, 200, 0, t, "");
       }
@@ -310,8 +268,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
   await rename(tmpFile, discoveryFile);
 
   const close = async (): Promise<void> => {
-    for (const t of armedFallbacks) clearTimeout(t);
-    armedFallbacks.clear();
+    submitter.dispose();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await unlink(discoveryFile).catch(() => {});
   };

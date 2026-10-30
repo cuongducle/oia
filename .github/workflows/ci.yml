@@ -54,3 +54,30 @@ jobs:
         working-directory: apps/desktop
         env:
           OIA_DESKTOP_SI_SMOKE: "1"
+
+  # Reorg step 4 gate (review điểm 5): the smoke matrix runs on REAL Windows from
+  # here on — not deferred to step 7. Same mock-pair gates as the ubuntu job; the
+  # ratchet/audit live on ubuntu only (source-level, platform-independent).
+  desktop-smoke-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @oia/desktop typecheck
+      - run: pnpm --filter @oia/desktop test
+      - run: npx electron .
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_SMOKE: "1"
+      - run: npx electron .
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_CRASH_SMOKE: "1"
+      - run: npx electron .
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_SI_SMOKE: "1"

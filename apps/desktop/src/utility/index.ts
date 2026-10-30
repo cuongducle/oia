@@ -7,7 +7,10 @@ import {
   type ServiceContext,
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
+import { TaskNotFound } from "@oia/tasks";
+import type { TaskType } from "@oia/schema";
 import { startLoopback } from "./loopback.js";
+import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { unlinkSync } from "node:fs";
 import {
   type UtilityRequest,
@@ -36,6 +39,8 @@ let userDataDir = "";
 /** T3 — the env the CURRENT context was built from (NSFW mode etc. ride it). */
 let serviceEnv: Record<string, string | undefined> = {};
 let loopback: { port: number; discoveryFile: string; close: () => Promise<void> } | null = null;
+/** The renderer quick-tools task lane (guarded submit for tasks.submit). */
+let toolLane: ReturnType<typeof createGuardedSubmitter> | null = null;
 let discoveryCleanup: string | null = null; // ONE module-level exit listener — never per-rebuild
 
 // Registered ONCE: a hard exit (kill, crash) still removes the discovery file so
@@ -60,7 +65,19 @@ process.on("SIGTERM", () => {
 async function startServices(env: Record<string, string | undefined>): Promise<void> {
   if (loopback) await loopback.close().catch(() => {});
   loopback = null;
+  toolLane?.dispose();
   ctx = await createServiceContext({ dataDir, env });
+  // reorg step 4c — the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
+  // guard as the loopback, attributed to source "web" (the web tools UI contract).
+  // In-app runs are NOT agent jobs — they surface through the runner's own poll UI,
+  // so the event sink stays silent here.
+  const live = ctx;
+  toolLane = createGuardedSubmitter({
+    ctx: () => live,
+    source: "web",
+    idPrefix: "tool",
+    onJobEvent: () => {},
+  });
   loopback = await startLoopback({
     ctx: () => requireCtx(),
     userDataDir,
@@ -161,6 +178,38 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     }
     case "files.read":
       return await requireCtx().files.read(req.key);
+
+    // ---- reorg step 4c: quick-tools task lane (renderer IPC) ----
+    case "tasks.submit": {
+      if (!toolLane) throw new Error("service context not initialized");
+      return toolLane.submit(req.type as TaskType, req.params);
+    }
+    case "tasks.get":
+      try {
+        return requireCtx().taskStore.get(req.taskId);
+      } catch (err) {
+        // unknown/expired (24h TTL) → null on this wire (the loopback keeps its 404)
+        if (err instanceof TaskNotFound) return null;
+        throw err;
+      }
+    case "tasks.cancel":
+      return requireCtx().taskStore.cancel(req.taskId);
+
+    // ---- reorg step 4d: brand kits + For Agents ----
+    case "brandKits.list":
+      return requireCtx().brandKits.list();
+    case "brandKits.upsert":
+      return requireCtx().brandKits.upsert(req.input);
+    case "brandKits.remove":
+      return requireCtx().brandKits.remove(req.id);
+    case "keys.list":
+      return requireCtx().keys.list();
+    case "keys.create":
+      return requireCtx().keys.create(req.name, req.ttlDays);
+    case "keys.revoke":
+      return requireCtx().keys.revoke(req.id);
+    case "loopback.port":
+      return loopback ? loopback.port : null;
   }
 }
 

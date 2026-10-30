@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { chatRequestSchema } from "@oia/services";
+import { brandKitSchema, taskTypeSchema } from "@oia/schema";
 
 /**
  * MAIN-ONLY schemas (zod + @oia/services are not preload-loadable under sandbox).
@@ -58,6 +59,28 @@ export const exportSaveSchema = z.object({
     .regex(/^[^\\/:*?"<>|]+$/, "invalid file name"),
   bytes: z.instanceof(Uint8Array),
 });
+
+/** ---- reorg step 4c: quick tools task lane ----------------------------------
+ * Mirrors the web /api/tasks routes: MAIN admits a known task TYPE only; the strict
+ * per-type params validation lives in TaskStore.submit (submitTaskSchemas — the ONE
+ * home, same contract the loopback and skills speak). */
+export const taskSubmitSchema = z.object({
+  type: taskTypeSchema,
+  params: z.record(z.unknown()).default({}),
+});
+export const taskGetSchema = z.object({ taskId: z.string().min(1) });
+export const taskCancelSchema = z.object({ taskId: z.string().min(1) });
+
+/** ---- reorg step 4d: brand kits + For Agents --------------------------------- */
+export const brandKitUpsertSchema = brandKitSchema
+  .omit({ id: true, createdAt: true })
+  .extend({ id: z.string().optional(), createdAt: z.number().optional() });
+export const brandKitRemoveSchema = z.object({ id: z.string().min(1) });
+export const apiKeyCreateSchema = z.object({
+  name: z.string().min(1).max(60),
+  ttlDays: z.number().int().positive().max(3650).nullable(),
+});
+export const apiKeyRevokeSchema = z.object({ id: z.string().min(1) });
 
 /** TP-D3 — provider mode is an explicit user choice persisted across launches. */
 export const runtimeSetModeSchema = z.object({

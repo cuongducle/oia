@@ -183,6 +183,66 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .chatCard strong { display: block; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chatCard span { font-size: 10px; color: var(--muted); }
 
+/* ---------- Tools / Brand kit / For agents (reorg steps 4c + 4d) ---------- */
+.toolsView .toolSection { margin-bottom: 34px; }
+.toolsView .toolSection h2 { font-size: 18px; margin-bottom: 12px; }
+.toolGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.toolCard { display: block; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); text-align: left; color: var(--ink); min-width: 0; }
+.toolCard:hover { border-color: #c7b9e9; box-shadow: var(--shadow); }
+.toolCardBody h3 { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.toolCardBody p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.availability { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-weight: 400; }
+.toolRunner { display: grid; gap: 14px; max-width: 640px; }
+.toolRunner textarea { width: 100%; font-size: 13px; }
+.toolRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.aiResult img { width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+
+.kitLayout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 26px; align-items: start; }
+.kitList { display: grid; gap: 6px; }
+.kitListItem { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); text-align: left; color: var(--ink); }
+.kitListItem:hover { border-color: #c7b9e9; }
+.kitListItem.active { border-color: var(--accent); background: var(--accent-soft); }
+.kitListName { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kitSwatches { display: flex; gap: 4px; }
+.kitSwatches span { width: 16px; height: 16px; border-radius: 4px; border: 1px solid #0002; }
+.kitFields { border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 20px; display: grid; gap: 20px; }
+.kitTitleRow { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.kitTitleInput { border: 1px solid transparent; background: none; font-size: 18px; font-weight: 600; padding: 6px 4px; width: 100%; }
+.kitTitleInput:hover, .kitTitleInput:focus { border-color: var(--line); }
+.formSection { display: grid; gap: 10px; }
+.formSection h3 { display: flex; gap: 8px; align-items: baseline; }
+.formSection h3 small { color: var(--muted); font-weight: 400; font-size: 11px; }
+.logoRow { display: flex; gap: 10px; flex-wrap: wrap; }
+.logoTile { position: relative; width: 78px; height: 78px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.logoTile img { width: 100%; height: 100%; object-fit: contain; }
+.logoRemove { position: absolute; top: -8px; right: -8px; min-width: 24px; min-height: 24px; padding: 4px; background: #fff; border: 1px solid var(--line); border-radius: 999px; }
+.logoUpload { width: 78px; height: 78px; border: 1px dashed #c9c4d8; border-radius: 10px; display: grid; place-items: center; color: var(--muted); font-size: 12px; cursor: pointer; }
+.logoUpload:hover { border-color: var(--accent); color: var(--accent); }
+.kitActions { margin-top: 4px; }
+.iconBtn.danger:hover { color: var(--danger); background: #fef2f2; }
+
+.agentsView .agentSection { margin-bottom: 34px; }
+.agentsView h2 { font-size: 18px; margin-bottom: 8px; }
+.apiKeyForm { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+.apiKeyForm input { flex: 1; min-width: 200px; }
+.freshKey { border: 1px solid #86efac; background: #f0fdf4; border-radius: 10px; padding: 12px; margin: 10px 0; display: grid; gap: 8px; font-size: 13px; }
+.baseUrlCode { background: #fff; border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+.tableScroll { overflow-x: auto; margin-top: 16px; }
+.tableScroll table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tableScroll th { text-align: left; border-bottom: 1px solid var(--line); padding: 8px; color: var(--muted); font-weight: 500; }
+.tableScroll td { border-bottom: 1px solid var(--line); padding: 8px; }
+.tableScroll .muted { color: var(--muted); }
+.jobList { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.jobRow { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-size: 12px; background: var(--card); }
+.jobDot { width: 8px; height: 8px; border-radius: 999px; background: #9ca3af; flex: 0 0 auto; }
+.jobRow.succeeded .jobDot { background: #16a34a; }
+.jobRow.failed .jobDot { background: var(--danger); }
+.jobRow.submitted .jobDot { background: #f59e0b; }
+.jobType { font-weight: 500; }
+.jobId { color: var(--muted); }
+.jobEvent { margin-left: auto; color: var(--muted); }
+.jobAt { color: var(--muted); font-size: 11px; }
+
 /* ---------- scene preview (workspace + page thumbs) ---------- */
 .scenePreview { width: 100%; height: 100%; position: relative; overflow: hidden; }
 .scenePreview canvas { display: block; width: 100% !important; height: 100% !important; object-fit: contain; }
@@ -264,16 +324,20 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
   .galleryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .aiPanelFloating { width: 270px; }
   .panelBox { width: 210px; }
+  .toolGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kitLayout { grid-template-columns: 200px minmax(0, 1fr); }
 }
 @media (max-width: 850px) {
   .projectGrid, .chatGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .panelBox { position: absolute; top: 0; left: 68px; bottom: 0; z-index: 10; box-shadow: 6px 0 20px #2222220d; }
   .edTop { gap: 3px; padding-inline: 8px; }
   .saveStatus { display: none; }
+  .kitLayout { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .galleryGrid { grid-template-columns: 1fr; }
   .projectGrid, .chatGrid { grid-template-columns: 1fr; }
+  .toolGrid { grid-template-columns: 1fr; }
   .edTop .nameInput { width: 100px; }
   .aiPanelFloating { position: absolute; right: 8px; top: 8px; bottom: 8px; width: min(304px, calc(100% - 84px)); z-index: 15; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 30px #0002; }
   .rail { width: 56px; padding-inline: 3px; }
