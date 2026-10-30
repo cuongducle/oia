@@ -1,4 +1,4 @@
 {
-  "$comment": "D12 — the codex release this app build is paired with. fetch-codex.mjs pins on this tag (sha256 still verified against the release's published SHA256SUMS at download). Bump deliberately: binary + app are released as a tested pair.",
+  "$comment": "D12 — the codex release this app build is paired with. fetch-codex.mjs pins on this tag (sha256 still verified against the release's published SHA256SUMS at download). Bump rule: a new pin is only a TESTED pair after OIA_DESKTOP_REAL_SMOKE=1 passes through it (owner-approved quota) — record the run next to the bump. rust-v0.166.0: DESKTOP_REAL_SMOKE OK, version=0.166.0, assetBytes=1942938, took=40s, 2026-10-30.",
   "tag": "rust-v0.166.0"
 }
