@@ -110,10 +110,10 @@ oia/
 - Gate: 28 task test+typecheck xanh không Redis; smoke OK. ✅
 
 **Bước 4 — Port Tools + BrandKit + Loopback API + Utility process (D9, D11)**
-- **4a. Utility process trước (D11):** chuyển ServiceContext/runChat/taskStore vào `src/utility/`; main giữ window/IPC; hợp đồng qua MessagePort. Loopback server chạy TRONG utility process.
-- **4b. Loopback API** theo spec đầy đủ ở trên (Host/Origin validation, port random + discovery file 0600, key bắt buộc, `/api/files/{key}` có auth, concurrency Codex=1, rate limit mỗi key, cap upload, agent jobs hiện trong UI).
+- **4a. Utility process** ✅ XONG (2026-10-30): ServiceContext/runChat/taskStore vào `src/utility/`; RPC có rid + chat event routing về đúng WebContents; renderer contract không đổi; crash services không giết window. Gate: smoke events=9 + SHOT full qua utility thật.
+- **4b. Loopback API** ✅ XONG (2026-10-30): server `node:http` trong utility, bind 127.0.0.1, port random + discovery file 0600; Host validation + chặn Origin + không CORS + key chỉ qua header; `/api/files/{key}` có auth; rate limit 20 submit/5 phút/key; codex guard 1 job; agentJob events; 9 test e2e loopback (security gates + envelope + upload multipart + poll 404). Skill scripts: tự đọc discovery file khi thiếu OIA_BASE_URL (check pid sống, skip file stale); sửa bug lộ ra: generate-poster schema không nhận `language` (script gửi thừa từ trước). Gate e2e thật: skill script chạy → discovery → auth → mock generation → download 200/401 đúng.
 - **4c. Tools view:** `views/Tools.tsx` + `ToolRunner` — nhấc `tools-registry.ts` + logic `runner.tsx` (~400 dòng); 4 đường fetch → IPC.
-- **4d. BrandKit panel** tối giản: form → `tasks/brandkits.ts`, hiệu lực qua `services/context.ts`. Panel For Agents (tạo/xem/thu hồi key).
+- **4d. BrandKit panel** tối giản: form → `tasks/brandkits.ts`, hiệu lực qua `services/context.ts`. Panel For Agents (tạo/xem/thu hồi key + list agent jobs).
 - **4e. Trim `i18n.ts` desktop về en-only** (D8) — giữ nguyên I18nKey union.
 - **4f. Job durability:** khi load task-log, job kẹt "processing" từ lần chạy trước → đánh dấu `interrupted` (record không nói dối).
 - Gate: tool local + tool AI (mock pair) end-to-end; brandkit lưu → generation nhận guidance; curl qua loopback với key → poll → download file qua `/api/files/{key}`; **smoke Windows thật (CI windows-latest, mock pair) chạy ngay từ đây — không đợi bước 7** (review điểm 5); smoke macOS mở từ Dock (không terminal) tìm được codex.

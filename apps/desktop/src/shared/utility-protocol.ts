@@ -13,9 +13,11 @@
 export type UtilityEnv = Record<string, string | undefined>;
 
 export type UtilityCommand =
-  /** Boot (once): build the ServiceContext from dataDir + provider env. */
-  | { cmd: "init"; dataDir: string; env: UtilityEnv }
-  /** Provider mode / codex binary changed: cancel in-flight, rebuild the context. */
+  /** Boot (once): build the ServiceContext from dataDir + provider env, start the
+   *  loopback agent API (D9) with its discovery file under userDataDir. */
+  | { cmd: "init"; dataDir: string; userDataDir: string; env: UtilityEnv }
+  /** Provider mode / codex binary changed: cancel in-flight, rebuild the context
+   *  (reuses the dataDir/userDataDir from init; restarts the loopback server). */
   | { cmd: "rebuild"; env: UtilityEnv }
   | { cmd: "chatRun"; req: unknown }
   | { cmd: "chatCancel"; jobId: string }
@@ -44,7 +46,9 @@ export type UtilityRequest = UtilityCommand & {
 
 export type UtilityEvent =
   | { type: "chatEvent"; requestId: string; ev: unknown }
-  | { type: "log"; line: string };
+  | { type: "log"; line: string }
+  /** D9 — agent jobs surfaced to the UI (For Agents panel). */
+  | { type: "agentJob"; taskId: string; event: "submitted" | "succeeded" | "failed"; taskType: string };
 
 export type UtilityResponse =
   | { rid: string; ok: true; result: unknown }

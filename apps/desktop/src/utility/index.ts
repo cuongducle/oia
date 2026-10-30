@@ -7,6 +7,8 @@ import {
   type ServiceContext,
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
+import { startLoopback } from "./loopback.js";
+import { unlinkSync } from "node:fs";
 import {
   type UtilityRequest,
   type UtilityResponse,
@@ -30,6 +32,30 @@ import {
 
 let ctx: ServiceContext | null = null;
 let dataDir = "";
+let userDataDir = "";
+let loopback: { port: number; discoveryFile: string; close: () => Promise<void> } | null = null;
+
+async function startServices(env: Record<string, string | undefined>): Promise<void> {
+  if (loopback) await loopback.close().catch(() => {});
+  loopback = null;
+  ctx = await createServiceContext({ dataDir, env });
+  loopback = await startLoopback({
+    ctx: () => requireCtx(),
+    userDataDir,
+    env,
+    emit: (ev) => post(ev),
+  });
+  // hard exit (kill, crash): best-effort discovery cleanup — a stale file points
+  // agents at a dead port; they fall back to ECONNREFUSED and the file's pid check
+  process.on("exit", () => {
+    try {
+      unlinkSync(loopback?.discoveryFile ?? "");
+    } catch {
+      /* already gone */
+    }
+  });
+  log(`loopback agent API on 127.0.0.1:${loopback.port} (discovery: ${loopback.discoveryFile})`);
+}
 
 function post(message: UtilityResponse | UtilityEvent): void {
   process.parentPort.postMessage(message);
@@ -56,13 +82,14 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     case "init": {
       cancelAll();
       dataDir = req.dataDir;
-      ctx = await createServiceContext({ dataDir, env: req.env });
+      userDataDir = req.userDataDir;
+      await startServices(req.env);
       log(`ctx ready (dataDir=${dataDir})`);
       return null;
     }
     case "rebuild": {
       cancelAll(); // never mix contexts mid-job
-      ctx = await createServiceContext({ dataDir, env: req.env });
+      await startServices(req.env);
       log("ctx rebuilt");
       return null;
     }

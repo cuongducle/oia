@@ -59,7 +59,7 @@ async function ensureUtility(): Promise<void> {
     utility.start();
     const mode = await effectiveMode();
     if (ctxMode === mode) return; // already built with this mode — no re-init
-    await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), env: await contextEnv() });
+    await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), userDataDir: app.getPath("userData"), env: await contextEnv() });
     ctxMode = mode;
   });
 }
