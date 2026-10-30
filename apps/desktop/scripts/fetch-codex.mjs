@@ -10,7 +10,7 @@
  * Usage: pnpm --filter @oia/desktop fetch-codex [-- --platform <platform> --arch <arch>]
  * (defaults to the build host's platform/arch; cross-package builds pass both.)
  */
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RuntimeProvisioner } from "@oia/providers";
@@ -35,6 +35,22 @@ const provisioner = new RuntimeProvisioner({
   platform: flag("platform"),
   arch: flag("arch"),
 });
+
+// Short-circuit when the PINNED pair is already on disk. Without this, a CI cache
+// hit still hit the GitHub API to "re-resolve" the release — shared runners get
+// rate-limited and the whole dist job dies on a network call it doesn't need.
+// The cache key scopes by tag+arch, and a pin bump changes the version → clean miss.
+try {
+  const managed = JSON.parse(await readFile(path.join(resourcesDir, "codex", "managed.json"), "utf8"));
+  const pinnedVersion = pin.tag.match(/v(\d+\.\d+\.\d+)/)?.[1];
+  const binExists = await stat(path.join(resourcesDir, "codex", "current", "bin", process.platform === "win32" ? "codex.exe" : "codex"))
+    .then((s) => s.isFile())
+    .catch(() => false);
+  if (managed?.version === pinnedVersion && binExists) {
+    console.log(`codex ${managed.version} (${managed.target}) already fetched for pin ${pin.tag} — no network needed`);
+    process.exit(0);
+  }
+} catch { /* no managed.json yet → fall through to a real fetch */ }
 
 const t0 = Date.now();
 const { status, manifest } = await provisioner.install(
