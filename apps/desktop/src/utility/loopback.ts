@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { chmod, writeFile, unlink, rename } from "node:fs/promises";
 import path from "node:path";
 import type { ServiceContext } from "@oia/services";
+import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
 
@@ -22,10 +23,11 @@ import { taskTypeSchema, type TaskType } from "@oia/schema";
  * Operational posture:
  * - Random port + discovery file `<userData>/agent-api.json` (mode 0600): agents
  *   read the port from disk instead of guessing; removed on close.
- * - Per-key rate limit (token bucket) + at most ONE in-flight generation per
- *   agent when the image provider is codex (quota guard). Fire-and-forget tasks
- *   (noWait=false) fall back to a TTL guard — TaskStore gives no completion hook
- *   for that mode.
+ * - Per-key rate limit (token bucket) + at most ONE metered generation in flight
+ *   app-wide — the SAME guard chat uses (meteredGuard), so a chat job and an
+ *   agent task can never run two paid generations at once. Fire-and-forget tasks
+ *   (noWait=false) get a TTL fallback release — a wedged handler must not pin the
+ *   guard forever.
  * - Agent jobs are surfaced to the UI as `agentJob` events.
  *
  * The wire shape mirrors the web task API exactly ({code,data,msg} envelope,
@@ -49,7 +51,6 @@ export interface AgentJobEvent {
 interface LoopbackDeps {
   ctx: () => ServiceContext;
   userDataDir: string;
-  env: Record<string, string | undefined>;
   emit: (ev: AgentJobEvent) => void;
 }
 
@@ -100,12 +101,13 @@ function parseMultipart(body: Buffer, contentType: string): { name: string; byte
 
 export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number; discoveryFile: string; close: () => Promise<void> }> {
   const { ctx, emit } = deps;
-  const imageProvider = (deps.env.IMAGE_PROVIDER ?? "mock").toLowerCase();
-  const codexGuard = imageProvider === "codex";
+  // G3 — the metered in-flight guard is the SAME one chat uses (meteredGuard), keyed on
+  // the live provider capabilities (isMock), not on an env flag: the env flag missed the
+  // real provider and let a chat job + an agent task run two paid generations at once.
+  const metered = () => !ctx().chat.image.capabilities.isMock;
 
-  // --- per-key rate limiting + in-flight guard --------------------------------
+  // --- per-key rate limiting + in-flight accounting --------------------------------
   const submitsPerKey = new Map<string, number[]>();
-  let agentInFlight = 0;
   const inFlightTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function rateLimited(key: string): boolean {
@@ -117,14 +119,14 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
     return false;
   }
 
-  /** Exact accounting: clears the fallback timer, decrements, tells the UI the truth. */
+  /** Exact accounting: clears the fallback timer, releases the shared guard, tells the UI the truth. */
   function settle(taskId: string, ok: boolean, type: string): void {
     const t = inFlightTimers.get(taskId);
     if (t) {
       clearTimeout(t);
       inFlightTimers.delete(taskId);
     }
-    agentInFlight = Math.max(0, agentInFlight - 1);
+    releaseMeteredJob(taskId);
     emit({ type: "agentJob", taskId, event: ok ? "succeeded" : "failed", taskType: type });
   }
 
@@ -177,15 +179,14 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         if (!parsedType.success) return json(res, 404, 404, null, "unknown task type");
 
         if (rateLimited(keyRecord.id)) return json(res, 429, 429, null, "rate limit: too many submissions, retry later");
-        if (codexGuard && agentInFlight >= 1) {
-          return json(res, 429, 429, null, "a generation is already running (codex serializes); poll and retry");
+        if (metered() && isMeteredBusy()) {
+          return json(res, 429, 429, null, "a generation is already running (chat or agent); poll and retry");
         }
 
         const raw = await readBody(req);
         if (raw === null) return json(res, 413, 413, null, "body too large");
         const body = JSON.parse(raw.toString("utf8") || "{}") as Record<string, unknown>;
 
-        agentInFlight += 1;
         let t: { taskId: string; progress: string };
         try {
           // EXACT web-route semantics: noWait:true awaits completion (sync mode),
@@ -198,19 +199,19 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
             source: "agent",
             onSettled: (final) => settle(final.taskId, final.progress === "succeeded", type),
           })) as { taskId: string; progress: string };
+          if (metered()) trackMeteredJob(t.taskId);
         } catch (err) {
-          agentInFlight = Math.max(0, agentInFlight - 1);
           return json(res, 400, 1, null, err instanceof Error ? err.message : "submit failed");
         }
         emit({ type: "agentJob", taskId: t.taskId, event: "submitted", taskType: type });
 
         // fallback ONLY: a handler wedged past every provider timeout must not
-        // pin the codex guard forever — force-settle and tell the UI it failed
+        // pin the shared guard forever — force-release and tell the UI it failed
         inFlightTimers.set(
           t.taskId,
           setTimeout(() => {
             inFlightTimers.delete(t.taskId);
-            agentInFlight = Math.max(0, agentInFlight - 1);
+            releaseMeteredJob(t.taskId);
             emit({ type: "agentJob", taskId: t.taskId, event: "failed", taskType: type });
           }, FALLBACK_TTL_MS),
         );

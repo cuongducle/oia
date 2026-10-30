@@ -71,15 +71,17 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
 
   // task processors registered ONCE here — both shells share them (banner lane: poster/
   // image-edit/reference tasks/presentation + generic image tasks; image-translate is a
-  // clear failure, never a hang)
-  taskStore.register("generate-poster", makeGeneratePoster({ store: files }));
-  taskStore.register("image-edit", makeImageEdit({ store: files }));
-  taskStore.register("remove-background", makeRemoveBackground({ store: files }));
-  taskStore.register("generate-presentation", makeGeneratePresentation({ store: files }));
-  taskStore.register("generate-logo", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `logo design, ${p.prompt ?? ""}, vector style, plain background` }));
-  taskStore.register("generate-xhs-images", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `xiaohongshu vertical carousel page about: ${p.prompt ?? ((p.urls as string[]) ?? []).join(", ")}, style ${p.style ?? "clean"}` }));
-  taskStore.register("generate-illustrations", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `16:9 editorial illustration about: ${p.prompt ?? ""}, hand-drawn` }));
-  taskStore.register("generate-storyboard", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `film storyboard frame: ${p.prompt ?? ""}, sketch style` }));
+  // clear failure, never a hang). Providers come from `chat` (env-configured + metered):
+  // tasks must burn the SAME quota ledger as chat, never a bare registry lookup.
+  const procCtx = { store: files, image: chat.image, llm: chat.llm };
+  taskStore.register("generate-poster", makeGeneratePoster(procCtx));
+  taskStore.register("image-edit", makeImageEdit(procCtx));
+  taskStore.register("remove-background", makeRemoveBackground(procCtx));
+  taskStore.register("generate-presentation", makeGeneratePresentation(procCtx));
+  taskStore.register("generate-logo", makeGenericImageTask(procCtx, { buildPrompt: (p) => `logo design, ${p.prompt ?? ""}, vector style, plain background` }));
+  taskStore.register("generate-xhs-images", makeGenericImageTask(procCtx, { buildPrompt: (p) => `xiaohongshu vertical carousel page about: ${p.prompt ?? ((p.urls as string[]) ?? []).join(", ")}, style ${p.style ?? "clean"}` }));
+  taskStore.register("generate-illustrations", makeGenericImageTask(procCtx, { buildPrompt: (p) => `16:9 editorial illustration about: ${p.prompt ?? ""}, hand-drawn` }));
+  taskStore.register("generate-storyboard", makeGenericImageTask(procCtx, { buildPrompt: (p) => `film storyboard frame: ${p.prompt ?? ""}, sketch style` }));
   taskStore.register("image-translate", async () => {
     throw new ProviderError("capability_unsupported", "image-translate needs the vision (OCR) module — scheduled later", { provider: "oia" });
   });

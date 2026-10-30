@@ -3,7 +3,7 @@ import { mkdtempSync, statSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import http from "node:http";
-import { createServiceContext, type ServiceContext } from "@oia/services";
+import { createServiceContext, runChat, type ServiceContext } from "@oia/services";
 import { startLoopback } from "../src/utility/loopback.js";
 import type { AgentJobEvent } from "../src/utility/loopback.js";
 
@@ -154,48 +154,79 @@ describe("loopback task API (skill contract: {code,data,msg} envelope)", () => {
 });
 
 /**
- * Regression (step 4b fix): the codex in-flight guard must release EXACTLY when a
- * background task settles (onSettled) — the old fixed 6.5-minute TTL kept the guard
- * pinned after a task that finished in milliseconds, 429-locking every later submit.
+ * T1 regression — the metered in-flight guard is ONE shared slot (meteredGuard.ts).
+ * It used to be two guards that could not see each other: chat's global set and
+ * loopback's module-local counter. Failure mode: a chat job + an agent task ran
+ * TWO paid codex generations at once. Here a held task owns the slot, so a second
+ * agent submit AND a chat run must both be refused until the task settles.
  */
-describe("codex guard releases on completion, not on a fixed TTL", () => {
-  it("background task settles → an immediate next submit is NOT 429", async () => {
-    const root = mkdtempSync(path.join(tmpdir(), "oia-loopback2-"));
-    const srv = await startLoopback({
-      ctx: () => ctx,
-      userDataDir: root,
-      env: { IMAGE_PROVIDER: "codex" }, // guard ACTIVE (env-flagged; providers stay mock)
-      emit: () => {},
+describe("shared metered guard — chat and agent tasks contend on ONE slot", () => {
+  it("task in flight → second submit 429 AND runChat refused; settle → slot released", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "oia-loopback-guard-"));
+    const guardCtx = await createServiceContext({
+      dataDir: path.join(root, "data"),
+      env: { ...process.env, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock" },
     });
+    const guardKey = (await guardCtx.keys.create("guard-test")).plaintext;
+
+    // A METERED image provider (isMock:false) — exactly what codex mode looks like
+    // to the guard. Its generate is never called: the held task owns the slot first.
+    (guardCtx.chat as { image: unknown }).image = {
+      name: "held-metered",
+      capabilities: { referenceImages: true, sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false }, transparentBg: false, isMock: false },
+      isAvailable: async () => ({ ok: true, detail: "held" }),
+      generate: async () => {
+        throw new Error("the held task must own the slot; nothing metered may start");
+      },
+    };
+
+    // Held processor: finishes only when the gate opens (background mode, noWait:false).
+    let openGate!: () => void;
+    const gate = new Promise<void>((r) => (openGate = r));
+    guardCtx.taskStore.register("generate-poster", async () => {
+      await gate;
+      return { urls: [], note: "held" };
+    });
+
+    const srv = await startLoopback({ ctx: () => guardCtx, userDataDir: root, emit: () => {} });
     try {
-      const base2 = `http://127.0.0.1:${srv.port}`;
+      const g = `http://127.0.0.1:${srv.port}`;
       const submit = () =>
-        fetch(`${base2}/api/tasks/generate-poster`, {
+        fetch(`${g}/api/tasks/generate-poster`, {
           method: "POST",
-          headers: { "content-type": "application/json", authorization: key },
-          body: JSON.stringify({ prompt: "guard release" }), // noWait:false — background
+          headers: { "content-type": "application/json", authorization: guardKey },
+          body: JSON.stringify({ prompt: "guard contention" }),
         });
 
       const first = await submit();
       expect(first.status).toBe(200);
       const firstData = (await first.json()) as { data: { taskId: string } };
 
-      // wait until the background task is TERMINAL (mock completes in ms)
+      // Same lane: second agent submit → 429 while the first holds the slot
+      const second = await submit();
+      expect(second.status).toBe(429); // OLD code let a second metered run start (when the env said codex)
+
+      // Cross lane: chat must refuse too — the OLD chat guard could not see agent tasks
+      const { outcome } = await runChat({ prompt: "chat while task runs" }, guardCtx, { sink: () => {} });
+      expect(outcome).toBe("refused-rate-limited");
+
+      // Release → settle releases the shared slot (onSettled, not a fixed TTL)
+      openGate();
       let terminal = false;
       for (let i = 0; i < 50 && !terminal; i++) {
         await new Promise((r) => setTimeout(r, 100));
-        const poll = await fetch(`${base2}/api/tasks/${firstData.data.taskId}`, { headers: { authorization: key } });
+        const poll = await fetch(`${g}/api/tasks/${firstData.data.taskId}`, { headers: { authorization: guardKey } });
         const j = (await poll.json()) as { data: { progress: string } };
         terminal = j.data.progress !== "processing";
       }
       expect(terminal).toBe(true);
 
-      // OLD CODE: still 429 here (guard pinned for 6.5 min). NEW CODE: 200.
-      const second = await submit();
-      expect(second.status).not.toBe(429);
-      expect(((await second.json()) as { code: number }).code).toBe(0);
+      const after = await submit();
+      expect(after.status).not.toBe(429); // guard released on completion (not the old 6.5-min TTL pin)
     } finally {
-      await srv.close();
+      openGate?.(); // never leave the gate closed on a failure path
+      delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+      await srv.close().catch(() => {});
     }
   }, 30_000);
 });

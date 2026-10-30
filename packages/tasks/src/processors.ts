@@ -1,20 +1,31 @@
 import type { FileStore } from "./storage.js";
-import { getImageProvider, getLlmProvider, ProviderError } from "@oia/providers";
+import { ProviderError } from "@oia/providers";
+import type { ImageProvider, LlmProvider } from "@oia/providers";
 import type { TaskContext } from "./store.js";
 
 /**
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.
  * BR-PROC: processors resolve public URLs (via FileStore); huge data URLs are never returned.
+ *
+ * Providers are INJECTED via ProcCtx — the env-configured, quota-metered instances
+ * built by createServiceContext. Processors used to call getImageProvider() bare,
+ * which read the utility process's process.env (never set with IMAGE_PROVIDER —
+ * main sends it via the init RPC): every agent task silently ran MockImageProvider
+ * and skipped the QuotaMeter, even in codex mode.
  */
 
-export interface ProcCtx { store: FileStore }
+export interface ProcCtx {
+  store: FileStore;
+  image: ImageProvider;
+  llm: LlmProvider;
+}
 
 /** generate-poster: image provider → file.png → URL (scene JSON is assembled by the agent/web layer). */
 export function makeGeneratePoster(ctx: ProcCtx) {
   return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const prompt = String(params.prompt ?? "");
     const size = String(params.size ?? "1360x2048").split("x").map(Number);
-    const img = await getImageProvider().generate({ prompt, width: size[0], height: size[1], signal: tctx.signal });
+    const img = await ctx.image.generate({ prompt, width: size[0], height: size[1], signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -28,11 +39,10 @@ export function makeImageEdit(ctx: ProcCtx) {
     const prompt = String(params.prompt ?? "");
     if (!refs.length || !prompt) throw new Error("image-edit requires reference[] + prompt");
     // TP.11 (no-silent-fallback): reference-capable tasks check provider capabilities before accepting refs
-    const provider = getImageProvider();
-    if (!provider.capabilities.referenceImages) {
-      throw new ProviderError("capability_unsupported", `provider ${provider.name} does not accept reference images`, { provider: provider.name });
+    if (!ctx.image.capabilities.referenceImages) {
+      throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
     }
-    const img = await provider.generate({ prompt, width: 1024, height: 1024, referenceImages: refs, signal: tctx.signal });
+    const img = await ctx.image.generate({ prompt, width: 1024, height: 1024, referenceImages: refs, signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -65,7 +75,7 @@ export function makeRemoveBackground(ctx: ProcCtx) {
 export function makeGenericImageTask(ctx: ProcCtx, opts: { buildPrompt: (p: Record<string, unknown>) => string }) {
   return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const prompt = opts.buildPrompt(params);
-    const img = await getImageProvider().generate({ prompt, width: 1024, height: 1365, signal: tctx.signal });
+    const img = await ctx.image.generate({ prompt, width: 1024, height: 1365, signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -91,7 +101,7 @@ export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?:
   return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const n = Math.min(Number(params.n ?? 5), opts.maxSlidesPerRun ?? 8);
     const lang = String(params.language ?? "en");
-    const plan = await getLlmProvider().chat([
+    const plan = await ctx.llm.chat([
       { role: "system", content: `You are a presentation planner. Reply JSON {title, slides:[{title, bullets[], imagePrompt}]}. Language: ${lang}. Produce exactly ${n} slides.` },
       { role: "user", content: String(params.prompt ?? "topic") },
     ], { json: true, signal: tctx.signal });
@@ -105,7 +115,7 @@ export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?:
 
     for (const s of outline.slides) {
       const slide = pptx.addSlide();
-      const img = await getImageProvider().generate({ prompt: s.imagePrompt, width: 1024, height: 1365, signal: tctx.signal });
+      const img = await ctx.image.generate({ prompt: s.imagePrompt, width: 1024, height: 1365, signal: tctx.signal });
       const bytes = await fetchBytes(img.url, ctx.store);
       await ctx.store.put(bytes, "png");
       slide.addImage({ data: `image/png;base64,${Buffer.from(bytes).toString("base64")}`, x: 0.4, y: 0.4, w: 3.4, h: 4.5 });

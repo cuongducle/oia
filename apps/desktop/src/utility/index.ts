@@ -62,7 +62,6 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   loopback = await startLoopback({
     ctx: () => requireCtx(),
     userDataDir,
-    env,
     emit: (ev) => post(ev),
   });
   discoveryCleanup = loopback.discoveryFile;

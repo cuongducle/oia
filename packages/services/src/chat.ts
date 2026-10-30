@@ -5,6 +5,7 @@ import { nextMsgId, type ChatEvent, type PlannerPlan } from "@oia/schema";
 import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
+import { isMeteredBusy, meteredBusy } from "./meteredGuard.js";
 
 /**
  * TP-D2 (D1) — the chat orchestration, transport-free. The web SSE route and the future
@@ -63,12 +64,7 @@ async function assetizeEvent(ev: ChatEvent, files: FileStore): Promise<void> {
   }
 }
 
-/** G3: max ONE metered job in flight per app instance. */
-const gGuard = globalThis as unknown as { __oiaMeteredInFlight?: Set<string> };
-function meteredBusy(): Set<string> {
-  gGuard.__oiaMeteredInFlight ??= new Set();
-  return gGuard.__oiaMeteredInFlight;
-}
+/** G3: max ONE metered job in flight per app instance — the set lives in meteredGuard.ts, shared with the task lane (loopback). */
 
 /** A5: last successful plan per chat session (stage-aware retry). */
 const gPlans = globalThis as unknown as { __oiaSessionPlans?: Map<number, PlannerPlan> };
@@ -96,7 +92,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
 
   // ---- G3: refuse a concurrent metered job with zero attempts spent ----
   const metered = !ctx.chat.image.capabilities.isMock;
-  if (metered && meteredBusy().size > 0) {
+  if (metered && isMeteredBusy()) {
     failEvent({ errorClass: "rate_limited", provider: ctx.chat.image.name, message: "a generation is already running", attemptNumber: 0 });
     return { jobId, outcome: "refused-rate-limited" };
   }
