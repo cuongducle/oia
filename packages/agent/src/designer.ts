@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, GenerationMode, PlannerPlan } from "@oia/schema";
-import { parsePlannerPlan, normalizeBlocks, nextMsgId } from "@oia/schema";
+import { parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION } from "@oia/schema";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -114,7 +114,7 @@ export function buildScene(opts: {
       selectable: true, visible: true,
     });
   }
-  return { version: "7.3.1", objects };
+  return { version: SCENE_VERSION, objects };
 }
 
 /**

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { LocalFileStore } from "../src/storage.js";
 import { migrateScene, migrateSrc, migrateRenderData, migrateProjectForSave, PersistenceError } from "../src/migrate.js";
 import { ProjectStore, ChatSessionStore } from "../src/projects.js";
 import type { SceneCanvas, Project } from "@oia/schema";
+import { OIA_SCHEMA_VERSION } from "@oia/schema";
 
 /** 1×1 PNG — a real decodable base64 payload. */
 const PNG_B64 =
@@ -134,6 +135,26 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
     // zod re-creates page objects — assert on the STORE's copy, not the caller's
     const stored = projects.get(p.id)!.pages[0].canvas.objects.find((o) => o.type === "Image")!.src as string;
     expect(stored).toMatch(/^\/api\/files\//);
+  });
+
+  it("create/save stamp OIA_SCHEMA_VERSION; legacy projects without it are read-tolerant", async () => {
+    const { projects, root } = setup();
+    await projects.load();
+    // legacy file on disk: a project saved before schemaVersion existed
+    writeFileSync(path.join(root, "projects.json"), JSON.stringify([{
+      id: "prj_legacy", name: "legacy", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }],
+    }]));
+    const reopened = new ProjectStore(path.join(root, "projects.json"));
+    await reopened.load();
+    expect(reopened.get("prj_legacy")!.schemaVersion).toBeUndefined(); // opens without error
+
+    const fresh = await reopened.create({ name: "mới" });
+    expect(fresh.schemaVersion).toBe(OIA_SCHEMA_VERSION);
+
+    await reopened.saveScene("prj_legacy", { name: "đổi tên" }); // any save stamps the current version
+    expect(reopened.get("prj_legacy")!.schemaVersion).toBe(OIA_SCHEMA_VERSION);
+    const raw = readJson(path.join(root, "projects.json")) as Array<{ schemaVersion?: number }>;
+    expect(raw.find((x) => x.id === "prj_legacy")!.schemaVersion).toBe(OIA_SCHEMA_VERSION);
   });
 
   it("concurrent saveScene calls never corrupt the store file (atomic single writer)", async () => {

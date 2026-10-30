@@ -1,4 +1,4 @@
-import type { SceneCanvas } from "@oia/schema";
+import { SCENE_VERSION, type SceneCanvas } from "@oia/schema";
 
 /**
  * Multi-page behavior:
@@ -20,7 +20,7 @@ export function newPageId(): string {
 
 export function blankScene(width: number, height: number): SceneCanvas {
   return {
-    version: "7.3.1",
+    version: SCENE_VERSION,
     objects: [
       { type: "Rect", name: "clip", left: 0, top: 0, width, height, fill: "white", selectable: false, hasControls: false, visible: true },
     ],

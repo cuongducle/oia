@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { SCENE_VERSION } from "@oia/schema";
 import type { ToolKind } from "@/libs/tools-registry";
 
 export function ToolRunner({ kind, slug }: { kind: ToolKind; slug: string }) {
@@ -199,7 +200,7 @@ export function ToolRunner({ kind, slug }: { kind: ToolKind; slug: string }) {
       const W = 1360, H = Math.round((img.naturalHeight / img.naturalWidth) * W) || 2048;
       const scale = W / img.naturalWidth;
       const scene = {
-        version: "7.3.1",
+        version: SCENE_VERSION,
         objects: [
           { type: "Rect", name: "clip", left: 0, top: 0, width: W, height: H, fill: "white", selectable: false, visible: true },
           { type: "Image", left: 0, top: 0, width: W, height: H, src: up.data.url, crossOrigin: "anonymous", selectable: true, visible: true },
@@ -247,7 +248,7 @@ export function ToolRunner({ kind, slug }: { kind: ToolKind; slug: string }) {
   async function openResultInEditor() {
     if (!aiResult) return;
     const scene = {
-      version: "7.3.1",
+      version: SCENE_VERSION,
       objects: [
         { type: "Rect", name: "clip", left: 0, top: 0, width: 1536, height: 1024, fill: "white", selectable: false, visible: true },
         { type: "Image", left: 0, top: 0, width: 1536, height: 1024, src: aiResult.startsWith("http") ? aiResult : aiResult, crossOrigin: "anonymous", selectable: true, visible: true },

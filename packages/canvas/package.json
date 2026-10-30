@@ -6,7 +6,7 @@
   "types": "./dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run --passWithNoTests", "typecheck": "tsc --noEmit" },
-  "dependencies": { "fabric": "^6.7.1" },
+  "dependencies": { "fabric": "^6.9.1" },
   "peerDependencies": { "@oia/schema": "workspace:*" },
   "devDependencies": { "@oia/schema": "workspace:*", "typescript": "^5.9.2", "vitest": "^3.2.4" }
 }

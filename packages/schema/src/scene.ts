@@ -1,6 +1,21 @@
 import { z } from "zod";
 
 /**
+ * SCENE_VERSION pins the Fabric.js serialized-JSON interchange version this code
+ * targets. "7.3.1" is Fabric's version string, not Oia's. Single source of truth —
+ * previously duplicated as a raw literal in 5 places (designer, canvas, tasks, web runner).
+ */
+export const SCENE_VERSION = "7.3.1";
+
+/**
+ * OIA_SCHEMA_VERSION is Oia's OWN project-format version — an integer, bumped on
+ * breaking changes to the project/scene format, INDEPENDENT from Fabric's scene
+ * version above. Legacy projects without it are read-tolerant; every save stamps
+ * the current version so future migrations have a key to switch on.
+ */
+export const OIA_SCHEMA_VERSION = 1;
+
+/**
  * Scene graph = Fabric.js serialized JSON (the interchange format).
  * Fixtures: packages/protocol/test/fixtures.
  */
@@ -52,6 +67,8 @@ export const pageSchema = z.object({
 export const projectSchema = z.object({
   id: z.string(),
   name: z.string().default("Untitled project"),
+  /** Oia's own format version (see OIA_SCHEMA_VERSION). Absent = legacy project. */
+  schemaVersion: z.number().int().optional(),
   pages: z.array(pageSchema).min(1),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),

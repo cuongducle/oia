@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { projectSchema, type Project } from "@oia/schema";
+import { projectSchema, SCENE_VERSION, OIA_SCHEMA_VERSION, type Project } from "@oia/schema";
 import { atomicWriteJson, sweepTempFiles } from "./atomic.js";
 import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import type { FileStore } from "./storage.js";
@@ -31,7 +31,7 @@ export class ProjectStore {
 
   async create(input: { name?: string; scene?: unknown; pages?: unknown; width?: number; height?: number }): Promise<Project> {
     const blank = {
-      version: "7.3.1",
+      version: SCENE_VERSION,
       objects: [{ type: "Rect", name: "clip", left: 0, top: 0, width: input.width ?? 1360, height: input.height ?? 2048, fill: "white", selectable: false, visible: true }],
       ...(input.scene ? (input.scene as object) : {}),
     };
@@ -39,6 +39,7 @@ export class ProjectStore {
     const p: Project = projectSchema.parse({
       id: `prj_${now.toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       name: input.name ?? "Untitled project",
+      schemaVersion: OIA_SCHEMA_VERSION,
       pages: input.pages ?? [{ id: `page_1`, name: "Board 1", width: input.width ?? 1360, height: input.height ?? 2048, canvas: blank }],
       createdAt: now, updatedAt: now,
     });
@@ -64,6 +65,7 @@ export class ProjectStore {
       await migrateProjectForSave(p, this.files); // legacy base64 discovered on a name-only save
     }
     p.updatedAt = Date.now();
+    p.schemaVersion = OIA_SCHEMA_VERSION; // every save stamps the current format version
     // keep the recent order: move to the front
     this.items = [p, ...this.items.filter((x) => x.id !== id)];
     await this.save();
