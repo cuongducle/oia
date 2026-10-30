@@ -279,7 +279,7 @@ export async function* runDesignerAgent(
 
   // ---- 5) Manager Agent result + exportMeta ----
   const resultId = uuid32();
-  taskMeta = [...taskMeta, { id: resultId, content: "Manager Agent", type: "result", status: "0" }];
+  taskMeta = [...taskMeta, { id: resultId, content: "Manager Agent", type: "result", status: "0" }];;;
   yield ev(`<Result>[[task::result::${resultId}]]`, {
     renderData: {
       msgMeta: [canvasMeta],
@@ -293,5 +293,9 @@ export async function* runDesignerAgent(
       confirmRequest: null,
     },
   });
+  // BR-2 settle: the result node CLOSES (0→1) — without this terminal flip the UI
+  // timeline hangs on "Manager Agent · running…" after the poster has finished.
+  taskMeta = taskMeta.map((x) => (x.id === resultId ? { ...x, status: "1" } : x));
+  yield ev("", { renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
   yield ev(`</Content>`);
 }

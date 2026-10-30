@@ -76,6 +76,11 @@ describe("golden replay: Oia SSE stream (local mock agent)", () => {
     expect(markers.some((m) => m.kind === "canvas")).toBe(true);
     expect(stripMarkers(content)).not.toMatch(/\[\[/);
   });
+
+  it("stripMarkers removes the literal <Result> wrapper the designer emits with the final meta", () => {
+    expect(stripMarkers("<Result>[[task::result::0123456789abcdef0123456789abcdef]]")).toBe("");
+    expect(stripMarkers("Here is the result: <Result>")).toBe("Here is the result:");
+  });
 });
 
 describe("STAGE-0 tolerant decoding of the new event fields (jobId / errorClass / cancelled)", () => {

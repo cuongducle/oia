@@ -26,5 +26,6 @@ export function stripMarkers(content: string): string {
     .replace(MARKER_RE, "")
     .replace(/<\/?Collapse>/g, "")
     .replace(/<\/?Content>/g, "")
+    .replace(/<\/?Result>/g, "")
     .trim();
 }

@@ -52,11 +52,18 @@ describe("BR-1 SSE contract: every event valid, msgId constant, stream ends corr
 describe("BR-2 taskMeta orchestration: node → tool → Manager Agent(result), status 0→1", () => {
   it("the sequence matches the contract", async () => {
     const events = await collect("poster");
-    const final = events.at(-2)!; // the <Result> event
+    const final = events.find((e) => e.content.includes("<Result>"))!; // the <Result> event
     const seq = final.renderData.taskMeta.map((t) => `${t.content}:${t.type}`);
     expect(seq).toEqual(["Designer Agent:node", "Image Generator:tool", "Manager Agent:result"]);
     const statuses = final.renderData.taskMeta.map((t) => t.status);
     expect(statuses).toEqual(["1", "1", "0"]); // tool & node done; result just opened
+  });
+
+  it("the settle event closes the result node so the timeline cannot hang on running", async () => {
+    const events = await collect("poster");
+    const withMeta = events.filter((e) => e.renderData.taskMeta.length > 0);
+    const last = withMeta.at(-1)!;
+    expect(last.renderData.taskMeta.map((t) => t.status)).toEqual(["1", "1", "1"]);
   });
 });
 
