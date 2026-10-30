@@ -34,7 +34,7 @@ jobs:
       - run: pnpm --filter @oia/desktop test
       # the scripted end-to-end: mock pair -> runChat over the real Electron main process
       # (--no-sandbox: CI containers run as root; ELECTRON_SKIP_BINARY_DOWNLOAD is NOT set)
-      - run: xvfb-run -a npx electron apps/desktop --no-sandbox
+      - run: xvfb-run -a npx electron . --no-sandbox
         working-directory: apps/desktop
         env:
           OIA_DESKTOP_SMOKE: "1"
