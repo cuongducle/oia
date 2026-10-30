@@ -88,6 +88,18 @@ export class TaskStore {
         /* malformed line — skip */
       }
     }
+    // 4f (reorg): records that were mid-flight when the previous process died must
+    // not lie as "processing" forever. load() runs at context build — BEFORE any
+    // new submit — so every "processing" record here is stale by construction.
+    // B7 rule: the record must not lie; the quota was likely already spent.
+    const interrupted: TaskStatus[] = [];
+    for (const entry of this.tasks.values()) {
+      if (entry.status.progress === "processing") {
+        entry.status = { ...entry.status, progress: "failed", taskNote: "interrupted by app restart" };
+        interrupted.push(entry.status);
+      }
+    }
+    if (interrupted.length) await Promise.all(interrupted.map((s) => this.persist(s)));
   }
 
   private async persist(status: TaskStatus): Promise<void> {

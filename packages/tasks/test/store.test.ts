@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { TaskStore, TaskNotFound, ok, fail } from "../src/index.js";
 
 describe("BR-7 task lifecycle + 24h TTL", () => {
@@ -91,5 +94,32 @@ describe("BR-12 CommonResult envelope", () => {
     it("ok/fail envelopes match the contract", async () => {
     expect(ok({ a: 1 })).toEqual({ code: 0, data: { a: 1 }, msg: "" });
     expect(fail("x").code).not.toBe(0);
+  });
+});
+
+/** 4f (reorg) — a task left "processing" by a dead process must not lie forever. */
+describe("TaskStore.load marks stale processing jobs as interrupted", () => {
+  it("records mid-flight at crash become failed + taskNote on the next boot", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "oia-interrupt-"));
+    const logFile = path.join(root, "task-log.jsonl");
+    const stale = {
+      taskId: "task_dead01",
+      sessionId: 1,
+      status: {
+        taskId: "task_dead01", sessionId: 1, progress: "processing", taskResult: null, taskNote: null,
+        msg: "", jobId: "00000000-0000-0000-0000-000000000001", attemptNumber: 1, retryOf: null,
+      },
+      createdAt: Date.now(),
+    };
+    writeFileSync(logFile, JSON.stringify(stale) + "\n", "utf8");
+    const store = new TaskStore({ logFile });
+    await store.load();
+    const rec = store.get("task_dead01")!;
+    expect(rec.progress).toBe("failed");
+    expect(rec.taskNote).toBe("interrupted by app restart");
+    // persisted too: a SECOND boot reads the same terminal state
+    const store2 = new TaskStore({ logFile });
+    await store2.load();
+    expect(store2.get("task_dead01")!.progress).toBe("failed");
   });
 });
