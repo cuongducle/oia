@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -123,7 +123,13 @@ export class LocalFileStore implements FileStore {
   async read(key: string): Promise<Uint8Array> {
     const safe = this.safeKey(key);
     if (!safe) throw new Error("invalid key");
-    return new Uint8Array(await readFile(path.join(this.rootDir, safe)));
+    const full = path.join(this.rootDir, safe);
+    // Reorg step 7 security gate: safeKey stops ".."/absolute keys, but a symlink
+    // planted inside the tree would still escape — resolve BOTH ends and require
+    // the file to stay inside the real root (throws ENOENT-miss as before when absent).
+    const [realFile, realRoot] = await Promise.all([realpath(full), realpath(this.rootDir)]);
+    if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) throw new Error("invalid key");
+    return new Uint8Array(await readFile(full));
   }
 
   contentType(ext: string): string {

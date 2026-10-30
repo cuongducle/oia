@@ -85,16 +85,14 @@ thời lượng, Cancel luôn hiện, không overclaim) — T1 không chạm n�
 IconComposer cần Xcode 26 (có sẵn trên máy dev); icon nhiều lớp cũng render fallback đúng cho
 macOS cũ — không mất gì khi chỉ xuất icon.
 
-## 5. Checklist áp vào bước 7 (rút từ research)
+## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-11-06 (bước 7c)
 
-- [ ] Icon: quyết định `.icns` thường vs nhiều lớp Icon Composer (đề xuất: nhiều lớp nếu
-      owner có thời gian; tối thiểu icon 1024 chuẩn bo góc Tahoe).
-- [ ] Window chrome: `hiddenInset` + traffic light padding; kiểm tra dark mode + wallpaper
-      sáng/tối; Windows không bị ảnh hưởng (chỉ macOS code path — flag `process.platform`).
-- [ ] Vibrancy sidebar: thử 1 nhánh, shot gate so sáng tối; bỏ nếu làm canvas editor lệch màu.
-- [ ] Gate kéo-cửa-sổ trên máy Tahoe thật (owner, 5 phút) — xác nhận không tái phát `_cornerMask`.
-- [ ] Electron >= 39 trong cây ship mọi lúc (audit/CI đã có desktop-audit; đây là ràng buộc engine).
-- [ ] Không thêm phụ thuộc native glass nào vào v1.
+- [x] Icon: **placeholder .icns đã ship (7a)** — squircle tím accent + O serif. Quyết định icon THẬT (nhiều lớp Icon Composer vs icns thường) vẫn chờ owner — không chặn v1.
+- [x] Window chrome: `hiddenInset` + traffic light padding — SHIP (7c); dark mode + wallpaper sáng/tối còn nợ quick-check owner (gate kéo + vision sáng thường đã xanh).
+- [ ] Vibrancy sidebar: thử 1 nhánh, shot gate so sáng tối; bỏ nếu làm canvas editor lệch màu — **CHƯA thử, không chặn v1**.
+- [x] Gate kéo-cửa-sổ trên máy Tahoe thật — 7c: cliclick kéo header, window dịch đúng +240px trên bản packaged; độ mượt thị giác = quick-check owner khi tiện.
+- [x] Electron >= 39 trong cây ship mọi lúc — 39.8.10 pin; desktop-audit CI giữ.
+- [x] Không thêm phụ thuộc native glass nào vào v1 — giữ nguyên.
 
 ## 6. Nguồn (truy cập 2026-10-30)
 

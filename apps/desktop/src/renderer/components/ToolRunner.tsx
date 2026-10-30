@@ -234,9 +234,21 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     const file = fileRef.current?.files?.[0]; if (!file) return;
     setBusy(true); setError("");
     try {
+      // tesseract.js v7: the one-shot recognize() helper never passes output
+      // options, so word-level data (blocks) stays OFF — the port from web read
+      // res.data.words and got undefined. Use a worker and request blocks.
       const Tesseract = (await import("tesseract.js")).default;
-      const res = (await Tesseract.recognize(file, "eng+vie")) as unknown as { data: { words: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[] } };
-      const data = res.data;
+      const worker = await Tesseract.createWorker("eng+vie");
+      let words: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[];
+      try {
+        const res = (await worker.recognize(file, {}, { blocks: true })) as unknown as {
+          data: { blocks: { paragraphs: { lines: { words: typeof words }[] }[] }[] | null };
+        };
+        words = res.data.blocks?.flatMap((b) => b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words))) ?? [];
+      } finally {
+        await worker.terminate();
+      }
+      const data = { words }; // the scene mapping below reads .words
       const bytes = new Uint8Array(await file.arrayBuffer());
       const up = await oia().uploadAsset(file.name, bytes);
       const objUrl = URL.createObjectURL(file);
@@ -263,7 +275,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       } finally {
         URL.revokeObjectURL(objUrl);
       }
-    } catch { setError("The text could not be recognized (the recognizer needs internet the first time). Please try again."); } finally { setBusy(false); }
+    } catch (e) { setError("The text could not be recognized — " + String(e).slice(0, 160)); } finally { setBusy(false); }
   }
 
   /** ONE busy/error owner for both AI tools — param building (upload included)

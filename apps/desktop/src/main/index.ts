@@ -8,6 +8,8 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
+import { oiaFilesKey } from "./oiaProtocol.js";
+import { runOcrScenario } from "./shotOcr.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
   chatRequestSchema,
@@ -110,6 +112,10 @@ function createWindow(): BrowserWindow {
     width: 1440,
     height: 900,
     title: "Oia",
+    // T1 (macos-design-2026.md): native-feel chrome on macOS — traffic lights
+    // inline with the app's top bars (padding + drag region in app.css); the
+    // system title bar stays intact on Windows/Linux.
+    ...(process.platform === "darwin" ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 20, y: 21 } } : {}),
     webPreferences: {
       preload: path.join(here, "../preload/index.cjs"), // .cjs — see electron.vite.config note
       contextIsolation: true,
@@ -397,9 +403,8 @@ function registerIpc(): void {
 function registerAssetProtocol(): void {
   protocol.handle("oia", async (request) => {
     try {
-      const url = new URL(request.url);
-      if (url.host !== "files") return new Response(null, { status: 404 });
-      const key = decodeURIComponent(url.pathname.replace(/^\//, ""));
+      const key = oiaFilesKey(request.url);
+      if (!key) return new Response(null, { status: 404 });
       await ensureUtility();
       const bytes = (await utility.call({ cmd: "files.read", key })) as Uint8Array;
       const ext = key.split(".").pop() ?? "";
@@ -923,6 +928,20 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-agents.png");
+
+  // Opt-in (OIA_SHOT_OCR=1), LAST so the default outputs stay untouched: real
+  // network OCR through the CSP allowances — see shotOcr.ts for why this gate exists.
+  if (process.env.OIA_SHOT_OCR === "1") {
+    console.log("[shot] OCR scenario (network, first run downloads recognizer data)…");
+    const ocr = await runOcrScenario(win);
+    console.log("[shot] OCR verify:", JSON.stringify(ocr.detail));
+    if (!ocr.ok) {
+      console.error("DESKTOP_SHOT OCR VERIFY FAILED");
+      app.exit(14);
+      return;
+    }
+    await snap(win, "desktop-ocr.png");
+  }
 
   const image = await win.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");

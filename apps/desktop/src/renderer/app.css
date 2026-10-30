@@ -98,6 +98,16 @@ pre, code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9
 .viewNav .navPill.active { background: #eae6f7; color: #5533bf; font-weight: 600; }
 .viewNav .wordmark { margin-right: auto; font-size: 20px; font-weight: 800; letter-spacing: -0.065em; color: #202124; }
 .viewNav .wordmark span { color: var(--accent); }
+
+/* T1 (macos-design-2026.md) — hiddenInset chrome: the top bars ARE the title bar.
+   Drag comes from the bar; every interactive child opts back out. Left padding
+   reserves the traffic-light zone. Other platforms keep the system title bar. */
+html[data-platform="darwin"] .viewNav, html[data-platform="darwin"] .edTop { -webkit-app-region: drag; }
+html[data-platform="darwin"] .viewNav { padding-left: 92px; }
+html[data-platform="darwin"] .edTop { padding-left: 92px; }
+html[data-platform="darwin"] .viewNav button, html[data-platform="darwin"] .viewNav a, html[data-platform="darwin"] .viewNav input,
+html[data-platform="darwin"] .edTop button, html[data-platform="darwin"] .edTop a, html[data-platform="darwin"] .edTop input,
+html[data-platform="darwin"] .edTop select, html[data-platform="darwin"] .edTop .textToolbar { -webkit-app-region: no-drag; }
 .viewFrame > main { overflow-y: auto; }
 
 /* ---------- Home (studio refresh — docs/design-direction.md) ---------- */

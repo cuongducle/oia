@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -27,6 +27,41 @@ describe("BR-UP storage", () => {
   });
   it("read blocks path traversal", async () => {
     await expect(store.read("../../etc/passwd")).rejects.toThrow();
+  });
+  /** Reorg step 7 security gate — the oia://files surface must never leave the root.
+   *  Setup mirrors a real escape: the secret lives in a SIBLING of the store root
+   *  (inside-root secrets prove nothing). Keys may normalize, but bytes outside
+   *  the root must never come back. */
+  it("read rejects every traversal shape (deep, absolute, windows drive, backslash)", async () => {
+    const parent = mkdtempSync(path.join(tmpdir(), "pf-trav-parent-"));
+    const root = path.join(parent, "store");
+    mkdirSync(root, { recursive: true });
+    const secret = path.join(parent, "secret-outside-root.txt");
+    writeFileSync(secret, "outside");
+    const s = new LocalFileStore(root);
+    for (const bad of [
+      "../secret-outside-root.txt", // leading ../ is STRIPPED by the sanitizer → resolves inside root → ENOENT, never the sibling
+      "uploads/../../secret-outside-root.txt", // deep traversal reaching out
+      "../../../../etc/passwd",
+      "/etc/passwd", // absolute POSIX
+      "C:\\Windows\\win.ini", // Windows drive path
+      "\\\\server\\share\\x", // Windows UNC
+      "..",
+      "..\\..\\x",
+    ]) {
+      await expect(s.read(bad), `key=${JSON.stringify(bad)}`).rejects.toThrow();
+    }
+  });
+  it("read rejects a symlink planted inside the tree that points outside the root", async () => {
+    const parent = mkdtempSync(path.join(tmpdir(), "pf-symlink-parent-"));
+    const root = path.join(parent, "store");
+    const outside = path.join(parent, "outside.png");
+    writeFileSync(outside, new Uint8Array([1]));
+    const uploadsDir = path.join(root, "uploads");
+    mkdirSync(uploadsDir, { recursive: true });
+    symlinkSync(outside, path.join(uploadsDir, "escape.png"));
+    const s = new LocalFileStore(root);
+    await expect(s.read("uploads/escape.png")).rejects.toThrow("invalid key");
   });
   it("contentType maps correctly", () => {
     expect(store.contentType("png")).toBe("image/png");
