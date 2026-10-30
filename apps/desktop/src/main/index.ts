@@ -955,11 +955,15 @@ function registerMenu(): void {
  * F1 — ONE app instance, ever. Without the lock, a second launch forked a second
  * utility process against the SAME userData: the atomic-write queue is per-process,
  * so two writers saved over each other (last-writer-wins data loss), and two loopback
- * servers fought over one discovery file + one quota guard. The smoke isolates its
- * userData so it never races a real running instance on a dev machine.
+ * servers fought over one discovery file + one quota guard.
+ *
+ * EVERY test mode sandboxes its userData in a fresh temp dir (found the hard way:
+ * smoke/shot runs against the real userData seeded the owner's Workspace with
+ * dozens of "banner smoke"/"New banner" junk projects). The SI smoke isolates too —
+ * it never races a real running instance on a dev machine.
  */
-if (process.env.OIA_DESKTOP_SI_SMOKE === "1") {
-  app.setPath("userData", mkdtempSync(path.join(tmpdir(), "oia-si-smoke-")));
+if (smokeModeFromEnv(process.env, app.isPackaged)) {
+  app.setPath("userData", mkdtempSync(path.join(tmpdir(), "oia-testmode-")));
 }
 const gotInstanceLock = app.requestSingleInstanceLock();
 if (!gotInstanceLock) {
