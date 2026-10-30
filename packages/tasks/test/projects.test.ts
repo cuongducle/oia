@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ProjectStore, ChatSessionStore } from "../src/projects.js";
@@ -7,7 +7,7 @@ import { ProjectStore, ChatSessionStore } from "../src/projects.js";
 let dir: string; let projects: ProjectStore; let chats: ChatSessionStore;
 beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), "pf-persist-"));
-  projects = new ProjectStore(path.join(dir, "prj.json"));
+  projects = new ProjectStore(dir);
   chats = new ChatSessionStore(path.join(dir, "chats.json"));
   await projects.load(); await chats.load();
 });
@@ -60,29 +60,29 @@ describe("BR-PERSIST' Chat session store", () => {
  * overwritten with `[]` by the next autosave (the old `catch { items = [] }`
  * pattern destroyed every project the first time one byte went bad).
  */
-describe("TP.7 durable load — corrupt file is quarantined, not overwritten", () => {
-  const quarantineOf = (dir: string, base: string) =>
-    readdirSync(dir).find((f) => f.startsWith(`${base}.corrupt-`));
+const quarantineOf = (dir: string, base: string) =>
+  readdirSync(dir).find((f) => f.startsWith(`${base}.corrupt-`));
 
-  it("projects.json corrupt → bytes preserved in a .corrupt sibling; store starts empty and SAVES do not destroy them", async () => {
+describe("TP.7 durable load — corrupt file is quarantined, not overwritten", () => {
+  it("projects.json (legacy monolith) corrupt → bytes preserved in a .corrupt sibling; store starts empty and SAVES do not destroy them", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-prj-"));
-    const file = path.join(dir, "prj.json");
+    const file = path.join(dir, "projects.json");
     const poison = '{"items": [{"id": "prj_real", '; // truncated mid-write
     writeFileSync(file, poison);
 
-    const store = new ProjectStore(file);
+    const store = new ProjectStore(dir);
     await store.load();
     expect(store.recent()).toHaveLength(0); // starts empty
     // load() MOVED the poison aside (rename) — the bytes were never overwritten or deleted
-    const moved = quarantineOf(dir, "prj.json");
+    const moved = quarantineOf(dir, "projects.json");
     expect(moved).toBeDefined();
     expect(readFileSync(path.join(dir, moved!), "utf8")).toBe(poison);
 
-    await store.create({ name: "fresh start" }); // triggers save()
-    const q = quarantineOf(dir, "prj.json");
+    await store.create({ name: "fresh start" }); // writes per-project files only
+    const q = quarantineOf(dir, "projects.json");
     expect(q).toBe(moved); // the corrupt bytes were moved aside, not deleted
     expect(readFileSync(path.join(dir, q!), "utf8")).toBe(poison);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toBeInstanceOf(Array); // fresh valid file
+    expect(readdirSync(path.join(dir, "projects"))).toHaveLength(1); // fresh valid per-project file
   });
 
   it("chat-sessions.json corrupt → quarantined the same way", async () => {
@@ -104,19 +104,134 @@ describe("TP.7 durable load — corrupt file is quarantined, not overwritten", (
 
   it("valid JSON that is NOT an array is corruption too ({} would break every consumer)", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-shape-"));
-    const file = path.join(dir, "prj.json");
+    const file = path.join(dir, "projects.json");
     writeFileSync(file, "{}");
-    const store = new ProjectStore(file);
+    const store = new ProjectStore(dir);
     await store.load();
     expect(store.recent()).toHaveLength(0);
-    expect(quarantineOf(dir, "prj.json")).toBeDefined();
+    expect(quarantineOf(dir, "projects.json")).toBeDefined();
   });
 
-  it("a MISSING file is a legitimate fresh start — no quarantine noise", async () => {
+  it("a MISSING store is a legitimate fresh start — no quarantine noise", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-fresh-"));
-    const store = new ProjectStore(path.join(dir, "prj.json"));
+    const store = new ProjectStore(dir);
     await store.load();
     expect(store.recent()).toHaveLength(0);
-    expect(readdirSync(dir)).toHaveLength(0);
+    expect(readdirSync(dir)).toEqual(["projects"]); // only the (empty) per-project dir
+    expect(readdirSync(path.join(dir, "projects"))).toHaveLength(0);
+  });
+});
+
+/** Reorg step 5 — per-project files: the blast radius of any single bad file is ONE project. */
+describe("per-project files (reorg step 5)", () => {
+  const prjDir = (dir: string) => path.join(dir, "projects");
+
+  function writeProjectFile(dir: string, id: string, over: Record<string, unknown> = {}) {
+    writeFileSync(path.join(prjDir(dir), `${id}.json`), JSON.stringify({
+      id, name: id, schemaVersion: 1, updatedAt: 1,
+      pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }],
+      ...over,
+    }));
+  }
+
+  it("create/save/remove write exactly one project file each; remove deletes the file", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-perfile-"));
+    const store = new ProjectStore(dir);
+    await store.load();
+    const a = await store.create({ name: "A" });
+    const b = await store.create({ name: "B" });
+    expect(readdirSync(prjDir(dir)).sort()).toEqual([`${a.id}.json`, `${b.id}.json`].sort());
+    await store.saveScene(a.id, { name: "A2" });
+    expect(JSON.parse(readFileSync(path.join(prjDir(dir), `${a.id}.json`), "utf8")).name).toBe("A2");
+    await store.remove(a.id);
+    expect(readdirSync(prjDir(dir))).toEqual([`${b.id}.json`]);
+    expect(existsSync(path.join(prjDir(dir), `${a.id}.json`))).toBe(false);
+  });
+
+  it("kill app → reopen: a fresh store on the same dataDir sees the same data (the step-5 gate)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-reopen-"));
+    const first = new ProjectStore(dir);
+    await first.load();
+    const a = await first.create({ name: "A" });
+    await first.create({ name: "B" });
+    await first.saveScene(a.id, { name: "A-renamed" });
+
+    const reopened = new ProjectStore(dir); // "process restarted" — nothing in memory
+    await reopened.load();
+    expect(reopened.recent().map((p) => p.name)).toEqual(["A-renamed", "B"]);
+    expect(reopened.get(a.id)!.name).toBe("A-renamed");
+  });
+
+  it("ONE corrupt project file is quarantined ALONE — every other project survives (the step-5 blast-radius gate)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-blast-"));
+    mkdirSync(prjDir(dir), { recursive: true });
+    writeProjectFile(dir, "prj_ok1");
+    writeFileSync(path.join(prjDir(dir), "prj_bad.json"), "{ truncated mid-write");
+    writeProjectFile(dir, "prj_ok2");
+
+    const store = new ProjectStore(dir);
+    await store.load();
+    expect(store.recent().map((p) => p.id).sort()).toEqual(["prj_ok1", "prj_ok2"]); // both survive
+    expect(quarantineOf(prjDir(dir), "prj_bad.json")).toBeDefined(); // the poison was isolated
+    expect(readFileSync(path.join(prjDir(dir), quarantineOf(prjDir(dir), "prj_bad.json")!), "utf8")).toBe("{ truncated mid-write");
+  });
+
+  it("a project file whose id does not match its file name is quarantined (one-file-one-project invariant)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-mismatch-"));
+    mkdirSync(prjDir(dir), { recursive: true });
+    writeProjectFile(dir, "prj_real");
+    writeProjectFile(dir, "prj_wrongname", { id: "prj_real", name: "duplicate copy" });
+    const store = new ProjectStore(dir);
+    await store.load();
+    expect(store.recent().map((p) => p.id)).toEqual(["prj_real"]); // exactly one copy
+    expect(quarantineOf(prjDir(dir), "prj_wrongname.json")).toBeDefined();
+  });
+
+  it("legacy monolith projects.json is absorbed into per-project files and ARCHIVED (bytes never deleted)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-legacy-"));
+    const monolith = JSON.stringify([
+      { id: "prj_old1", name: "old 1", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }], updatedAt: 5 },
+      { id: "prj_old2", name: "old 2", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }], updatedAt: 9 },
+    ]);
+    writeFileSync(path.join(dir, "projects.json"), monolith);
+
+    const store = new ProjectStore(dir);
+    await store.load();
+    expect(store.recent().map((p) => p.name)).toEqual(["old 2", "old 1"]); // updatedAt DESC
+    expect(readdirSync(prjDir(dir)).sort()).toEqual(["prj_old1.json", "prj_old2.json"]);
+    const archive = readdirSync(dir).find((f) => f.startsWith("projects.json.legacy-"));
+    expect(archive).toBeDefined();
+    expect(readFileSync(path.join(dir, archive!), "utf8")).toBe(monolith); // original bytes kept
+
+    // idempotent: second boot does not re-absorb, no duplicates
+    const second = new ProjectStore(dir);
+    await second.load();
+    expect(second.recent().map((p) => p.name)).toEqual(["old 2", "old 1"]);
+    expect(readdirSync(prjDir(dir)).sort()).toEqual(["prj_old1.json", "prj_old2.json"]);
+  });
+
+  it("a per-project file WINS over a legacy monolith entry with the same id (it was saved after the split)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-legacy-win-"));
+    mkdirSync(prjDir(dir), { recursive: true });
+    writeProjectFile(dir, "prj_dup", { name: "newer per-file copy", updatedAt: 20 });
+    writeFileSync(path.join(dir, "projects.json"), JSON.stringify([
+      { id: "prj_dup", name: "stale monolith copy", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }] },
+    ]));
+    const store = new ProjectStore(dir);
+    await store.load();
+    expect(store.get("prj_dup")!.name).toBe("newer per-file copy");
+    expect(store.recent()).toHaveLength(1);
+  });
+
+  it("a legacy id that is unsafe as a file name is re-issued (absorb and import lane)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-unsafe-id-"));
+    writeFileSync(path.join(dir, "projects.json"), JSON.stringify([
+      { id: "../escape", name: "evil", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }] },
+    ]));
+    const store = new ProjectStore(dir);
+    await store.load();
+    expect(store.recent()).toHaveLength(1);
+    expect(store.recent()[0].id).toMatch(/^prj_[a-z0-9_]+$/); // re-issued, not "../escape"
+    expect(readdirSync(prjDir(dir))).toHaveLength(1);
   });
 });

@@ -42,6 +42,7 @@ const api: OiaBridge = {
     return () => ipcRenderer.removeListener(IPC.agentJobEvent, listener);
   },
   copyText: (text) => ipcRenderer.invoke(IPC.clipboardWrite, { text }),
+  importWebData: (sourceDir) => ipcRenderer.invoke(IPC.dataImportWeb, { sourceDir }),
   runtimeStatus: () => ipcRenderer.invoke(IPC.runtimeStatus),
   runtimeInstall: () => ipcRenderer.invoke(IPC.runtimeInstall),
   runtimeLogin: () => ipcRenderer.invoke(IPC.runtimeLogin),

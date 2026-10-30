@@ -28,7 +28,7 @@ export class LocalFileStore implements FileStore {
   /** LEGACY pre-F3 names: 8-char prefix — a HINT, bytes verified before any claim. */
   private legacyPrefixIndex = new Map<string, string>();
   constructor(
-    private root = process.env.OIA_DATA_DIR ?? ".data/files",
+    private rootDir = process.env.OIA_DATA_DIR ?? ".data/files",
     private publicBase = "/api/files",
   ) {}
 
@@ -36,6 +36,12 @@ export class LocalFileStore implements FileStore {
     const p = path.normalize(key).replace(/^(\.\.(\/|\\|$))+/, "");
     if (p.startsWith("..") || path.isAbsolute(p)) return null;
     return p;
+  }
+
+  /** The absolute root this store writes under (reorg step 5: the web `.data`
+   *  import copies asset files in here under their original keys). */
+  get root(): string {
+    return this.rootDir;
   }
 
   async put(bytes: Uint8Array, ext: string): Promise<{ key: string; url: string; hash: string }> {
@@ -47,7 +53,7 @@ export class LocalFileStore implements FileStore {
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     // FULL sha256 in the name — hydrate rebuilds the authoritative index (F3/F4)
     const key = `uploads/${day}/${sha}-${Date.now().toString(36)}.${ext}`;
-    const abs = path.join(this.root, key);
+    const abs = path.join(this.rootDir, key);
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, bytes);
     this.sha256Index.set(sha, key);
@@ -93,7 +99,7 @@ export class LocalFileStore implements FileStore {
  *  New names carry the FULL sha256 (authoritative). Legacy 32-hex names are full
  *  md5; legacy 8-char names are hints verified against the bytes (F3/F4). */
   async hydrate(): Promise<void> {
-    const dir = path.join(this.root, "uploads");
+    const dir = path.join(this.rootDir, "uploads");
     try {
       for (const day of await readdir(dir)) {
         for (const f of await readdir(path.join(dir, day)).catch(() => [])) {
@@ -117,7 +123,7 @@ export class LocalFileStore implements FileStore {
   async read(key: string): Promise<Uint8Array> {
     const safe = this.safeKey(key);
     if (!safe) throw new Error("invalid key");
-    return new Uint8Array(await readFile(path.join(this.root, safe)));
+    return new Uint8Array(await readFile(path.join(this.rootDir, safe)));
   }
 
   contentType(ext: string): string {

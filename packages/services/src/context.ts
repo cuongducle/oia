@@ -63,7 +63,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   await brandKits.load();
   const templates = new TemplateStore(path.join(dataDir, "templates.json"));
   await templates.load();
-  const projects = new ProjectStore(path.join(dataDir, "projects.json"), files);
+  const projects = new ProjectStore(dataDir, files);
   await projects.load();
   const chatSessions = new ChatSessionStore(path.join(dataDir, "chat-sessions.json"), files);
   await chatSessions.load();

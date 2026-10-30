@@ -48,4 +48,13 @@ export class TemplateStore {
   }
 
   get(id: string): Template | undefined { return this.items.find((t) => t.id === id); }
+
+  /** Reorg step 5 — web `.data` import lane: an external template joins the store.
+   *  Existing ids are refused (desktop data wins), returns false. */
+  async addImported(tpl: Template): Promise<boolean> {
+    if (this.items.some((t) => t.id === tpl.id)) return false;
+    this.items.unshift(tpl);
+    await this.save();
+    return true;
+  }
 }

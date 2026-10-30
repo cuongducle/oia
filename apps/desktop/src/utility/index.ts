@@ -7,7 +7,7 @@ import {
   type ServiceContext,
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
-import { TaskNotFound } from "@oia/tasks";
+import { TaskNotFound, importWebData } from "@oia/tasks";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { unlinkSync } from "node:fs";
@@ -210,6 +210,12 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       return requireCtx().keys.revoke(req.id);
     case "loopback.port":
       return loopback ? loopback.port : null;
+
+    // ---- reorg step 5: web `.data` import ----
+    case "data.importWeb": {
+      const c = requireCtx();
+      return importWebData({ sourceDir: req.sourceDir, target: { files: c.files, projects: c.projects, chatSessions: c.chatSessions, brandKits: c.brandKits, templates: c.templates } });
+    }
   }
 }
 

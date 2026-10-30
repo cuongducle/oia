@@ -2,7 +2,7 @@ import type { ChatEvent, Project, Template, TaskStatus, BrandKit } from "@oia/sc
 import type { ChatRequest, ChatOutcome } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
-import type { ApiKeyRecord } from "@oia/tasks";
+import type { ApiKeyRecord, WebImportCounts } from "@oia/tasks";
 
 /**
  * The bridge contract — defined ONCE. preload implements it, the renderer consumes it,
@@ -107,6 +107,9 @@ export interface OiaBridge {
    *  deny-all permission handler (Electron maps it to clipboard-sanitized-write);
    *  this must never silently no-op like a swallowed catch. */
   copyText: (text: string) => Promise<boolean>;
+  /** Reorg step 5 — import a self-hosted web app's .data directory. An empty
+   *  sourceDir opens the native folder picker; resolving to null = user canceled. */
+  importWebData: (sourceDir: string) => Promise<WebImportCounts | null>;
   /** TP-D3 — codex runtime management (the zero-terminal onboarding surface). */
   runtimeStatus: () => Promise<RuntimeSnapshot>;
   runtimeInstall: () => Promise<{ runtime: RuntimeStatus }>;

@@ -4,9 +4,9 @@ import type { I18nKey } from "./i18n";
 
 /**
  * TP.4 — the single errorClass → i18n-key mapping. Raw stderr, exit codes, and
- * mixed-language internals never reach the user: every class maps to one
- * plain-Vietnamese sentence and ONE next action ("Đăng nhập lại" / "Thử lại" / "Xem hướng dẫn").
- * The message text itself lives in i18n.ts.
+ * mixed-language internals never reach the user: every class maps to one message
+ * key and ONE next action. D8: the RENDERED copy is English and lives in
+ * errors.ts; this module owns only the class → key contract.
  */
 
 export type ErrorActionKind = "retry" | "login" | "guide" | "none";

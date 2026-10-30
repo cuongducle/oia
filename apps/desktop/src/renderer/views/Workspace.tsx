@@ -28,6 +28,35 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
   const [renaming, setRenaming] = useState<Project | null>(null);
   const [renameName, setRenameName] = useState("");
   const [deleting, setDeleting] = useState<Project | null>(null);
+  // reorg step 5 — web `.data` import (projects, conversations, assets, kits, templates)
+  const [importing, setImporting] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const importFromWeb = async () => {
+    setImporting(true);
+    setError("");
+    setNotice("");
+    try {
+      const counts = await oia().importWebData(""); // empty → main opens the native folder picker
+      if (counts) {
+        const parts = [
+          counts.projects ? `${counts.projects} project${counts.projects === 1 ? "" : "s"}` : null,
+          counts.sessions ? `${counts.sessions} conversation${counts.sessions === 1 ? "" : "s"}` : null,
+          counts.assets ? `${counts.assets} image${counts.assets === 1 ? "" : "s"}` : null,
+          counts.brandKits ? `${counts.brandKits} brand kit${counts.brandKits === 1 ? "" : "s"}` : null,
+          counts.templates ? `${counts.templates} template${counts.templates === 1 ? "" : "s"}` : null,
+        ].filter(Boolean);
+        setNotice(parts.length ? `Imported ${parts.join(", ")}.` : "Nothing new to import — everything was already here.");
+        const [c, p] = await Promise.all([oia().listSessions(), oia().listProjects()]);
+        setChats(c);
+        setProjects(p);
+      }
+    } catch (err) {
+      setError(bridgeErrorMessage(err, "Import failed — check the folder and try again."));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => {
     void Promise.all([oia().listSessions(), oia().listProjects()])
@@ -96,6 +125,9 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
           <p>Pick up where inspiration left off.</p>
         </div>
         <div className="workspaceActions">
+          <button className="secondaryBtn" disabled={importing || busy} onClick={() => void importFromWeb()} title="Bring projects, conversations and assets from a self-hosted web app's .data folder">
+            {importing ? "Importing…" : "⤵ Import from web app"}
+          </button>
           <label className="secondaryBtn">
             ⬆ Import image
             <input type="file" aria-label="Import image" accept="image/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && create(e.target.files[0])} />
@@ -112,6 +144,7 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
       </label>
 
       {error && <p className="notice error" role="alert">{error}</p>}
+      {notice && <p className="notice" role="status">{notice}</p>}
 
       {loading ? <p role="status" className="hintP" style={{ marginTop: 28 }}>Loading your workspace…</p> : (
         <>

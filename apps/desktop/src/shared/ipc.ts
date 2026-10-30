@@ -33,6 +33,10 @@ export const templatesCreateSchema = z.object({
 });
 export const sessionsGetSchema = z.object({ id: z.number().int().positive() });
 
+/** Reorg step 5 — web `.data` import: an EMPTY sourceDir means "ask the user
+ *  for a folder" (main opens the native picker); null back = canceled. */
+export const dataImportWebSchema = z.object({ sourceDir: z.string().max(1024) });
+
 /** Editor asset uploads — same image whitelist as the web upload route, bytes via structured clone. */
 import { IMAGE_EXTS } from "@oia/schema"; // single home for the upload allowlist (uploads.ts)
 

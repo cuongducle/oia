@@ -46,6 +46,15 @@ export class BrandKitStore {
   list(): BrandKit[] { return this.kits; }
   get(id: string): BrandKit | undefined { return this.kits.find((k) => k.id === id); }
   active(): BrandKit | undefined { return this.kits.find((k) => k.applyByDefault); }
+
+  /** Reorg step 5 — web `.data` import lane: an external kit joins the store.
+   *  Existing ids are refused (desktop data wins), returns false. */
+  async addImported(kit: BrandKit): Promise<boolean> {
+    if (this.kits.some((k) => k.id === kit.id)) return false;
+    this.kits.push(kit);
+    await this.save();
+    return true;
+  }
   async remove(id: string): Promise<boolean> {
     const before = this.kits.length;
     this.kits = this.kits.filter((k) => k.id !== id);

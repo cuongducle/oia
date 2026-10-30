@@ -16,7 +16,7 @@ import {
   filesUploadSchema, exportSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
   brandKitUpsertSchema, brandKitRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
-  clipboardWriteSchema,
+  clipboardWriteSchema, dataImportWebSchema,
 } from "../shared/ipc.js";
 import type { AgentJobFrame } from "../shared/bridge.js";
 import { utility } from "./utilityClient.js";
@@ -217,6 +217,26 @@ function registerIpc(): void {
       const { id } = projectsRemoveSchema.parse(raw);
       await ensureUtility();
       return await utility.call({ cmd: "projects.remove", id });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  // reorg step 5 — import a self-hosted web app's .data dir; an empty sourceDir
+  // opens the native folder picker (null = user canceled, nothing ran)
+  handle(IPC.dataImportWeb, async (event, raw: unknown) => {
+    try {
+      let { sourceDir } = dataImportWebSchema.parse(raw);
+      if (!sourceDir) {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const pick = await dialog.showOpenDialog(win!, {
+          title: "Import from web app — choose the .data folder",
+          properties: ["openDirectory", "showHiddenFiles"],
+        });
+        if (pick.canceled || !pick.filePaths[0]) return null;
+        sourceDir = pick.filePaths[0];
+      }
+      await ensureUtility();
+      return await utility.call({ cmd: "data.importWeb", sourceDir });
     } catch (err) {
       ipcError(err);
     }
@@ -429,7 +449,10 @@ async function smoke(): Promise<void> {
  */
 async function crashSmoke(): Promise<void> {
   await ensureUtility();
-  const before = await utility.call({ cmd: "projects.list" });
+  // reorg step 5 gate: a project that exists BEFORE the crash must come back intact
+  // after the crash + refork (per-project files — the store reloads from disk).
+  await utility.call({ cmd: "projects.create", input: { name: "crash-smoke survivor" } });
+  const before = (await utility.call({ cmd: "projects.list" })) as { name?: string }[];
   utility.kill(); // simulate a services crash
   for (let i = 0; i < 40 && !utility.crashed; i++) await new Promise((r) => setTimeout(r, 100));
   if (!utility.crashed) {
@@ -439,8 +462,9 @@ async function crashSmoke(): Promise<void> {
   }
   // the same path every IPC handler takes — must self-heal via the generation check
   await ensureUtility();
-  const after = await utility.call({ cmd: "projects.list" }).catch((e) => e);
-  const ok = Array.isArray(before) && Array.isArray(after);
+  const after = (await utility.call({ cmd: "projects.list" }).catch((e) => e)) as { name?: string }[];
+  const ok = Array.isArray(before) && Array.isArray(after) &&
+    after.some((p) => p.name === "crash-smoke survivor"); // the data survived, not just the wiring
   console.log(
     `DESKTOP_CRASH_SMOKE ${ok ? "OK" : "FAILED"} before=${Array.isArray(before) ? before.length : "err"} ` +
       `recovered=${Array.isArray(after) ? after.length : String(after)}`,

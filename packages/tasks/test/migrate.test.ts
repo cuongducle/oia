@@ -106,7 +106,7 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
   function setup() {
     const root = mkdtempSync(path.join(tmpdir(), "oia-stores-"));
     const files = new LocalFileStore(path.join(root, "files"));
-    const projects = new ProjectStore(path.join(root, "projects.json"), files);
+    const projects = new ProjectStore(root, files);
     const chat = new ChatSessionStore(path.join(root, "chat-sessions.json"), files);
     return { root, files, projects, chat };
   }
@@ -118,10 +118,10 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
     const src = (p.pages[0].canvas.objects.find((o) => o.type === "Image")!.src as string);
     expect(src).toMatch(/^\/api\/files\//);
     // the persisted file on disk contains asset refs, not base64
-    const raw = readJson(path.join(root, "projects.json"));
+    const raw = readJson(path.join(root, "projects", `${p.id}.json`));
     expect(JSON.stringify(raw)).not.toContain("data:image");
     // reload (read-tolerant world): the project opens with the asset ref intact
-    const reopened = new ProjectStore(path.join(root, "projects.json"));
+    const reopened = new ProjectStore(root);
     await reopened.load();
     expect(reopened.get(p.id)!.pages[0].canvas.objects.find((o) => o.type === "Image")!.src).toBe(src);
   });
@@ -144,7 +144,7 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
     writeFileSync(path.join(root, "projects.json"), JSON.stringify([{
       id: "prj_legacy", name: "legacy", pages: [{ id: "page_1", width: 10, height: 10, canvas: { version: "7.3.1", objects: [] } }],
     }]));
-    const reopened = new ProjectStore(path.join(root, "projects.json"));
+    const reopened = new ProjectStore(root);
     await reopened.load();
     expect(reopened.get("prj_legacy")!.schemaVersion).toBeUndefined(); // opens without error
 
@@ -153,8 +153,8 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
 
     await reopened.saveScene("prj_legacy", { name: "đổi tên" }); // any save stamps the current version
     expect(reopened.get("prj_legacy")!.schemaVersion).toBe(OIA_SCHEMA_VERSION);
-    const raw = readJson(path.join(root, "projects.json")) as Array<{ schemaVersion?: number }>;
-    expect(raw.find((x) => x.id === "prj_legacy")!.schemaVersion).toBe(OIA_SCHEMA_VERSION);
+    const raw = readJson(path.join(root, "projects", "prj_legacy.json")) as { schemaVersion?: number };
+    expect(raw.schemaVersion).toBe(OIA_SCHEMA_VERSION);
   });
 
   it("concurrent saveScene calls never corrupt the store file (atomic single writer)", async () => {
@@ -166,8 +166,9 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
         projects.saveScene(p.id, { pages: [{ id: "page_1", width: 10 + i, height: 10, canvas: sceneWith(PNG_DATA_URL) }] }),
       ),
     );
-    const raw = readJson(path.join(root, "projects.json"));
-    expect(Array.isArray(raw)).toBe(true); // valid JSON array, not interleaved garbage
+    const raw = readJson(path.join(root, "projects", `${p.id}.json`));
+    expect(raw).toBeInstanceOf(Object); // valid JSON project, not interleaved garbage
+    expect(Array.isArray(raw)).toBe(false);
   });
 
   it("ChatSessionStore.append migrates renderData — chat-sessions.json stops embedding data URLs", async () => {

@@ -49,7 +49,9 @@ export type UtilityCommand =
   | { cmd: "keys.create"; name: string; ttlDays: number | null }
   | { cmd: "keys.revoke"; id: string }
   /** The live loopback port (For Agents shows the base URL; port changes per fork). */
-  | { cmd: "loopback.port" };
+  | { cmd: "loopback.port" }
+  /** Reorg step 5 — import a self-hosted web app's .data dir into this dataDir. */
+  | { cmd: "data.importWeb"; sourceDir: string };
 
 export type UtilityRequest = UtilityCommand & {
   /** Correlation id (envelope) — the response echoes it. Named `rid` to never

@@ -1,4 +1,6 @@
 export * from "./projects.js";
+export * from "./projectMigrations.js";
+export * from "./importWebData.js";
 export * from "./templates.js";
 export * from "./brandkits.js";
 export * from "./processors.js";

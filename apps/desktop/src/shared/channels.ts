@@ -32,6 +32,8 @@ export const IPC = {
   agentStatus: "agent:status",
   agentJobEvent: "agentJob:event", // main → renderer (loopback + tool job lifecycle)
   clipboardWrite: "clipboard:write",
+  // reorg step 5 — import a self-hosted web app's .data directory
+  dataImportWeb: "data:importWeb",
   // TP-D3 — codex runtime management (status / guided download / in-app login)
   runtimeStatus: "runtime:status",
   runtimeInstall: "runtime:install",
