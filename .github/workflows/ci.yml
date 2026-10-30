@@ -20,3 +20,21 @@ jobs:
         env:
           REDIS_URL: redis://127.0.0.1:6379
       - run: pnpm typecheck
+  desktop-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @oia/desktop typecheck
+      - run: pnpm --filter @oia/desktop test
+      - run: pnpm --filter @oia/desktop build
+      # the scripted end-to-end: mock pair -> runChat over the real Electron main process
+      # (--no-sandbox: CI containers run as root; ELECTRON_SKIP_BINARY_DOWNLOAD is NOT set)
+      - run: xvfb-run -a npx electron apps/desktop --no-sandbox
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_SMOKE: "1"

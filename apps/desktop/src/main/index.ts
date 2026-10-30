@@ -1,14 +1,20 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, protocol } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServiceContext, runChat, cancelJob, providerStatusSnapshot, type ServiceContext } from "@oia/services";
-import { IPC, chatRequestSchema, chatCancelSchema, projectsCreateSchema, projectsGetSchema } from "../shared/ipc.js";
+import { createServiceContext, runChat, cancelJob, jobControllers, providerStatusSnapshot, chatRequestSchema, type ServiceContext } from "@oia/services";
+import { IPC } from "../shared/channels.js";
+import { chatCancelSchema, projectsCreateSchema, projectsGetSchema } from "../shared/ipc.js";
+import type { OiaBridge } from "../shared/bridge.js";
 
 /**
- * TP-D1 (D2) — the Electron main process. Owns windows and the typed IPC surface over
- * @oia/services (the SAME orchestration the web SSE adapter calls). Storage lives under
- * app.getPath("userData") — never the cwd (research rule). Providers come from the
- * machine env exactly like the web shell (mock pair by default → D2 runs keyless).
+ * TP-D1 (D2 + remediation) — the Electron main process:
+ * - typed IPC surface over @oia/services (same orchestration as the web adapter)
+ * - `oia://files/<key>` custom protocol serves asset bytes from the LocalFileStore —
+ *   the renderer canvas can load artwork WITHOUT any HTTP server (file:// cannot)
+ * - window close / app quit cancel every in-flight job (TP-D5 semantics: no quota
+ *   burn after the user closes the window)
+ * - renderer hardening: sandbox on, navigation + window-open denied, strict CSP
+ * - validation failures reject with a friendly message the renderer localizes
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,50 +24,124 @@ async function ensureCtx(): Promise<ServiceContext> {
   return ctx;
 }
 
-function createWindow(): void {
+/** Friendly rejections: zod/ProviderConfig errors become stable names the renderer maps. */
+function ipcError(err: unknown): never {
+  if (err && typeof err === "object" && Array.isArray((err as { issues?: unknown }).issues)) {
+    const e = new Error("invalid-request") as Error & { name: string };
+    e.name = "IpcValidationError";
+    throw e;
+  }
+  throw err;
+}
+
+// the oia:// scheme must be registered before app ready
+protocol.registerSchemesAsPrivileged([
+  { scheme: "oia", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }, // corsEnabled: scene images load with crossOrigin=anonymous — without it ACAO is treated as opaque and every image fails
+]);
+
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     title: "Oia",
     webPreferences: {
-      preload: path.join(here, "../preload/index.js"),
-      contextIsolation: true, // Q7: explicit channels only; no nodeIntegration in the renderer
+      preload: path.join(here, "../preload/index.cjs"), // .cjs — see electron.vite.config note
+      contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // preload needs require("electron") for the bridge
+      sandbox: true, // preload only needs contextBridge/ipcRenderer — sandboxed works
     },
   });
-  // dev server (electron-vite dev) or the built bundle
   if (process.env.ELECTRON_RENDERER_URL) {
     void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
     void win.loadFile(path.join(here, "../renderer/index.html"));
   }
+  // hardening: the renderer never navigates away nor opens windows
+  win.webContents.on("will-navigate", (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  // TP-D5: closing the window kills in-flight generations — quota never burns unseen
+  win.on("closed", cancelAllJobs);
+  return win;
+}
+
+function cancelAllJobs(): void {
+  for (const [jobId, ac] of jobControllers()) {
+    if (!ac.signal.aborted) ac.abort("window-closed");
+    cancelJob(jobId);
+  }
 }
 
 function registerIpc(): void {
   ipcMain.handle(IPC.chatRun, async (event, raw: unknown) => {
-    const req = chatRequestSchema.parse(raw);
-    const c = await ensureCtx();
-    return runChat(req, c, { sink: (ev) => event.sender.send(IPC.chatEvent, ev) });
+    try {
+      const req = chatRequestSchema.parse(raw);
+      const c = await ensureCtx();
+      return await runChat(req, c, { sink: (ev) => event.sender.send(IPC.chatEvent, ev) });
+    } catch (err) {
+      ipcError(err);
+    }
   });
-  ipcMain.handle(IPC.chatCancel, (_e, raw: unknown) => cancelJob(chatCancelSchema.parse(raw).jobId));
+  ipcMain.handle(IPC.chatCancel, (_e, raw: unknown) => {
+    try {
+      return cancelJob(chatCancelSchema.parse(raw).jobId);
+    } catch (err) {
+      ipcError(err);
+    }
+  });
   ipcMain.handle(IPC.providerStatus, async () => providerStatusSnapshot(await ensureCtx()));
   ipcMain.handle(IPC.projectsCreate, async (_e, raw: unknown) => {
-    const { name, scene } = projectsCreateSchema.parse(raw);
-    return (await ensureCtx()).projects.create({ name, scene });
+    try {
+      const { name, scene } = projectsCreateSchema.parse(raw);
+      return await ensureCtx().then((c) => c.projects.create({ name, scene }));
+    } catch (err) {
+      ipcError(err);
+    }
   });
   ipcMain.handle(IPC.projectsGet, async (_e, raw: unknown) => {
-    const { id } = projectsGetSchema.parse(raw);
-    return (await ensureCtx()).projects.get(id) ?? null;
+    try {
+      const { id } = projectsGetSchema.parse(raw);
+      return (await ensureCtx()).projects.get(id) ?? null;
+    } catch (err) {
+      ipcError(err);
+    }
   });
 }
 
-/** Scripted end-to-end check without a human at the window: mock pair → runChat → quit. */
+/** Serve /api/files/<key> scene references over the privileged oia:// scheme.
+ *  file:// cannot hit the LocalFileStore — without this, the canvas renders empty. */
+function registerAssetProtocol(): void {
+  protocol.handle("oia", async (request) => {
+    try {
+      const url = new URL(request.url);
+      if (url.host !== "files") return new Response(null, { status: 404 });
+      const key = decodeURIComponent(url.pathname.replace(/^\//, ""));
+      const c = await ensureCtx();
+      const bytes = await c.files.read(key);
+      console.log(`[oia://] serving ${key} (${bytes.length}B)`);
+      const ext = key.split(".").pop() ?? "";
+      // scene objects load with crossOrigin="anonymous" (file:// → oia:// is cross-origin):
+      // without ACAO the image load is blocked and fabric loadFromJSON rejects
+      return new Response(bytes as unknown as BodyInit, {
+        headers: {
+          "content-type": c.files.contentType(ext),
+          "cache-control": "public, max-age=31536000, immutable",
+          "access-control-allow-origin": "*",
+        },
+      });
+    } catch {
+      return new Response(null, { status: 404 });
+    }
+  });
+}
+
+/** Scripted end-to-end check without a human: mock pair → runChat → assert → quit. */
 async function smoke(): Promise<void> {
   const c = await ensureCtx();
   const events: unknown[] = [];
   const { outcome } = await runChat({ prompt: "banner smoke trà sữa giảm 20%" }, c, {
-    sink: (ev) => { events.push(ev); },
+    sink: (ev) => {
+      events.push(ev);
+    },
   });
   const text = JSON.stringify(events);
   const ok =
@@ -71,7 +151,94 @@ async function smoke(): Promise<void> {
     text.includes("</Content>");
   console.log(`DESKTOP_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} events=${events.length}`);
   app.exit(ok ? 0 : 1);
-  return;
+}
+
+/**
+ * Visual verification (the "open eyes" mode): open the real window, run a chat through
+ * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-shot.png.
+ */
+async function shot(): Promise<void> {
+  registerAssetProtocol();
+  const win = createWindow();
+  win.webContents.on("console-message", (_e, _lvl, message) => {
+    if (/error|fail|refused|denied/i.test(message)) console.log("[renderer]", message.slice(0, 200));
+  });
+  console.log("[shot] window created, waiting for load…");
+  await new Promise<void>((resolve) => {
+    win.webContents.once("did-finish-load", () => resolve());
+    win.webContents.once("did-fail-load", (_e, code, desc) => {
+      console.error(`[shot] DID-FAIL-LOAD ${code} ${desc}`);
+      resolve();
+    });
+    setTimeout(() => resolve(), 15_000); // never hang forever
+  });
+  console.log("[shot] loaded; probing oia:// image load…");
+  const probe = await win.webContents.executeJavaScript(`(async () => {
+    const src = "oia://files/uploads/20261029/295ef2b2-mvtw036q.png";
+    const load = (crossOrigin) => new Promise((res) => {
+      const img = new Image();
+      if (crossOrigin) img.crossOrigin = crossOrigin;
+      img.onload = () => res(crossOrigin + ":OK " + img.width + "x" + img.height);
+      img.onerror = () => res(crossOrigin + ":FAIL");
+      img.src = src;
+      setTimeout(() => res(crossOrigin + ":TIMEOUT"), 5000);
+    });
+    return { none: await load(null), anon: await load("anonymous") };
+  })()`, true).catch((e) => `PROBE ERR ${e}`);
+  console.log("[shot] image probe:", JSON.stringify(probe));
+  console.log("[shot] checking bridge…");
+  const hasBridge = await win.webContents.executeJavaScript("typeof window.oia", true).catch((e) => `ERR ${e}`);
+  console.log("[shot] typeof window.oia =", hasBridge);
+  if (hasBridge !== "object") {
+    console.error("[shot] bridge missing — preload failed (sandbox/CSP/format?)");
+    app.exit(2);
+    return;
+  }
+  // drive the SAME bridge the user would: renderer runs the chat and renders the stream
+  await win.webContents.executeJavaScript(
+    `window.oia.chatRun({ prompt: "banner smoke trà sữa giảm 20%", mode: "clean-plate" })`,
+    true,
+  );
+  // wait for the canvas section to mount and fabric to settle
+  for (let i = 0; i < 40; i++) {
+    const ready = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".result canvas")) && document.querySelectorAll(".result canvas canvas, .result canvas img").length >= 0`,
+      true,
+    );
+    if (ready) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+  console.log("[shot] chat done; verifying DOM + canvas pixels…");
+  // in-page assertion: canvas mounted, no error banner, and the artwork region is NOT blank
+  const verify = await win.webContents.executeJavaScript(`(() => {
+    const err = document.querySelector('[role=alert]')?.textContent ?? "";
+    const canvas = document.querySelector(".result canvas");
+    if (!canvas) return { ok: false, why: "no canvas", err };
+    // fabric wraps the element: upper-canvas is a SIBLING inside .canvas-container, not a child
+    const inner = canvas.parentElement?.querySelector("canvas.upper-canvas") ?? canvas.parentElement?.querySelectorAll("canvas")[1];
+    if (!inner) return { ok: false, why: "no fabric upper-canvas", err };
+    const ctx = inner.getContext("2d");
+    const { width: w, height: h } = inner;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let nonWhite = 0;
+    for (let i = 0; i < data.length; i += 16) {
+      if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
+    }
+    return { ok: nonWhite > 50 && !err, painted: nonWhite, err };
+  })()`, true);
+  console.log("[shot] verify:", JSON.stringify(verify));
+  if (!verify || !verify.ok) {
+    console.error("DESKTOP_SHOT VERIFY FAILED");
+    app.exit(3);
+    return;
+  }
+  const image = await win.webContents.capturePage();
+  const { writeFile, mkdir } = await import("node:fs/promises");
+  await mkdir(path.join(here, "../..", "out"), { recursive: true });
+  await writeFile(path.join(here, "../..", "out", "desktop-shot.png"), image.toPNG());
+  console.log("DESKTOP_SHOT wrote out/desktop-shot.png");
+  app.exit(0);
 }
 
 app.whenReady().then(async () => {
@@ -80,12 +247,21 @@ app.whenReady().then(async () => {
     await smoke();
     return;
   }
+  if (process.env.OIA_DESKTOP_SHOT === "1") {
+    await shot().catch((err) => {
+      console.error("[shot] FAILED:", err);
+      app.exit(1);
+    });
+    return;
+  }
+  registerAssetProtocol();
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
+app.on("before-quit", cancelAllJobs);
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

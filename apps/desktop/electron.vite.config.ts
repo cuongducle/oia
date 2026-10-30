@@ -12,6 +12,10 @@ export default defineConfig({
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      // sandboxed preloads MUST be CommonJS — force .js CJS output (not .mjs)
+      rollupOptions: { output: { format: "cjs", entryFileNames: "[name].cjs" } }, // .cjs: package.json is type:module — a .js preload would load as ESM and silently fail under sandbox
+    },
   },
   renderer: {
     plugins: [react()],

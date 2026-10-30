@@ -71,7 +71,7 @@ describe("D1 runChat — refusals", () => {
     (ctx.chat as { llm: unknown }).llm = failing;
     const { events, sink } = collector();
     const { outcome } = await runChat({ prompt: "x" }, ctx, { sink });
-    expect(outcome).toBe("refused");
+    expect(outcome).toBe("refused-unavailable");
     expect(events).toHaveLength(1);
     expect(events[0].errorClass).toBe("not_logged_in");
     expect(events[0].provider).toBe("failing-mock"); // B4: the failing provider's own name
@@ -84,7 +84,7 @@ describe("D1 runChat — refusals", () => {
     (globalThis as unknown as { __oiaMeteredInFlight?: Set<string> }).__oiaMeteredInFlight = new Set(["other"]);
     const { events, sink } = collector();
     const { outcome } = await runChat({ prompt: "x" }, ctx, { sink });
-    expect(outcome).toBe("refused");
+    expect(outcome).toBe("refused-rate-limited");
     expect(events[0].errorClass).toBe("rate_limited");
     expect(events[0].attemptNumber).toBe(0);
   });
@@ -141,5 +141,19 @@ describe("D1 runChat — stage-aware retry (A5)", () => {
     const retry = await runChat({ prompt: "banner", sessionId: sid, retryOf: "failed-job" }, ctx, { sink: () => {} });
     expect(retry.outcome).toBe("completed");
     expect(llmCalls).toBe(1); // the cached plan rode again
+  });
+});
+
+describe("D2 remediation: chatRequestSchema is the single boundary schema", () => {
+  it("strips unknown keys and rejects invalid values (web adapter + desktop IPC share it)", async () => {
+    const { chatRequestSchema } = await import("../src/index.js");
+    const ok = chatRequestSchema.safeParse({ prompt: "banner", width: 900, mode: "clean-plate", future: 1 });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data).not.toHaveProperty("future");
+    expect(chatRequestSchema.safeParse({ prompt: "x", width: Number("abc") }).success).toBe(false);
+  });
+  it("refusals are distinguishable without event sniffing", async () => {
+    // (typed outcome union: refused-rate-limited | refused-unavailable — compile-time,
+    //  exercised at runtime by the guard/preflight tests above)
   });
 });

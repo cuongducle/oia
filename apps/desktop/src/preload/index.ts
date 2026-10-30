@@ -1,29 +1,22 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ChatEvent, Project } from "@oia/schema";
-import type { ChatRequestIpc } from "../shared/ipc.js";
+import { IPC } from "../shared/channels.js";
+import type { OiaBridge } from "../shared/bridge.js";
 
 /**
- * Q7 — the ONLY bridge surface. Explicit methods, no generic invoke passthrough;
- * chat events stream over a subscription the renderer can tear down.
+ * Q7 — implements the ONE bridge contract (shared/bridge.ts). Explicit methods only;
+ * runs sandboxed (contextBridge + ipcRenderer are available without node access).
  */
-const api = {
-  chatRun: (req: ChatRequestIpc): Promise<{ jobId: string; outcome: "completed" | "failed" | "cancelled" | "refused" }> =>
-    ipcRenderer.invoke("chat:run", req),
-  onChatEvent: (cb: (ev: ChatEvent) => void): (() => void) => {
-    const listener = (_e: Electron.IpcRendererEvent, ev: ChatEvent) => cb(ev);
-    ipcRenderer.on("chat:event", listener);
-    return () => ipcRenderer.removeListener("chat:event", listener);
+const api: OiaBridge = {
+  chatRun: (req) => ipcRenderer.invoke(IPC.chatRun, req),
+  onChatEvent: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, ev: Parameters<typeof cb>[0]) => cb(ev);
+    ipcRenderer.on(IPC.chatEvent, listener);
+    return () => ipcRenderer.removeListener(IPC.chatEvent, listener);
   },
-  cancelChat: (jobId: string): Promise<boolean> => ipcRenderer.invoke("chat:cancel", { jobId }),
-  providerStatus: (): Promise<{
-    image: { name: string; capabilities: { isMock: boolean } };
-    llm: { name: string; capabilities: { isMock: boolean } };
-    quota: { day: string; planner: number; image: number; limitHits: number };
-  }> => ipcRenderer.invoke("provider:status"),
-  createProject: (p: { name?: string; scene?: unknown }): Promise<Project> =>
-    ipcRenderer.invoke("projects:create", p),
-  getProject: (id: string): Promise<Project | null> => ipcRenderer.invoke("projects:get", { id }),
+  cancelChat: (jobId) => ipcRenderer.invoke(IPC.chatCancel, { jobId }),
+  providerStatus: () => ipcRenderer.invoke(IPC.providerStatus),
+  createProject: (p) => ipcRenderer.invoke(IPC.projectsCreate, p),
+  getProject: (id) => ipcRenderer.invoke(IPC.projectsGet, { id }),
 };
 
 contextBridge.exposeInMainWorld("oia", api);
-export type OiaBridge = typeof api;

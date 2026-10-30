@@ -1,5 +1,5 @@
 import type { ChatEvent } from "@oia/schema";
-import { runChat, type ChatRequest } from "@oia/services";
+import { runChat, chatRequestSchema, type ChatRequest } from "@oia/services";
 import { getRuntime } from "@/libs/runtime";
 
 export const dynamic = "force-dynamic";
@@ -32,19 +32,28 @@ export async function POST(req: Request) {
   }
 
   const rt = await getRuntime();
-  const chatReq: ChatRequest = {
+  // one boundary, one schema: the same zod object the desktop IPC parses with —
+  // NaN widths and junk keys are rejected here instead of flowing into providers
+  const parsed = chatRequestSchema.safeParse({
     prompt,
     ...(body?.width !== undefined ? { width: Number(body.width) } : {}),
     ...(body?.height !== undefined ? { height: Number(body.height) } : {}),
     ...(body?.sessionId !== undefined ? { sessionId: Number(body.sessionId) } : {}),
     ...(typeof body?.brandKitId === "string" ? { brandKitId: body.brandKitId } : {}),
-    ...(Array.isArray(body?.referenceImages) ? { referenceImages: body.referenceImages as string[] } : {}),
+    ...(Array.isArray(body?.referenceImages) ? { referenceImages: body.referenceImages } : {}),
     ...(body?.pages !== undefined ? { pages: Number(body.pages) } : {}),
     ...(body?.outlineMode === true ? { outlineMode: true } : {}),
     ...(typeof body?.skill === "string" ? { skill: body.skill } : {}),
-    ...(body?.mode === "clean-plate" ? { mode: "clean-plate" as const } : {}),
+    ...(body?.mode === "clean-plate" ? { mode: "clean-plate" } : {}),
     ...(typeof body?.retryOf === "string" ? { retryOf: body.retryOf } : {}),
-  };
+  });
+  if (!parsed.success) {
+    return new Response(JSON.stringify({ code: 1, msg: `invalid chat request: ${parsed.error.issues.map((i) => i.path.join(".")).join("; ")}` }), {
+      status: 400,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  const chatReq: ChatRequest = parsed.data;
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

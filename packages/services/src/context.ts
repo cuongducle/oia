@@ -6,7 +6,7 @@ import {
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
   type CancelBridge,
 } from "@oia/tasks";
-import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, type LlmProvider, type ImageProvider } from "@oia/providers";
+import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
 
 /**
@@ -28,10 +28,23 @@ export interface ServiceContext {
   cancelPublisher: CancelBridge | null;
 }
 
+/** Thrown when the provider configuration pair is invalid (mixed mock/real). Named class
+ *  so shells can map it to a localized message instead of string-matching. */
+export class ProviderConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProviderConfigError";
+  }
+}
+
 export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv } = {}): Promise<ServiceContext> {
   const env = opts.env ?? process.env;
   // TP.2/TP.4: a mock provider paired with a real provider never boots silently
-  assertNoMixedMockConfig(env);
+  try {
+    assertNoMixedMockConfig(env);
+  } catch (err) {
+    throw new ProviderConfigError(err instanceof Error ? err.message : "invalid provider configuration");
+  }
 
   const dataDir = opts.dataDir ?? path.join(process.cwd(), ".data");
   const files = new LocalFileStore(path.join(dataDir, "files"));
@@ -82,7 +95,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   taskStore.register("generate-illustrations", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `16:9 editorial illustration about: ${p.prompt ?? ""}, hand-drawn` }));
   taskStore.register("generate-storyboard", makeGenericImageTask({ store: files }, { buildPrompt: (p) => `film storyboard frame: ${p.prompt ?? ""}, sketch style` }));
   taskStore.register("image-translate", async () => {
-    throw new Error("image-translate needs the vision (OCR) module — scheduled later (fail clearly, never hang)");
+    throw new ProviderError("capability_unsupported", "image-translate needs the vision (OCR) module — scheduled later", { provider: "oia" });
   });
 
   const ctx: ServiceContext = {

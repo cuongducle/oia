@@ -70,3 +70,28 @@ Environment: macOS, codex-cli 0.163.0 logged in (`IMAGE_PROVIDER=codex LLM_PROVI
 **CI:** GitHub Actions green on the remediation commit (1m53s).
 
 **Limits:** one real generation per pass (quota); stop verified twice on macOS only (Windows remains gated to the desktop design per the Stage-0 doc).
+
+
+## Desktop shell D2 — remediation checks (2026-10-30, real Electron window)
+
+The first D2 pass shipped with a green event-stream smoke but a canvas that could not
+display artwork — nobody had opened the window. The fix pass added visual verification
+(`OIA_DESKTOP_SHOT=1`: real window → chat through the bridge → DOM + painted-pixel
+assertions → PNG capture) and it found, in order:
+
+1. `/api/files/<key>` scene srcs are same-origin on the web but dead under `file://` —
+   fixed with the privileged `oia://files/<key>` protocol serving the LocalFileStore.
+2. The sandboxed preload was silently dead: `require("@oia/services")`/`require("zod")`
+   got externalized (sandbox allows only electron) and `"type":"module"` made a `.js`
+   preload load as ESM (unsupported sandboxed). Channels are now pure data, schemas are
+   main-only, preload emits `.cjs`.
+3. Even with the protocol working, every scene image failed CORS: objects carry
+   `crossOrigin="anonymous"`, so the scheme needed `corsEnabled: true` + ACAO. Probed
+   in-page: `{"none":"OK","anonymous":"FAIL"}` → after the fix both OK.
+4. The painted-pixel check itself had a wrong selector (fabric's upper-canvas is a
+   sibling) — the verification layer must be verified too.
+
+Final: `{"ok":true,"painted":407160,"err":""}` + `out/desktop-shot.png`; smoke mode
+still asserts the event stream (no base64, `</Content>`). Window-close now cancels
+in-flight jobs; CSP serves `oia:`/`data:` only; zod and provider-config failures render
+in Vietnamese; CI runs the desktop smoke under xvfb.

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@oia/canvas": "workspace:*",
+    "@oia/protocol": "workspace:*",
     "@oia/schema": "workspace:*",
     "@oia/services": "workspace:*",
     "fabric": "^7.4.0",
@@ -26,7 +27,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.1.0",
     "cross-env": "^10.1.0",
-    "electron": "^39.0.0",
+    "electron": "39.8.10",
     "electron-vite": "^4.0.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

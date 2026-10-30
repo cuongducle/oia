@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
 import { nextMsgId, type ChatEvent, type PlannerPlan } from "@oia/schema";
 import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
@@ -21,21 +22,28 @@ import { registerJob, releaseJob } from "./cancel.js";
  * - session persistence is awaited before completion so replay can never race
  */
 
-export interface ChatRequest {
-  prompt: string;
-  width?: number;
-  height?: number;
-  sessionId?: number;
-  brandKitId?: string;
-  referenceImages?: string[];
-  pages?: number;
-  outlineMode?: boolean;
-  skill?: string;
-  mode?: "clean-plate";
-  retryOf?: string;
-}
+/**
+ * The ONE request schema — the web adapter and the desktop IPC both parse raw input
+ * through THIS object (no hand-copied mirrors; unknown keys are stripped by zod, so a
+ * new field here is the only place to add). Exported for parity tests.
+ */
+export const chatRequestSchema = z.object({
+  prompt: z.string().min(1),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
+  sessionId: z.number().int().optional(),
+  brandKitId: z.string().optional(),
+  referenceImages: z.array(z.string()).optional(),
+  pages: z.number().int().positive().optional(),
+  outlineMode: z.boolean().optional(),
+  skill: z.string().optional(),
+  mode: z.enum(["clean-plate"]).optional(),
+  retryOf: z.string().optional(),
+});
+export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused";
+/** Distinguishes the two refusal flavors without event sniffing. */
+export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable";
 
 export interface RunChatOptions {
   /** Cooperative cancellation wired by the shell (Stop button, disconnect grace, window close). */
@@ -78,7 +86,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
   const kit = req.brandKitId ? ctx.brandKits.get(req.brandKitId) : ctx.brandKits.active();
   const session = req.sessionId ? (ctx.chatSessions.get(req.sessionId) ?? ctx.chatSessions.create()) : ctx.chatSessions.create();
 
-  const send = (ev: ChatEvent) => sink(ev);
+  const send = sink;
   const failEvent = (o: { errorClass: string; provider?: string; message: string; attemptNumber: number }) =>
     send({
       msgId: nextMsgId(), content: "", status: 1, error: o.message, jobId,
@@ -90,7 +98,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
   const metered = !ctx.chat.image.capabilities.isMock;
   if (metered && meteredBusy().size > 0) {
     failEvent({ errorClass: "rate_limited", provider: ctx.chat.image.name, message: "a generation is already running", attemptNumber: 0 });
-    return { jobId, outcome: "refused" };
+    return { jobId, outcome: "refused-rate-limited" };
   }
   if (metered) meteredBusy().add(jobId);
 
@@ -124,7 +132,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
     for (const { name, diag } of probes) {
       if (!diag.ok) {
         failEvent({ errorClass: diag.errorClass ?? "provider_missing", provider: name, message: diag.detail ?? "provider unavailable", attemptNumber: 0 });
-        outcome = "refused";
+        outcome = "refused-unavailable";
         return { jobId, outcome };
       }
     }

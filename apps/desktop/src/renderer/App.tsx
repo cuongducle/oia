@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Component, type ReactNode } from "react";
 import type { ChatEvent, CanvasMsgMeta } from "@oia/schema";
+import { stripMarkers } from "@oia/protocol";
 import { presentError } from "@oia-web/libs/provider-errors";
 import { t } from "@oia-web/libs/i18n";
+import type { OiaBridge } from "../shared/bridge.js";
+import { mapAssetUrls } from "../shared/assets.js";
 
 /**
  * D2 renderer scaffold — the banner Home flow over the typed IPC bridge (mock pair by
@@ -11,19 +14,32 @@ import { t } from "@oia-web/libs/i18n";
  * end to end: prompt → IPC chat stream → timeline → asset-referenced canvas preview.
  */
 
-type Bridge = {
-  chatRun: (req: { prompt: string; mode?: "clean-plate" }) => Promise<{ jobId: string; outcome: string }>;
-  onChatEvent: (cb: (ev: ChatEvent) => void) => () => void;
-  cancelChat: (jobId: string) => Promise<boolean>;
-  providerStatus: () => Promise<{
-    image: { name: string; capabilities: { isMock: boolean } };
-    quota: { planner: number; image: number };
-  }>;
-};
-const oia = () => (window as unknown as { oia: Bridge }).oia;
+const oia = () => (window as unknown as { oia: OiaBridge }).oia;
 
 /** Seller strings ship Vietnamese-first by design (Stage-0 decision). */
 const tt = (key: Parameters<typeof t>[1]) => t("en", key);
+
+/** A renderer crash must never be a white window for a non-technical seller. */
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <main className="appShell">
+          <div className="notice error" role="alert">
+            Ứng dụng gặp lỗi hiển thị. Hãy mở lại cửa sổ và thử lại — công việc của bạn đã được lưu.
+          </div>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+export { ErrorBoundary };
+
 
 export default function App() {
   const [prompt, setPrompt] = useState("");
@@ -37,6 +53,7 @@ export default function App() {
   const [mockMode, setMockMode] = useState(false);
   const [quota, setQuota] = useState<{ planner: number; image: number } | null>(null);
   const [editableText, setEditableText] = useState(true); // "Chữ sửa được ngay" — clean-plate default
+  const activeJobRef = useRef<string | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<import("fabric").Canvas | null>(null);
   const offRef = useRef<(() => void) | null>(null);
@@ -50,8 +67,13 @@ export default function App() {
       })
       .catch(() => {});
     // chat events stream over the bridge subscription
+    // events filtered to the ACTIVE job — a concurrent mock run cannot interleave
     offRef.current = oia().onChatEvent((ev) => {
-      if (ev.jobId) setJobId(ev.jobId);
+      if (activeJobRef.current && ev.jobId && ev.jobId !== activeJobRef.current) return;
+      if (ev.jobId) {
+        activeJobRef.current ??= ev.jobId;
+        setJobId(ev.jobId);
+      }
       if (ev.status === "cancelled") {
         setError(tt("error.cancelled"));
         return;
@@ -64,7 +86,7 @@ export default function App() {
       if (ev.renderData?.taskMeta?.length) {
         setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       }
-      if (ev.content) setNarrative((n) => n + ev.content.replace(/\[\[[^\]]*\]\]|<\/?[A-Za-z]+>/g, "") + " ");
+      if (ev.content) setNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") setCanvasMeta(m);
     });
     return () => offRef.current?.();
@@ -80,14 +102,14 @@ export default function App() {
       const c = (fabricRef.current ?? (await createEditor(canvasElRef.current))) as import("fabric").Canvas;
       if (cancelled) return;
       fabricRef.current = c;
-      await c.loadFromJSON(canvasMeta.canvas);
+      await c.loadFromJSON(mapAssetUrls(canvasMeta.canvas));
       const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
       const w = clip?.width || 1360;
       const h = clip?.height || 2048;
       c.setDimensions({ width: 520, height: Math.round((520 * h) / w) });
       c.setZoom(520 / w);
       c.requestRenderAll();
-    })().catch(() => setError("The design could not be loaded."));
+    })().catch((e) => setError(`The design could not be loaded: ${e instanceof Error ? e.message : String(e)}`));
     return () => {
       cancelled = true;
     };
@@ -97,6 +119,7 @@ export default function App() {
   async function submit() {
     if (!prompt.trim() || busy) return;
     setBusy(true);
+    activeJobRef.current = null;
     setError("");
     setErrorAction(null);
     setTimeline([]);
@@ -105,7 +128,10 @@ export default function App() {
     try {
       await oia().chatRun({ prompt, ...(editableText ? { mode: "clean-plate" as const } : {}) });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      const name = e instanceof Error ? e.name : "";
+      if (name === "IpcValidationError") setError(tt("error.invalidRequest"));
+      else if (name === "ProviderConfigError") setError(tt("error.configMismatch"));
+      else setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBusy(false);
       void oia()
