@@ -55,7 +55,7 @@ export default function App() {
   if (view.name === "editor") {
     return (
       <EditorErrorBoundary key={`ed-${view.projectId}`}>
-        <Editor projectId={view.projectId} onExit={() => setView({ name: "home" })} onOpenSession={openSession} />
+        <Editor projectId={view.projectId} onExit={() => setView({ name: "home" })} onOpenSession={openSession} onOpenProject={openProject} />
       </EditorErrorBoundary>
     );
   }

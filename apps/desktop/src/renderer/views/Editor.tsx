@@ -4,7 +4,7 @@ import type { SceneCanvas, ChatEvent, Template } from "@oia/schema";
 import {
   SIZE_PRESETS, SHAPES, TEXT_PRESET_SPECS, planExport, resizeWithLock,
   addPage, removePage as removePageModel, duplicatePage, blankScene, applySizeToAllPages,
-  mergeScenePreservingUserObjects, stampUser,
+  stampUser, variantArtworkObject, replaceObjectSrc,
   type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage,
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
@@ -36,6 +36,22 @@ export interface EditorProps {
   onExit: () => void;
   /** AI dock history → resume a conversation on Home. */
   onOpenSession: (id: number) => void;
+  /** A1 preview-apply — "Open in editor" on a variant opens it as a NEW project. */
+  onOpenProject: (id: string) => void;
+}
+
+/** VA-2 — one canvas msgMeta from a chat edit, shown in the dock's variant tray.
+ * The durable record is the chat session (canvas assetized there); this card is
+ * presentation state, never a second copy of the truth. `key` dedupes: the agent
+ * stream re-emits the same canvas meta several times — one canvas, one card. */
+interface VariantCard {
+  id: string;
+  key: string; // `${jobId}:${msgMeta.id}` — the same canvas arrives repeatedly
+  jobId: string;
+  prompt: string;
+  thumbnail: string; // canonical asset URL ("" → render ScenePreview from the canvas)
+  canvas: SceneCanvas; // canonical /api/files form
+  at: number;
 }
 
 /* Small inline icon set (lucide is a web dep — the desktop keeps zero extra deps). */
@@ -67,7 +83,12 @@ const icons = {
   chevronsDown: "M7 13l5 5 5-5M7 6l5 5 5-5",
 };
 
-export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: EditorProps) {
+/** A Replace target must be an image layer (has a src) — pins the button state. */
+function hasSrc(o: fabricNS.Object | undefined): boolean {
+  return typeof (o as { src?: unknown } | undefined)?.src === "string";
+}
+
+export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onOpenProject }: EditorProps) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const fabricRef = useRef<fabricNS.Canvas | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -95,7 +116,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   const redoStack = useRef<string[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  // AI dock (BR gap #3) — the same chat stream, cancel, and TP.10 merge as the web dock
+  // AI dock (BR gap #3) — the same chat stream and cancel as the web dock; A1
+  // preview-apply adds the variant tray + conversation pinning (VA-1)
   const [aiOpen, setAiOpen] = useState(true);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
@@ -109,6 +131,12 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   const [aiNarrative, setAiNarrative] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<{ id: number; name: string; updatedAt: number }[]>([]);
+  const [selectedImg, setSelectedImg] = useState(false); // an image layer is active (enables Replace)
+  const [imageMock, setImageMock] = useState(false); // "≈ 1 image" label only when a real provider
+  const [aiSessionId, setAiSessionId] = useState<number | null>(null); // VA-1 conversation pin
+  const [variants, setVariants] = useState<VariantCard[]>([]);
+  const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now" — view state, never persisted (VA-7)
+  const aiLastPromptRef = useRef(""); // the prompt shown on variant cards (events outlive the closure)
   // Templates/Assets/Draw
   const [tplList, setTplList] = useState<Template[]>([]);
   const [assets, setAssets] = useState<string[]>([]);
@@ -123,7 +151,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   useEffect(() => { currentState.current = { pages, activePage, projectName, projectId, customW, customH }; }, [pages, activePage, projectName, projectId, customW, customH]);
 
   useEffect(() => {
-    void oia().providerStatus().then((s) => setRefCapable(Boolean(s.image.capabilities.referenceImages))).catch(() => {});
+    void oia().providerStatus().then((s) => {
+      setRefCapable(Boolean(s.image.capabilities.referenceImages));
+      setImageMock(Boolean(s.image.capabilities.isMock));
+    }).catch(() => {});
   }, []);
 
   function captureThumb(idx: number) {
@@ -198,11 +229,21 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {
-          const c = fabricRef.current; if (!c) break;
-          // TP.10 non-destruction: the refined page replaces the canvas, but every
-          // user-added layer (origin "user", legacy default included) survives on top
-          const merged = mergeScenePreservingUserObjects(c.toObject() as SceneCanvas, mapAssetUrls(m.canvas as SceneCanvas));
-          void replaceCurrentScene(merged.scene);
+          // A1 preview-apply (VA-3): the canvas NEVER mutates on arrival — each canvas
+          // meta becomes a variant card; TP.10 non-destruction now lives in the apply
+          // step (replaceObjectSrc touches one user-designated object's src).
+          // Dedupe: the stream re-emits one canvas several times (designer.ts) — the
+          // pre-A1 merge made that invisible; a tray must not show phantom duplicates.
+          const key = `${ev.jobId ?? ""}:${m.id}`;
+          setVariants((vs) => (vs.some((x) => x.key === key) ? vs : [...vs, {
+            id: crypto.randomUUID(),
+            key,
+            jobId: ev.jobId ?? "",
+            prompt: aiLastPromptRef.current,
+            thumbnail: typeof m.thumbnail === "string" ? m.thumbnail : "",
+            canvas: m.canvas as SceneCanvas,
+            at: Date.now(),
+          }]));
         }
       }
     });
@@ -267,9 +308,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
       editor.on("object:added", pushHistory);
       editor.on("object:removed", pushHistory);
       editor.on("object:modified", pushHistory);
-      editor.on("selection:created", (e) => setSelectedText(e.selected?.[0]?.type === "textbox"));
-      editor.on("selection:updated", (e) => setSelectedText(e.selected?.[0]?.type === "textbox"));
-      editor.on("selection:cleared", () => setSelectedText(false));
+      editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
+      editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
+      editor.on("selection:cleared", () => { setSelectedText(false); setSelectedImg(false); });
       if (!initialProjectId) scheduleSave();
     })().catch(() => { if (!cancelled) setNotice("Could not open the design. Go back and try another project."); });
     return () => {
@@ -525,6 +566,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   async function runAiEdit() {
     if (aiBusy || !aiPrompt.trim()) return;
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
+    aiLastPromptRef.current = aiPrompt; // variant cards read this (events outlive the closure)
     try {
       const scene = fabricRef.current?.toObject() as SceneCanvas | undefined;
       // TP.11: capability-gated — never send refs to a provider that cannot use them;
@@ -534,7 +576,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
         .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
         .filter((u): u is string => u !== null);
       const refs = refCapable ? [...aiRefs, ...canvasRefs].slice(0, 4) : undefined;
-      const res = await oia().chatRun({ prompt: aiPrompt, ...(refs?.length ? { referenceImages: refs } : {}) });
+      // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
+      const res = await oia().chatRun({ prompt: aiPrompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}) });
+      setAiSessionId(res.sessionId);
       // events stream in through the onChatEvent subscription; wait for the job to settle
       await res;
     } catch (e) {
@@ -544,6 +588,42 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   /** TP.5 — cancel API only; the terminal cancelled event arrives on the subscription. */
   async function stopAiEdit() {
     if (aiJobRef.current) await oia().cancelChat(aiJobRef.current).catch(() => {});
+  }
+
+  /** VA-4 — swap the SELECTED image layer's src for the variant's artwork. Geometry,
+   * every other layer, and the page envelope stay untouched; undo works (history
+   * push happens in replaceCurrentScene). */
+  async function applyVariantToSelection(v: VariantCard) {
+    const c = fabricRef.current;
+    const artwork = variantArtworkObject(v.canvas);
+    if (!c) return;
+    if (!artwork) {
+      setAiError({ message: "This variant has no artwork image to apply." });
+      return;
+    }
+    const active = c.getActiveObject() as (fabricNS.Object & { src?: string }) | undefined;
+    if (!active || typeof active.src !== "string") {
+      setAiError({ message: "Select an image layer on the canvas first, then replace it." });
+      return;
+    }
+    const idx = c.getObjects().indexOf(active);
+    if (idx < 0) return; // active object already detached — nothing honest to replace
+    try {
+      const next = replaceObjectSrc(unmapAssetUrls(c.toObject() as SceneCanvas), idx, artwork.src);
+      await replaceCurrentScene(mapAssetUrls(next));
+    } catch {
+      setAiError({ message: "The layer could not be replaced. Select the image layer again and retry." });
+    }
+  }
+
+  /** VA goal 4 — the variant becomes its own project (mirror of Home's openInEditor). */
+  async function openVariantProject(v: VariantCard) {
+    try {
+      const p = await oia().createProject({ name: `${projectName || "Variant"} — variant`, scene: v.canvas });
+      onOpenProject(p.id);
+    } catch (e) {
+      setAiError({ message: bridgeErrorMessage(e, "The editor could not be opened. Please try again.") });
+    }
   }
 
   async function addText(kind: TextPreset) {
@@ -801,7 +881,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
         {aiOpen && (
           <aside className="aiPanelFloating" data-testid="ai-dock">
             <div className="aiPanelHeader"><I d={icons.spark} size={16} /><strong>AI assistant</strong>
-              <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); }}><I d={icons.plus} size={16} /></button>
+              <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); setVariants([]); setHiddenVariants(new Set()); setAiSessionId(null); }}><I d={icons.plus} size={16} /></button>
               <button className="iconBtn" aria-label="Conversation history" onClick={loadChats}><I d={icons.history} size={16} /></button>
               <button className="iconBtn" aria-label="Close AI assistant" onClick={() => setAiOpen(false)}><I d={icons.x} size={16} /></button>
             </div>
@@ -819,6 +899,32 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
             </div>
             {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
             {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
+            {/* A1 preview-apply — newest first; "Not now" only hides (VA-7), the
+                session record keeps every canvas (G5). */}
+            {variants.some((v) => !hiddenVariants.has(v.id)) && (
+              <div className="variantTray" data-testid="variant-tray" aria-label="Variants">
+                {[...variants].reverse().filter((v) => !hiddenVariants.has(v.id)).map((v) => {
+                  const artwork = variantArtworkObject(v.canvas);
+                  const canReplace = Boolean(artwork) && selectedImg;
+                  const why = !artwork ? "This variant has no artwork image" : !selectedImg ? "Select an image layer on the canvas first" : "";
+                  return (
+                    <div key={v.id} className="variantCard" data-testid="variant-card">
+                      <div className="variantThumb">
+                        {v.thumbnail ? <img src={toDisplayUrl(v.thumbnail)} alt="" /> : <ScenePreview scene={v.canvas} label="Variant" />}
+                      </div>
+                      <div className="variantMeta">
+                        <span className="variantPrompt">{v.prompt.slice(0, 90) || "Variant"}</span>
+                        <div className="variantActions">
+                          <button className="primaryBtn small" data-testid="variant-replace" disabled={!canReplace} title={why || "Replace the selected image layer with this variant"} onClick={() => void applyVariantToSelection(v)}>Replace selected layer</button>
+                          <button data-testid="variant-open" onClick={() => void openVariantProject(v)}>Open in editor</button>
+                          <button data-testid="variant-dismiss" onClick={() => setHiddenVariants((h) => { const n = new Set(h); n.add(v.id); return n; })}>Not now</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="aiComposer">
               {aiRefs.length > 0 && (
                 <div className="attachmentList" style={{ paddingTop: 0, paddingBottom: 8 }}>
@@ -834,7 +940,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
               <div className="aiComposerControls">
                 <button className="iconBtn" title="Attach a reference image" aria-label="Attach a reference image" disabled={aiUploading || !refCapable} onClick={() => aiFileRef.current?.click()}><I d={icons.paperclip} size={16} /></button>
                 <input ref={aiFileRef} aria-label="AI reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachAiRef(e.target.files[0]); e.target.value = ""; }} />
-                <button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{aiBusy
+                <button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{!imageMock && !aiBusy && <span className="hintP" data-testid="cost-hint" style={{ fontSize: 10, margin: 0 }} title="Each edit generates one image with your provider">≈ 1 image</span>}{aiBusy
                 ? <button className="generateBtn" style={{ background: "#dc2626" }} onClick={stopAiEdit} aria-label={STOP_LABEL} title={STOP_LABEL}><span style={{ width: 12, height: 12, background: "#fff", display: "inline-block" }} /></button>
                 : <button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy ? "Editing" : "Send edit request"}><I d={icons.up} /></button>}</div>
             </div>
