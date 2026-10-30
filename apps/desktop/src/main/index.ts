@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
+import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
+import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
   chatRequestSchema,
   chatCancelSchema, projectsCreateSchema, projectsGetSchema,
@@ -136,7 +138,15 @@ function registerIpc(): void {
     rebuildContext,
     currentEffective: () => ctxMode,
   });
-  ipcMain.handle(IPC.chatRun, async (event, raw: unknown) => {
+  // F2 — every IPC handler first admits only OUR renderer windows; a foreign
+  // sender (should none ever exist) gets a stable ForbiddenSender error.
+  const handle = (ch: string, fn: (event: IpcMainInvokeEvent, raw: unknown) => unknown): void => {
+    ipcMain.handle(ch, async (event, raw) => {
+      if (!isOwnRendererSender(event)) throw forbiddenSenderError();
+      return fn(event, raw);
+    });
+  };
+  handle(IPC.chatRun, async (event, raw: unknown) => {
     try {
       const req = chatRequestSchema.parse(raw); // validated HERE — the utility trusts main
       await ensureUtility();
@@ -151,14 +161,14 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.chatCancel, async (_e, raw: unknown) => {
+  handle(IPC.chatCancel, async (_e, raw: unknown) => {
     try {
       return await utility.call({ cmd: "chatCancel", jobId: chatCancelSchema.parse(raw).jobId });
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.providerStatus, async () => {
+  handle(IPC.providerStatus, async () => {
     try {
       await ensureUtility();
       return await utility.call({ cmd: "providerStatus" });
@@ -166,7 +176,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.projectsCreate, async (_e, raw: unknown) => {
+  handle(IPC.projectsCreate, async (_e, raw: unknown) => {
     try {
       const { name, scene, pages, width, height } = projectsCreateSchema.parse(raw);
       await ensureUtility();
@@ -175,7 +185,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.projectsGet, async (_e, raw: unknown) => {
+  handle(IPC.projectsGet, async (_e, raw: unknown) => {
     try {
       const { id } = projectsGetSchema.parse(raw);
       await ensureUtility();
@@ -184,11 +194,11 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.projectsList, async () => {
+  handle(IPC.projectsList, async () => {
     await ensureUtility();
     return await utility.call({ cmd: "projects.list" });
   });
-  ipcMain.handle(IPC.projectsSave, async (_e, raw: unknown) => {
+  handle(IPC.projectsSave, async (_e, raw: unknown) => {
     try {
       const { id, name, pages } = projectsSaveSchema.parse(raw);
       await ensureUtility();
@@ -197,7 +207,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.projectsRemove, async (_e, raw: unknown) => {
+  handle(IPC.projectsRemove, async (_e, raw: unknown) => {
     try {
       const { id } = projectsRemoveSchema.parse(raw);
       await ensureUtility();
@@ -206,11 +216,11 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.templatesList, async () => {
+  handle(IPC.templatesList, async () => {
     await ensureUtility();
     return await utility.call({ cmd: "templates.list" });
   });
-  ipcMain.handle(IPC.templatesCreate, async (_e, raw: unknown) => {
+  handle(IPC.templatesCreate, async (_e, raw: unknown) => {
     try {
       const { name, authorName, scene } = templatesCreateSchema.parse(raw);
       await ensureUtility();
@@ -219,11 +229,11 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.sessionsList, async () => {
+  handle(IPC.sessionsList, async () => {
     await ensureUtility();
     return await utility.call({ cmd: "sessions.list" });
   });
-  ipcMain.handle(IPC.sessionsGet, async (_e, raw: unknown) => {
+  handle(IPC.sessionsGet, async (_e, raw: unknown) => {
     try {
       const { id } = sessionsGetSchema.parse(raw);
       await ensureUtility();
@@ -232,7 +242,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.filesUpload, async (_e, raw: unknown) => {
+  handle(IPC.filesUpload, async (_e, raw: unknown) => {
     try {
       const { name, bytes } = filesUploadSchema.parse(raw);
       await ensureUtility();
@@ -241,7 +251,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.exportSave, async (event, raw: unknown) => {
+  handle(IPC.exportSave, async (event, raw: unknown) => {
     try {
       const { fileName, bytes } = exportSaveSchema.parse(raw);
       const win = BrowserWindow.fromWebContents(event.sender);
@@ -615,20 +625,9 @@ async function snap(win: BrowserWindow, name: string): Promise<void> {
 }
 
 function registerMenu(): void {
-  // Minimal native menu: macOS app + edit commands (Cmd+C/V work in every field), reload, quit.
-  // No devtools item — the shipped renderer never exposes devtools to a seller.
-  const isMac = process.platform === "darwin";
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      ...(isMac ? [{ role: "appMenu" as const }] : []),
-      { role: "editMenu" as const },
-      { role: "viewMenu" as const },
-      {
-        label: "Window",
-        submenu: [{ role: "minimize" as const }, { role: "close" as const }],
-      },
-    ]),
-  );
+  // F2: explicit View submenu — role:"viewMenu" shipped Toggle Developer Tools
+  // + Reload to sellers. Dev builds (unpackaged) keep reload/devtools for development.
+  Menu.setApplicationMenu(Menu.buildFromTemplate(appMenuTemplate(process.platform === "darwin", !app.isPackaged)));
 }
 
 /**
@@ -660,26 +659,34 @@ app.whenReady().then(async () => {
   initRuntimeController(path.join(app.getPath("userData")));
   registerIpc();
   registerMenu();
-  if (process.env.OIA_DESKTOP_SI_SMOKE === "1") {
+  // F2 — the app loads ONLY local content; no permission has a legitimate
+  // requester. Deny every request (camera/clipboard-read/geolocation/…) instead
+  // of Electron's default grant-all.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    console.warn(`[security] denied permission request: ${permission}`);
+    callback(false);
+  });
+  const mode = smokeModeFromEnv(process.env, app.isPackaged); // test modes: dev builds only
+  if (mode === "si") {
     await singleInstanceSmoke();
     return;
   }
-  if (process.env.OIA_DESKTOP_SMOKE === "1") {
+  if (mode === "smoke") {
     await smoke();
     return;
   }
-  if (process.env.OIA_DESKTOP_CRASH_SMOKE === "1") {
+  if (mode === "crash") {
     await crashSmoke();
     return;
   }
-  if (process.env.OIA_DESKTOP_REAL_SMOKE === "1") {
+  if (mode === "real") {
     await realSmoke().catch((err) => {
       console.error("DESKTOP_REAL_SMOKE CRASHED:", err);
       app.exit(1);
     });
     return;
   }
-  if (process.env.OIA_DESKTOP_SHOT === "1") {
+  if (mode === "shot") {
     await shot().catch((err) => {
       console.error("[shot] FAILED:", err);
       app.exit(1);

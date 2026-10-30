@@ -1,4 +1,4 @@
-import { ipcMain, shell } from "electron";
+import { ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { RuntimeProvisioner, type RuntimeStatus } from "@oia/providers";
@@ -6,6 +6,7 @@ import { IPC } from "../shared/channels.js";
 import { runtimeSetModeSchema, type RuntimeModeChoice } from "../shared/ipc.js";
 import type { RuntimeEvent, RuntimeSnapshot } from "../shared/bridge.js";
 import { resolveEffectiveMode } from "../shared/providers-mode.js";
+import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 
 /**
  * TP-D3 — the runtime controller, extracted from main/index.ts (the god-file smell):
@@ -116,9 +117,17 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
     if (deps.currentEffective() !== mode) await deps.rebuildContext();
   };
 
-  ipcMain.handle(IPC.runtimeStatus, async () => runtimeSnapshotFor(deps.currentEffective()).catch(ipcRuntimeError));
+  // F2 — same sender admission as the app IPC: only OUR windows may drive the runtime.
+  const handle = (ch: string, fn: (event: IpcMainInvokeEvent, raw: unknown) => unknown): void => {
+    ipcMain.handle(ch, async (event, raw) => {
+      if (!isOwnRendererSender(event)) throw forbiddenSenderError();
+      return fn(event, raw);
+    });
+  };
 
-  ipcMain.handle(IPC.runtimeInstall, async (event) => {
+  handle(IPC.runtimeStatus, async () => runtimeSnapshotFor(deps.currentEffective()).catch(ipcRuntimeError));
+
+  handle(IPC.runtimeInstall, async (event) => {
     try {
       activeAbort = new AbortController();
       const { status } = await getProvisioner().install(
@@ -135,7 +144,7 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
     }
   });
 
-  ipcMain.handle(IPC.runtimeLogin, async (event) => {
+  handle(IPC.runtimeLogin, async (event) => {
     try {
       activeAbort = new AbortController();
       const { ok, status } = await getProvisioner().login(
@@ -159,7 +168,7 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
     }
   });
 
-  ipcMain.handle(IPC.runtimeLogout, async () => {
+  handle(IPC.runtimeLogout, async () => {
     try {
       const status: RuntimeStatus = await getProvisioner().logout();
       await rebuildIfAuto();
@@ -169,13 +178,13 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
     }
   });
 
-  ipcMain.handle(IPC.runtimeCancel, () => {
+  handle(IPC.runtimeCancel, () => {
     const cancelled = activeAbort !== null;
     activeAbort?.abort("user-cancelled");
     return cancelled;
   });
 
-  ipcMain.handle(IPC.runtimeSetMode, async (_e, raw: unknown) => {
+  handle(IPC.runtimeSetMode, async (_e, raw: unknown) => {
     try {
       const { mode } = runtimeSetModeSchema.parse(raw);
       const settings = await readSettings();
