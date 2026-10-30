@@ -392,6 +392,12 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
         </div>
       )}
       {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
+      {narrative && (
+        <details className="aiNotes" key={busy ? "working" : "done"} open={busy}>
+          <summary>{busy ? "Assistant working…" : "AI notes"}</summary>
+          <div>{narrative.trim()}</div>
+        </details>
+      )}
 
       {canvasMeta && (() => {
         const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
