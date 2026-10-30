@@ -17,6 +17,7 @@ import {
 } from "../shared/ipc.js";
 import { utility } from "./utilityClient.js";
 import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
+import { buildServiceEnv } from "../shared/providers-mode.js";
 
 /**
  * D11 (reorg step 4a) — the Electron MAIN process owns windows, menus, dialogs,
@@ -35,7 +36,6 @@ import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapsh
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const originalCodexBin = process.env.CODEX_BIN;
 let ctxMode: "mock" | "codex" | null = null; // what the CURRENT utility context was built with
 let ctxGeneration = -1; // which utility FORK built it — mismatch (crash+restart) forces re-init
 
@@ -47,16 +47,13 @@ function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** The provider env the utility context builds from: mode + resolved codex binary. */
+/** The provider env the utility context builds from: mode + resolved codex binary.
+ *  T3 — assembled by the PURE builder in shared/providers-mode; main never mutates
+ *  process.env (the old set-then-restore CODEX_BIN dance leaked global state). */
 async function contextEnv(): Promise<Record<string, string | undefined>> {
   const mode = await effectiveMode();
-  if (mode === "codex") {
-    const det = await getProvisionerSafe();
-    if (det) process.env.CODEX_BIN = det;
-  } else {
-    process.env.CODEX_BIN = originalCodexBin;
-  }
-  return { ...process.env, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode };
+  const det = mode === "codex" ? await getProvisionerSafe() : null;
+  return buildServiceEnv(process.env, mode, det);
 }
 
 /** Boot (or rebuild) the utility service context under the build lock.

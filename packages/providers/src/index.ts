@@ -12,7 +12,7 @@ export {
 } from "./image/codex.js";
 export { MockLlmProvider } from "./llm/mock.js";
 export { OpenAiLlmProvider } from "./llm/openai.js";
-export { CodexLlmProvider, PLANNER_TIMEOUT_MS } from "./llm/codex.js";
+export { CodexLlmProvider, CODEX_PLANNER_TIMEOUT_DEFAULT } from "./llm/codex.js";
 export {
   CodexBridge,
   parseThreadId,

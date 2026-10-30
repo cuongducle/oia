@@ -33,6 +33,8 @@ import {
 let ctx: ServiceContext | null = null;
 let dataDir = "";
 let userDataDir = "";
+/** T3 — the env the CURRENT context was built from (NSFW mode etc. ride it). */
+let serviceEnv: Record<string, string | undefined> = {};
 let loopback: { port: number; discoveryFile: string; close: () => Promise<void> } | null = null;
 let discoveryCleanup: string | null = null; // ONE module-level exit listener — never per-rebuild
 
@@ -62,6 +64,7 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   loopback = await startLoopback({
     ctx: () => requireCtx(),
     userDataDir,
+    env,
     emit: (ev) => post(ev),
   });
   discoveryCleanup = loopback.discoveryFile;
@@ -94,6 +97,7 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       cancelAll();
       dataDir = req.dataDir;
       userDataDir = req.userDataDir;
+      serviceEnv = req.env;
       await startServices(req.env);
       log(`ctx ready (dataDir=${dataDir})`);
       return null;
@@ -149,7 +153,7 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
 
     case "files.put": {
       // same moderation gate as the web upload route (env-gated, off by default)
-      const nsfw = await checkNsfw(req.bytes, req.name);
+      const nsfw = await checkNsfw(req.bytes, req.name, serviceEnv);
       if (!nsfw.allowed) throw new Error("image not allowed");
       const ext = req.name.split(".").pop()!.toLowerCase();
       const saved = await requireCtx().files.put(req.bytes, ext);

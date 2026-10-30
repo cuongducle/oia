@@ -188,7 +188,7 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
       return { urls: ["/api/files/res-held.png"], note: "held" };
     });
 
-    const srv = await startLoopback({ ctx: () => guardCtx, userDataDir: root, emit: () => {} });
+    const srv = await startLoopback({ ctx: () => guardCtx, userDataDir: root, env: {}, emit: () => {} });
     try {
       const g = `http://127.0.0.1:${srv.port}`;
       const submit = () =>
@@ -317,6 +317,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
     const srv = await startLoopback({
       ctx: () => gctx,
       userDataDir: root,
+      env: {},
       emit: (ev) => events.push(ev),
       fallbackTtlMs: 150, // if the bug existed, the spurious "failed" lands here — observable
     });
@@ -355,7 +356,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
       await gate;
       return { urls: ["/api/files/res-held.png"], note: "held" };
     });
-    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, emit: () => {} });
+    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, env: {}, emit: () => {} });
     try {
       const g = `http://127.0.0.1:${srv.port}`;
       const shot = () =>
@@ -378,7 +379,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
   it("a submit that fails validation releases its reservation (no leak on the error path)", async () => {
     const { root, gctx, key } = await guardCtx();
     gctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/res-fast.png"], note: "fast" }));
-    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, emit: () => {} });
+    const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, env: {}, emit: () => {} });
     try {
       const g = `http://127.0.0.1:${srv.port}`;
       // image-edit requires reference[] + prompt — TaskStore.validate throws → 400

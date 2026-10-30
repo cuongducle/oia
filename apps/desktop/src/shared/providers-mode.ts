@@ -36,3 +36,18 @@ export function resolveEffectiveMode(input: {
   }
   return input.choice;
 }
+
+/**
+ * T3 — the SINGLE place the utility's service env is assembled. Pure: builds a
+ * NEW object, never mutates the base (main used to set-then-restore
+ * process.env.CODEX_BIN, leaking global state to every other consumer).
+ */
+export function buildServiceEnv(
+  base: Record<string, string | undefined>,
+  mode: "mock" | "codex",
+  codexBin?: string | null,
+): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ...base, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode };
+  if (mode === "codex" && codexBin) env.CODEX_BIN = codexBin;
+  return env;
+}

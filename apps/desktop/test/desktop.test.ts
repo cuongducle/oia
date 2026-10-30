@@ -216,3 +216,24 @@ describe("utility protocol — error shape survives the wire", () => {
     expect(serializeUtilityError(undefined)).toEqual({ name: "Error", message: "undefined" });
   });
 });
+
+/** T3 — the pure service-env builder (main never mutates process.env anymore). */
+describe("buildServiceEnv (T3 pure builder)", () => {
+  it("mode is written, a detected codex bin is threaded, and the BASE env is never mutated", async () => {
+    const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
+    const base = Object.freeze({ ...process.env, MY_MARKER: "x" } as Record<string, string | undefined>);
+    const env = buildServiceEnv(base, "codex", "/managed/current/bin/codex");
+    expect(env.IMAGE_PROVIDER).toBe("codex");
+    expect(env.LLM_PROVIDER).toBe("codex");
+    expect(env.CODEX_BIN).toBe("/managed/current/bin/codex");
+    expect(env.MY_MARKER).toBe("x");
+    expect(base.CODEX_BIN).toBeUndefined(); // frozen base untouched — the old code mutated process.env
+  });
+
+  it("mock mode carries NO CODEX_BIN decision (the base value passes through untouched)", async () => {
+    const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
+    const env = buildServiceEnv({ CODEX_BIN: "/user/exported/bin" }, "mock", null);
+    expect(env.IMAGE_PROVIDER).toBe("mock");
+    expect(env.CODEX_BIN).toBe("/user/exported/bin"); // not deleted, not overwritten
+  });
+});

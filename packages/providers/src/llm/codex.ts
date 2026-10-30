@@ -17,7 +17,8 @@ import { createScratchDir, removeScratchDir } from "../cli/runtime.js";
  * image generation (G2/G7): no text-free empty banners ship from a failed planner.
  */
 
-export const PLANNER_TIMEOUT_MS = Number(process.env.CODEX_PLANNER_TIMEOUT_MS ?? 120_000);
+/** Default planner budget — the registry threads CODEX_PLANNER_TIMEOUT_MS per instance (T3: no import-time env reads). */
+export const CODEX_PLANNER_TIMEOUT_DEFAULT = 120_000;
 
 const LLM_CAPABILITIES: ProviderCapabilities = {
   referenceImages: false,
@@ -34,7 +35,7 @@ export class CodexLlmProvider implements LlmProvider {
 
   constructor(bridge?: CodexBridge, opts: { timeoutMs?: number } = {}) {
     this.bridge = bridge ?? new CodexBridge();
-    this.timeoutMs = opts.timeoutMs ?? PLANNER_TIMEOUT_MS;
+    this.timeoutMs = opts.timeoutMs ?? CODEX_PLANNER_TIMEOUT_DEFAULT;
   }
 
   async isAvailable(): Promise<ProviderDiagnostic> {

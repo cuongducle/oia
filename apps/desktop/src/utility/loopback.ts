@@ -51,6 +51,8 @@ export interface AgentJobEvent {
 interface LoopbackDeps {
   ctx: () => ServiceContext;
   userDataDir: string;
+  /** T3 — the SAME env object that configured the providers (NSFW mode rides it). */
+  env: Record<string, string | undefined>;
   emit: (ev: AgentJobEvent) => void;
   /** Test seam: production wants FALLBACK_TTL_MS (15 min); gates inject ms so the
    *  fallback path is observable without wall-clock waits. */
@@ -276,7 +278,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         // loopback used to accept any extension an agent chose to send
         const ext = (file.name.split(".").pop() ?? "").toLowerCase();
         if (!isImageExt(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
-        const nsfw = await checkNsfw(file.bytes, file.name);
+        const nsfw = await checkNsfw(file.bytes, file.name, deps.env);
         if (!nsfw.allowed) return json(res, 400, 1, null, nsfw.error);
         const saved = await ctx().files.put(file.bytes, ext);
         return json(res, 200, 0, { url: saved.url, size: file.bytes.length }, "");

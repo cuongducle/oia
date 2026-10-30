@@ -25,7 +25,8 @@ import { asciiUuid, createScratchDir, removeScratchDir } from "../cli/runtime.js
  * (A8: never an image written around a cancelled job — see the bridge cancel ledger).
  */
 
-export const IMAGE_TIMEOUT_MS = Number(process.env.CODEX_IMAGE_TIMEOUT_MS ?? 300_000);
+/** Default image-call budget — the registry threads CODEX_IMAGE_TIMEOUT_MS per provider instance (T3: no import-time env reads). */
+export const CODEX_IMAGE_TIMEOUT_DEFAULT = 300_000;
 
 const IMAGE_CAPABILITIES: ProviderCapabilities = {
   referenceImages: true,
@@ -135,7 +136,7 @@ export class CodexImageProvider implements ImageProvider {
 
   constructor(bridge?: CodexBridge, opts: { timeoutMs?: number; imagesRoot?: string } = {}) {
     this.bridge = bridge ?? new CodexBridge();
-    this.timeoutMs = opts.timeoutMs ?? IMAGE_TIMEOUT_MS;
+    this.timeoutMs = opts.timeoutMs ?? CODEX_IMAGE_TIMEOUT_DEFAULT;
     this.imagesRoot = opts.imagesRoot;
   }
 

@@ -11,7 +11,7 @@ import { ProviderError } from "../types.js";
  * `OPENAI_IMAGE_MODEL` remains the override.
  */
 
-export const OPENAI_IMAGE_MODEL_DEFAULT = process.env.OPENAI_IMAGE_MODEL ?? "gpt-image-2.5-sunburst";
+export const OPENAI_IMAGE_MODEL_DEFAULT = "gpt-image-2.5-sunburst"; // env override threaded by the registry (T3) — no import-time env reads
 
 export const OPENAI_IMAGE_CAPABILITIES: ProviderCapabilities = {
   referenceImages: true,
