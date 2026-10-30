@@ -17,7 +17,7 @@
     "@oia/schema": "workspace:*",
     "@oia/services": "workspace:*",
     "@oia/tasks": "workspace:*",
-    "fabric": "^6.9.1",
+    "fabric": "^7.4.0",
     "heic2any": "^0.0.4",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",

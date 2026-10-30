@@ -19,7 +19,7 @@
     "@oia/providers": "workspace:*",
     "@oia/schema": "workspace:*",
     "@oia/services": "workspace:*",
-    "fabric": "^6.9.1",
+    "fabric": "^7.4.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
     "pptxgenjs": "^4.0.1",

@@ -16,6 +16,9 @@
     "onlyBuiltDependencies": [
       "electron",
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "image-size": "2.0.4"
+    }
   }
 }

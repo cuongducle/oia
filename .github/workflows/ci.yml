@@ -12,6 +12,10 @@ jobs:
       - run: pnpm build
       - run: pnpm test
       - run: pnpm typecheck
+      # F4 — dependency gate for the SHIPPED tree: fails on high/critical touching
+      # anything except the frozen reference projects (deleted in step 6); the one
+      # acknowledged advisory (zod 3, fix only in zod 4) is listed with its removal path.
+      - run: node config/audit/desktop-audit.mjs
   desktop-smoke:
     runs-on: ubuntu-latest
     steps:

@@ -52,11 +52,11 @@ export function addTextPreset(canvas: fabric.Canvas, kind: TextPreset, fontFamil
 
 /* ---------------- Shapes (BR-ED2) ---------------- */
 
-export function addShape(canvas: fabric.Canvas, kind: ShapeKind): fabric.Object {
+export function addShape(canvas: fabric.Canvas, kind: ShapeKind): fabric.FabricObject {
   const documentWidth = canvas.getWidth() / canvas.getZoom(), documentHeight = canvas.getHeight() / canvas.getZoom();
   const w = Math.round(documentWidth * 0.25);
   const x = documentWidth / 2 - w / 2, y = documentHeight / 2 - w / 2;
-  let obj: fabric.Object;
+  let obj: fabric.FabricObject;
   const stroke = { stroke: "#18181b", strokeWidth: 3, fill: "transparent" } as const;
   switch (kind) {
     case "circle": obj = new fabric.Ellipse({ ...stroke, rx: w / 2, ry: w / 2, left: x, top: y }); break;
@@ -104,7 +104,7 @@ export function applyPosterDefault(canvas: fabric.Canvas): void {
 }
 
 export function resizeCanvas(canvas: fabric.Canvas, width: number, height: number): void {
-  const clip = canvas.getObjects().find(o => (o as fabric.Object & { name?:string }).name === "clip");
+  const clip = canvas.getObjects().find(o => (o as fabric.FabricObject & { name?:string }).name === "clip");
   if (clip) { clip.set({ width, height }); canvas.fire("object:modified", { target:clip }); }
   canvas.setDimensions({ width, height });
   canvas.requestRenderAll();
@@ -141,7 +141,7 @@ export function patchSelectedText(canvas: fabric.Canvas, patch: TextPropPatch): 
 export function duplicateSelected(canvas: fabric.Canvas): void {
   const obj = canvas.getActiveObject();
   if (!obj) return;
-  obj.clone().then((cloned: fabric.Object) => {
+  obj.clone().then((cloned: fabric.FabricObject) => {
     cloned.set({ left: (cloned.left ?? 0) + 24, top: (cloned.top ?? 0) + 24 });
     canvas.add(cloned);
     canvas.setActiveObject(cloned);
