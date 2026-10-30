@@ -65,6 +65,9 @@ export class ApiKeyStore {
     if (!rec) return null;
     if (rec.expiresAt && rec.expiresAt < Date.now()) return null; // expired keys are rejected
     rec.lastUsedAt = Date.now();
+    // B7-adjacent: lastUsedAt is now SURFACED in the For Agents table — persist it,
+    // or the UI shows an in-memory value the next boot contradicts.
+    void this.save().catch(() => {}); // fire-and-forget: usage must never fail an auth check
     return rec;
   }
 

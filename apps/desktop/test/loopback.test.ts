@@ -1,11 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtempSync, statSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import path from "node:path";
 import http from "node:http";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createServiceContext, runChat, type ServiceContext } from "@oia/services";
 import { startLoopback } from "../src/utility/loopback.js";
 import type { AgentJobEvent } from "../src/utility/loopback.js";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * D9 (reorg step 4b) — the loopback agent API, end to end against a REAL
@@ -84,9 +88,21 @@ describe("loopback security gates (all fire BEFORE route logic)", () => {
     expect(res.status).toBe(403);
   });
 
-  it("discovery file is 0600 and carries the live port + pid", () => {
-    const st = statSync(discoveryFile);
-    expect(st.mode & 0o777).toBe(0o600);
+  it("discovery file is private (POSIX 0600 / Windows user-only ACL) and carries the live port + pid", async () => {
+    // fs mode is a NO-OP on Windows (stat always reports 0666) — what 0600 MEANS
+    // there is an ACL without inheritance and with only the current user, so the
+    // gate asserts exactly that instead of mode bits it can never observe.
+    if (process.platform === "win32") {
+      const { stdout } = await execFileAsync("icacls", [discoveryFile]);
+      const me = userInfo();
+      const whoami = me.domain ? `${me.domain}\\${me.username}` : me.username;
+      expect(stdout).toContain(whoami); // the owner keeps access
+      expect(stdout.toLowerCase()).not.toContain("builtin\\users"); // no broad local group
+      expect(stdout.toLowerCase()).not.toContain("everyone"); // no world ACE
+    } else {
+      const st = statSync(discoveryFile);
+      expect(st.mode & 0o777).toBe(0o600);
+    }
     const info = JSON.parse(readFileSync(discoveryFile, "utf8")) as { port: number; pid: number };
     expect(info.port).toBe(port);
     expect(info.pid).toBe(process.pid);

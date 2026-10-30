@@ -8,7 +8,6 @@ import {
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { TaskNotFound } from "@oia/tasks";
-import type { TaskType } from "@oia/schema";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { unlinkSync } from "node:fs";
@@ -69,14 +68,15 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   ctx = await createServiceContext({ dataDir, env });
   // reorg step 4c — the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
   // guard as the loopback, attributed to source "web" (the web tools UI contract).
-  // In-app runs are NOT agent jobs — they surface through the runner's own poll UI,
-  // so the event sink stays silent here.
+  // Its lifecycle frames stream to the UI too (lane "tool") — a metered generation
+  // must stay visible even after the Tools view closes (hard rule 6).
   const live = ctx;
   toolLane = createGuardedSubmitter({
     ctx: () => live,
+    lane: "tool",
     source: "web",
     idPrefix: "tool",
-    onJobEvent: () => {},
+    onJobEvent: (ev) => post({ type: "agentJob", ...ev }),
   });
   loopback = await startLoopback({
     ctx: () => requireCtx(),
@@ -182,7 +182,7 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     // ---- reorg step 4c: quick-tools task lane (renderer IPC) ----
     case "tasks.submit": {
       if (!toolLane) throw new Error("service context not initialized");
-      return toolLane.submit(req.type as TaskType, req.params);
+      return toolLane.submit(req.type, req.params);
     }
     case "tasks.get":
       try {

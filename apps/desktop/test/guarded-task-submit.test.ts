@@ -14,13 +14,12 @@ import {
  * the quick-tools IPC lane shares IDENTICAL semantics. These are the T1-guard
  * regressions re-run at the helper level (no HTTP): the TOCTOU window, the sync-mode
  * slot pin + spurious "failed", reservation leaks on validation errors, and the
- * wedged-handler fallback. Runs against a REAL ServiceContext (mock pair, temp dir)
- * with the image provider swapped to look metered (isMock:false) — exactly what
- * codex mode looks like to the guard.
+ * wedged-handler fallback.
+ *
+ * Determinism rules (learned the hard way): every test gets a FRESH ServiceContext
+ * (mock pair, temp dir) so task handlers never leak across tests, and every "held"
+ * task is awaited to its TERMINAL EVENT before the test ends — no sleep-and-hope.
  */
-
-let ctx: ServiceContext;
-const events: GuardedJobEvent[] = [];
 
 /** A metered-looking provider whose generate must never run — the held task owns the slot. */
 function makeMeteredProvider() {
@@ -39,30 +38,22 @@ function makeMeteredProvider() {
   };
 }
 
-beforeAll(async () => {
+async function freshCtx(): Promise<ServiceContext> {
   const root = mkdtempSync(path.join(tmpdir(), "oia-guarded-submit-"));
-  ctx = await createServiceContext({
+  const ctx = await createServiceContext({
     dataDir: path.join(root, "data"),
     env: { ...process.env, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock" },
   });
   (ctx.chat as { image: unknown }).image = makeMeteredProvider();
-}, 60_000);
+  return ctx;
+}
 
-afterEach(() => {
-  events.length = 0;
-  delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
-});
-
-afterAll(async () => {
-  delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
-});
-
-function makeSubmitter(fallbackTtlMs: number) {
-  return createGuardedSubmitter({ ctx: () => ctx, source: "web", idPrefix: "tool", fallbackTtlMs, onJobEvent: (ev) => events.push(ev) });
+function makeSubmitter(ctx: ServiceContext, events: GuardedJobEvent[], fallbackTtlMs: number) {
+  return createGuardedSubmitter({ ctx: () => ctx, lane: "tool", source: "web", idPrefix: "tool", fallbackTtlMs, onJobEvent: (ev) => events.push(ev) });
 }
 
 /** A processor that finishes only when its gate opens (the "held slot"). */
-function gateProcessor(): { open: () => void } {
+function gateProcessor(ctx: ServiceContext): { open: () => void } {
   let openGate!: () => void;
   const gate = new Promise<void>((r) => (openGate = r));
   ctx.taskStore.register("generate-poster", async () => {
@@ -72,30 +63,54 @@ function gateProcessor(): { open: () => void } {
   return { open: openGate };
 }
 
+/** Await the FIRST terminal frame for a task — deterministic settle barrier. */
+async function awaitTerminal(events: GuardedJobEvent[], taskId: string, ms = 5000): Promise<GuardedJobEvent> {
+  const t0 = Date.now();
+  for (;;) {
+    const hit = events.find((e) => e.taskId === taskId && e.event !== "submitted");
+    if (hit) return hit;
+    if (Date.now() - t0 > ms) throw new Error(`no terminal event for ${taskId}`);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
+afterAll(() => {
+  // the guard set is globalThis-scoped — leave it clean for other suites in this run
+  delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+});
+afterEach(() => {
+  // the guard set is globalThis-scoped — never let one test's reservation bleed into the next
+  delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+});
+
 describe("guarded submit — the TOCTOU window stays closed", () => {
   it("5 concurrent metered submits → exactly ONE admitted, 4 refused, nothing double-run", async () => {
-    const s = makeSubmitter(60_000);
-    const { open } = gateProcessor();
-    try {
-      const results = await Promise.allSettled(
-        Array.from({ length: 5 }, () => s.submit("generate-poster", { prompt: "burst", noWait: false })),
-      );
-      const admitted = results.filter((r) => r.status === "fulfilled");
-      const refused = results.filter((r) => r.status === "rejected" && r.reason instanceof MeteredBusyError);
-      // OLD defect: track-AFTER-submit let every concurrent submit through the check
-      expect(admitted.length).toBe(1);
-      expect(refused.length).toBe(4);
-      expect(events.filter((e) => e.event === "submitted").length).toBe(1);
-    } finally {
-      open(); // never leave the gate closed on a failure path
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 60_000);
+    const { open } = gateProcessor(ctx);
+    const results = await Promise.allSettled(
+      Array.from({ length: 5 }, () => s.submit("generate-poster", { prompt: "burst", noWait: false })),
+    );
+    const admitted = results.filter((r) => r.status === "fulfilled");
+    const refused = results.filter((r) => r.status === "rejected" && r.reason instanceof MeteredBusyError);
+    // OLD defect: track-AFTER-submit let every concurrent submit through the check
+    expect(admitted.length).toBe(1);
+    expect(refused.length).toBe(4);
+    expect(events.filter((e) => e.event === "submitted").length).toBe(1);
+
+    open();
+    const terminal = await awaitTerminal(events, admitted[0].value.taskId);
+    expect(terminal.event).toBe("succeeded");
+    expect(terminal.lane).toBe("tool"); // frames carry the lane they ran on
   });
 });
 
 describe("guarded submit — sync mode (noWait:true)", () => {
   it("does NOT pin the slot and never emits a spurious failed after a success", async () => {
-    const s = makeSubmitter(150); // tiny TTL — the OLD bug fired it after the settle
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 150); // tiny TTL — the OLD bug fired it after the settle
     ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/ok.png"], note: "fast" }));
     const t = await s.submit("generate-poster", { prompt: "sync run", noWait: true });
     expect(t.progress).toBe("succeeded");
@@ -112,7 +127,9 @@ describe("guarded submit — sync mode (noWait:true)", () => {
 
 describe("guarded submit — submit itself fails", () => {
   it("a validation error releases the reservation (no leak) and emits nothing", async () => {
-    const s = makeSubmitter(60_000);
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 60_000);
     // image-edit requires reference: string[] + prompt: string — junk types fail TaskStore validation
     await expect(s.submit("image-edit", { prompt: 123, reference: "not-an-array", noWait: true })).rejects.toThrow();
     expect(events.length).toBe(0);
@@ -122,31 +139,46 @@ describe("guarded submit — submit itself fails", () => {
     expect(t.progress).toBe("succeeded");
     s.dispose();
   });
+
+  it("a THROWING event sink changes nothing — events are observability, never accounting", async () => {
+    const ctx = await freshCtx();
+    const s = createGuardedSubmitter({
+      ctx: () => ctx, lane: "agent", source: "agent", fallbackTtlMs: 60_000,
+      onJobEvent: () => { throw new Error("sink exploded"); },
+    });
+    ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/ok3.png"] }));
+    const t = await s.submit("generate-poster", { prompt: "hostile sink", noWait: true });
+    expect(t.progress).toBe("succeeded"); // the run completed…
+    ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/ok4.png"] }));
+    const t2 = await s.submit("generate-poster", { prompt: "next admitted", noWait: true }); // …and the slot is free
+    expect(t2.progress).toBe("succeeded");
+    s.dispose();
+  });
 });
 
 describe("guarded submit — wedged background handler (fallback ONLY)", () => {
   it("the fallback TTL settles failed + releases the slot when onSettled never comes", async () => {
-    const s = makeSubmitter(120);
-    let openGate!: () => void;
-    const gate = new Promise<void>((r) => (openGate = r));
-    void gate; // deliberately never opened for this task
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 120);
     ctx.taskStore.register("generate-poster", async () => {
       await new Promise(() => {}); // wedged forever — past every provider timeout
     });
     const t = await s.submit("generate-poster", { prompt: "wedged", noWait: false });
     expect(t.progress).toBe("processing");
     // past the fallback TTL: one failed event + the slot must be free
-    await new Promise((r) => setTimeout(r, 300));
-    expect(events.some((e) => e.taskId === t.taskId && e.event === "failed")).toBe(true);
+    const terminal = await awaitTerminal(events, t.taskId, 1000);
+    expect(terminal.event).toBe("failed");
     ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/after.png"] }));
     const next = await s.submit("generate-poster", { prompt: "after wedge", noWait: true });
     expect(next.progress).toBe("succeeded");
     s.dispose();
-    void openGate;
   });
 
   it("dispose() clears armed fallbacks — no late events after the lane shuts down", async () => {
-    const s = makeSubmitter(120);
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 120);
     ctx.taskStore.register("generate-poster", async () => {
       await new Promise(() => {}); // wedged
     });

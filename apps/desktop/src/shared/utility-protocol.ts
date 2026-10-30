@@ -62,8 +62,9 @@ export type UtilityRequest = UtilityCommand & {
 export type UtilityEvent =
   | { type: "chatEvent"; requestId: string; ev: unknown }
   | { type: "log"; line: string }
-  /** D9 — agent jobs surfaced to the UI (For Agents panel). */
-  | { type: "agentJob"; taskId: string; event: "submitted" | "succeeded" | "failed"; taskType: string };
+  /** D9 — job lifecycle surfaced to the UI (For Agents feed): `lane` separates
+   *  loopback agent runs from quick-tools runs (both are metered generations). */
+  | { type: "agentJob"; lane: "agent" | "tool"; taskId: string; event: "submitted" | "succeeded" | "failed"; taskType: string };
 
 export type UtilityResponse =
   | { rid: string; ok: true; result: unknown }

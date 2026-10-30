@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SCENE_VERSION } from "@oia/schema";
 import type { ToolKind } from "../lib/tools-registry.js";
 import { oia } from "../lib/bridge.js";
@@ -25,6 +25,11 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [vennLabels, setVennLabels] = useState("Food\nDrinks");
+  /** View-lifetime flag: leaving the Tools view STOPS THE POLL but never the task —
+   *  the generation keeps running (B7) and its lifecycle stays visible in the
+   *  For Agents feed (lane "tool"). */
+  const aliveRef = useRef(true);
+  useEffect(() => () => { aliveRef.current = false; }, []);
 
   function dataUrlToBytes(dataUrl: string): Uint8Array {
     const [meta, b64] = dataUrl.split(",");
@@ -49,9 +54,13 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
 
   async function fileToImage(file: File): Promise<HTMLImageElement> {
     const url = URL.createObjectURL(file);
-    const img = new Image();
-    await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = url; });
-    return img;
+    try {
+      const img = new Image();
+      await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = url; });
+      return img;
+    } finally {
+      URL.revokeObjectURL(url); // safe to revoke once decode finished; <img> keeps its copy
+    }
   }
 
   async function runConvert() {
@@ -149,13 +158,20 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     } catch { setError("The chart could not be created. Please check your data (one “label: value” per line)."); } finally { setBusy(false); }
   }
 
-  /** Background submit + poll — never one long-lived RPC for a 1–6 min generation. */
+  /** Background submit + poll — never one long-lived RPC for a 1–6 min generation.
+   *  Stops silently when the view unmounts (the task itself keeps running); a
+   *  succeeded record WITHOUT a download is an error, never an empty result. */
   async function pollTask(taskId: string): Promise<string> {
     setAiTaskId(taskId);
     for (let i = 0; i < 240; i++) {
+      if (!aliveRef.current) throw new Error("poll stopped — the view was closed (the task keeps running)");
       const t = await oia().getTask(taskId);
-      if (!t) throw new Error("the task record is gone (it expired or the app restarted)");
-      if (t.progress === "succeeded") return t.taskResult?.download ?? "";
+      if (!t) throw new Error("the task record is gone (expired or unknown)");
+      if (t.progress === "succeeded") {
+        const url = t.taskResult?.download;
+        if (!url) throw new Error("the task finished without a result");
+        return url;
+      }
       if (t.progress === "failed") throw new Error(t.msg || "the task failed");
       await new Promise((r) => setTimeout(r, 2000));
     }
@@ -174,13 +190,17 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
         return;
       }
       const url = URL.createObjectURL(blob);
-      const img = new Image(); await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = url; });
-      const canvas = document.createElement("canvas"); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-      canvas.getContext("2d")!.drawImage(img, 0, 0);
-      const { jsPDF } = await import("jspdf");
-      const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "landscape" : "portrait", unit: "px", format: [canvas.width, canvas.height] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, canvas.width, canvas.height);
-      await download(new Uint8Array(pdf.output("arraybuffer")), file.name.replace(/\.\w+$/, "") + ".pdf");
+      try {
+        const img = new Image(); await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = url; });
+        const canvas = document.createElement("canvas"); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext("2d")!.drawImage(img, 0, 0);
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? "landscape" : "portrait", unit: "px", format: [canvas.width, canvas.height] });
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, canvas.width, canvas.height);
+        await download(new Uint8Array(pdf.output("arraybuffer")), file.name.replace(/\.\w+$/, "") + ".pdf");
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     } catch { setError("The HEIC file could not be converted. Please try another photo."); } finally { setBusy(false); }
   }
 
@@ -219,67 +239,80 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       const data = res.data;
       const bytes = new Uint8Array(await file.arrayBuffer());
       const up = await oia().uploadAsset(file.name, bytes);
-      const img = new Image(); const objUrl = URL.createObjectURL(file);
-      await new Promise((r) => { img.onload = r; img.src = objUrl; });
-      const W = 1360, H = Math.round((img.naturalHeight / img.naturalWidth) * W) || 2048;
-      const scale = W / img.naturalWidth;
-      const scene = {
-        version: SCENE_VERSION,
-        objects: [
-          { type: "Rect", name: "clip", left: 0, top: 0, width: W, height: H, fill: "white", selectable: false, visible: true },
-          { type: "Image", left: 0, top: 0, width: W, height: H, src: up.url, crossOrigin: "anonymous", selectable: true, visible: true },
-          ...data.words.slice(0, 80).map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
-            type: "Textbox", text: word.text, left: Math.round(word.bbox.x0 * scale), top: Math.round(word.bbox.y0 * scale),
-            width: Math.max(60, Math.round((word.bbox.x1 - word.bbox.x0) * scale)), height: 40,
-            fontFamily: "Inter", fontSize: Math.max(14, Math.round((word.bbox.y1 - word.bbox.y0) * scale)),
-            fill: "#111827", editable: true, selectable: true, visible: true,
-          })),
-        ],
-      };
-      const p = await oia().createProject({ name: file.name + " (editable)", scene });
-      onOpenProject(p.id);
+      const objUrl = URL.createObjectURL(file);
+      try {
+        const img = new Image();
+        await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = objUrl; });
+        const W = 1360, H = Math.round((img.naturalHeight / img.naturalWidth) * W) || 2048;
+        const scale = W / img.naturalWidth;
+        const scene = {
+          version: SCENE_VERSION,
+          objects: [
+            { type: "Rect", name: "clip", left: 0, top: 0, width: W, height: H, fill: "white", selectable: false, visible: true },
+            { type: "Image", left: 0, top: 0, width: W, height: H, src: up.url, crossOrigin: "anonymous", selectable: true, visible: true },
+            ...data.words.slice(0, 80).map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
+              type: "Textbox", text: word.text, left: Math.round(word.bbox.x0 * scale), top: Math.round(word.bbox.y0 * scale),
+              width: Math.max(60, Math.round((word.bbox.x1 - word.bbox.x0) * scale)), height: 40,
+              fontFamily: "Inter", fontSize: Math.max(14, Math.round((word.bbox.y1 - word.bbox.y0) * scale)),
+              fill: "#111827", editable: true, selectable: true, visible: true,
+            })),
+          ],
+        };
+        const p = await oia().createProject({ name: file.name + " (editable)", scene });
+        onOpenProject(p.id);
+      } finally {
+        URL.revokeObjectURL(objUrl);
+      }
     } catch { setError("The text could not be recognized (the recognizer needs internet the first time). Please try again."); } finally { setBusy(false); }
   }
 
-  async function submitAiTask(type: "generate-poster" | "image-edit", params: Record<string, unknown>) {
+  /** ONE busy/error owner for both AI tools — param building (upload included)
+   *  happens inside, so failure paths cannot double-manage state. */
+  async function runAiTask(type: "generate-poster" | "image-edit", buildParams: () => Promise<Record<string, unknown>>) {
     setError(""); setAiResult(null); setAiTaskId(null); setBusy(true);
     try {
+      const params = await buildParams();
       const t = await oia().submitTask(type, params);
       const url = await pollTask(t.taskId);
       setAiResult(url);
     } catch (e) {
+      if (!aliveRef.current) return; // view gone — nothing to render
       const message = e instanceof Error ? e.message : String(e);
       // G3: the shared metered slot is held (chat or agent run) — honest, retryable
       setError(message.includes("already running")
         ? "A generation is already running (chat or another tool). Wait for it to finish and try again."
         : `The task failed: ${message}`);
       setAiResult(null);
-    } finally { setBusy(false); setAiTaskId(null); }
+    } finally {
+      if (aliveRef.current) { setBusy(false); setAiTaskId(null); }
+    }
   }
 
   function runAiGenerate() {
     if (!aiPrompt.trim()) return;
-    void submitAiTask("generate-poster", {
+    void runAiTask("generate-poster", async () => ({
       prompt: `${aiPrompt}, YouTube banner style, wide 16:9`, size: "1536x1024", noWait: false, source: "web",
-    });
+    }));
   }
-  async function runAiEdit() {
+  function runAiEdit() {
     const file = fileRef.current?.files?.[0];
-    if (!file || !aiPrompt.trim()) return;
-    setBusy(true);
-    try {
+    if (!aiPrompt.trim()) return;
+    if (!file) { setError("Choose a photo first, then describe the hairstyle you want."); return; }
+    void runAiTask("image-edit", async () => {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const up = await oia().uploadAsset(file.name, bytes);
-      await submitAiTask("image-edit", { reference: [up.url], prompt: aiPrompt, noWait: false, source: "web" });
-    } catch {
-      setError("The photo could not be uploaded. Please try again.");
-      setBusy(false);
-    }
+      return { reference: [up.url], prompt: aiPrompt, noWait: false, source: "web" };
+    });
   }
 
   /** Stop the in-flight generation — every paid path must be cancellable (hard rule 6). */
   async function stopAi() {
-    if (aiTaskId) await oia().cancelTask(aiTaskId).catch(() => {});
+    if (!aiTaskId) return;
+    try {
+      await oia().cancelTask(aiTaskId);
+    } catch {
+      setError("The task could not be cancelled — it will finish on its own.");
+    }
   }
 
   async function openResultInEditor() {

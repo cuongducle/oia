@@ -38,14 +38,17 @@ export type RuntimeEvent =
 /** For Agents — the loopback endpoint the skills talk to (127.0.0.1, key-authed). */
 export interface AgentApiStatus {
   port: number | null;
-  /** Agent-job frames seen since app start, newest first (cap ~50, main-side ring). */
+  /** Job frames seen since app start, newest first (cap ~50, main-side ring). */
   recentJobs: (AgentJobFrame & { at: number })[];
 }
 
+/** One metered-run lifecycle frame. `lane` tells agent-API runs from quick-tools
+ *  runs — both burn quota, both must be visible somewhere in the UI (hard rule 6). */
 export interface AgentJobFrame {
   taskId: string;
   event: "submitted" | "succeeded" | "failed";
   taskType: string;
+  lane: "agent" | "tool";
 }
 
 export interface OiaBridge {
@@ -98,8 +101,12 @@ export interface OiaBridge {
   revokeApiKey: (id: string) => Promise<boolean>;
   /** Loopback agent API endpoint state (port re-rolls on every utility fork). */
   agentStatus: () => Promise<AgentApiStatus>;
-  /** Live agent-job lifecycle (loopback submissions), buffered in main + streamed. */
+  /** Live job lifecycle (agent + tool lanes), buffered in main + streamed. */
   onAgentJob: (cb: (ev: AgentJobFrame) => void) => () => void;
+  /** Clipboard via MAIN — the renderer's navigator.clipboard is denied by the F2
+   *  deny-all permission handler (Electron maps it to clipboard-sanitized-write);
+   *  this must never silently no-op like a swallowed catch. */
+  copyText: (text: string) => Promise<boolean>;
   /** TP-D3 — codex runtime management (the zero-terminal onboarding surface). */
   runtimeStatus: () => Promise<RuntimeSnapshot>;
   runtimeInstall: () => Promise<{ runtime: RuntimeStatus }>;

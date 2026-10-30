@@ -14,8 +14,9 @@ export const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
  *  `/api/files/<key>` — the shape LocalFileStore.put returns (oia:// is renderer-only).
  *  The absolute-URL-only rule silently rejected every logo uploaded through the app's
  *  own uploader (zod .url() refuses relative refs) — found while porting the Brand Kit
- *  panel in reorg step 4d. */
-export const LOGO_REF = /^(?:https?:\/\/[^\s]+|\/api\/files\/[A-Za-z0-9][A-Za-z0-9._\/-]*)$/;
+ *  panel in reorg step 4d. Path segments must be alnum-first (no leading dot — so no
+ *  `..` traversal can be spelled); the store's safeKey() remains the second wall. */
+export const LOGO_REF = /^(?:https?:\/\/[^\s]+|\/api\/files\/(?:[A-Za-z0-9][A-Za-z0-9._-]*\/)*[A-Za-z0-9][A-Za-z0-9._-]*)$/;
 
 export const brandKitSchema = z
   .object({

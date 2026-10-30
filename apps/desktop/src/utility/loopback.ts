@@ -1,12 +1,16 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { chmod, writeFile, unlink, rename } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import type { ServiceContext } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
 import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path — single home in @oia/schema
 import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "./guardedTaskSubmit.js";
+
+const execFileAsync = promisify(execFile);
 
 /**
  * D9 (reorg step 4b) — the loopback agent API, served from the UTILITY process.
@@ -33,6 +37,14 @@ import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "
  * The wire shape mirrors the web task API exactly ({code,data,msg} envelope,
  * same routes) so the 15 skills work unchanged with OIA_BASE_URL swapped.
  */
+
+/** The Windows ACL owner — domain-qualified when the account has one.
+ *  (`domain` exists only on the Windows overload of userInfo — widen the type.) */
+async function currentUserName(): Promise<string> {
+  const os = await import("node:os");
+  const u = os.userInfo() as { username: string; domain?: string };
+  return u.domain ? `${u.domain}\\${u.username}` : u.username;
+}
 
 const MAX_BODY_BYTES = 50 * 1024 * 1024;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
@@ -106,6 +118,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
   // and let a chat job + an agent task run two paid generations at once.
   const submitter = createGuardedSubmitter({
     ctx,
+    lane: "agent",
     source: "agent",
     fallbackTtlMs: deps.fallbackTtlMs,
     onJobEvent: (ev) => emit({ type: "agentJob", ...ev }),
@@ -260,11 +273,19 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
   // discovery file — agents read the port from here (OIA_BASE_URL stays optional).
   // Atomic (temp + rename): a crash mid-write must never leave a truncated file —
   // the same TP.7 discipline the stores follow.
+  // POSIX: mode 0600 (belt & braces chmod — umask can mask the writeFile mode).
+  // Windows: fs mode is a NO-OP (stat always reports 0666) — enforce with an ACL:
+  // strip inheritance and grant only the current user, which is what 0600 MEANS
+  // there. The windows CI gate asserts the ACL, not the mode bits.
   const discoveryFile = path.join(deps.userDataDir, "agent-api.json");
   const discovery = { port, pid: process.pid, createdAt: Date.now(), nonce: randomUUID() };
   const tmpFile = `${discoveryFile}.tmp`;
   await writeFile(tmpFile, JSON.stringify(discovery, null, 2), { encoding: "utf8", mode: 0o600 });
-  await chmod(tmpFile, 0o600).catch(() => {}); // belt & braces: mode can be masked by umask
+  if (process.platform === "win32") {
+    await execFileAsync("icacls", [tmpFile, "/inheritance:r", "/grant:r", `${await currentUserName()}:F`]);
+  } else {
+    await chmod(tmpFile, 0o600).catch(() => {}); // belt & braces: mode can be masked by umask
+  }
   await rename(tmpFile, discoveryFile);
 
   const close = async (): Promise<void> => {

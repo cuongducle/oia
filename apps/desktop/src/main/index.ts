@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -16,6 +16,7 @@ import {
   filesUploadSchema, exportSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
   brandKitUpsertSchema, brandKitRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
+  clipboardWriteSchema,
 } from "../shared/ipc.js";
 import type { AgentJobFrame } from "../shared/bridge.js";
 import { utility } from "./utilityClient.js";
@@ -333,11 +334,21 @@ function registerIpc(): void {
     const port = (await utility.call({ cmd: "loopback.port" })) as number | null;
     return { port, recentJobs: agentJobRing.map((j) => ({ ...j })) };
   });
+  handle(IPC.clipboardWrite, async (_e, raw: unknown) => {
+    try {
+      const { text } = clipboardWriteSchema.parse(raw);
+      clipboard.writeText(text); // MAIN-side: unaffected by the deny-all permission handler
+      return true;
+    } catch (err) {
+      ipcError(err);
+    }
+  });
   // agentJob events: buffered in main (survive a utility crash+refork) and streamed
-  // to every live window — the For Agents panel reads both.
+  // to every live window — the For Agents feed reads both. `lane` separates agent-API
+  // runs from quick-tools runs (both metered, both must stay visible — hard rule 6).
   utility.onUtilityEvent((ev) => {
     if (ev.type !== "agentJob") return;
-    const frame: AgentJobFrame = { taskId: ev.taskId, event: ev.event, taskType: ev.taskType };
+    const frame: AgentJobFrame = { taskId: ev.taskId, event: ev.event, taskType: ev.taskType, lane: ev.lane };
     agentJobRing.unshift({ ...frame, at: Date.now() });
     agentJobRing.length = Math.min(agentJobRing.length, 50);
     for (const w of BrowserWindow.getAllWindows()) {
@@ -486,7 +497,9 @@ async function realSmoke(): Promise<void> {
 
 /**
  * Visual verification (the "open eyes" mode): open the real window, run a chat through
- * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-shot.png.
+ * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-*.png.
+ * Exit codes: 2 bridge missing · 3 home verify · 4/5 editor · 6 autosave · 7/8 workspace
+ * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate.
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
@@ -719,6 +732,7 @@ async function shot(): Promise<void> {
     app.exit(9);
     return;
   }
+  await snap(win, "desktop-tools.png");
 
   // tool AI end-to-end through the REAL bridge (mock pair): submitTask → taskStore
   // → poll getTask → result image. This is the 4c gate "tool AI (mock pair)".
@@ -744,12 +758,17 @@ async function shot(): Promise<void> {
     ta.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   })()`, true);
-  const genClicked = await win.webContents.executeJavaScript(`(() => {
-    const btn = document.querySelector(".toolRunner .primaryBtn");
-    if (!btn || btn.disabled) return false;
-    btn.click();
-    return true;
-  })()`, true);
+  // React re-renders asynchronously — POLL for the enabled button instead of racing it
+  let genClicked = false;
+  for (let i = 0; i < 20 && !genClicked; i++) {
+    genClicked = await win.webContents.executeJavaScript(`(() => {
+      const btn = document.querySelector(".toolRunner .primaryBtn");
+      if (!btn || btn.disabled) return false;
+      btn.click();
+      return true;
+    })()`, true).catch(() => false);
+    if (!genClicked) await new Promise((r) => setTimeout(r, 300));
+  }
   let aiDone = false;
   let aiVerify: unknown = null;
   for (let i = 0; i < 60 && !aiDone; i++) {
@@ -770,7 +789,6 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-tools-ai.png");
-  await snap(win, "desktop-tools.png");
 
   // ---- reorg 4d: Brand kit panel — kit form over the real store -----------------
   console.log("[shot] opening Brand kit…");
@@ -833,6 +851,27 @@ async function shot(): Promise<void> {
   if (!agentsVerify || !agentsVerify.ok) {
     console.error("DESKTOP_SHOT AGENTS VERIFY FAILED");
     app.exit(11);
+    return;
+  }
+  // Clipboard e2e gate: the renderer's navigator.clipboard is DENIED by the F2
+  // permission handler — Copy must ride the main-side bridge and confirm visibly.
+  const copyBtn = await win.webContents.executeJavaScript(`(() => {
+    const btn = document.querySelector('.baseUrlCode ~ .iconBtn, .agentSection .toolRow .iconBtn[aria-label="Copy base URL"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`, true);
+  let copiedSeen = false;
+  for (let i = 0; i < 10 && !copiedSeen; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    copiedSeen = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-copied="1"]'))`, true,
+    ).catch(() => false);
+  }
+  console.log(`[shot] clipboard copy gate: clicked=${copyBtn} copied=${copiedSeen}`);
+  if (!copyBtn || !copiedSeen) {
+    console.error("DESKTOP_SHOT CLIPBOARD VERIFY FAILED");
+    app.exit(13);
     return;
   }
   await snap(win, "desktop-agents.png");

@@ -39,6 +39,15 @@ beforeAll(async () => {
     await s2.load();
     expect(s2.list().length).toBeGreaterThanOrEqual(3);
   });
+  it("regression (reorg 4d): verify persists lastUsedAt — the For Agents table must not show a value the next boot contradicts", async () => {
+    const { plaintext } = await store.create("touched");
+    expect(store.verify(plaintext)).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 150)); // fire-and-forget save settles
+    const s3 = new ApiKeyStore(path.join(dir, "keys.json"));
+    await s3.load();
+    const reloaded = s3.list().find((r) => r.name === "touched");
+    expect(reloaded?.lastUsedAt).not.toBeNull();
+  });
   it("revoke xóa key", async () => {
     const { record } = await store.create("tobe-revoked");
     expect(await store.revoke(record.id)).toBe(true);

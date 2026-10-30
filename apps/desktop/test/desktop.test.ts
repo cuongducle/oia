@@ -6,7 +6,7 @@ import { resolveEffectiveMode } from "../src/shared/providers-mode.js";
 import type { RuntimeStatus } from "@oia/providers";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../src/shared/assets.js";
 import { IPC } from "../src/shared/channels.js";
-import { filesUploadSchema, exportSaveSchema, projectsSaveSchema, taskSubmitSchema, brandKitUpsertSchema, apiKeyCreateSchema } from "../src/shared/ipc.js";
+import { filesUploadSchema, exportSaveSchema, projectsSaveSchema, taskSubmitSchema, brandKitUpsertSchema, apiKeyCreateSchema, clipboardWriteSchema } from "../src/shared/ipc.js";
 
 /**
  * D2 remediation tests — the contract guards that made the first shell pass look green
@@ -123,6 +123,12 @@ describe("task lane + brand kit + api key IPC schemas", () => {
     expect(apiKeyCreateSchema.safeParse({ name: "", ttlDays: null }).success).toBe(false);
     expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 0 }).success).toBe(false);
     expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 1.5 }).success).toBe(false);
+  });
+  it("clipboardWriteSchema caps the payload (main-side copy lane — see cross-platform doc)", () => {
+    expect(clipboardWriteSchema.safeParse({ text: "http://127.0.0.1:52359/api" }).success).toBe(true);
+    expect(clipboardWriteSchema.safeParse({ text: "" }).success).toBe(true);
+    expect(clipboardWriteSchema.safeParse({ text: "x".repeat(10_001) }).success).toBe(false);
+    expect(clipboardWriteSchema.safeParse({}).success).toBe(false);
   });
 });
 

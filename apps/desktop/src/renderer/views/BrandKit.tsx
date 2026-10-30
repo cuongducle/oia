@@ -59,9 +59,12 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
       setMsg("Brand kit saved.");
       await refresh();
     } catch (e) {
-      setMsg(e instanceof Error && e.message && !e.message.includes("Error invoking")
-        ? e.message
-        : "Could not save the brand kit. Check the limits under each field.");
+      // Electron wraps handler rejections ("Error invoking remote method …: Error: <detail>")
+      // — recover the LAST detail segment so store validation reaches the user
+      // instead of being buried under the wrapper (never match the wrapper itself).
+      const raw = e instanceof Error ? e.message : "";
+      const detail = raw.includes("Error:") ? raw.slice(raw.lastIndexOf("Error:") + "Error:".length).trim() : raw;
+      setMsg(detail || "Could not save the brand kit. Check the limits under each field.");
     } finally { setBusy(false); }
   }
 

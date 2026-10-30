@@ -81,6 +81,9 @@ export const apiKeyCreateSchema = z.object({
   ttlDays: z.number().int().positive().max(3650).nullable(),
 });
 export const apiKeyRevokeSchema = z.object({ id: z.string().min(1) });
+/** Copy-to-clipboard rides MAIN (the deny-all permission handler blocks the
+ *  renderer's navigator.clipboard) — cap it so the channel stays boring. */
+export const clipboardWriteSchema = z.object({ text: z.string().max(10_000) });
 
 /** TP-D3 — provider mode is an explicit user choice persisted across launches. */
 export const runtimeSetModeSchema = z.object({

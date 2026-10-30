@@ -30,7 +30,8 @@ export const IPC = {
   apiKeysCreate: "apikeys:create",
   apiKeysRevoke: "apikeys:revoke",
   agentStatus: "agent:status",
-  agentJobEvent: "agentJob:event", // main → renderer (loopback job lifecycle)
+  agentJobEvent: "agentJob:event", // main → renderer (loopback + tool job lifecycle)
+  clipboardWrite: "clipboard:write",
   // TP-D3 — codex runtime management (status / guided download / in-app login)
   runtimeStatus: "runtime:status",
   runtimeInstall: "runtime:install",

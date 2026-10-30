@@ -30,6 +30,7 @@ beforeAll(async () => {
       expect(() => store.validate({ name: "x", logos: ["/api/files/uploads/20261106/logo-1.png"] })).not.toThrow();
       expect(() => store.validate({ name: "x", logos: ["https://cdn.example/logo.png"] })).not.toThrow();
       expect(() => store.validate({ name: "x", logos: ["file:///etc/passwd"] })).toThrow(/logos/);
+      expect(() => store.validate({ name: "x", logos: ["/api/files/uploads/../secrets.json"] })).toThrow(/logos/); // no dot-dot segments
     });
     it("BR-BK3: defaulting a new kit disables the old one (exactly one active)", async () => {
     const a = await store.upsert({ name: "A", applyByDefault: true });

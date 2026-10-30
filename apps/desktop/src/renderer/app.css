@@ -87,7 +87,7 @@ pre, code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9
 
 /* ---------- view shell (Home / Workspace; Editor fills the window) ---------- */
 .viewFrame { height: 100%; display: flex; flex-direction: column; }
-.viewNav { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: #fff; }
+.viewNav { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: #fff; flex-wrap: wrap; }
 .viewNav .navPill { display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: #60616e; font-size: 13px; }
 .viewNav .navPill:hover { background: #ededf0; color: var(--ink); }
 .viewNav .navPill.active { background: #eae6f7; color: #5533bf; font-weight: 600; }
@@ -232,6 +232,9 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .tableScroll th { text-align: left; border-bottom: 1px solid var(--line); padding: 8px; color: var(--muted); font-weight: 500; }
 .tableScroll td { border-bottom: 1px solid var(--line); padding: 8px; }
 .tableScroll .muted { color: var(--muted); }
+.laneTag { font-size: 10px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; color: var(--muted); flex: 0 0 auto; }
+.laneTag.agent { color: #5533bf; border-color: #c9bcea; background: var(--accent-soft); }
+.laneTag.tool { color: #6a5a2a; border-color: #e3d8ae; background: #fdf8e7; }
 .jobList { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
 .jobRow { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-size: 12px; background: var(--card); }
 .jobDot { width: 8px; height: 8px; border-radius: 999px; background: #9ca3af; flex: 0 0 auto; }

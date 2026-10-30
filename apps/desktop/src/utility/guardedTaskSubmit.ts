@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ServiceContext } from "@oia/services";
 import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
 import type { TaskType } from "@oia/schema";
+import type { AgentJobFrame } from "../shared/bridge.js";
 
 /**
  * G3 (reorg step 4c) — the ONE metered-task submit wrapper, shared by the loopback
@@ -21,20 +22,21 @@ import type { TaskType } from "@oia/schema";
  * agent task and a quick-tools task all contend on the SAME slot — quota is money.
  */
 
-export interface GuardedJobEvent {
-  taskId: string;
-  event: "submitted" | "succeeded" | "failed";
-  taskType: TaskType;
+export interface GuardedJobEvent extends AgentJobFrame {
+  /** Tagged by the LANE that emitted it (loopback "agent" / quick tools "tool"). */
+  lane: "agent" | "tool";
 }
 
 export interface GuardedSubmitterDeps {
   ctx: () => ServiceContext;
+  /** The lane this submitter serves — tagged on every emitted frame. */
+  lane: "agent" | "tool";
   onJobEvent: (ev: GuardedJobEvent) => void;
   /** Fallback ONLY; gates inject ms so the wedged path is observable in tests. */
   fallbackTtlMs?: number;
   /** Opaque reservation-id prefix (log readability; uniqueness comes from the uuid). */
   idPrefix?: string;
-  /** Which lane the record is attributed to ("agent" loopback / "web" quick tools). */
+  /** Which lane the record is attributed to ("web" quick tools / "agent" loopback). */
   source: "web" | "agent";
 }
 
@@ -47,10 +49,11 @@ export interface GuardedSubmitter {
   dispose(): void;
 }
 
-/** Stable wire name — the renderer maps it like a rate-limited chat refusal. */
+/** Stable wire name — the renderer maps it like a rate-limited chat refusal.
+ *  Message is the loopback's exact 429 text: skills/agents may match on it. */
 export class MeteredBusyError extends Error {
   constructor() {
-    super("a generation is already running (chat or agent); wait for it to finish and try again");
+    super("a generation is already running (chat or agent); poll and retry");
     this.name = "MeteredBusyError";
   }
 }
@@ -58,6 +61,16 @@ export class MeteredBusyError extends Error {
 export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmitter {
   const armedFallbacks = new Set<ReturnType<typeof setTimeout>>();
   const metered = () => !deps.ctx().chat.image.capabilities.isMock;
+  /** Events are observability, NEVER accounting: an emitting sink that throws must
+   *  not reach the release logic below (a swallowed emit beats a wrongly freed slot
+   *  while a metered task still runs — quota is money). */
+  const emitSafe = (event: GuardedJobEvent["event"], taskId: string, type: TaskType): void => {
+    try {
+      deps.onJobEvent({ taskId, event, taskType: type, lane: deps.lane });
+    } catch {
+      /* observation only */
+    }
+  };
 
   return {
     submit(type, body) {
@@ -79,7 +92,7 @@ export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmi
           armedFallbacks.delete(fallbackTimer);
         }
         releaseMeteredJob(guardId);
-        deps.onJobEvent({ taskId, event: ok ? "succeeded" : "failed", taskType: type });
+        emitSafe(ok ? "succeeded" : "failed", taskId, type);
       };
 
       return deps
@@ -91,7 +104,7 @@ export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmi
           onSettled: (final) => settle(final.taskId, final.progress === "succeeded"),
         })
         .then((t) => {
-          deps.onJobEvent({ taskId: t.taskId, event: "submitted", taskType: type });
+          emitSafe("submitted", t.taskId, type);
           // fallback ONLY (background mode — sync mode has already settled inside
           // submit): a handler wedged past every provider timeout must not pin the
           // guard forever. Arms nothing when settled: no pin, no spurious "failed".

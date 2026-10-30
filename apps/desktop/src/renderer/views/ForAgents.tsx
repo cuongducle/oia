@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { oia } from "../lib/bridge.js";
 import type { AgentJobFrame } from "../../shared/bridge.js";
 
 /**
  * reorg step 4d — For Agents (web /for-agents ported): API keys for the loopback
  * agent API (create/view/revoke; plaintext shown ONCE), the live base URL (the
- * port re-rolls on every utility fork), and the agent-job feed (main buffers
- * frames so history survives a closed panel or a services crash+refork).
+ * port re-rolls on every utility fork), and the runs feed.
+ *
+ * The feed merges lifecycle frames PER TASK (a sync-mode submit settles before its
+ * "submitted" frame is emitted — arrival order cannot be the display order) and
+ * covers BOTH lanes: agent-API runs and quick-tools runs are all metered
+ * generations and must stay visible even after the view that started them closed
+ * (hard rule 6). Frames are buffered in main, so history survives a closed panel
+ * or a services crash+refork.
+ *
+ * Copy buttons ride the MAIN-side clipboard IPC — the renderer's
+ * navigator.clipboard is denied by the F2 deny-all permission handler, and a
+ * swallowed failure there would silently copy nothing.
  */
 
 interface KeyRow {
@@ -18,19 +28,23 @@ interface KeyRow {
   lastUsedAt: number | null;
 }
 
-type JobRow = AgentJobFrame & { at: number };
+/** One row per TASK: the latest lifecycle state + when it last changed. */
+interface RunRow {
+  taskId: string;
+  taskType: string;
+  lane: AgentJobFrame["lane"];
+  state: AgentJobFrame["event"];
+  at: number;
+}
 
-const JOB_LABEL: Record<AgentJobFrame["event"], string> = {
-  submitted: "submitted",
+const RUN_LABEL: Record<RunRow["state"], string> = {
+  submitted: "running",
   succeeded: "succeeded",
   failed: "failed",
 };
 
-function fmtDate(ms: number): string {
-  return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-function fmtTime(ms: number): string {
-  return new Date(ms).toLocaleTimeString("en-US", { hour12: false });
+function fmtDateTime(ms: number): string {
+  return new Date(ms).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function ForAgents() {
@@ -40,21 +54,42 @@ export function ForAgents() {
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** Tri-state, never a stuck "starting…" lie: ready | loading | down. */
+  const [portState, setPortState] = useState<"loading" | "ready" | "down">("loading");
   const [port, setPort] = useState<number | null>(null);
-  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [runs, setRuns] = useState<RunRow[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => {
-    void refreshKeys().catch(() => setError("Could not load API keys."));
+  const loadAgentStatus = useCallback(() => {
+    setPortState("loading");
     void oia()
       .agentStatus()
       .then((s) => {
         setPort(s.port);
-        setJobs(s.recentJobs);
+        setPortState(s.port ? "ready" : "down");
+        setRuns(mergeRuns([], s.recentJobs));
       })
-      .catch(() => setPort(null));
-    const off = oia().onAgentJob((ev) => setJobs((j) => [{ ...ev, at: Date.now() }, ...j].slice(0, 50)));
-    return off;
+      .catch(() => setPortState("down"));
   }, []);
+
+  useEffect(() => {
+    void refreshKeys().catch(() => setError("Could not load API keys."));
+    loadAgentStatus();
+    const off = oia().onAgentJob((ev) => setRuns((prev) => mergeRuns(prev, [{ ...ev, at: Date.now() }])));
+    return off;
+  }, [loadAgentStatus]);
+
+  /** Keyed merge — newest change wins per task; rows sorted by last change. */
+  function mergeRuns(prev: RunRow[], incoming: (AgentJobFrame & { at: number })[]): RunRow[] {
+    const byId = new Map(prev.map((r) => [r.taskId, r]));
+    for (const f of incoming) {
+      const existing = byId.get(f.taskId);
+      if (!existing || f.at >= existing.at) {
+        byId.set(f.taskId, { taskId: f.taskId, taskType: f.taskType, lane: f.lane, state: f.event, at: f.at });
+      }
+    }
+    return [...byId.values()].sort((a, b) => b.at - a.at).slice(0, 50);
+  }
 
   async function refreshKeys() {
     setKeys(await oia().listApiKeys());
@@ -79,6 +114,19 @@ export function ForAgents() {
       await refreshKeys();
     } catch {
       setError("Could not revoke the key.");
+    }
+  }
+
+  /** Main-side clipboard — visible confirmation, never a silent no-op. */
+  async function copy(label: string, text: string) {
+    setCopied(null);
+    try {
+      const ok = await oia().copyText(text);
+      if (!ok) throw new Error("refused");
+      setCopied(label);
+      setTimeout(() => setCopied((c) => (c === label ? null : c)), 1600);
+    } catch {
+      setError("Copy failed — select the text and copy it manually.");
     }
   }
 
@@ -118,7 +166,9 @@ export function ForAgents() {
             <b>Your new key (shown only once):</b>
             <div className="toolRow">
               <code>{freshKey}</code>
-              <button className="iconBtn" aria-label="Copy new API key" title="Copy" onClick={() => void navigator.clipboard.writeText(freshKey).catch(() => {})}>Copy</button>
+              <button className="iconBtn" aria-label="Copy new API key" title="Copy" data-copied={copied === "key" ? "1" : undefined} onClick={() => void copy("key", freshKey)}>
+                {copied === "key" ? "Copied" : "Copy"}
+              </button>
             </div>
           </div>
         )}
@@ -135,9 +185,9 @@ export function ForAgents() {
                     <td className="muted">{i + 1}</td>
                     <td>{k.name}</td>
                     <td><code>{k.preview}…</code></td>
-                    <td>{fmtDate(k.createdAt)}</td>
-                    <td>{k.expiresAt ? fmtDate(k.expiresAt) : "—"}</td>
-                    <td>{k.lastUsedAt ? fmtTime(k.lastUsedAt) : "—"}</td>
+                    <td>{fmtDateTime(k.createdAt)}</td>
+                    <td>{k.expiresAt ? fmtDateTime(k.expiresAt) : "—"}</td>
+                    <td>{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "—"}</td>
                     <td><button className="iconBtn danger" aria-label={`Revoke key ${k.name}`} title="Revoke key" onClick={() => void revoke(k.id, k.name)}>Revoke</button></td>
                   </tr>
                 ))}
@@ -151,13 +201,20 @@ export function ForAgents() {
 
       <section className="agentSection" aria-labelledby="base-title">
         <h2 id="base-title">Base URL</h2>
-        {baseUrl ? (
+        {portState === "ready" ? (
           <div className="toolRow">
             <code className="baseUrlCode">{baseUrl}</code>
-            <button className="iconBtn" aria-label="Copy base URL" title="Copy" onClick={() => void navigator.clipboard.writeText(baseUrl).catch(() => {})}>Copy</button>
+            <button className="iconBtn" aria-label="Copy base URL" title="Copy" data-copied={copied === "base" ? "1" : undefined} onClick={() => void copy("base", baseUrl)}>
+              {copied === "base" ? "Copied" : "Copy"}
+            </button>
           </div>
+        ) : portState === "loading" ? (
+          <p className="hintP" role="status">Finding the local agent API…</p>
         ) : (
-          <p className="hintP">The agent API is starting…</p>
+          <div className="notice warn" role="status">
+            The local agent API is not responding — agents cannot connect right now.
+            <button className="secondaryBtn" style={{ marginLeft: 10 }} onClick={loadAgentStatus}>Retry</button>
+          </div>
         )}
         <p className="hintP">
           The port is chosen at launch; agent skills read it automatically from this machine.
@@ -166,23 +223,24 @@ export function ForAgents() {
         </p>
       </section>
 
-      <section className="agentSection" aria-labelledby="jobs-title">
-        <h2 id="jobs-title">Agent jobs</h2>
-        <p className="hintP">Generations your agents started through the local API (this session).</p>
-        {jobs.length > 0 ? (
+      <section className="agentSection" aria-labelledby="runs-title">
+        <h2 id="runs-title">Runs</h2>
+        <p className="hintP">Metered generations from agents and in-app tools (this app session), newest change first.</p>
+        {runs.length > 0 ? (
           <ul className="jobList">
-            {jobs.map((j, i) => (
-              <li key={`${j.taskId}-${j.event}-${i}`} className={`jobRow ${j.event}`}>
+            {runs.map((j) => (
+              <li key={j.taskId} className={`jobRow ${j.state}`}>
                 <span className="jobDot" aria-hidden="true" />
+                <span className={`laneTag ${j.lane}`}>{j.lane === "agent" ? "agent" : "tool"}</span>
                 <span className="jobType">{j.taskType}</span>
                 <code className="jobId">{j.taskId}</code>
-                <span className="jobEvent">{JOB_LABEL[j.event]}</span>
-                <span className="muted jobAt">{fmtTime(j.at)}</span>
+                <span className="jobEvent">{RUN_LABEL[j.state]}</span>
+                <span className="muted jobAt">{fmtDateTime(j.at)}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <div className="emptyState">No agent jobs yet. Runs submitted by skills will appear here.</div>
+          <div className="emptyState">No runs yet. Generations started by skills or the Toolbox will appear here.</div>
         )}
       </section>
     </main>
