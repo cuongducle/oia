@@ -14,7 +14,7 @@
 | D5 | Toolbox: GIỮ TOÀN BỘ 13 tool + Background Remover. PPT Translator hiện là landing — xếp implement hậu kỳ, không chặn v1. |
 | D6 | Không tạo `packages/studio` / `packages/desktop-contract` — chỉ còn 1 consumer (YAGNI), UI ở `apps/desktop`, hợp đồng IPC ở `src/shared`. |
 | D7 | Mượn từ Orca 3 thứ: baseline ratchet (nợ đo bằng số, chỉ được giảm), process-host pattern cho CliRuntime Windows, knip dò code chết. Không copy `cloud/`, `mobile/`, `Casks/`. |
-| D8 | Mở (chờ chốt sau): desktop UI VI-first hay EN-first. Persona seller Việt → nghiêng VI-first. |
+| D8 | ĐÃ ĐÓNG (tìm thấy ghi chép trong `apps/desktop/src/renderer/lib/errors.ts`, quyết định D2 2026-10-30): desktop UI ship bằng TIẾNG ANH — tiếng Việt chỉ ở mức nội dung banner (font Be Vietnam Pro). i18n web 12 locale không port. |
 
 ## Cây thư mục đích
 
@@ -87,10 +87,11 @@ oia/
 - Đồng bộ Fabric về 1 version toàn repo (canvas đang `^6.7.1`, apps `^6.9.1`).
 - Gate: `pnpm build && pnpm test` xanh.
 
-**Bước 2 — Cắt phụ thuộc @oia-web (CHẶN)**
+**Bước 2 — Cắt phụ thuộc @oia-web (CHẶN)** ✅ XONG (2026-10-30)
 - Nhấc 4 file `apps/web/libs` → `apps/desktop/src/renderer/lib/`: `studio-templates.ts`, `studio-ui.ts`, `provider-errors.ts`, `i18n.ts`.
 - Khởi tạo baseline ratchet = 5; mục tiêu 0 ngay trong bước này.
 - Gate: `grep -r "@oia-web" apps/desktop` = 0 kết quả; desktop typecheck/build xanh.
+- ĐÃ LÀM: 4 file copy vào `renderer/lib/`; bỏ alias `@oia-web` khỏi `electron.vite.config.ts` + `tsconfig.json`; baseline ratchet `config/baselines/oia-web-imports.baseline.txt` = 0 + guard trong CI (`desktop-smoke` job). Gate chạy: grep 0, typecheck, build, 22 test, smoke Electron thật (`DESKTOP_SMOKE OK`). Web giữ bản gốc libs tới bước 6 (đóng băng, chỉ làm tham chiếu).
 
 **Bước 3 — BullMQ purge**
 - Xóa `packages/tasks/src/bullmq.ts`; queue in-process thuần (cancel in-process đã hoạt động, ioredis lazy-import sẽ tự vô nghĩa).

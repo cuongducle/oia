@@ -3,8 +3,8 @@ import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
 /**
- * TP-D1 — electron-vite shell. The renderer aliases @oia-web into the web app's
- * transport-free libs (i18n, provider-errors) — single source, no copy.
+ * TP-D1 — electron-vite shell. The renderer owns its lib copies (reorg step 2:
+ * studio-templates, studio-ui, provider-errors, i18n live in src/renderer/lib).
  */
 export default defineConfig({
   main: {
@@ -21,7 +21,6 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
       alias: {
-        "@oia-web": resolve(__dirname, "../web"),
         "@": resolve(__dirname, "src/renderer"),
       },
     },

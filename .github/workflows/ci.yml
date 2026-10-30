@@ -30,6 +30,14 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # workspace dist/types must exist before the desktop typecheck
+      # Ratchet (reorg step 2): apps/desktop must never reach back into apps/web.
+      # The baseline may only DECREASE — the desktop owns its lib copies now.
+      - name: "@oia-web import ratchet"
+        run: |
+          COUNT=$(grep -r "@oia-web" apps/desktop/src --include='*.ts' --include='*.tsx' | wc -l | tr -d ' ')
+          BASE=$(grep -E '^[0-9]+$' config/baselines/oia-web-imports.baseline.txt)
+          echo "desktop @oia-web imports: $COUNT (baseline: $BASE)"
+          if [ "$COUNT" -gt "$BASE" ]; then echo "::error::@oia-web imports increased ($COUNT > $BASE)"; exit 1; fi
       - run: pnpm --filter @oia/desktop typecheck
       - run: pnpm --filter @oia/desktop test
       # the scripted end-to-end: mock pair -> runChat over the real Electron main process

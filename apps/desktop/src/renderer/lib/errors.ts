@@ -1,12 +1,11 @@
-import { presentError, type ErrorActionKind } from "@oia-web/libs/provider-errors";
-import type { I18nKey } from "@oia-web/libs/i18n";
+import { presentError, type ErrorActionKind } from "./provider-errors.js";
+import type { I18nKey } from "./i18n.js";
 
 /**
  * D2 owner decision (2026-10-30): the desktop UI ships ENGLISH — no Vietnamese UI
  * strings anywhere in renderer code. Vietnamese is supported at the CONTENT level
- * only (Be Vietnam Pro font renders seller text in banners). The web app keeps its
- * Vietnamese-first i18n; the desktop reuses only the error CLASSIFICATION from
- * @oia-web/libs/provider-errors and maps keys to its own English copy.
+ * only (Be Vietnam Pro font renders seller text in banners). The desktop owns its
+ * copies of provider-errors/i18n (reorg step 2) and maps keys to its own English copy.
  */
 const EN: Partial<Record<I18nKey, string>> = {
   "error.provider_missing": "The AI tool (Codex CLI) is not installed yet. Install it, then try again.",

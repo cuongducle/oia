@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatEvent, CanvasMsgMeta, Template, SceneCanvas } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
-import { STUDIO_TEMPLATES } from "@oia-web/libs/studio-templates";
-import { filterTemplates, templateCategory, type StudioCategory } from "@oia-web/libs/studio-ui";
+import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
+import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
 import RuntimePanel from "../RuntimePanel.js";

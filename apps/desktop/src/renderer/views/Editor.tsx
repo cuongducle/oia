@@ -8,7 +8,7 @@ import {
   type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage,
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
-import { STUDIO_TEMPLATES } from "@oia-web/libs/studio-templates";
+import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";

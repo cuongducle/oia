@@ -13,12 +13,7 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "baseUrl": ".",
-    "paths": {
-      "@oia-web/*": [
-        "../web/*"
-      ]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src"
