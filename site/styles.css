@@ -159,7 +159,7 @@ h2{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(
 .editor-frame{margin-top:64px;position:relative;border-radius:12px;padding:2px;background:linear-gradient(140deg,var(--accent),transparent 45%);transform-style:preserve-3d}
 .js .editor-frame{clip-path:inset(8% 4% 8% 4%)}
 .editor-frame.in{clip-path:inset(0 0 0 0);transition:clip-path 1.1s cubic-bezier(.22,1,.3,1)}
-.editor-frame img{border-radius:10px;width:100%}
+.editor-frame img{border-radius:10px;width:100%;height:auto}
 .editor-frame .cap{position:absolute;bottom:-26px;right:8px}
 
 /* ---------- OSS ---------- */
@@ -221,4 +221,11 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-off
   .js .reveal{opacity:1;transform:none}
   .js .gtile{clip-path:none}
   .js .editor-frame{clip-path:none}
+}
+
+img{max-width:100%;height:auto}
+
+/* caption dễ đọc trên mobile: chip nền tối góc phải dưới, trong ảnh */
+@media (max-width:960px){
+  .editor-frame .cap{bottom:14px;right:12px;background:rgba(11,10,24,.82);border:1px solid var(--hairline);border-radius:5px;padding:5px 9px;color:var(--paper)}
 }
