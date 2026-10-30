@@ -44,3 +44,9 @@ jobs:
         working-directory: apps/desktop
         env:
           OIA_DESKTOP_CRASH_SMOKE: "1"
+      # F1 gate: a second REAL app process must hit the single-instance lock and exit
+      # instead of booting a second utility process over the same userData.
+      - run: xvfb-run -a npx electron . --no-sandbox
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_SI_SMOKE: "1"

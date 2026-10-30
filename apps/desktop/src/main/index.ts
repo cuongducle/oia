@@ -2,6 +2,9 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import {
@@ -628,10 +631,39 @@ function registerMenu(): void {
   );
 }
 
+/**
+ * F1 — ONE app instance, ever. Without the lock, a second launch forked a second
+ * utility process against the SAME userData: the atomic-write queue is per-process,
+ * so two writers saved over each other (last-writer-wins data loss), and two loopback
+ * servers fought over one discovery file + one quota guard. The smoke isolates its
+ * userData so it never races a real running instance on a dev machine.
+ */
+if (process.env.OIA_DESKTOP_SI_SMOKE === "1") {
+  app.setPath("userData", mkdtempSync(path.join(tmpdir(), "oia-si-smoke-")));
+}
+const gotInstanceLock = app.requestSingleInstanceLock();
+if (!gotInstanceLock) {
+  // Marker line asserted by the SI smoke gate (and useful in bug reports).
+  console.log("[single-instance] another Oia owns this userData — focusing it and exiting");
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    // Someone tried to launch us again: surface the existing window instead.
+    const [win] = BrowserWindow.getAllWindows();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
 app.whenReady().then(async () => {
   initRuntimeController(path.join(app.getPath("userData")));
   registerIpc();
   registerMenu();
+  if (process.env.OIA_DESKTOP_SI_SMOKE === "1") {
+    await singleInstanceSmoke();
+    return;
+  }
   if (process.env.OIA_DESKTOP_SMOKE === "1") {
     await smoke();
     return;
@@ -682,3 +714,52 @@ app.on("before-quit", (e) => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+}
+
+/**
+ * F1 gate — the single-instance lock, end to end with a REAL second process:
+ * spawn this same app (env flags stripped, same userData); it must hit the lock,
+ * print the secondary marker and exit quickly instead of booting a second
+ * utility process. Old behavior: the child fully started — two writers on the
+ * same stores (the failure mode this gate exists to catch).
+ */
+async function singleInstanceSmoke(): Promise<void> {
+  registerAssetProtocol();
+  createWindow();
+  const childEnv: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!k.startsWith("OIA_DESKTOP_") && v !== undefined) childEnv[k] = v;
+  }
+  const appRoot = app.getAppPath();
+  // The lock is keyed on the user data dir — the child MUST contend for the SAME
+  // isolated dir the parent setPath'd, never the dev machine's real one.
+  const child = spawn(
+    process.execPath,
+    [appRoot, `--user-data-dir=${app.getPath("userData")}`, ...process.argv.slice(2)],
+    {
+      cwd: appRoot,
+      env: childEnv,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  let sawMarker = false;
+  child.stdout.on("data", (c: Buffer) => {
+    if (c.toString("utf8").includes("[single-instance]")) sawMarker = true;
+  });
+  child.stderr.on("data", (c: Buffer) => process.stderr.write(`[si-child] ${c}`));
+
+  const exited = await new Promise<{ code: number | null; timedOut: boolean }>((resolve) => {
+    const timer = setTimeout(() => resolve({ code: null, timedOut: true }), 30_000);
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve({ code, timedOut: false });
+    });
+  });
+  if (!exited.timedOut) child.kill();
+  const ok = !exited.timedOut && sawMarker;
+  console.log(
+    `DESKTOP_SI_SMOKE ${ok ? "OK" : "FAILED"} secondaryExited=${!exited.timedOut} ` +
+      `marker=${sawMarker} code=${exited.code}`,
+  );
+  app.exit(ok ? 0 : 1);
+}
