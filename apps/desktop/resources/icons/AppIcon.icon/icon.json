@@ -1,0 +1,23 @@
+{
+  "fill" : {
+    "automatic-gradient" : "srgb:0.43922,0.31373,0.89804,1.00000"
+  },
+  "color-space-for-untagged-svg-colors" : "srgb",
+  "groups" : [
+    {
+      "name" : "Mark",
+      "lighting" : "combined",
+      "layers" : [
+        {
+          "name" : "o-mark",
+          "image-name" : "mark.png",
+          "glass" : true,
+          "opacity" : 1
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [ "macOS" ]
+  }
+}
