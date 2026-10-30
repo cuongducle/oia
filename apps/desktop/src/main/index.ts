@@ -2,40 +2,37 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from "electron";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { createServiceContext, runChat, cancelJob, jobControllers, providerStatusSnapshot, chatRequestSchema, type ServiceContext } from "@oia/services";
-import { checkNsfw } from "@oia/providers";
 import { IPC } from "../shared/channels.js";
 import {
+  chatRequestSchema,
   chatCancelSchema, projectsCreateSchema, projectsGetSchema,
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
   filesUploadSchema, exportSaveSchema,
 } from "../shared/ipc.js";
-import type { OiaBridge } from "../shared/bridge.js";
+import { utility } from "./utilityClient.js";
 import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
 
 /**
- * TP-D1 (D2 + remediation) — the Electron main process:
- * - typed IPC surface over @oia/services (same orchestration as the web adapter)
- * - `oia://files/<key>` custom protocol serves asset bytes from the LocalFileStore —
- *   the renderer canvas can load artwork WITHOUT any HTTP server (file:// cannot)
- * - window close / app quit cancel every in-flight job (TP-D5 semantics: no quota
- *   burn after the user closes the window)
- * - renderer hardening: sandbox on, navigation + window-open denied, strict CSP
- * - validation failures reject with a friendly message the renderer localizes
+ * D11 (reorg step 4a) — the Electron MAIN process owns windows, menus, dialogs,
+ * the oia://files protocol, and the codex runtime controller. The SERVICE layer
+ * (ServiceContext: runChat, task store, projects/templates/sessions, files, NSFW)
+ * lives in a separate utility process (src/utility) reached through the typed
+ * RPC in main/utilityClient — a services crash can no longer take the window
+ * down, and the main thread never blocks on provider work.
  *
- * TP-D3 (this increment) — the codex runtime is managed in-app: the provisioner
- * (detect → guided checksummed download → login/logout) lives in @oia/providers;
- * this process owns the provider-mode choice (settings.json in userData), rebuilds
- * the service context when it changes, and opens the login URL in the system
- * browser. CI smoke/shot always run mock — a quota-billed run is never accidental.
+ * Renderer contract is UNCHANGED: the same IPC channels, the same zod validation
+ * in shared/ipc.ts — main validates, then forwards to the utility process.
+ *
+ * TP-D3 (unchanged): the codex runtime is managed in-app; this process owns the
+ * provider-mode choice (settings.json in userData) and rebuilds the utility's
+ * service context when it changes. CI smoke/shot always run mock.
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-let ctx: ServiceContext | null = null;
-let ctxMode: "mock" | "codex" | null = null; // what the CURRENT context was built with
 const originalCodexBin = process.env.CODEX_BIN;
+let ctxMode: "mock" | "codex" | null = null; // what the CURRENT utility context was built with
 
-/** Serialize context builds — concurrent IPC must never construct two service contexts. */
+/** Serialize context builds — concurrent IPC must never build two contexts. */
 let buildLock: Promise<unknown> = Promise.resolve();
 function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = buildLock.then(fn);
@@ -43,36 +40,37 @@ function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-async function ensureCtx(): Promise<ServiceContext> {
+/** The provider env the utility context builds from: mode + resolved codex binary. */
+async function contextEnv(): Promise<Record<string, string | undefined>> {
+  const mode = await effectiveMode();
+  if (mode === "codex") {
+    const det = await getProvisionerSafe();
+    if (det) process.env.CODEX_BIN = det;
+  } else {
+    process.env.CODEX_BIN = originalCodexBin;
+  }
+  return { ...process.env, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode };
+}
+
+/** Boot (or rebuild) the utility service context under the build lock.
+ *  Cached: re-init only on the first call or after a mode change (rebuildContext). */
+async function ensureUtility(): Promise<void> {
   return withBuildLock(async () => {
+    utility.start();
     const mode = await effectiveMode();
-    if (ctx && ctxMode === mode) return ctx;
-    if (ctx && ctxMode !== mode) cancelAllJobs(); // never mix contexts mid-job
-    // the CodexBridge pins its binary from process.env at construction — point it at
-    // the resolved runtime (PATH hit, managed install, or CODEX_BIN override)
-    if (mode === "codex") {
-      const det = await getProvisionerSafe();
-      if (det) process.env.CODEX_BIN = det;
-    } else {
-      process.env.CODEX_BIN = originalCodexBin;
-    }
-    ctx = await createServiceContext({
-      dataDir: path.join(app.getPath("userData"), "data"),
-      env: { ...process.env, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode },
-    });
+    if (ctxMode === mode) return; // already built with this mode — no re-init
+    await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), env: await contextEnv() });
     ctxMode = mode;
-    return ctx;
   });
 }
 
-/** Rebuild on the next ensureCtx (mode choice or runtime state changed underneath us). */
+/** Rebuild on the next ensureUtility (mode choice or runtime state changed). */
 async function rebuildContext(): Promise<void> {
   await withBuildLock(async () => {
-    const mode = await effectiveMode();
-    if (ctx && ctxMode !== mode) cancelAllJobs();
-    ctx = null;
+    await utility.call({ cmd: "cancelAll" }).catch(() => {}); // never mix contexts mid-job
+    await utility.call({ cmd: "rebuild", env: await contextEnv() });
+    ctxMode = await effectiveMode();
   });
-  await ensureCtx();
 }
 
 /** detect() without side effects — no status probe, no login round trip. */
@@ -122,10 +120,7 @@ function createWindow(): BrowserWindow {
 }
 
 function cancelAllJobs(): void {
-  for (const [jobId, ac] of jobControllers()) {
-    if (!ac.signal.aborted) ac.abort("window-closed");
-    cancelJob(jobId);
-  }
+  void utility.call({ cmd: "cancelAll" }).catch(() => {});
 }
 
 function registerIpc(): void {
@@ -135,25 +130,38 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.chatRun, async (event, raw: unknown) => {
     try {
-      const req = chatRequestSchema.parse(raw);
-      const c = await ensureCtx();
-      return await runChat(req, c, { sink: (ev) => event.sender.send(IPC.chatEvent, ev) });
+      const req = chatRequestSchema.parse(raw); // validated HERE — the utility trusts main
+      await ensureUtility();
+      // requestId: events stream back to THIS sender while the call is in flight
+      const result = await utility.call(
+        { cmd: "chatRun", req },
+        { requestId: `chat-${event.sender.id}-${Date.now()}`, sender: event.sender },
+      );
+      return result;
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.chatCancel, (_e, raw: unknown) => {
+  ipcMain.handle(IPC.chatCancel, async (_e, raw: unknown) => {
     try {
-      return cancelJob(chatCancelSchema.parse(raw).jobId);
+      return await utility.call({ cmd: "chatCancel", jobId: chatCancelSchema.parse(raw).jobId });
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.providerStatus, async () => providerStatusSnapshot(await ensureCtx()));
+  ipcMain.handle(IPC.providerStatus, async () => {
+    try {
+      await ensureUtility();
+      return await utility.call({ cmd: "providerStatus" });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
   ipcMain.handle(IPC.projectsCreate, async (_e, raw: unknown) => {
     try {
       const { name, scene, pages, width, height } = projectsCreateSchema.parse(raw);
-      return await (await ensureCtx()).projects.create({ name, scene, pages, width, height });
+      await ensureUtility();
+      return await utility.call({ cmd: "projects.create", input: { name, scene, pages, width, height } });
     } catch (err) {
       ipcError(err);
     }
@@ -161,16 +169,21 @@ function registerIpc(): void {
   ipcMain.handle(IPC.projectsGet, async (_e, raw: unknown) => {
     try {
       const { id } = projectsGetSchema.parse(raw);
-      return (await ensureCtx()).projects.get(id) ?? null;
+      await ensureUtility();
+      return await utility.call({ cmd: "projects.get", id });
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.projectsList, async () => (await ensureCtx()).projects.recent(50));
+  ipcMain.handle(IPC.projectsList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "projects.list" });
+  });
   ipcMain.handle(IPC.projectsSave, async (_e, raw: unknown) => {
     try {
       const { id, name, pages } = projectsSaveSchema.parse(raw);
-      return await (await ensureCtx()).projects.saveScene(id, { name, pages });
+      await ensureUtility();
+      return await utility.call({ cmd: "projects.save", id, patch: { name, pages } });
     } catch (err) {
       ipcError(err);
     }
@@ -178,30 +191,34 @@ function registerIpc(): void {
   ipcMain.handle(IPC.projectsRemove, async (_e, raw: unknown) => {
     try {
       const { id } = projectsRemoveSchema.parse(raw);
-      return await (await ensureCtx()).projects.remove(id);
+      await ensureUtility();
+      return await utility.call({ cmd: "projects.remove", id });
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.templatesList, async () =>
-    (await ensureCtx()).templates.list({ page: 1, pageSize: 100 }).items,
-  );
+  ipcMain.handle(IPC.templatesList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "templates.list" });
+  });
   ipcMain.handle(IPC.templatesCreate, async (_e, raw: unknown) => {
     try {
       const { name, authorName, scene } = templatesCreateSchema.parse(raw);
-      return await (await ensureCtx()).templates.publish({ name, authorName, scene });
+      await ensureUtility();
+      return await utility.call({ cmd: "templates.create", input: { name, authorName, scene } });
     } catch (err) {
       ipcError(err);
     }
   });
-  ipcMain.handle(IPC.sessionsList, async () =>
-    (await ensureCtx()).chatSessions.recent(20).map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt })),
-  );
+  ipcMain.handle(IPC.sessionsList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "sessions.list" });
+  });
   ipcMain.handle(IPC.sessionsGet, async (_e, raw: unknown) => {
     try {
       const { id } = sessionsGetSchema.parse(raw);
-      const s = (await ensureCtx()).chatSessions.get(id);
-      return s ? { id: s.id, name: s.name, messages: s.messages } : null;
+      await ensureUtility();
+      return await utility.call({ cmd: "sessions.get", id });
     } catch (err) {
       ipcError(err);
     }
@@ -209,12 +226,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.filesUpload, async (_e, raw: unknown) => {
     try {
       const { name, bytes } = filesUploadSchema.parse(raw);
-      // same moderation gate as the web upload route (env-gated, off by default)
-      const nsfw = await checkNsfw(bytes, name);
-      if (!nsfw.allowed) throw new Error("image not allowed");
-      const ext = name.split(".").pop()!.toLowerCase();
-      const saved = await (await ensureCtx()).files.put(bytes, ext);
-      return { url: saved.url, size: bytes.length };
+      await ensureUtility();
+      return await utility.call({ cmd: "files.put", name, bytes });
     } catch (err) {
       ipcError(err);
     }
@@ -244,15 +257,14 @@ function registerAssetProtocol(): void {
       const url = new URL(request.url);
       if (url.host !== "files") return new Response(null, { status: 404 });
       const key = decodeURIComponent(url.pathname.replace(/^\//, ""));
-      const c = await ensureCtx();
-      const bytes = await c.files.read(key);
-      console.log(`[oia://] serving ${key} (${bytes.length}B)`);
+      await ensureUtility();
+      const bytes = (await utility.call({ cmd: "files.read", key })) as Uint8Array;
       const ext = key.split(".").pop() ?? "";
       // scene objects load with crossOrigin="anonymous" (file:// → oia:// is cross-origin):
       // without ACAO the image load is blocked and fabric loadFromJSON rejects
       return new Response(bytes as unknown as BodyInit, {
         headers: {
-          "content-type": c.files.contentType(ext),
+          "content-type": { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" }[ext] ?? "application/octet-stream",
           "cache-control": "public, max-age=31536000, immutable",
           "access-control-allow-origin": "*",
         },
@@ -263,15 +275,19 @@ function registerAssetProtocol(): void {
   });
 }
 
-/** Scripted end-to-end check without a human: mock pair → runChat → assert → quit. */
+/** Scripted end-to-end check without a human — now through the REAL main→utility
+ *  boundary (that is the point of D11): mock pair → fork utility → chatRun → assert. */
 async function smoke(): Promise<void> {
-  const c = await ensureCtx();
+  await ensureUtility();
   const events: unknown[] = [];
-  const { outcome } = await runChat({ prompt: "banner smoke trà sữa giảm 20%" }, c, {
-    sink: (ev) => {
-      events.push(ev);
-    },
+  const off = utility.onUtilityEvent((ev) => {
+    if (ev.type === "chatEvent") events.push(ev.ev);
   });
+  const { outcome } = (await utility.call(
+    { cmd: "chatRun", req: { prompt: "banner smoke trà sữa giảm 20%" } },
+    { requestId: "smoke" },
+  )) as { outcome: string };
+  off();
   const text = JSON.stringify(events);
   const ok =
     outcome === "completed" &&
@@ -289,14 +305,17 @@ async function smoke(): Promise<void> {
  */
 async function realSmoke(): Promise<void> {
   const t0 = Date.now();
-  const c = await ensureCtx();
+  await ensureUtility();
   const events: { error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[] } }[] = [];
-  const { outcome, jobId } = await runChat({ prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" }, c, {
-    sink: (ev) => {
-      events.push(ev as (typeof events)[number]);
-    },
+  const off = utility.onUtilityEvent((ev) => {
+    if (ev.type === "chatEvent") events.push(ev.ev as (typeof events)[number]);
   });
-  const snap = await runtimeSnapshotFor(ctxMode);
+  const { outcome, jobId } = (await utility.call(
+    { cmd: "chatRun", req: { prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" } },
+    { requestId: "real-smoke" },
+  )) as { outcome: string; jobId: string };
+  off();
+  const snap = await runtimeSnapshotFor(await effectiveMode());
   const canvasMeta = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
   // asset bytes must exist on disk — a canvas meta without stored bytes is not a banner
   let assetBytes = 0;
@@ -305,7 +324,7 @@ async function realSmoke(): Promise<void> {
     const src = o.src ?? "";
     if (src.startsWith("/api/files/")) {
       try {
-        assetBytes += (await c.files.read(src.replace("/api/files/", ""))).length;
+        assetBytes += ((await utility.call({ cmd: "files.read", key: src.replace("/api/files/", "") })) as Uint8Array).length;
       } catch {
         /* missing asset counted as 0 */
       }
@@ -409,9 +428,6 @@ async function shot(): Promise<void> {
   await snap(win, "desktop-home.png");
 
   // ---- D2 remainder: drive the EDITOR port with eyes -------------------------
-  // Home "Open in editor" → project created by id (TP.7) → editor mounts with
-  // rail/panels/AI dock; the artboard must show painted pixels, and the autosave
-  // indicator must settle (dirty → saved) before the window closes.
   console.log("[shot] opening the editor…");
   const clicked = await win.webContents.executeJavaScript(`(() => {
     const btn = document.querySelector('[data-testid="open-editor"]');
@@ -516,7 +532,7 @@ async function shot(): Promise<void> {
     return;
   }
 
-  const image = await win.webContents.capturePage();
+  const image = await win.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");
   await mkdir(path.join(here, "../..", "out"), { recursive: true });
   await writeFile(path.join(here, "../..", "out", "desktop-shot.png"), image.toPNG());
@@ -552,7 +568,7 @@ async function snap(win: BrowserWindow, name: string): Promise<void> {
     /* keep the viewport capture if the measurement fails */
   }
   try {
-    const image = await win.webContents.capturePage();
+    const image = await win.capturePage();
     const { writeFile, mkdir } = await import("node:fs/promises");
     await mkdir(path.join(here, "../..", "out"), { recursive: true });
     await writeFile(path.join(here, "../..", "out", name), image.toPNG());
@@ -608,7 +624,10 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on("before-quit", cancelAllJobs);
+app.on("before-quit", () => {
+  cancelAllJobs();
+  utility.kill();
+});
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });

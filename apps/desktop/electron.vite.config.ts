@@ -3,12 +3,21 @@ import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
 /**
- * TP-D1 — electron-vite shell. The renderer owns its lib copies (reorg step 2:
- * studio-templates, studio-ui, provider-errors, i18n live in src/renderer/lib).
+ * TP-D1 — electron-vite shell. D11 (reorg step 4a): the main build has TWO entries —
+ * the window/main process and the services utility process (src/utility) forked
+ * by main. The renderer owns its lib copies (reorg step 2).
  */
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, "src/main/index.ts"),
+          utility: resolve(__dirname, "src/utility/index.ts"),
+        },
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

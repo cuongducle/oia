@@ -190,3 +190,29 @@ describe("runtimeErrorText (Q11 English; errorClass crosses IPC, not raw dumps)"
     expect(text.length).toBeLessThan(200);
   });
 });
+
+/**
+ * D11 (reorg step 4a) — the main↔utility wire protocol. Error shape must survive
+ * the roundtrip: name/errorClass are the renderer's stable mapping contracts.
+ */
+import { serializeUtilityError, deserializeUtilityError } from "../src/shared/utility-protocol.js";
+
+describe("utility protocol — error shape survives the wire", () => {
+  it("keeps name + errorClass so renderer maps stay stable", () => {
+    const err = new Error("codex timeout sau 360s") as Error & { errorClass?: string };
+    err.name = "ProviderError";
+    err.errorClass = "timeout";
+    const shape = serializeUtilityError(err);
+    expect(shape).toEqual({ name: "ProviderError", message: "codex timeout sau 360s", errorClass: "timeout" });
+    const back = deserializeUtilityError(shape);
+    expect(back).toBeInstanceOf(Error);
+    expect(back.name).toBe("ProviderError");
+    expect((back as Error & { errorClass?: string }).errorClass).toBe("timeout");
+    expect(back.message).toBe("codex timeout sau 360s");
+  });
+  it("plain errors serialize without errorClass; non-Error throwables never crash the wire", () => {
+    expect(serializeUtilityError(new Error("x"))).toEqual({ name: "Error", message: "x" });
+    expect(serializeUtilityError("boom")).toEqual({ name: "Error", message: "boom" });
+    expect(serializeUtilityError(undefined)).toEqual({ name: "Error", message: "undefined" });
+  });
+});
