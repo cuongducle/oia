@@ -35,7 +35,7 @@ describe("STAGE-0 TP.7: migrate-on-save — base64 → /api/files/<key>", () => 
     const extracted = await migrateScene(scene, store);
     expect(extracted).toBe(1);
     const src = scene.objects[1].src as string;
-    expect(src).toMatch(/^\/api\/files\/uploads\/\d{8}\/[0-9a-f]{32}-[0-9a-z]+\.png$/);
+    expect(src).toMatch(/^\/api\/files\/uploads\/\d{8}\/[0-9a-f]{64}-[0-9a-z]+\.png$/);
     // bytes are retrievable through the store by the storage key (the asset ID)
     const key = src.replace(/^\/api\/files\//, "");
     const bytes = await store.read(key);

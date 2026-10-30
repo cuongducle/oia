@@ -6,7 +6,7 @@ import type { ServiceContext } from "@oia/services";
 import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
-import { IMAGE_EXTS } from "../shared/ipc.js";
+import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path — single home in @oia/schema
 
 /**
  * D9 (reorg step 4b) — the loopback agent API, served from the UTILITY process.
@@ -148,7 +148,20 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
       //      Keys contain path segments (uploads/20261030/xxx.png) — take the REST.
       if (req.method === "GET" && segments[0] === "api" && segments[1] === "files" && segments.length >= 3) {
         const key = decodeURIComponent(segments.slice(2).join("/"));
-        const bytes = await ctx().files.read(key);
+        let bytes: Uint8Array;
+        try {
+          bytes = await ctx().files.read(key);
+        } catch (err) {
+          // client errors, not 500s: a bad key is a 400, a missing file is a 404
+          // (string contract, same style as TaskNotFound below)
+          if (err instanceof Error && err.message === "invalid key") {
+            return json(res, 400, 1, null, "invalid file key");
+          }
+          if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+            return json(res, 404, 404, null, "file not found");
+          }
+          throw err;
+        }
         const ext = key.split(".").pop() ?? "";
         res.writeHead(200, {
           "content-type": ctx().files.contentType(ext),
@@ -259,10 +272,10 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         if (raw === null) return json(res, 413, 413, null, "body too large");
         const file = parseMultipart(raw, req.headers["content-type"] ?? "");
         if (!file) return json(res, 400, 1, null, "file required (multipart form-data)");
-        // SAME allowlist as the renderer IPC path (shared/ipc.ts) — the loopback
-        // used to accept any extension an agent chose to send
+        // SAME allowlist as the renderer IPC path (@oia/schema uploads.ts) — the
+        // loopback used to accept any extension an agent chose to send
         const ext = (file.name.split(".").pop() ?? "").toLowerCase();
-        if (!IMAGE_EXTS.has(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
+        if (!isImageExt(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
         const nsfw = await checkNsfw(file.bytes, file.name);
         if (!nsfw.allowed) return json(res, 400, 1, null, nsfw.error);
         const saved = await ctx().files.put(file.bytes, ext);

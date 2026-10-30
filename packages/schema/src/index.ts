@@ -1,5 +1,6 @@
 export * from "./template.js";
 export * from "./brandkit.js";
+export * from "./uploads.js";
 export * from "./scene.js";
 export * from "./plan.js";
 export * from "./zones.js";

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     return Response.json({ code: 1, data: null, msg: "fileName & fileMd5 required" }, { status: 400 });
   }
   const { files } = await getRuntime();
-  const existing = await files.findByMd5(fileMd5);
+  const existing = await files.findByHash(fileMd5); // opaque hash now (sha256 store); legacy md5 values still match legacy files
   return Response.json({
     code: 0,
     data: {

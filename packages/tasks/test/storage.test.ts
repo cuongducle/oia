@@ -12,18 +12,18 @@ describe("BR-UP storage", () => {
   it("put → a /api/files/uploads/... url; bytes read back intact", async () => {
     const bytes = new Uint8Array([1, 2, 3, 4, 5]);
     const r = await store.put(bytes, "png");
-    expect(r.url).toMatch(/^\/api\/files\/uploads\/\d{8}\/[0-9a-f]{32}-[a-z0-9]+\.(png)$/); // FULL md5 in the name (F3)
+    expect(r.url).toMatch(/^\/api\/files\/uploads\/\d{8}\/[0-9a-f]{64}-[a-z0-9]+\.(png)$/); // FULL sha256 in the name (F4)
     expect(await store.read(r.key)).toEqual(bytes);
   });
   it("dedupe md5: identical content put twice returns the same url", async () => {
     const a = await store.put(new Uint8Array([9, 9]), "png");
     const b = await store.put(new Uint8Array([9, 9]), "png");
     expect(b.url).toBe(a.url);
-    expect(b.md5).toBe(a.md5);
+    expect(b.hash).toBe(a.hash);
   });
-  it("findByMd5 returns the stored url", async () => {
+  it("findByHash returns the stored url", async () => {
     const a = await store.put(new Uint8Array([7]), "jpg");
-    expect(await store.findByMd5(a.md5)).toBe(a.url);
+    expect(await store.findByHash(a.hash)).toBe(a.url);
   });
   it("read blocks path traversal", async () => {
     await expect(store.read("../../etc/passwd")).rejects.toThrow();
@@ -103,3 +103,33 @@ describe("F3 dedupe — prefix collisions can never alias two different files", 
 function dayStamp(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 }
+
+/** F4 — identity is sha256 now; a full-32-hex md5 legacy file still dedupes (its own guarantee level), then promotes. */
+describe("F4 sha256 identity + legacy full-md5 lane", () => {
+  it("two different files NEVER alias via md5 any more — sha256 is the identity", async () => {
+    const dir2 = mkdtempSync(path.join(tmpdir(), "pf-store-f4-"));
+    const s = new LocalFileStore(dir2);
+    const ra = await s.put(new Uint8Array([1, 2, 3]), "png");
+    const rb = await s.put(new Uint8Array([3, 2, 1]), "png");
+    expect(ra.url).not.toBe(rb.url);
+    expect(ra.hash).not.toBe(rb.hash);
+    expect(ra.hash).toHaveLength(64); // sha256
+  });
+
+  it("a legacy 32-hex-md5-named file dedupes on re-upload and promotes to the sha256 index", async () => {
+    const dir2 = mkdtempSync(path.join(tmpdir(), "pf-store-f4l-"));
+    const legacyBytes = new Uint8Array([4, 4, 4]);
+    const legacyMd5 = createHash("md5").update(legacyBytes).digest("hex");
+    const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    mkdirSync(path.join(dir2, "uploads", day), { recursive: true });
+    const legacyKey = `uploads/${day}/${legacyMd5}-legacyf4.png`;
+    writeFileSync(path.join(dir2, legacyKey), legacyBytes);
+
+    const s = new LocalFileStore(dir2);
+    await s.hydrate();
+    const again = await s.put(legacyBytes, "png");
+    expect(again.key).toBe(legacyKey); // full-md5 match admitted the legacy file
+    const other = await s.put(new Uint8Array([9]), "png"); // different content → its own sha256 name
+    expect(other.key).not.toBe(legacyKey);
+  });
+});

@@ -257,14 +257,20 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     expect(body.msg).toContain("unsupported image type");
   });
 
-  it("an internal failure returns a generic 500 — err.message never crosses the wire", async () => {
-    // files.read rejects on an invalid key → the outer handler must log it but
-    // answer with the generic message (paths/providers must not leak).
-    const res = await fetch(`${base()}/api/files/..%2F..%2Fetc%2Fpasswd`, { headers: { authorization: key } });
-    expect(res.status).toBe(500);
-    const body = (await res.json()) as { msg: string };
-    expect(body.msg).toBe("internal error");
-    expect(JSON.stringify(body)).not.toContain("invalid key");
+  it("file GETs: an invalid key is a 400, a missing file is a 404 — client errors, never leaked 500s", async () => {
+    // absolute key → the store refuses the shape itself → 400
+    const absKey = await fetch(`${base()}/api/files/%2Fetc%2Fpasswd`, { headers: { authorization: key } });
+    expect(absKey.status).toBe(400);
+    expect(((await absKey.json()) as { msg: string }).msg).toBe("invalid file key");
+
+    // traversal is SANITIZED (leading ../ stripped) → becomes a path under the store
+    // root that does not exist → 404, never a filesystem walk outside the root
+    const traversal = await fetch(`${base()}/api/files/..%2F..%2Fetc%2Fpasswd`, { headers: { authorization: key } });
+    expect(traversal.status).toBe(404);
+
+    const missing = await fetch(`${base()}/api/files/uploads/20260101/nope-${Date.now()}.png`, { headers: { authorization: key } });
+    expect(missing.status).toBe(404);
+    expect(((await missing.json()) as { msg: string }).msg).toBe("file not found");
   });
 });
 

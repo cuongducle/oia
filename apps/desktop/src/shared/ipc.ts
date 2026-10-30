@@ -33,7 +33,9 @@ export const templatesCreateSchema = z.object({
 export const sessionsGetSchema = z.object({ id: z.number().int().positive() });
 
 /** Editor asset uploads — same image whitelist as the web upload route, bytes via structured clone. */
-export const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+import { IMAGE_EXTS } from "@oia/schema"; // single home for the upload allowlist (uploads.ts)
+
+export { IMAGE_EXTS };
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB — generous for product photos, small enough to guard IPC
 export const filesUploadSchema = z
   .object({
