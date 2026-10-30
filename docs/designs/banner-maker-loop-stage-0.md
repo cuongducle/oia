@@ -5,7 +5,7 @@
 *   **Author:** cuongducle
 *   **Status:** Approved (owner, 2026-10-29)
 *   **Date:** 2026-10-28
-*   **Predecessor:** [`concepts_brief.md`](../../concepts_brief.md) (EGM brainstorm via [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model), 2026-10-28)
+*   **Predecessor:** [`concepts_brief.md`](../history/concepts_brief.md) (EGM brainstorm via [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model), 2026-10-28)
 
 --------------------------------------------------------------------------------
 

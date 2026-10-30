@@ -1,3 +1,9 @@
+> **ARCHIVED (2026-10-30).** Brainstorm input — decisions here were superseded twice:
+> first by [`designs/banner-maker-loop-stage-0.md`](../designs/banner-maker-loop-stage-0.md)
+> (manual-layering reversed → reference-first; owner-validated), then by
+> [`designs/desktop-only-reorg.md`](../designs/desktop-only-reorg.md) (desktop-only; web sunset).
+> Kept for the blocker taxonomy (B1–B7) and the persona analysis. Live decisions: the D-number table in the reorg plan.
+
 # Oia — Open image agent (banner-maker concept)
 
 * **Author:** cuongducle + EGM Goldfish swarm (6 lenses)

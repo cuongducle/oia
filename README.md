@@ -155,7 +155,7 @@ docker compose -f docker/docker-compose.yml up -d redis
 REDIS_URL=redis://localhost:6379 pnpm exec turbo run test --force
 ```
 
-The repository includes unit and integration coverage for the editor utilities, stream protocol, providers, task processing, persistence, and worker flows. See [browser verification notes](docs/design/verification.md) for the recorded editor and export checks.
+The repository includes unit and integration coverage for the editor utilities, stream protocol, providers, task processing, persistence, and worker flows. See [browser verification notes](docs/verification/editor-export-checks.md) for the recorded editor and export checks.
 
 ```text
 apps/web            Next.js studio, Fabric editor, REST and SSE endpoints

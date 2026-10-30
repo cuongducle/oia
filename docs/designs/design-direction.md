@@ -17,7 +17,7 @@ Instrument Serif supplies expressive Home headlines; Be Vietnam Pro remains the 
 
 ## Concepts and artwork
 
-- `design/concept-home.png` and `design/concept-editor.png`: complete English-language concepts generated with Codex image generation before the final implementation pass.
+- `verification/concept-home.png` and `verification/concept-editor.png`: complete English-language concepts generated with Codex image generation before the final implementation pass.
 - `apps/web/public/studio/*.webp`: four original generated photographic backgrounds, optimized to 900×1200 WebP. They contain no baked-in UI.
 - `apps/web/libs/studio-templates.ts`: actual Fabric scenes. Titles, captions, and other typography remain editable layers, not flattened screenshot facsimiles.
 
@@ -44,7 +44,7 @@ Instrument Serif supplies expressive Home headlines; Be Vietnam Pro remains the 
 
 ## Verification standard
 
-Typecheck, production build, regression tests, real Chrome interactions, explicit readiness checks, actual downloads, and desktop/phone screenshots. Vision feedback identifies discrepancies; numeric similarity scores are not acceptance evidence. See `design/verification.md` for the completed checks and remaining limits.
+Typecheck, production build, regression tests, real Chrome interactions, explicit readiness checks, actual downloads, and desktop/phone screenshots. Vision feedback identifies discrepancies; numeric similarity scores are not acceptance evidence. See [`verification/editor-export-checks.md`](../verification/editor-export-checks.md) for the completed checks and remaining limits.
 
 ## Product principles
 

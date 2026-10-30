@@ -4,7 +4,7 @@
 * **Date:** 2026-10-30
 * **Status:** APPROVED (owner, 2026-10-30 — Q1–Q10 accepted with the recommended defaults; Q11 UI-language decision recorded 2026-10-30). **D1 shipped** (TP-D2 note below). **D2 gate OVERRIDDEN by owner (2026-10-30, "đã bảo skip seller")** — seller sessions are skipped by explicit owner decision; the loop therefore ships UNVALIDATED by real sellers and that risk is carried on the register below. D2 increments 1–2 shipped the same day (shell + remediation, then the full renderer port).
 * **Predecessors:**
-  * [`../desktop-architecture.md`](../desktop-architecture.md) — cross-platform research (reference apps, packaging, storage, security)
+  * [`../reference/desktop-architecture.md`](../reference/desktop-architecture.md) — cross-platform research (reference apps, packaging, storage, security)
   * [`banner-maker-loop-stage-0.md`](banner-maker-loop-stage-0.md) — the engine + the honest done/deferred ledger; **Windows work and the S3 gate are owned by THIS design** (moved here 2026-10-29)
 
 --------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ Owner gates are marked 👤; everything else is implementable work.
 
 **Studio-refresh parity pass (2026-10-30, later the same day):** a visual audit against
 `docs/private/ui-audit/orig-*.png` (SurgePix) and the web studio refresh
-(`docs/design-direction.md`) found the port had been written against the PRE-refresh
+(`docs/designs/design-direction.md`) found the port had been written against the PRE-refresh
 web design. Pass shipped (verified by the extended `shot` run + vision review):
 protocol no longer leaks the literal `<Result>` marker; the mock designer emits a
 BR-2 settle event so the timeline cannot hang on “running”; Home gained the serif
@@ -283,7 +283,7 @@ New IPC surface (typed, zod-validated in main): `projects:list/save/remove`, `te
 
 ## Sources
 
-* `docs/desktop-architecture.md` (research: Cherry Studio / Chatbox / AFFiNE / LosslessCut snapshots)
+* `docs/reference/desktop-architecture.md` (research: Cherry Studio / Chatbox / AFFiNE / LosslessCut snapshots)
 * `docs/designs/banner-maker-loop-stage-0.md` (engine + honest ledger + gates moved here)
 * openai/codex#40233 — Windows `image_gen` hang with local reference images
 * Electron security guidance (contextIsolation, no remote content) per research §2

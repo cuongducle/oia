@@ -158,3 +158,13 @@ Self-review phát hiện 4 bug nghiêm trọng do chính bước 4a/4b tạo ra 
 Kèm 3 món cùng file: exit listener đăng ký 1 lần ở module scope (không tích lũy theo rebuild); chatRun requestId dùng randomUUID (Date.now() đụng khi double-submit); discovery file ghi atomic temp+rename (TP.7).
 
 Còn treo (chưa sửa, đã biết): `oia://` đi vòng IPC lấy bytes + content-type map sao chép tay; TaskNotFound nhận diện bằng chuỗi; parser multipart tự viết; loopback không request log; map rate-limit không dọn; port đổi mỗi rebuild; god-file `main/index.ts`.
+
+## Ghi nhận tổ chức lại tài liệu (2026-10-30, tham chiếu `stablyai/orca`)
+
+- **`AGENTS.md` (root, mới)** — luật cho coding agent: lệnh, trạng thái, 8 hard rules (ratchet, atomic writes, error-path gates, quota là tiền…), kiến trúc map sau bước 4a.
+- **`docs/STYLEGUIDE.md` (mới)** — quy ước: bảng mã TP/BR/G/B/D, naming, persistence, error contract, triết lý test, ngôn ngữ (code EN, docs VI, UI EN).
+- **`docs/bug-reproductions/` (mới)** — bắt đầu bằng record 4 bug utility-process (triết lý: mỗi lỗi nặng là một pattern có nguy cơ quay lại).
+- **Tách thư mục rõ nghĩa**: `design/` → `verification/` (hết nhầm với `designs/`); `desktop-architecture.md`, → `reference/`; `design-direction.md` → `designs/`; `concepts_brief.md` (root) → `history/` + banner archive.
+- **SITEMAP.md** giữ vai trò sổ cái thiết kế — thêm dòng reorg plan (đánh dấu "đang thực thi").
+- Giữ nguyên: `private/` (swarm archive, competitor RE, ui-audit chờ bước 6), `validation/`, `screenshots/`.
+- Không adopt của Orca: `docs/readme/` đa ngôn ngữ (UI đã chốt EN — D8), `docs/site/` (chưa có website sản phẩm).
