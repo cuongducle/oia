@@ -46,6 +46,16 @@ export class ProjectStore {
     await atomicWriteJson(this.fileFor(p.id), p);
   }
 
+  /** Monotonic updatedAt seed — a same-ms burst made the stable sort keep the OLDER
+   *  project in front (saveScene could not overtake a create in the same millisecond).
+   *  Same fix ChatSessionStore already carries for its recent() ordering. */
+  private __lastUpdated = 0;
+  private nextUpdatedAt(): number {
+    const t = Math.max(this.__lastUpdated + 1, Date.now());
+    this.__lastUpdated = t;
+    return t;
+  }
+
   /** Single sort invariant (updatedAt DESC) — one home, every mutation path uses it. */
   private resort(): void {
     this.items.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
@@ -168,6 +178,7 @@ export class ProjectStore {
       }
       this.items.push(parsed);
     }
+    for (const p of this.items) this.__lastUpdated = Math.max(this.__lastUpdated, p.updatedAt ?? 0);
     this.resort();
   }
 
@@ -183,7 +194,7 @@ export class ProjectStore {
       name: input.name ?? "Untitled project",
       schemaVersion: OIA_SCHEMA_VERSION,
       pages: input.pages ?? [{ id: `page_1`, name: "Board 1", width: input.width ?? 1360, height: input.height ?? 2048, canvas: blank }],
-      createdAt: now, updatedAt: now,
+      createdAt: now, updatedAt: this.nextUpdatedAt(),
     });
     this.items.unshift(p);
     if (this.files) await migrateProjectForSave(p, this.files); // TP.7: base64 → asset refs BEFORE first persist
@@ -206,7 +217,7 @@ export class ProjectStore {
     } else if (this.files) {
       await migrateProjectForSave(p, this.files); // legacy base64 discovered on a name-only save
     }
-    p.updatedAt = Date.now();
+    p.updatedAt = this.nextUpdatedAt();
     p.schemaVersion = OIA_SCHEMA_VERSION; // every save stamps the current format version
     this.resort(); // recent order: the touched project moves to the front
     await this.writeProject(p);
@@ -241,6 +252,7 @@ export class ProjectStore {
       }
     }
     this.items.push(p);
+    this.__lastUpdated = Math.max(this.__lastUpdated, p.updatedAt ?? 0); // imported timestamps join the monotonic ladder
     this.resort();
     await this.writeProject(p);
     return true;

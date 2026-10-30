@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll } from "vitest";
+import { describe, expect, it, beforeAll, vi } from "vitest";
 import { chmodSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -24,6 +24,22 @@ describe("BR-PERSIST Project store", () => {
     await projects.saveScene(a.id, { name: "A2", pages: a.pages });
     expect(projects.recent()[0].name).toBe("A2");
     expect(projects.get(b.id)!.name).toBe("B");
+  });
+  it("regression (CI 41136672187): a same-ms burst — saveScene still overtakes the newer create", async () => {
+    // Freeze the clock: create A, create B, saveScene A all inside ONE millisecond.
+    // Before the monotonic updatedAt fix, A.updatedAt == B.updatedAt and the stable
+    // sort kept B (created later) in front — the "touched project moves to the front"
+    // promise broke. Deterministic reproduction of the flaky CI failure.
+    const fixed = Date.now();
+    const spy = vi.spyOn(Date, "now").mockImplementation(() => fixed);
+    try {
+      const a = await projects.create({ name: "A-burst" });
+      const b = await projects.create({ name: "B-burst" });
+      await projects.saveScene(a.id, { name: "A2-burst", pages: a.pages });
+      expect(projects.recent()[0].name).toBe("A2-burst");
+    } finally {
+      spy.mockRestore();
+    }
   });
   it("an invalid pages schema throws (nothing corrupt is saved)", async () => {
     const p = await projects.create({});
