@@ -93,7 +93,7 @@ oia/
 - Gate: `grep -r "@oia-web" apps/desktop` = 0 kết quả; desktop typecheck/build xanh.
 - ĐÃ LÀM: 4 file copy vào `renderer/lib/`; bỏ alias `@oia-web` khỏi `electron.vite.config.ts` + `tsconfig.json`; baseline ratchet `config/baselines/oia-web-imports.baseline.txt` = 0 + guard trong CI (`desktop-smoke` job). Gate chạy: grep 0, typecheck, build, 22 test, smoke Electron thật (`DESKTOP_SMOKE OK`). Web giữ bản gốc libs tới bước 6 (đóng băng, chỉ làm tham chiếu).
 
-**Bước 3 — BullMQ purge**
+**Bước 3 — BullMQ purge** ✅ XONG (2026-10-30; xóa `apps/worker` + `docker/` ĐƯỢC ĐƯA LÊN TỪ BƯỚC 6 vì worker phụ thuộc BullMQ)
 - Xóa `packages/tasks/src/bullmq.ts`; queue in-process thuần (cancel in-process đã hoạt động, ioredis lazy-import sẽ tự vô nghĩa).
 - Sửa `tasks/package.json`: bỏ `bullmq`, `ioredis`. Bỏ `REDIS_URL` khỏi `turbo.json globalEnv`.
 - CI: bỏ redis service. Xóa `docker/`.
@@ -110,7 +110,7 @@ oia/
 - Gate: parity checklist tick hết; tổng số test không giảm.
 
 **Bước 6 — Xóa 1 lượt**
-- Xóa: `apps/web`, `apps/worker`, `packages/db`, `packages/skills`, `docs/private/ui-audit`.
+- Xóa: `apps/web`, `packages/db`, `packages/skills`, `docs/private/ui-audit`. (`apps/worker`, `docker/` đã xóa ở bước 3.)
 - Dọn `.env.example` (bỏ DATABASE_URL/S3/REDIS). Viết lại README (quick start chỉ còn desktop).
 - Gate: `pnpm build && pnpm typecheck && pnpm test` toàn repo xanh SAU khi xóa.
 

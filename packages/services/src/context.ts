@@ -2,9 +2,7 @@ import path from "node:path";
 import {
   TaskStore, LocalFileStore, ApiKeyStore,
   BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore,
-  createCancelPublisher,
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
-  type CancelBridge,
 } from "@oia/tasks";
 import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
@@ -24,8 +22,6 @@ export interface ServiceContext {
   chatSessions: ChatSessionStore;
   taskStore: TaskStore;
   chat: { llm: LlmProvider; image: ImageProvider; meter: QuotaMeter };
-  /** Cross-process cancel publisher (null when no Redis — the desktop posture). */
-  cancelPublisher: CancelBridge | null;
 }
 
 /** Thrown when the provider configuration pair is invalid (mixed mock/real). Named class
@@ -68,20 +64,10 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
     meter,
   };
 
-  // TP.5: durable task records + cross-process cancel when a worker runs behind Redis
+  // TP.5: durable task records — cancel is in-process only (worker deployment removed, reorg step 3)
   const taskStore = new TaskStore({
     logFile: path.join(dataDir, "task-log.jsonl"),
-    onCancel: async (jobId, taskId) => {
-      await ctx?.cancelPublisher?.publish(jobId, taskId);
-    },
   });
-  let cancelPublisher: CancelBridge | null = null;
-  if (env.REDIS_URL) {
-    cancelPublisher = await createCancelPublisher({ redisUrl: env.REDIS_URL }).catch((err) => {
-      console.error("[services] cancel publisher unavailable (worker cancels will not cross processes)", err);
-      return null;
-    });
-  }
 
   // task processors registered ONCE here — both shells share them (banner lane: poster/
   // image-edit/reference tasks/presentation + generic image tasks; image-translate is a
@@ -99,7 +85,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   });
 
   const ctx: ServiceContext = {
-    files, keys, brandKits, templates, projects, chatSessions, taskStore, chat, cancelPublisher,
+    files, keys, brandKits, templates, projects, chatSessions, taskStore, chat,
   };
   return ctx;
 }

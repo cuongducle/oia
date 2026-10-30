@@ -3,12 +3,6 @@ on: [push, pull_request]
 jobs:
   ci:
     runs-on: ubuntu-latest
-    services:
-      redis: # INT-WORKER + INT-WORKER-E2E run for real in CI
-        image: redis:8-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4 # pnpm version comes from packageManager in package.json
@@ -17,8 +11,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
-        env:
-          REDIS_URL: redis://127.0.0.1:6379
       - run: pnpm typecheck
   desktop-smoke:
     runs-on: ubuntu-latest

@@ -18,8 +18,6 @@
   "dependencies": {
     "@oia/providers": "workspace:*",
     "@oia/schema": "workspace:*",
-    "bullmq": "^6.5.0",
-    "ioredis": "^6.0.0",
     "pptxgenjs": "^4.0.1"
   },
   "devDependencies": {

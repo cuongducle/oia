@@ -58,8 +58,6 @@ export class TaskStore {
       clock?: Clock;
       /** JSONL job log — task records survive restarts (swept by TTL on load). */
       logFile?: string;
-      /** Cross-process cancel hook (Redis publish) — wired by the runtime when REDIS_URL is set. */
-      onCancel?: (jobId: string, taskId: string) => void | Promise<void>;
     } = {},
   ) {
     this.opts.ttlMs ??= 24 * 60 * 60 * 1000; // 24h per the API reference
@@ -179,15 +177,13 @@ export class TaskStore {
     return status;
   }
 
-  /** TP.5: cancel a running task — local abort + cross-process publish (worker jobs know the taskId).
+  /** TP.5: cancel a running task — in-process abort (the registry is shared per process).
    *  B7: this does NOT write a terminal status — the completion path records the cancelled
    *  outcome (a handler that ignores the signal may still finish; the record must not lie). */
   async cancel(taskId: string): Promise<boolean> {
     const entry = this.tasks.get(taskId);
     if (!entry || entry.status.progress !== "processing") return false;
-    const aborted = abortLocal(entry.status.jobId!);
-    await this.opts.onCancel?.(entry.status.jobId!, entry.status.taskId);
-    return aborted;
+    return abortLocal(entry.status.jobId!);
   }
 
 /** Output rules: remove-background stays .png; multiple urls become one ZIP. */
