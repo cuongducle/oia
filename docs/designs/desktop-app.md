@@ -180,10 +180,16 @@ the Stage-0 exit criteria — the unproven-loop rule. D0–D1 may proceed now.
 The consolidated list of everything between here and a shippable v1 desktop app.
 Owner gates are marked 👤; everything else is implementable work.
 
+**Scope guard:** this ledger is **v1 only**. v1.1 candidates (post-D10) live in
+[`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) — 4 resolved
+decisions (A1 preview-apply, C1 outline gate, C3 live-overlay presets, B1
+deconstruct import) + pending candidates; each P0 graduates into its own design
+doc when v1.1 starts. Do not add v1.1 items to this ledger.
+
 ### D2 remainder — renderer port (macOS, mock-first) — **SHIPPED 2026-10-30**
 
 **Studio-refresh parity pass (2026-10-30, later the same day):** a visual audit against
-`docs/private/ui-audit/orig-*.png` (SurgePix) and the web studio refresh
+`docs/private/ui-audit/orig-*.png` (đối thủ tham chiếu) and the web studio refresh
 (`docs/designs/design-direction.md`) found the port had been written against the PRE-refresh
 web design. Pass shipped (verified by the extended `shot` run + vision review):
 protocol no longer leaks the literal `<Result>` marker; the mock designer emits a
