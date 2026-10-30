@@ -179,6 +179,21 @@ The consolidated list of everything between here and a shippable v1 desktop app.
 Owner gates are marked 👤; everything else is implementable work.
 
 ### D2 remainder — renderer port (macOS, mock-first) — **SHIPPED 2026-10-30**
+
+**Studio-refresh parity pass (2026-10-30, later the same day):** a visual audit against
+`docs/private/ui-audit/orig-*.png` (SurgePix) and the web studio refresh
+(`docs/design-direction.md`) found the port had been written against the PRE-refresh
+web design. Pass shipped (verified by the extended `shot` run + vision review):
+protocol no longer leaks the literal `<Result>` marker; the mock designer emits a
+BR-2 settle event so the timeline cannot hang on “running”; Home gained the serif
+display hero (Instrument Serif bundled offline), the full composer (attach/ratio/
+resolution/advanced pages+outline), format quick-starts, result actions (Preview /
+Open in editor named from exportMeta / Use as reference / native-save PNG) and the
+Featured/All gallery with real ScenePreview thumbnails; Workspace cards gained
+hover Rename/Delete dialogs; the editor AI dock gained a capability-gated paperclip
+attach. `pnpm shot` now captures every view zoom-fitted to full page height.
+Known remaining (by design): no sidebar/credits/brand-kit/toolbox surfaces (Q10
+banner lane), share links are web-only.
 All seven items shipped in one pass; UI copy is English per Q11 (new decision during this
 increment). Every view is verified by the extended `shot` run (eyes, not claims): Home
 chat → canvas painted; editor mounts (7 rail tools, AI dock, page strip) with painted
