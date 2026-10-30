@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { chmod, writeFile, unlink } from "node:fs/promises";
+import { chmod, writeFile, unlink, rename } from "node:fs/promises";
 import path from "node:path";
 import type { ServiceContext } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
@@ -35,7 +35,9 @@ import { taskTypeSchema, type TaskType } from "@oia/schema";
 const MAX_BODY_BYTES = 50 * 1024 * 1024;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
 const RATE_MAX_SUBMITS = 20;
-const NO_WAIT_TTL_MS = 6.5 * 60 * 1000; // planner 120s + image 300s + margin
+/** Fallback ONLY: onSettled is the exact signal — this guards a pathological hang
+ *  (a handler stuck past every provider timeout) from wedging the codex guard forever. */
+const FALLBACK_TTL_MS = 15 * 60 * 1000;
 
 export interface AgentJobEvent {
   type: "agentJob";
@@ -104,7 +106,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
   // --- per-key rate limiting + in-flight guard --------------------------------
   const submitsPerKey = new Map<string, number[]>();
   let agentInFlight = 0;
-  const inFlightTTLs = new Set<ReturnType<typeof setTimeout>>();
+  const inFlightTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function rateLimited(key: string): boolean {
     const now = Date.now();
@@ -115,7 +117,13 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
     return false;
   }
 
+  /** Exact accounting: clears the fallback timer, decrements, tells the UI the truth. */
   function settle(taskId: string, ok: boolean, type: string): void {
+    const t = inFlightTimers.get(taskId);
+    if (t) {
+      clearTimeout(t);
+      inFlightTimers.delete(taskId);
+    }
     agentInFlight = Math.max(0, agentInFlight - 1);
     emit({ type: "agentJob", taskId, event: ok ? "succeeded" : "failed", taskType: type });
   }
@@ -182,10 +190,13 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         try {
           // EXACT web-route semantics: noWait:true awaits completion (sync mode),
           // otherwise returns the snapshot and runs in the background.
+          // onSettled fires once in EITHER mode — concurrency accounting is exact,
+          // never a fixed TTL guess (the 6.5-min lockout bug).
           t = (await ctx().taskStore.submit(parsedType.data as TaskType, body, {
             sessionId: typeof body.sessionId === "number" ? body.sessionId : undefined,
             noWait: body.noWait === true,
             source: "agent",
+            onSettled: (final) => settle(final.taskId, final.progress === "succeeded", type),
           })) as { taskId: string; progress: string };
         } catch (err) {
           agentInFlight = Math.max(0, agentInFlight - 1);
@@ -193,17 +204,16 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         }
         emit({ type: "agentJob", taskId: t.taskId, event: "submitted", taskType: type });
 
-        if (body.noWait === true) {
-          // sync mode: submit already awaited the FINAL status — settle now
-          settle(t.taskId, t.progress === "succeeded", type);
-        } else {
-          // fire-and-forget: TTL guard until TaskStore exposes a completion hook
-          const timer = setTimeout(() => {
-            inFlightTTLs.delete(timer);
+        // fallback ONLY: a handler wedged past every provider timeout must not
+        // pin the codex guard forever — force-settle and tell the UI it failed
+        inFlightTimers.set(
+          t.taskId,
+          setTimeout(() => {
+            inFlightTimers.delete(t.taskId);
             agentInFlight = Math.max(0, agentInFlight - 1);
-          }, NO_WAIT_TTL_MS);
-          inFlightTTLs.add(timer);
-        }
+            emit({ type: "agentJob", taskId: t.taskId, event: "failed", taskType: type });
+          }, FALLBACK_TTL_MS),
+        );
         return json(res, 200, 0, t, "");
       }
 
@@ -247,14 +257,19 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
     server.listen(0, "127.0.0.1", () => resolve(server.address() === null ? 0 : (server.address() as { port: number }).port));
   });
 
-  // discovery file — agents read the port from here (OIA_BASE_URL stays optional)
+  // discovery file — agents read the port from here (OIA_BASE_URL stays optional).
+  // Atomic (temp + rename): a crash mid-write must never leave a truncated file —
+  // the same TP.7 discipline the stores follow.
   const discoveryFile = path.join(deps.userDataDir, "agent-api.json");
   const discovery = { port, pid: process.pid, createdAt: Date.now(), nonce: randomUUID() };
-  await writeFile(discoveryFile, JSON.stringify(discovery, null, 2), { encoding: "utf8", mode: 0o600 });
-  await chmod(discoveryFile, 0o600).catch(() => {}); // belt & braces: mode can be masked by umask
+  const tmpFile = `${discoveryFile}.tmp`;
+  await writeFile(tmpFile, JSON.stringify(discovery, null, 2), { encoding: "utf8", mode: 0o600 });
+  await chmod(tmpFile, 0o600).catch(() => {}); // belt & braces: mode can be masked by umask
+  await rename(tmpFile, discoveryFile);
 
   const close = async (): Promise<void> => {
-    for (const t of inFlightTTLs) clearTimeout(t);
+    for (const t of inFlightTimers.values()) clearTimeout(t);
+    inFlightTimers.clear();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await unlink(discoveryFile).catch(() => {});
   };

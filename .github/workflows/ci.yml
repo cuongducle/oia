@@ -38,3 +38,9 @@ jobs:
         working-directory: apps/desktop
         env:
           OIA_DESKTOP_SMOKE: "1"
+      # error-path gate: kill the services process mid-session, the next call must
+      # self-heal (new fork + re-init). Regression test for the crash-recovery bug.
+      - run: xvfb-run -a npx electron . --no-sandbox
+        working-directory: apps/desktop
+        env:
+          OIA_DESKTOP_CRASH_SMOKE: "1"

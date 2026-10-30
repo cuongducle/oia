@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from "electron";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 const originalCodexBin = process.env.CODEX_BIN;
 let ctxMode: "mock" | "codex" | null = null; // what the CURRENT utility context was built with
+let ctxGeneration = -1; // which utility FORK built it — mismatch (crash+restart) forces re-init
 
 /** Serialize context builds — concurrent IPC must never build two contexts. */
 let buildLock: Promise<unknown> = Promise.resolve();
@@ -53,14 +55,16 @@ async function contextEnv(): Promise<Record<string, string | undefined>> {
 }
 
 /** Boot (or rebuild) the utility service context under the build lock.
- *  Cached: re-init only on the first call or after a mode change (rebuildContext). */
+ *  Cached by (mode, generation): re-init only on the first call, a mode change,
+ *  or after a utility crash (a new fork has no context — generation mismatch). */
 async function ensureUtility(): Promise<void> {
   return withBuildLock(async () => {
     utility.start();
     const mode = await effectiveMode();
-    if (ctxMode === mode) return; // already built with this mode — no re-init
+    if (ctxMode === mode && utility.gen === ctxGeneration) return;
     await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), userDataDir: app.getPath("userData"), env: await contextEnv() });
     ctxMode = mode;
+    ctxGeneration = utility.gen;
   });
 }
 
@@ -70,6 +74,7 @@ async function rebuildContext(): Promise<void> {
     await utility.call({ cmd: "cancelAll" }).catch(() => {}); // never mix contexts mid-job
     await utility.call({ cmd: "rebuild", env: await contextEnv() });
     ctxMode = await effectiveMode();
+    ctxGeneration = utility.gen;
   });
 }
 
@@ -132,10 +137,11 @@ function registerIpc(): void {
     try {
       const req = chatRequestSchema.parse(raw); // validated HERE — the utility trusts main
       await ensureUtility();
-      // requestId: events stream back to THIS sender while the call is in flight
+      // requestId: random UUID — two rapid chats from one sender must NEVER share
+      // a routing key (Date.now() collided on double-submit and dropped events)
       const result = await utility.call(
         { cmd: "chatRun", req },
-        { requestId: `chat-${event.sender.id}-${Date.now()}`, sender: event.sender },
+        { requestId: randomUUID(), sender: event.sender },
       );
       return result;
     } catch (err) {
@@ -295,6 +301,33 @@ async function smoke(): Promise<void> {
     text.includes("/api/files/") &&
     text.includes("</Content>");
   console.log(`DESKTOP_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} events=${events.length}`);
+  app.exit(ok ? 0 : 1);
+}
+
+/**
+ * CRASH-SMOKE (the error-path gate the happy-path smoke cannot be): kill the
+ * services process mid-session, then make a normal call — the client MUST detect
+ * the dead generation, fork a fresh utility, re-init the context, and answer.
+ * This is the regression test for the "one crash bricked the app" bug.
+ */
+async function crashSmoke(): Promise<void> {
+  await ensureUtility();
+  const before = await utility.call({ cmd: "projects.list" });
+  utility.kill(); // simulate a services crash
+  for (let i = 0; i < 40 && !utility.crashed; i++) await new Promise((r) => setTimeout(r, 100));
+  if (!utility.crashed) {
+    console.log("DESKTOP_CRASH_SMOKE FAILED exit-event never observed");
+    app.exit(1);
+    return;
+  }
+  // the same path every IPC handler takes — must self-heal via the generation check
+  await ensureUtility();
+  const after = await utility.call({ cmd: "projects.list" }).catch((e) => e);
+  const ok = Array.isArray(before) && Array.isArray(after);
+  console.log(
+    `DESKTOP_CRASH_SMOKE ${ok ? "OK" : "FAILED"} before=${Array.isArray(before) ? before.length : "err"} ` +
+      `recovered=${Array.isArray(after) ? after.length : String(after)}`,
+  );
   app.exit(ok ? 0 : 1);
 }
 
@@ -603,6 +636,10 @@ app.whenReady().then(async () => {
     await smoke();
     return;
   }
+  if (process.env.OIA_DESKTOP_CRASH_SMOKE === "1") {
+    await crashSmoke();
+    return;
+  }
   if (process.env.OIA_DESKTOP_REAL_SMOKE === "1") {
     await realSmoke().catch((err) => {
       console.error("DESKTOP_REAL_SMOKE CRASHED:", err);
@@ -624,9 +661,23 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on("before-quit", () => {
-  cancelAllJobs();
-  utility.kill();
+let shuttingDown = false;
+app.on("before-quit", (e) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  e.preventDefault();
+  void (async () => {
+    // Give in-flight generations one honest chance to die BEFORE the kill: cancel
+    // aborts the controllers → CliRuntime kills the detached codex trees. Fire-and-
+    // forget here would race SIGTERM and could orphan a quota-burning child (the
+    // TP-D5 regression this fixes). Bounded so quit never hangs.
+    await Promise.race([
+      utility.call({ cmd: "cancelAll" }).catch(() => {}),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]);
+    utility.kill();
+    app.exit(0);
+  })();
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

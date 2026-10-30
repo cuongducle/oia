@@ -152,3 +152,50 @@ describe("loopback task API (skill contract: {code,data,msg} envelope)", () => {
     expect(((await nf.json()) as { code: number }).code).toBe(404);
   });
 });
+
+/**
+ * Regression (step 4b fix): the codex in-flight guard must release EXACTLY when a
+ * background task settles (onSettled) — the old fixed 6.5-minute TTL kept the guard
+ * pinned after a task that finished in milliseconds, 429-locking every later submit.
+ */
+describe("codex guard releases on completion, not on a fixed TTL", () => {
+  it("background task settles → an immediate next submit is NOT 429", async () => {
+    const root = mkdtempSync(path.join(tmpdir(), "oia-loopback2-"));
+    const srv = await startLoopback({
+      ctx: () => ctx,
+      userDataDir: root,
+      env: { IMAGE_PROVIDER: "codex" }, // guard ACTIVE (env-flagged; providers stay mock)
+      emit: () => {},
+    });
+    try {
+      const base2 = `http://127.0.0.1:${srv.port}`;
+      const submit = () =>
+        fetch(`${base2}/api/tasks/generate-poster`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: key },
+          body: JSON.stringify({ prompt: "guard release" }), // noWait:false — background
+        });
+
+      const first = await submit();
+      expect(first.status).toBe(200);
+      const firstData = (await first.json()) as { data: { taskId: string } };
+
+      // wait until the background task is TERMINAL (mock completes in ms)
+      let terminal = false;
+      for (let i = 0; i < 50 && !terminal; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        const poll = await fetch(`${base2}/api/tasks/${firstData.data.taskId}`, { headers: { authorization: key } });
+        const j = (await poll.json()) as { data: { progress: string } };
+        terminal = j.data.progress !== "processing";
+      }
+      expect(terminal).toBe(true);
+
+      // OLD CODE: still 429 here (guard pinned for 6.5 min). NEW CODE: 200.
+      const second = await submit();
+      expect(second.status).not.toBe(429);
+      expect(((await second.json()) as { code: number }).code).toBe(0);
+    } finally {
+      await srv.close();
+    }
+  }, 30_000);
+});

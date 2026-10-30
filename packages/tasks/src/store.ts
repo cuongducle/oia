@@ -28,6 +28,10 @@ export interface SubmitOptions {
   source?: "skill" | "web" | "agent";
   /** G3: a user-initiated retry links to the original task, never an automatic re-run. */
   retryOf?: string;
+  /** Called ONCE when the run reaches a terminal state (succeeded|failed) — exact
+   *  completion accounting for callers that guard concurrency (loopback agent API).
+   *  runToCompletion never rejects, so this ALWAYS fires. */
+  onSettled?: (status: TaskStatus) => void;
 }
 export type TaskHandlerResult = { urls: string[]; note?: string };
 
@@ -151,7 +155,10 @@ export class TaskStore {
     this.sessions.get(sessionId)!.taskIds.push(taskId);
     await this.persist(status);
 
-    const run = this.runToCompletion(type, params, status);
+    const run = this.runToCompletion(type, params, status).then((s) => {
+      opts.onSettled?.(s);
+      return s;
+    });
     if (opts.noWait) return run; // sync mode: wait for the final result
     void run.catch(() => {}); // async mode: return the taskId immediately, run in the background
     return { ...status };

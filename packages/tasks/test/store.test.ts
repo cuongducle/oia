@@ -123,3 +123,24 @@ describe("TaskStore.load marks stale processing jobs as interrupted", () => {
     expect(store2.get("task_dead01")!.progress).toBe("failed");
   });
 });
+
+/** Step 4b fix: onSettled — exact completion accounting for concurrency guards. */
+describe("SubmitOptions.onSettled fires exactly once with the terminal status", () => {
+  it("background (noWait=false): fires with succeeded after completion", async () => {
+    const store = new TaskStore();
+    store.register("remove-background", async () => ({ urls: ["/api/files/x.png"] }));
+    const settled: string[] = [];
+    const t = await store.submit("remove-background", { fileUrl: "/api/files/in.jpg" }, { onSettled: (s) => settled.push(s.progress) });
+    expect(t.progress).toBe("processing"); // returned immediately
+    await new Promise((r) => setTimeout(r, 50)); // let the background run finish
+    expect(settled).toEqual(["succeeded"]); // exactly once, terminal
+  });
+  it("sync (noWait=true): fires with the same final status the caller gets", async () => {
+    const store = new TaskStore();
+    store.register("remove-background", async () => { throw new Error("boom"); });
+    const settled: string[] = [];
+    const t = await store.submit("remove-background", { fileUrl: "/api/files/in.jpg" }, { noWait: true, onSettled: (s) => settled.push(s.progress) });
+    expect(t.progress).toBe("failed");
+    expect(settled).toEqual(["failed"]);
+  });
+});

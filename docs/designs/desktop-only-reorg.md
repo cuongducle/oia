@@ -145,3 +145,16 @@ oia/
 - knip vào CI hằng ngày.
 - Loopback API mở rộng: upload chunked cho file lớn, SSE progress nếu agent cần.
 - Thêm metric ratchet mới khi nợ xuất hiện (any/@ts-ignore/TODO).
+
+## Ghi nhận sửa lỗi sau self-review (2026-10-30)
+
+Self-review phát hiện 4 bug nghiêm trọng do chính bước 4a/4b tạo ra — đã sửa kèm test hồi quy cho MỖI error path (bài học: gate happy-path không bắt được lỗi error-path):
+
+1. **Crash recovery bị gãy**: `exitInfo` không reset + `ensureUtility` cache bỏ qua re-init → 1 crash utility = chết dịch vụ tới khi restart app. Sửa: generation counter (mỗi fork +1), main khóa cache theo cặp (mode, generation); guard exit handler theo generation (không theo object). Gate mới: `crash-smoke` (kill utility giữa phiên → call kế tiếp tự fork + re-init) — chạy trong CI.
+2. **429 khóa 6,5 phút**: guard in-flight giảm theo TTL cứng thay vì theo completion. Sửa gốc: `SubmitOptions.onSettled` trong `@oia/tasks` (runToCompletion không bao giờ reject → luôn gọi đúng 1 lần); loopback kế toán chính xác, TTL 15 phút chỉ còn fallback. Test: background task xong → submit ngay không bị 429.
+3. **Quit race đốt quota**: cancelAll fire-and-forget đua với SIGTERM kill; codex detached sống sót cha. Sửa: before-quit preventDefault → await cancel (bounded 3s) → kill; utility bắt SIGTERM → cancelAll (giết cây codex) → exit.
+4. **Không timeout RPC**: init treo = buildLock đứng vĩnh viễn. Sửa: timeout theo lệnh (chatRun 12 phút, init/rebuild 2 phút, còn lại 30 giây) → fail-fast `UtilityTimeout`.
+
+Kèm 3 món cùng file: exit listener đăng ký 1 lần ở module scope (không tích lũy theo rebuild); chatRun requestId dùng randomUUID (Date.now() đụng khi double-submit); discovery file ghi atomic temp+rename (TP.7).
+
+Còn treo (chưa sửa, đã biết): `oia://` đi vòng IPC lấy bytes + content-type map sao chép tay; TaskNotFound nhận diện bằng chuỗi; parser multipart tự viết; loopback không request log; map rate-limit không dọn; port đổi mỗi rebuild; god-file `main/index.ts`.

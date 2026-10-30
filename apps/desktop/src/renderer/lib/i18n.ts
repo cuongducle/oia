@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * D8 FINAL (owner, 2026-10-30): the desktop UI ships ENGLISH — this file is the
  * I18nKey SOURCE ONLY, trimmed from the web's 12-locale dictionary (reorg step 4e).

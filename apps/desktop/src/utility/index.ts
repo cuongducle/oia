@@ -34,6 +34,26 @@ let ctx: ServiceContext | null = null;
 let dataDir = "";
 let userDataDir = "";
 let loopback: { port: number; discoveryFile: string; close: () => Promise<void> } | null = null;
+let discoveryCleanup: string | null = null; // ONE module-level exit listener — never per-rebuild
+
+// Registered ONCE: a hard exit (kill, crash) still removes the discovery file so
+// agents are not pointed at a dead port (they also pid-check on read).
+process.on("exit", () => {
+  if (!discoveryCleanup) return;
+  try {
+    unlinkSync(discoveryCleanup);
+  } catch {
+    /* already gone */
+  }
+});
+
+// SIGTERM (main quitting / kill): abort every in-flight job FIRST — aborting the
+// controllers makes CliRuntime kill its DETACHED codex trees — then exit. Without
+// this, a hard kill orphans quota-burning children that outlive the app.
+process.on("SIGTERM", () => {
+  cancelAll();
+  setTimeout(() => process.exit(0), 1500).unref();
+});
 
 async function startServices(env: Record<string, string | undefined>): Promise<void> {
   if (loopback) await loopback.close().catch(() => {});
@@ -45,15 +65,7 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
     env,
     emit: (ev) => post(ev),
   });
-  // hard exit (kill, crash): best-effort discovery cleanup — a stale file points
-  // agents at a dead port; they fall back to ECONNREFUSED and the file's pid check
-  process.on("exit", () => {
-    try {
-      unlinkSync(loopback?.discoveryFile ?? "");
-    } catch {
-      /* already gone */
-    }
-  });
+  discoveryCleanup = loopback.discoveryFile;
   log(`loopback agent API on 127.0.0.1:${loopback.port} (discovery: ${loopback.discoveryFile})`);
 }
 

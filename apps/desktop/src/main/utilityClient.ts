@@ -13,14 +13,27 @@ import {
 
 /**
  * D11 (reorg step 4a) — the main-side handle to the services utility process.
- * - call(cmd): request/response by id (errors re-thrown with name/errorClass intact)
+ * - call(cmd): request/response by rid, with a PER-COMMAND TIMEOUT — a wedged
+ *   utility must fail fast (UtilityTimeout), never hang a handler forever.
+ * - crash recovery: `generation` bumps on every fork. Main stores the generation
+ *   its context was built with; a mismatch means "fork again + re-init" — one
+ *   services crash can never brick the app until restart (the bug this fixed).
  * - chat events stream back tagged with the originating request id and are routed
- *   to the WebContents that started the chat (mirrors the old direct-sink wiring)
- * - crash observability: 'exit' rejects pending calls and surfaces the code — a
- *   services crash must never leave the UI hanging on a promise
+ *   to the WebContents that started the chat.
+ * - 'exit' rejects pending calls (UtilityProcessCrashed) and logs the code — a
+ *   services crash must never leave the UI hanging on a promise.
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** Per-command timeouts: chatRun must outlive the codex budget (480s + margin);
+ *  init/rebuild run provider probes; everything else is store/file work. */
+const TIMEOUT_MS: Record<string, number> = {
+  chatRun: 12 * 60_000,
+  init: 120_000,
+  rebuild: 120_000,
+};
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 interface Pending {
   resolve: (v: unknown) => void;
@@ -34,15 +47,24 @@ export class UtilityClient {
   private chatSenders = new Map<string, WebContents>();
   private eventListeners: ((ev: UtilityEvent) => void)[] = [];
   private exitInfo: { code: number } | null = null;
+  /** Bumps on every fork — main keys its context cache on this (crash recovery). */
+  private generation = 0;
 
+  /** Fork if needed. After a crash (exitInfo set) a fresh fork RESETS the crash
+   *  state — callers re-init through their generation check. */
   start(): void {
-    if (this.child) return;
+    if (this.child && this.exitInfo === null) return; // alive and healthy
+    this.exitInfo = null;
+    this.generation += 1;
     this.child = utilityProcess.fork(path.join(here, "utility.js"), [], {
       serviceName: "oia-services",
       stdio: "inherit",
     });
-    this.child.on("message", (msg) => this.onMessage(msg as UtilityResponse | UtilityEvent));
-    this.child.on("exit", (code) => {
+    const child = this.child;
+    const forkGen = this.generation; // this exit belongs to THIS fork only
+    child.on("message", (msg) => this.onMessage(msg as UtilityResponse | UtilityEvent));
+    child.on("exit", (code) => {
+      if (this.generation !== forkGen) return; // a NEWER fork owns the client now
       this.exitInfo = { code: code ?? -1 };
       this.child = null;
       const err = new Error(`services process exited (code ${this.exitInfo.code})`) as Error & { name: string };
@@ -50,12 +72,17 @@ export class UtilityClient {
       for (const p of this.pending.values()) p.reject(err);
       this.pending.clear();
       this.chatSenders.clear();
-      this.emitEvent({ type: "log", line: `utility process EXITED code=${this.exitInfo.code}` });
+      this.emitEvent({ type: "log", line: `utility process EXITED code=${this.exitInfo.code} (generation ${this.generation})` });
     });
   }
 
   get crashed(): boolean {
     return this.exitInfo !== null;
+  }
+
+  /** The fork counter — compare with the generation your context was built on. */
+  get gen(): number {
+    return this.generation;
   }
 
   onUtilityEvent(fn: (ev: UtilityEvent) => void): () => void {
@@ -89,7 +116,7 @@ export class UtilityClient {
     else p.reject(deserializeUtilityError(msg.error));
   }
 
-  call(cmd: UtilityCommand, opts: { requestId?: string; sender?: WebContents } = {}): Promise<unknown> {
+  call(cmd: UtilityCommand, opts: { requestId?: string; sender?: WebContents; timeoutMs?: number } = {}): Promise<unknown> {
     if (!this.child || this.exitInfo) {
       const err = new Error("services process unavailable") as Error & { name: string };
       err.name = "UtilityProcessCrashed";
@@ -99,9 +126,25 @@ export class UtilityClient {
     const req: UtilityRequest = { rid, ...cmd, ...(opts.requestId ? { requestId: opts.requestId } : {}) };
     const routeKey = opts.requestId ?? rid;
     if (opts.sender) this.chatSenders.set(routeKey, opts.sender);
+    const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS[cmd.cmd] ?? DEFAULT_TIMEOUT_MS;
     const child = this.child; // captured — never re-read across the async gap
     return new Promise<unknown>((resolve, reject) => {
-      this.pending.set(rid, { resolve, reject });
+      const timer = setTimeout(() => {
+        this.pending.delete(rid); // the late response (if any) is dropped on the floor
+        const err = new Error(`services rpc timed out after ${timeoutMs}ms (cmd=${cmd.cmd})`) as Error & { name: string };
+        err.name = "UtilityTimeout";
+        reject(err);
+      }, timeoutMs);
+      this.pending.set(rid, {
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
+      });
       child.postMessage(req);
     }).finally(() => {
       this.chatSenders.delete(routeKey); // chat done (or failed) — stop routing its events

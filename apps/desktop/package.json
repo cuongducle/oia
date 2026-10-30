@@ -8,6 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "smoke": "electron-vite build && cross-env OIA_DESKTOP_SMOKE=1 electron .",
+    "crash-smoke": "electron-vite build && cross-env OIA_DESKTOP_CRASH_SMOKE=1 electron .",
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
