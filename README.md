@@ -11,6 +11,7 @@
   <a href="#what-editable-actually-means">How layers work</a> ·
   <a href="#bring-your-own-provider">Providers</a> ·
   <a href="#build-it-into-your-workflow">API & agent skills</a> ·
+  <a href="https://cuongducle.github.io/oia/">Landing page</a> ·
   <a href="LICENSE">MIT license</a>
 </p>
 
@@ -96,7 +97,7 @@ Start with a bundled **Sample** project (seeded on first run) to try real text a
 
 **Real generations:** the app bundles a pinned Codex CLI binary, so the recommended keyless path is zero-setup — open **Runtime** in the app, sign in with ChatGPT, and generate against your plan quota. No API key required. Alternatively set `IMAGE_PROVIDER`/`LLM_PROVIDER` (see `.env.example`) to use OpenAI or fal keys.
 
-> Installers are not published yet (packaging lands with the release step). Run from source for now.
+> Installers are not published yet (packaging lands with the release step). Run from source for now. The landing page's Download button points at the [releases page](https://github.com/cuongducle/oia/releases) and goes live with the first installer.
 
 ## Bring your own provider
 
@@ -161,9 +162,20 @@ packages/schema      Shared validation and scene schemas
 packages/services    Chat orchestration, quota, context
 packages/tasks       Task processing, stores, files, projects, and templates
 packages/skills      Coding-agent instructions (consumer of the loopback API)
+site/                Landing page (static; deployed to GitHub Pages)
 ```
 
 </details>
+
+## Landing page
+
+The marketing site lives in [`site/`](site/) and is deployed at **[cuongducle.github.io/oia](https://cuongducle.github.io/oia/)**.
+
+```bash
+cd site && python3 -m http.server 8765    # → http://localhost:8765
+```
+
+No build step: `index.html` + `styles.css` + `main.js`. Pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
 
 ## Current boundaries
 
