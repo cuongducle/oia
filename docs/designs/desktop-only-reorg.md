@@ -22,8 +22,7 @@
 ```text
 oia/
 ├── package.json / pnpm-workspace.yaml / turbo.json / tsconfig.base.json
-├── .env.example               # gọn: chỉ provider (CODEX_*, OPENAI_*, FAL_*) + OIA_*
-│                              #   BỎ DATABASE_URL, S3_*, REDIS_URL (infra chết)
+├── .env.example               # chỉ còn provider (CODEX_*, OPENAI_*, FAL_*) — infra chết đã dọn ở bước 3
 ├── config/                    # (mới, tối giản — học Orca nhưng không nhân bản)
 │   ├── knip.json              # dò code chết (đã tận tụng 1 lần với packages/db)
 │   └── baselines/             # ratchet: số nợ kỹ thuật chỉ được GIẢM
@@ -54,7 +53,7 @@ oia/
 │   ├── protocol/  agent/  canvas/  services/
 │   ├── providers/             # cli/ nâng theo process-host pattern:
 │   │                          #   cmd-shim resolution, tree-kill, PATH từ GUI launch
-│   └── tasks/                 # BỎ bullmq.ts + deps bullmq/ioredis; queue in-process thuần
+│   └── tasks/                 # queue in-process thuần (bullmq/ioredis đã xóa ở bước 3)
 │
 └── docs/                      # giữ; dọn docs/private/ui-audit khi xóa web
 ```
@@ -111,7 +110,7 @@ oia/
 
 **Bước 6 — Xóa 1 lượt**
 - Xóa: `apps/web`, `packages/db`, `docs/private/ui-audit`. (`apps/worker`, `docker/` đã xóa ở bước 3; `packages/skills` GIỮ theo D9.)
-- Dọn `.env.example` (bỏ DATABASE_URL/S3/REDIS). Viết lại README (quick start chỉ còn desktop).
+- Viết lại README (quick start chỉ còn desktop + hướng dẫn loopback API cho agent). `.env.example` đã dọn xong ở bước 3.
 - Gate: `pnpm build && pnpm typecheck && pnpm test` toàn repo xanh SAU khi xóa.
 
 **Bước 7 — Đóng gói đa nền tảng**
