@@ -62,6 +62,28 @@ describe("D1 runChat — happy path", () => {
     // session persisted (replayable)
     expect(ctx.chatSessions.recent(1)[0].messages.length).toBe(2);
   });
+
+  it("A1 VA-9: returns the sessionId it persisted to — the editor dock pins its conversation", async () => {
+    const ctx = await freshCtx();
+    const first = await runChat({ prompt: "edit 1" }, ctx, { sink: () => {} });
+    const stored = ctx.chatSessions.get(first.sessionId);
+    expect(stored).toBeDefined(); // the returned id IS the session the canvas landed in
+    expect(stored!.messages.at(-1)?.role).toBe("assistant");
+    // second edit with the same sessionId joins the SAME conversation (2 pairs, not 2 sessions)
+    const second = await runChat({ prompt: "edit 2", sessionId: first.sessionId }, ctx, { sink: () => {} });
+    expect(second.sessionId).toBe(first.sessionId);
+    expect(ctx.chatSessions.get(first.sessionId)!.messages.length).toBe(4);
+    expect(ctx.chatSessions.recent().length).toBe(1);
+  });
+
+  it("A1 VA-9: refusals still return the sessionId (the prompt was persisted — the record must not lie)", async () => {
+    const ctx = await freshCtx();
+    const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in", available: false });
+    (ctx.chat as { llm: unknown }).llm = failing;
+    const { sessionId, outcome } = await runChat({ prompt: "x" }, ctx, { sink: () => {} });
+    expect(outcome).toBe("refused-unavailable");
+    expect(ctx.chatSessions.get(sessionId)).toBeDefined();
+  });
 });
 
 describe("D1 runChat — refusals", () => {

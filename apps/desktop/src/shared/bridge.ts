@@ -52,7 +52,9 @@ export interface AgentJobFrame {
 }
 
 export interface OiaBridge {
-  chatRun: (req: ChatRequest) => Promise<{ jobId: string; outcome: ChatOutcome }>;
+  /** `sessionId` is additive (A1 preview-apply): the editor dock pins a conversation
+   * across edits — variants + the A5 plan stash attach to one session. */
+  chatRun: (req: ChatRequest) => Promise<{ jobId: string; outcome: ChatOutcome; sessionId: number }>;
   /** Streaming ChatEvents; the returned function unsubscribes. */
   onChatEvent: (cb: (ev: ChatEvent) => void) => () => void;
   cancelChat: (jobId: string) => Promise<boolean>;

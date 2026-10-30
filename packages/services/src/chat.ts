@@ -73,7 +73,9 @@ function sessionPlans(): Map<number, PlannerPlan> {
   return gPlans.__oiaSessionPlans;
 }
 
-export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunChatOptions): Promise<{ jobId: string; outcome: ChatOutcome }> {
+/** The return adds `sessionId` (A1 preview-apply, VA-9): the editor dock pins its
+ * conversation so variants + the A5 plan stash attach to ONE session across edits. */
+export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunChatOptions): Promise<{ jobId: string; outcome: ChatOutcome; sessionId: number }> {
   const jobId = randomUUID();
   const baseRender = { msgMeta: [], fileMeta: [], taskMeta: [], exportMeta: null, confirmRequest: null };
   const { sink } = opts;
@@ -94,7 +96,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
   const metered = !ctx.chat.image.capabilities.isMock;
   if (metered && isMeteredBusy()) {
     failEvent({ errorClass: "rate_limited", provider: ctx.chat.image.name, message: "a generation is already running", attemptNumber: 0 });
-    return { jobId, outcome: "refused-rate-limited" };
+    return { jobId, outcome: "refused-rate-limited", sessionId: session.id };
   }
   if (metered) meteredBusy().add(jobId);
 
@@ -129,7 +131,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       if (!diag.ok) {
         failEvent({ errorClass: diag.errorClass ?? "provider_missing", provider: name, message: diag.detail ?? "provider unavailable", attemptNumber: 0 });
         outcome = "refused-unavailable";
-        return { jobId, outcome };
+        return { jobId, outcome, sessionId: session.id };
       }
     }
 
@@ -191,5 +193,5 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       console.error(`[chat] session persistence failed jobId=${jobId} session=${session.id}`, err);
     }
   }
-  return { jobId, outcome };
+  return { jobId, outcome, sessionId: session.id };
 }

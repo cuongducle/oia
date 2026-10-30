@@ -136,10 +136,10 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     case "chatRun": {
       const c = requireCtx();
       const requestId = req.requestId ?? req.rid;
-      const { outcome, jobId } = await runChat(req.req as Parameters<typeof runChat>[0], c, {
+      const { outcome, jobId, sessionId } = await runChat(req.req as Parameters<typeof runChat>[0], c, {
         sink: (ev) => post({ type: "chatEvent", requestId, ev }),
       });
-      return { outcome, jobId };
+      return { outcome, jobId, sessionId }; // sessionId — A1 preview-apply (VA-9)
     }
     case "chatCancel":
       return cancelJob(req.jobId);
