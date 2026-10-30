@@ -88,7 +88,7 @@ macOS cũ — không mất gì khi chỉ xuất icon.
 ## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-10-30 (bước 7c)
 
 - [x] Icon: **placeholder .icns đã ship (7a)** — squircle tím accent + O serif. Quyết định icon THẬT (nhiều lớp Icon Composer vs icns thường) vẫn chờ owner — không chặn v1.
-- [x] Window chrome: `hiddenInset` + traffic light padding — SHIP (7c); dark mode + wallpaper sáng/tối còn nợ quick-check owner (gate kéo + vision sáng thường đã xanh).
+- [x] Window chrome: `hiddenInset` + traffic light padding — SHIP (7c); dark mode ✅ ĐÓNG bằng gate tự động (2026-10-30 tối): bắt bug trắng-trên-trắng, pin `color-scheme: light` + shot gate dùng `nativeTheme.themeSource` — xem reorg doc.
 - [ ] Vibrancy sidebar: thử 1 nhánh, shot gate so sáng tối; bỏ nếu làm canvas editor lệch màu — **CHƯA thử, không chặn v1**.
 - [x] Gate kéo-cửa-sổ trên máy Tahoe thật — 7c: cliclick kéo header, window dịch đúng +240px trên bản packaged; độ mượt thị giác = quick-check owner khi tiện.
 - [x] Electron >= 39 trong cây ship mọi lúc — 39.8.10 pin; desktop-audit CI giữ.

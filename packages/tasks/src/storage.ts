@@ -131,8 +131,18 @@ export class LocalFileStore implements FileStore {
     // the file to stay inside the real root (throws ENOENT-miss as before when
     // absent). Known TOCTOU: the link could swap between realpath and readFile —
     // accepted (defeating it needs an attacker who can already write the tree,
-    // at which point they own the data anyway). realRoot never moves — cached.
-    this.realRootP ??= realpath(this.rootDir);
+    // at which point they own the data anyway).
+    // The root is resolved lazily ONCE — but a REJECTED resolve must not be cached:
+    // the first read can legitimately race ahead of the first upload (root not
+    // created yet); caching that ENOENT poisoned every later read (found live by
+    // the shot gate after the dark-mode gate shifted boot timing).
+    if (!this.realRootP) {
+      const p = realpath(this.rootDir);
+      this.realRootP = p;
+      p.catch(() => {
+        if (this.realRootP === p) this.realRootP = undefined; // retry on the next read
+      });
+    }
     const realRoot = await this.realRootP;
     const realFile = await realpath(full);
     if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) throw new Error("invalid key");

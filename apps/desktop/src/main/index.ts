@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -419,7 +419,9 @@ function registerAssetProtocol(): void {
           "access-control-allow-origin": "*",
         },
       });
-    } catch {
+    } catch (err) {
+      // Log, then 404 — a swallow-everything catch hid the poisoned-realpath bug for hours.
+      console.error("[oia://] handler error:", err instanceof Error ? err.stack : String(err));
       return new Response(null, { status: 404 });
     }
   });
@@ -565,6 +567,28 @@ async function shot(): Promise<void> {
       console.error("DESKTOP_SHOT CHROME VERIFY FAILED");
       app.exit(15);
       return;
+    }
+    // Dark-mode regression (found live on the packaged build 2026-10-30): without
+    // color-scheme:light, UA default colors flip with the system appearance and
+    // nav pill text went white-on-white. nativeTheme.themeSource IS the mechanism
+    // that produced the bug — flip the app to dark and pin the pill color.
+    try {
+      nativeTheme.themeSource = "dark";
+      await new Promise((r) => setTimeout(r, 300));
+      const pill = await win.webContents.executeJavaScript(`(() => {
+        const p = document.querySelector(".viewNav .navPill");
+        return p ? getComputedStyle(p).color : null;
+      })()`, true);
+      console.log("[shot] dark-mode pill color:", JSON.stringify(pill));
+      const m = typeof pill === "string" ? pill.match(/\d+/g)?.map(Number) : null;
+      const tooLight = m ? (m[0] > 235 && m[1] > 235 && m[2] > 235) : true;
+      if (tooLight) {
+        console.error("DESKTOP_SHOT DARK-MODE VERIFY FAILED (pill text flipped white)");
+        app.exit(16);
+        return;
+      }
+    } finally {
+      nativeTheme.themeSource = "system"; // never leak the override into later gates
     }
   }
   const probe = await win.webContents.executeJavaScript(`(async () => {
@@ -858,7 +882,7 @@ async function shot(): Promise<void> {
   }
   console.log("[shot] tool AI verify:", JSON.stringify(aiVerify));
   if (!aiOpened || !bannerCard || !prompted || !genClicked || !aiDone) {
-    console.error("DESKTOP_SHOT TOOL AI VERIFY FAILED");
+    console.error("DESKTOP_SHOT TOOL AI VERIFY FAILED", JSON.stringify({ aiOpened, bannerCard, prompted, genClicked, aiDone }));
     app.exit(12);
     return;
   }

@@ -63,6 +63,18 @@ describe("BR-UP storage", () => {
     const s = new LocalFileStore(root);
     await expect(s.read("uploads/escape.png")).rejects.toThrow("invalid key");
   });
+  /** Regression (found live, 2026-10-30): the first read raced ahead of the first
+   *  upload — root not created yet — and the CACHED rejected realpath poisoned
+   *  every later read (oia:// 404 forever). A failed root resolve must be retried. */
+  it("a read before the root exists does not poison later reads after the upload creates it", async () => {
+    const parent = mkdtempSync(path.join(tmpdir(), "pf-poison-parent-"));
+    const root = path.join(parent, "store");
+    const s = new LocalFileStore(root);
+    await expect(s.read("uploads/20261030/x.png")).rejects.toThrow(); // root missing — allowed to fail
+    const bytes = new Uint8Array([4, 2]);
+    const { key } = await s.put(bytes, "png"); // creates the root NOW
+    expect(await s.read(key)).toEqual(bytes); // the poisoned-cache bug failed HERE
+  });
   it("contentType maps correctly", () => {
     expect(store.contentType("png")).toBe("image/png");
     expect(store.contentType("pptx")).toContain("presentationml");

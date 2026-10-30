@@ -2,6 +2,10 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <!-- D8: the app is light by design. Pin color-scheme so macOS dark mode cannot
+         flip UA default colors — nav pill text went white-on-white in dark mode
+         (found by the automated dark-mode gate on the packaged build, 2026-10-30). -->
+    <meta name="color-scheme" content="light" />
     <!--
       Step 7 CSP: every extra token is claimed by a lane and pinned by
       test/csp-pin.test.ts — jsdelivr = tesseract.js worker script + wasm core +
