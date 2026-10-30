@@ -1,51 +1,90 @@
 import { describe, expect, it } from "vitest";
 import type { FabricObject, SceneCanvas } from "@oia/schema";
-import { mergeScenePreservingUserObjects, stampUser, objectOrigin } from "../src/provenance.js";
+import { variantArtworkObject, replaceObjectSrc, stampUser, objectOrigin } from "../src/provenance.js";
 import { SIZE_PRESETS } from "../src/presets.js";
 
-function img(name: string, origin: FabricObject["origin"]): FabricObject {
-  return { type: "Image", name, origin, left: 0, top: 0, width: 100, height: 100, src: "https://x/y.png", visible: true };
+function img(name: string, origin: FabricObject["origin"], src = "https://x/y.png"): FabricObject {
+  return { type: "Image", name, origin, left: 0, top: 0, width: 100, height: 100, src, visible: true };
 }
 
-/** The exact scenario from the design: place a layer → run a refinement → assert it survives. */
-describe("STAGE-0 TP.10: the non-destruction rule (user layers survive AI refinement)", () => {
+/** A1 preview-apply (docs/designs/variant-preview-apply.md): the editor dock never
+ * auto-mutates the page. TP.10 non-destruction is now the src swap of exactly one
+ * user-designated object — these tests pin that mechanism. */
+describe("A1 preview-apply: variantArtworkObject picks the swap-in image (VA-5)", () => {
+  const variant: SceneCanvas = {
+    version: "7.3.1",
+    objects: [
+      { type: "Rect", name: "clip", left: 0, top: 0, width: 900, height: 1200, fill: "white", visible: true, src: "https://x/clip.png" },
+      img("artwork", "generated", "https://x/new-artwork.png"),
+      { type: "Textbox", name: "block:price", origin: "generated", text: "30%", left: 10, top: 10, width: 100, height: 40, visible: true },
+      img("user upload", "user", "https://x/user.png"), // rode along in the scene — never the swap source
+    ],
+  };
+
+  it("returns the largest-area generated image, skipping clip / user / text layers", () => {
+    expect(variantArtworkObject(variant)).toEqual({ src: "https://x/new-artwork.png" });
+  });
+
+  it("largest displayed area wins (scale factored), not z-order", () => {
+    const collage: SceneCanvas = {
+      version: "7.3.1",
+      objects: [
+        { ...img("small", "generated", "https://x/s.png") },
+        { type: "Image", name: "big", origin: "generated", left: 0, top: 0, width: 100, height: 100, scaleX: 3, scaleY: 3, src: "https://x/b.png", visible: true },
+      ],
+    };
+    expect(variantArtworkObject(collage)).toEqual({ src: "https://x/b.png" });
+  });
+
+  it("returns null when the variant has no artwork image (VA-5) — the UI disables Replace", () => {
+    const textOnly: SceneCanvas = {
+      version: "7.3.1",
+      objects: [
+        { type: "Rect", name: "clip", left: 0, top: 0, width: 1, height: 1, fill: "white", visible: true },
+        { type: "Textbox", name: "block:t", origin: "generated", text: "30%", left: 0, top: 0, width: 10, height: 10, visible: true },
+      ],
+    };
+    expect(variantArtworkObject(textOnly)).toBeNull();
+  });
+
+  it("legacy objects without origin default to user (conservative) — never picked", () => {
+    const legacy: SceneCanvas = { version: "7.3.1", objects: [img("legacy", undefined as unknown as FabricObject["origin"])] };
+    expect(variantArtworkObject(legacy)).toBeNull();
+  });
+});
+
+describe("A1 preview-apply: replaceObjectSrc swaps exactly one src (VA-4, TP.10)", () => {
   const current: SceneCanvas = {
     version: "7.3.1",
     objects: [
       { type: "Rect", name: "clip", left: 0, top: 0, width: 900, height: 1200, fill: "white", visible: true },
-      img("artwork", "generated"), // the old generated artwork — replaced by the new one
-      img("product-photo", "user"), // the user's real product photo — MUST survive
-      { type: "Textbox", name: "block:price", origin: "generated", text: "20%", left: 10, top: 10, width: 100, height: 40, visible: true },
-      { type: "Textbox", name: "my own note", text: "hot", left: 400, top: 900, width: 80, height: 30, visible: true }, // legacy: no origin
-    ],
-  };
-  const incoming: SceneCanvas = {
-    version: "7.3.1",
-    objects: [
-      { type: "Rect", name: "clip", left: 0, top: 0, width: 900, height: 1200, fill: "white", visible: true },
-      img("artwork", "generated"), // the NEW artwork
-      { type: "Textbox", name: "block:price", origin: "generated", text: "30%", left: 10, top: 10, width: 100, height: 40, visible: true },
+      { ...img("artwork", "generated", "https://x/old.png"), left: 37, top: 42, scaleX: 1.5, scaleY: 1.5, angle: 7 },
+      img("product-photo", "user", "https://x/keep-me.png"),
+      { type: "Textbox", name: "my own note", text: "hot", left: 400, top: 900, width: 80, height: 30, visible: true },
     ],
   };
 
-  it("a placed layer survives a refinement — position intact, on top of the new base", () => {
-    const { scene, preserved, lostUserObjects } = mergeScenePreservingUserObjects(current, incoming);
-    const names = scene.objects.map((o) => o.name);
-    expect(names).toContain("product-photo"); // the design's worst-case failure is impossible
-    expect(names).toContain("my own note"); // legacy no-origin objects default to "user" (conservative)
-    expect(lostUserObjects).toEqual([]);
-    expect(preserved.map((o) => o.name)).toEqual(["product-photo", "my own note"]);
-    // position preserved
-    const note = scene.objects.find((o) => o.name === "my own note")!;
-    expect(note.top).toBe(900);
-    // the new base replaced the generated layer (old artwork gone, new artwork + new price block in)
-    expect(names.filter((n) => n === "artwork")).toHaveLength(1);
-    const price = scene.objects.find((o) => o.name === "block:price")!;
-    expect(price.text).toBe("30%");
-    // exactly one clip rect (the incoming one)
-    expect(names.filter((n) => n === "clip")).toHaveLength(1);
-    // user objects stack AFTER the generated base
-    expect(scene.objects.map((o) => o.name).indexOf("product-photo")).toBeGreaterThan(names.indexOf("artwork"));
+  it("swaps the target src; geometry, order, and every other object stay identical", () => {
+    const next = replaceObjectSrc(current, 1, "https://x/new.png");
+    expect(next.objects[1].src).toBe("https://x/new.png");
+    // geometry untouched — the layer stays exactly where the user placed it
+    expect(next.objects[1]).toMatchObject({ left: 37, top: 42, scaleX: 1.5, scaleY: 1.5, angle: 7 });
+    // everything else is the SAME reference values (no reordering, no copies of siblings)
+    expect(next.objects[0]).toBe(current.objects[0]);
+    expect(next.objects[2]).toBe(current.objects[2]);
+    expect(next.objects[3]).toBe(current.objects[3]);
+    expect(next.version).toBe(current.version);
+    // copy-on-write: the input scene is not mutated
+    expect(current.objects[1].src).toBe("https://x/old.png");
+  });
+
+  it("error path: out-of-range index throws (a stale index must never corrupt the page)", () => {
+    expect(() => replaceObjectSrc(current, 9, "x")).toThrow(RangeError);
+    expect(() => replaceObjectSrc(current, -1, "x")).toThrow(RangeError);
+  });
+
+  it("error path: a target without src throws (not an image layer)", () => {
+    expect(() => replaceObjectSrc(current, 3, "x")).toThrow(TypeError);
   });
 
   it("stampUser marks an object; objectOrigin treats undefined as user (legacy default)", () => {
@@ -54,19 +93,6 @@ describe("STAGE-0 TP.10: the non-destruction rule (user layers survive AI refine
     stampUser(o);
     expect(objectOrigin(o)).toBe("user");
     expect(objectOrigin(img("g", "generated"))).toBe("generated");
-  });
-
-  it("a pure-generated current scene merges to exactly the incoming scene (nothing extra)", () => {
-    const genOnly: SceneCanvas = {
-      version: "7.3.1",
-      objects: [
-        { type: "Rect", name: "clip", left: 0, top: 0, width: 1, height: 1, fill: "white", visible: true },
-        img("artwork", "generated"),
-      ],
-    };
-    const { scene, preserved } = mergeScenePreservingUserObjects(genOnly, incoming);
-    expect(preserved).toEqual([]);
-    expect(scene.objects.map((o) => o.name)).toEqual(["clip", "artwork", "block:price"]);
   });
 });
 
