@@ -17,6 +17,15 @@ const api: OiaBridge = {
   providerStatus: () => ipcRenderer.invoke(IPC.providerStatus),
   createProject: (p) => ipcRenderer.invoke(IPC.projectsCreate, p),
   getProject: (id) => ipcRenderer.invoke(IPC.projectsGet, { id }),
+  listProjects: () => ipcRenderer.invoke(IPC.projectsList),
+  saveProject: (id, patch) => ipcRenderer.invoke(IPC.projectsSave, { id, ...patch }),
+  removeProject: (id) => ipcRenderer.invoke(IPC.projectsRemove, { id }),
+  listTemplates: () => ipcRenderer.invoke(IPC.templatesList),
+  createTemplate: (t) => ipcRenderer.invoke(IPC.templatesCreate, t),
+  listSessions: () => ipcRenderer.invoke(IPC.sessionsList),
+  getSession: (id) => ipcRenderer.invoke(IPC.sessionsGet, { id }),
+  uploadAsset: (name, bytes) => ipcRenderer.invoke(IPC.filesUpload, { name, bytes }),
+  saveExport: (fileName, bytes) => ipcRenderer.invoke(IPC.exportSave, { fileName, bytes }),
 };
 
 contextBridge.exposeInMainWorld("oia", api);

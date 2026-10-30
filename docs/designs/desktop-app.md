@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle (+ agent draft)
 * **Date:** 2026-10-30
-* **Status:** APPROVED (owner, 2026-10-30 — Q1–Q10 accepted with the recommended defaults). **D1 shipped** (TP-D2 note below). **D2 gate OVERRIDDEN by owner (2026-10-30, "đã bảo skip seller")** — seller sessions are skipped by explicit owner decision; the loop therefore ships UNVALIDATED by real sellers and that risk is carried on the register below. D2 first increment shipped the same day.
+* **Status:** APPROVED (owner, 2026-10-30 — Q1–Q10 accepted with the recommended defaults; Q11 UI-language decision recorded 2026-10-30). **D1 shipped** (TP-D2 note below). **D2 gate OVERRIDDEN by owner (2026-10-30, "đã bảo skip seller")** — seller sessions are skipped by explicit owner decision; the loop therefore ships UNVALIDATED by real sellers and that risk is carried on the register below. D2 increments 1–2 shipped the same day (shell + remediation, then the full renderer port).
 * **Predecessors:**
   * [`../desktop-architecture.md`](../desktop-architecture.md) — cross-platform research (reference apps, packaging, storage, security)
   * [`banner-maker-loop-stage-0.md`](banner-maker-loop-stage-0.md) — the engine + the honest done/deferred ledger; **Windows work and the S3 gate are owned by THIS design** (moved here 2026-10-29)
@@ -90,6 +90,7 @@ persistence, and the zero-terminal onboarding that the web app can never give.
 | Q8 | Persistence | TP-D5 = old "step 2" pulled forward: `schemaVersion`, migrations, per-project files, `userData` root, `.data` importer | ACCEPTED 2026-10-30 |
 | Q9 | Signing & updates | macOS: Apple Developer Program + notarization. Windows: signed installer (Azure Trusted Signing if eligible, else cert) + SmartScreen reality; electron-updater + GitHub releases. **Recurring cost — owner accepts before D6** | ACCEPTED 2026-10-30 |
 | Q10 | Scope | Banner lane only (M6): composer, chat loop, editor, templates, marketplace presets, export PNG/JPG/PDF/PPTX | ACCEPTED 2026-10-30 |
+| Q11 | UI language | **English UI — no Vietnamese strings in interface code** (owner, 2026-10-30, during the D2 renderer port: "bỏ hết tiếng việt trong giao diện code"). Vietnamese is supported at the CONTENT/FONT level only: Be Vietnam Pro ships bundled (latin+vietnamese subsets) so banner text the seller types renders perfectly; the mock/smoke prompts deliberately exercise Vietnamese content. The desktop keeps error CLASSIFICATION from `@oia-web/libs/provider-errors` but maps keys to its own English copy (`renderer/lib/errors.ts`) — the web app's Vietnamese-first i18n is untouched. | DECIDED by owner 2026-10-30 |
 
 ## Critical User Journeys
 
@@ -163,7 +164,7 @@ a non-technical user can produce.
 | --- | --- | --- |
 | D0 | This design + owner gates Q1–Q10 | ✅ approved 2026-10-30 |
 | D1 | TP-D2 service extraction **on the web** — web still green | ✅ shipped 2026-10-30 (18/18 test packages green incl. new @oia/services contract tests; live-server smoke) |
-| D2 | TP-D1 shell + renderer port (macOS, mock providers end-to-end in the shell) | gate OVERRIDDEN by owner 2026-10-30; **increment 1 shipped + remediated same day**. The first pass claimed "canvas preview" without ever opening the window — a self-review caught it, and the fix pass found a four-layer breakage chain, each fixed and verified: (1) `file://` cannot load `/api/files` assets → `oia://files/<key>` custom protocol over the LocalFileStore; (2) sandboxed preloads may require nothing but electron → channels split out as pure data, schemas stay main-only, preload built as `.cjs` (`type:module` made `.js` load as ESM and silently die); (3) scene images carry `crossOrigin=anonymous` → scheme needed `corsEnabled: true` + ACAO or every image fails CORS; (4) fabric's upper-canvas is a sibling, not a child. Verification now has EYES: `OIA_DESKTOP_SHOT=1` drives the real window through the bridge and asserts painted pixels on the fabric canvas (`{"ok":true,"painted":407160}`), plus a PNG artifact. Window close cancels in-flight jobs; sandbox on; will-navigate/window-open denied; CSP tightened (oia:, no localhost); zod/ProviderConfig errors localize to Vietnamese; ChatRequest schema exported from @oia/services as the ONE boundary schema (web adapter 400s on junk now); bridge typed once (shared/bridge.ts); desktop test suite added; CI gained an xvfb desktop-smoke job; electron pinned 39.8.10. Remaining: full renderer port (editor/templates) |
+| D2 | TP-D1 shell + renderer port (macOS, mock providers end-to-end in the shell) | gate OVERRIDDEN by owner 2026-10-30; **increment 1 shipped + remediated same day**. The first pass claimed "canvas preview" without ever opening the window — a self-review caught it, and the fix pass found a four-layer breakage chain, each fixed and verified: (1) `file://` cannot load `/api/files` assets → `oia://files/<key>` custom protocol over the LocalFileStore; (2) sandboxed preloads may require nothing but electron → channels split out as pure data, schemas stay main-only, preload built as `.cjs` (`type:module` made `.js` load as ESM and silently die); (3) scene images carry `crossOrigin=anonymous` → scheme needed `corsEnabled: true` + ACAO or every image fails CORS; (4) fabric's upper-canvas is a sibling, not a child. Verification now has EYES: `OIA_DESKTOP_SHOT=1` drives the real window through the bridge and asserts painted pixels on the fabric canvas (`{"ok":true,"painted":407160}`), plus a PNG artifact. Window close cancels in-flight jobs; sandbox on; will-navigate/window-open denied; CSP tightened (oia:, no localhost); zod/ProviderConfig errors localize to Vietnamese (superseded by Q11 in increment 2 — English copy); ChatRequest schema exported from @oia/services as the ONE boundary schema (web adapter 400s on junk now); bridge typed once (shared/bridge.ts); desktop test suite added; CI gained an xvfb desktop-smoke job; electron pinned 39.8.10. **Increment 2 (renderer port) shipped same day** — see the D2 remainder ledger below: full editor (canvas/layers/text/shapes/tables/draw, undo/redo, autosave, multi-page), AI dock with the TP.10 merge, size presets, native-dialog export (PNG/JPG/PDF/PPTX/ZIP), template gallery, Workspace lists + session resume, Be Vietnam Pro bundled offline, English UI per Q11. `pnpm shot` now verifies all three views with painted-pixel assertions |
 | D3 | TP-D3 codex in-app runtime + login (macOS, real login) | D2 |
 | D4 | TP-D5 persistence v2 + `.data` importer | D2 |
 | D5 | TP-D4 Windows build + fixes | D3+D4 on macOS |
@@ -177,14 +178,22 @@ the Stage-0 exit criteria — the unproven-loop rule. D0–D1 may proceed now.
 The consolidated list of everything between here and a shippable v1 desktop app.
 Owner gates are marked 👤; everything else is implementable work.
 
-### D2 remainder — renderer port (macOS, mock-first)
-- [ ] Editor port: fullscreen editing shell (canvas, layers, text/shapes/tables, undo/redo, autosave) over IPC + `@oia/canvas`
-- [ ] Editor AI dock: refine flow with the non-destruction merge (TP.10 already in `@oia/canvas`)
-- [ ] Marketplace size presets panel (Shopee/Lazada/TikTok Shop — data already in `@oia/canvas`)
-- [ ] Export: PNG/JPG (canvas), PDF/PPTX (reuse the processors via services)
-- [ ] Template gallery + open-template → project-by-id handoff (services exist)
-- [ ] Projects/workspace list + recent
-- [ ] Studio design-system parity (tokens, fonts bundled — Be Vietnam Pro ships offline)
+### D2 remainder — renderer port (macOS, mock-first) — **SHIPPED 2026-10-30**
+All seven items shipped in one pass; UI copy is English per Q11 (new decision during this
+increment). Every view is verified by the extended `shot` run (eyes, not claims): Home
+chat → canvas painted; editor mounts (7 rail tools, AI dock, page strip) with painted
+artboard and autosave settling dirty→saved (proves the projects:save round-trip);
+Workspace lists projects (ScenePreview thumbs) + recent conversations. What changed vs
+the web editor beyond the transport (fetch → typed IPC):
+- [x] Editor port: fullscreen editing shell (canvas, layers, text/shapes/tables, undo/redo, autosave) over IPC + `@oia/canvas` — autosave creates-or-saves by projectId (TP.7); scenes persist in canonical `/api/files/` form, the renderer maps to `oia://` for display and back on save
+- [x] Editor AI dock: refine flow with the non-destruction merge (TP.10 already in `@oia/canvas`) — streams over the bridge subscription, TP.5 cancel, TP.11 capability-gated refs sent in canonical form
+- [x] Marketplace size presets panel (Shopee/Lazada/TikTok Shop — data already in `@oia/canvas`) — "Apply size to all pages" included
+- [x] Export: PNG/JPG (canvas), PDF/PPTX/ZIP (jspdf/pptxgenjs/jszip bundled in the renderer) → bytes over IPC → **native save dialog** (`export:save`), never a browser download anchor
+- [x] Template gallery + open-template → project-by-id handoff (services exist) — studio seeds + local community store; publish-template writes the local TemplateStore
+- [x] Projects/workspace list + recent — Workspace view over `projects:list`/`sessions:list`, blank-create + image-import (upload → assetize → project), session resume into Home
+- [x] Studio design-system parity (tokens, fonts bundled — Be Vietnam Pro ships offline) — 5 weights × latin+vietnamese subsets as Vite-emitted assets (relative URLs; `/fonts/` absolute paths break under file://), studio webp artwork in renderer public (mapped `/studio/` → relative for the same reason)
+
+New IPC surface (typed, zod-validated in main): `projects:list/save/remove`, `templates:list/create`, `sessions:list/get`, `files:upload` (25 MB image cap, same NSFW gate as web), `export:save` (native dialog + write). Native app menu (app/edit/view/window) added — macOS Cmd+C/V and quit behave like a real desktop app. Fabric realigned to ^6.9.1 (the D2 scaffold had pinned 7.4.0 against @oia/canvas's 6.x — two fabric copies, type-level breakage).
 
 ### D3 — Codex in-app runtime
 - [ ] Spike S5: Codex CLI redistribution licensing + auto-provision (download + checksum) viability

@@ -23,6 +23,9 @@ importers:
       '@oia/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@oia/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@oia/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -30,8 +33,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/services
       fabric:
-        specifier: ^7.4.0
-        version: 7.4.0
+        specifier: ^6.9.1
+        version: 6.9.1
+      jspdf:
+        specifier: ^4.2.1
+        version: 4.2.1
+      jszip:
+        specifier: ^3.10.2
+        version: 3.10.2
+      pptxgenjs:
+        specifier: ^4.0.1
+        version: 4.0.1
       react:
         specifier: ^19.2.0
         version: 19.3.1
@@ -1918,10 +1930,6 @@ packages:
   fabric@6.9.1:
     resolution: {integrity: sha512-TqG08Xbt4rtlPsXgCjSUcZz/RsyEP57Qo21nCVRkw7zz9nR0co4SLkL9Q/zQh3tC1Yxap6M5jKFHUKV6SgPovg==}
     engines: {node: '>=16.20.0'}
-
-  fabric@7.4.0:
-    resolution: {integrity: sha512-NalYDc3eifTl1C33zryQwpH6+XA/2ClxQrH9vkASkZw3tbkRmorpikhYMmxhUTmi7O3e9ODz0vOT8qfaCh9IVA==}
-    engines: {node: '>=20.0.0'}
 
   fast-png@6.4.0:
     resolution: {integrity: sha512-kAqZq1TlgBjZcLr5mcN6NP5Rv4V2f22z00c3g8vRrwkcqjerx7BEhPbOnWCPqaHUl2XWQBJQvOT/FQhdMT7X/Q==}
@@ -4264,15 +4272,6 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - encoding
-      - supports-color
-      - utf-8-validate
-
-  fabric@7.4.0:
-    optionalDependencies:
-      canvas: 3.2.3
-      jsdom: 26.1.0(canvas@3.2.3)
-    transitivePeerDependencies:
-      - bufferutil
       - supports-color
       - utf-8-validate
 

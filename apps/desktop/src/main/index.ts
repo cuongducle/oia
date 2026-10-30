@@ -1,9 +1,15 @@
-import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol } from "electron";
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { createServiceContext, runChat, cancelJob, jobControllers, providerStatusSnapshot, chatRequestSchema, type ServiceContext } from "@oia/services";
+import { checkNsfw } from "@oia/providers";
 import { IPC } from "../shared/channels.js";
-import { chatCancelSchema, projectsCreateSchema, projectsGetSchema } from "../shared/ipc.js";
+import {
+  chatCancelSchema, projectsCreateSchema, projectsGetSchema,
+  projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
+  filesUploadSchema, exportSaveSchema,
+} from "../shared/ipc.js";
 import type { OiaBridge } from "../shared/bridge.js";
 
 /**
@@ -91,8 +97,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.providerStatus, async () => providerStatusSnapshot(await ensureCtx()));
   ipcMain.handle(IPC.projectsCreate, async (_e, raw: unknown) => {
     try {
-      const { name, scene } = projectsCreateSchema.parse(raw);
-      return await ensureCtx().then((c) => c.projects.create({ name, scene }));
+      const { name, scene, pages, width, height } = projectsCreateSchema.parse(raw);
+      return await (await ensureCtx()).projects.create({ name, scene, pages, width, height });
     } catch (err) {
       ipcError(err);
     }
@@ -101,6 +107,74 @@ function registerIpc(): void {
     try {
       const { id } = projectsGetSchema.parse(raw);
       return (await ensureCtx()).projects.get(id) ?? null;
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.projectsList, async () => (await ensureCtx()).projects.recent(50));
+  ipcMain.handle(IPC.projectsSave, async (_e, raw: unknown) => {
+    try {
+      const { id, name, pages } = projectsSaveSchema.parse(raw);
+      return await (await ensureCtx()).projects.saveScene(id, { name, pages });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.projectsRemove, async (_e, raw: unknown) => {
+    try {
+      const { id } = projectsRemoveSchema.parse(raw);
+      return await (await ensureCtx()).projects.remove(id);
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.templatesList, async () =>
+    (await ensureCtx()).templates.list({ page: 1, pageSize: 100 }).items,
+  );
+  ipcMain.handle(IPC.templatesCreate, async (_e, raw: unknown) => {
+    try {
+      const { name, authorName, scene } = templatesCreateSchema.parse(raw);
+      return await (await ensureCtx()).templates.publish({ name, authorName, scene });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.sessionsList, async () =>
+    (await ensureCtx()).chatSessions.recent(20).map((s) => ({ id: s.id, name: s.name, updatedAt: s.updatedAt })),
+  );
+  ipcMain.handle(IPC.sessionsGet, async (_e, raw: unknown) => {
+    try {
+      const { id } = sessionsGetSchema.parse(raw);
+      const s = (await ensureCtx()).chatSessions.get(id);
+      return s ? { id: s.id, name: s.name, messages: s.messages } : null;
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.filesUpload, async (_e, raw: unknown) => {
+    try {
+      const { name, bytes } = filesUploadSchema.parse(raw);
+      // same moderation gate as the web upload route (env-gated, off by default)
+      const nsfw = await checkNsfw(bytes, name);
+      if (!nsfw.allowed) throw new Error("image not allowed");
+      const ext = name.split(".").pop()!.toLowerCase();
+      const saved = await (await ensureCtx()).files.put(bytes, ext);
+      return { url: saved.url, size: bytes.length };
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  ipcMain.handle(IPC.exportSave, async (event, raw: unknown) => {
+    try {
+      const { fileName, bytes } = exportSaveSchema.parse(raw);
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const pick = await dialog.showSaveDialog(win!, {
+        defaultPath: fileName,
+        filters: [{ name: fileName.split(".").pop()?.toUpperCase() ?? "File", extensions: [fileName.split(".").pop() ?? ""] }],
+      });
+      if (pick.canceled || !pick.filePath) return { saved: false as const, path: null };
+      await writeFile(pick.filePath, bytes);
+      return { saved: true as const, path: pick.filePath };
     } catch (err) {
       ipcError(err);
     }
@@ -233,16 +307,142 @@ async function shot(): Promise<void> {
     app.exit(3);
     return;
   }
+
+  // ---- D2 remainder: drive the EDITOR port with eyes -------------------------
+  // Home "Open in editor" → project created by id (TP.7) → editor mounts with
+  // rail/panels/AI dock; the artboard must show painted pixels, and the autosave
+  // indicator must settle (dirty → saved) before the window closes.
+  console.log("[shot] opening the editor…");
+  const clicked = await win.webContents.executeJavaScript(`(() => {
+    const btn = document.querySelector('[data-testid="open-editor"]');
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`, true);
+  if (!clicked) {
+    console.error("DESKTOP_SHOT EDITOR FAILED — open-editor button missing");
+    app.exit(4);
+    return;
+  }
+  let editorReady = false;
+  for (let i = 0; i < 40; i++) {
+    editorReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="editor-root"] .canvasArea .canvasWrap canvas'))`,
+      true,
+    );
+    if (editorReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 1500));
+  const edVerify = await win.webContents.executeJavaScript(`(() => {
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    const root = document.querySelector('[data-testid="editor-root"]');
+    if (!root) return { ok: false, why: "editor not mounted", err };
+    const rail = document.querySelectorAll(".railBtn").length;
+    const dock = Boolean(document.querySelector('[data-testid="ai-dock"]'));
+    const strip = Boolean(document.querySelector(".pageStrip"));
+    const inner = document.querySelector(".canvasWrap canvas.upper-canvas") ?? document.querySelectorAll(".canvasWrap canvas")[1];
+    if (!inner) return { ok: false, why: "no artboard canvas", err, rail, dock, strip };
+    const ctx = inner.getContext("2d");
+    const { width: w, height: h } = inner;
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let nonWhite = 0;
+    for (let i = 0; i < data.length; i += 16) {
+      if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
+    }
+    return { ok: rail === 7 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
+  })()`, true);
+  console.log("[shot] editor verify:", JSON.stringify(edVerify));
+  if (!edVerify || !edVerify.ok) {
+    console.error("DESKTOP_SHOT EDITOR VERIFY FAILED");
+    app.exit(5);
+    return;
+  }
+  // autosave settles dirty → saved (proves the projects:save round-trip)
+  let savedSeen = false;
+  for (let i = 0; i < 20; i++) {
+    savedSeen = await win.webContents.executeJavaScript(
+      `document.querySelector(".saveStatus")?.textContent.includes("Saved") ?? false`,
+      true,
+    );
+    if (savedSeen) break;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  console.log(`[shot] autosave settled: ${savedSeen}`);
+
+  // ---- Workspace view: projects list + recent conversations over IPC -------------
+  console.log("[shot] opening Workspace…");
+  const wentBack = await win.webContents.executeJavaScript(`(() => {
+    const back = document.querySelector('[data-testid="editor-root"] .edTop .iconBtn');
+    if (!back) return false;
+    back.click();
+    return true;
+  })()`, true);
+  if (!wentBack) {
+    console.error("DESKTOP_SHOT WORKSPACE FAILED — editor back button missing");
+    app.exit(7);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 800));
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    const ws = pills.find((p) => p.textContent.trim() === "Workspace");
+    if (!ws) return false;
+    ws.click();
+    return true;
+  })()`, true);
+  let wsReady = false;
+  for (let i = 0; i < 30; i++) {
+    wsReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".projectGrid article .projectPreview"))`,
+      true,
+    );
+    if (wsReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+  const wsVerify = await win.webContents.executeJavaScript(`(() => {
+    const cards = document.querySelectorAll(".projectGrid article").length;
+    const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
+    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: cards >= 1 && preview && chats >= 1 && !err, cards, preview, chats, err };
+  })()`, true);
+  console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
+  if (!wsVerify || !wsVerify.ok) {
+    console.error("DESKTOP_SHOT WORKSPACE VERIFY FAILED");
+    app.exit(8);
+    return;
+  }
+
   const image = await win.webContents.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");
   await mkdir(path.join(here, "../..", "out"), { recursive: true });
   await writeFile(path.join(here, "../..", "out", "desktop-shot.png"), image.toPNG());
   console.log("DESKTOP_SHOT wrote out/desktop-shot.png");
-  app.exit(0);
+  app.exit(savedSeen ? 0 : 6);
+}
+
+function registerMenu(): void {
+  // Minimal native menu: macOS app + edit commands (Cmd+C/V work in every field), reload, quit.
+  // No devtools item — the shipped renderer never exposes devtools to a seller.
+  const isMac = process.platform === "darwin";
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(isMac ? [{ role: "appMenu" as const }] : []),
+      { role: "editMenu" as const },
+      { role: "viewMenu" as const },
+      {
+        label: "Window",
+        submenu: [{ role: "minimize" as const }, { role: "close" as const }],
+      },
+    ]),
+  );
 }
 
 app.whenReady().then(async () => {
   registerIpc();
+  registerMenu();
   if (process.env.OIA_DESKTOP_SMOKE === "1") {
     await smoke();
     return;

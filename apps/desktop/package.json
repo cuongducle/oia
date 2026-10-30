@@ -8,15 +8,20 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "smoke": "electron-vite build && cross-env OIA_DESKTOP_SMOKE=1 electron .",
+    "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@oia/canvas": "workspace:*",
     "@oia/protocol": "workspace:*",
+    "@oia/providers": "workspace:*",
     "@oia/schema": "workspace:*",
     "@oia/services": "workspace:*",
-    "fabric": "^7.4.0",
+    "fabric": "^6.9.1",
+    "jspdf": "^4.2.1",
+    "jszip": "^3.10.2",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zod": "^3.25.0"
