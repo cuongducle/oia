@@ -1,5 +1,7 @@
 import type { ChatEvent, Project, Template } from "@oia/schema";
 import type { ChatRequest, ChatOutcome } from "@oia/services";
+import type { RuntimeStatus, InstallProgress } from "@oia/providers";
+import type { RuntimeModeChoice } from "./ipc.js";
 
 /**
  * The bridge contract — defined ONCE. preload implements it, the renderer consumes it,
@@ -13,6 +15,21 @@ export interface StoredChatSession {
   name: string;
   messages: unknown[];
 }
+
+/** TP-D3 — runtime snapshot the panel renders: engine health + the shell's provider choice. */
+export interface RuntimeSnapshot {
+  runtime: RuntimeStatus;
+  /** The persisted user choice. */
+  providersMode: RuntimeModeChoice;
+  /** What the running context actually uses ("auto" resolved at boot). */
+  effective: "mock" | "codex";
+}
+
+/** TP-D3 — one-way progress frames for the long-running runtime flows. */
+export type RuntimeEvent =
+  | { type: "install"; phase: InstallProgress["phase"]; pct?: number; detail?: string }
+  | { type: "login-url"; url: string }
+  | { type: "login-phase"; phase: "starting" | "url" | "exchanging"; detail?: string };
 
 export interface OiaBridge {
   chatRun: (req: ChatRequest) => Promise<{ jobId: string; outcome: ChatOutcome }>;
@@ -46,4 +63,13 @@ export interface OiaBridge {
   uploadAsset: (name: string, bytes: Uint8Array) => Promise<{ url: string; size: number }>;
   /** Native save dialog + write — the desktop replacement for the browser download anchor. */
   saveExport: (fileName: string, bytes: Uint8Array) => Promise<{ saved: boolean; path: string | null }>;
+  /** TP-D3 — codex runtime management (the zero-terminal onboarding surface). */
+  runtimeStatus: () => Promise<RuntimeSnapshot>;
+  runtimeInstall: () => Promise<{ runtime: RuntimeStatus }>;
+  runtimeLogin: () => Promise<{ ok: boolean; runtime: RuntimeStatus }>;
+  runtimeLogout: () => Promise<{ runtime: RuntimeStatus }>;
+  runtimeSetMode: (mode: RuntimeModeChoice) => Promise<RuntimeSnapshot>;
+  /** Cancel the in-flight install/login (warned: interrupting login logs the user out). */
+  runtimeCancel: () => Promise<boolean>;
+  onRuntimeEvent: (cb: (ev: RuntimeEvent) => void) => () => void;
 }

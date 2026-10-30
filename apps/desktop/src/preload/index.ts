@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { IPC } from "../shared/channels.js";
-import type { OiaBridge } from "../shared/bridge.js";
+import type { OiaBridge, RuntimeEvent } from "../shared/bridge.js";
 
 /**
  * Q7 — implements the ONE bridge contract (shared/bridge.ts). Explicit methods only;
@@ -26,6 +26,17 @@ const api: OiaBridge = {
   getSession: (id) => ipcRenderer.invoke(IPC.sessionsGet, { id }),
   uploadAsset: (name, bytes) => ipcRenderer.invoke(IPC.filesUpload, { name, bytes }),
   saveExport: (fileName, bytes) => ipcRenderer.invoke(IPC.exportSave, { fileName, bytes }),
+  runtimeStatus: () => ipcRenderer.invoke(IPC.runtimeStatus),
+  runtimeInstall: () => ipcRenderer.invoke(IPC.runtimeInstall),
+  runtimeLogin: () => ipcRenderer.invoke(IPC.runtimeLogin),
+  runtimeLogout: () => ipcRenderer.invoke(IPC.runtimeLogout),
+  runtimeSetMode: (mode) => ipcRenderer.invoke(IPC.runtimeSetMode, { mode }),
+  runtimeCancel: () => ipcRenderer.invoke(IPC.runtimeCancel),
+  onRuntimeEvent: (cb) => {
+    const listener = (_e: Electron.IpcRendererEvent, ev: RuntimeEvent) => cb(ev);
+    ipcRenderer.on(IPC.runtimeEvent, listener);
+    return () => ipcRenderer.removeListener(IPC.runtimeEvent, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld("oia", api);

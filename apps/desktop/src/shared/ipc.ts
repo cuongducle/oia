@@ -56,3 +56,9 @@ export const exportSaveSchema = z.object({
     .regex(/^[^\\/:*?"<>|]+$/, "invalid file name"),
   bytes: z.instanceof(Uint8Array),
 });
+
+/** TP-D3 — provider mode is an explicit user choice persisted across launches. */
+export const runtimeSetModeSchema = z.object({
+  mode: z.enum(["auto", "mock", "codex"]),
+});
+export type RuntimeModeChoice = z.infer<typeof runtimeSetModeSchema>["mode"];

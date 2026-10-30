@@ -18,4 +18,12 @@ export const IPC = {
   sessionsGet: "sessions:get",
   filesUpload: "files:upload",
   exportSave: "export:save",
+  // TP-D3 — codex runtime management (status / guided download / in-app login)
+  runtimeStatus: "runtime:status",
+  runtimeInstall: "runtime:install",
+  runtimeLogin: "runtime:login",
+  runtimeLogout: "runtime:logout",
+  runtimeSetMode: "runtime:setMode",
+  runtimeCancel: "runtime:cancel",
+  runtimeEvent: "runtime:event", // main → renderer (install progress, login URL)
 } as const;

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatEvent, CanvasMsgMeta, Template, SceneCanvas } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "@oia-web/libs/studio-templates";
 import { filterTemplates, templateCategory, type StudioCategory } from "@oia-web/libs/studio-ui";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
+import RuntimePanel from "../RuntimePanel.js";
 import { oia } from "../lib/bridge.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
@@ -84,13 +85,19 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const offRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    void oia().providerStatus()
+  /** TP-D3: the runtime panel flips the provider mode — Home re-reads status when it does. */
+  const refreshProviderStatus = useCallback(() => {
+    void oia()
+      .providerStatus()
       .then((s) => {
         setMockMode(s.image.capabilities.isMock);
         setQuota(s.quota);
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshProviderStatus();
     void oia().listTemplates().then(setCommunity).catch(() => {}); // degradation lane: gallery works without a provider
     if (sessionId) {
       void oia().getSession(sessionId).then((s) => {
@@ -333,6 +340,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && (
         <p className="hintP" role="status">🪙 {quota.image} images · {quota.planner} reads</p>
       )}
+
+      <RuntimePanel onModeChanged={refreshProviderStatus} />
 
       {error && (
         <div className="notice error" role="alert">

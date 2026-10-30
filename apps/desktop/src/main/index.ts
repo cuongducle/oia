@@ -11,6 +11,7 @@ import {
   filesUploadSchema, exportSaveSchema,
 } from "../shared/ipc.js";
 import type { OiaBridge } from "../shared/bridge.js";
+import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
 
 /**
  * TP-D1 (D2 + remediation) — the Electron main process:
@@ -21,13 +22,63 @@ import type { OiaBridge } from "../shared/bridge.js";
  *   burn after the user closes the window)
  * - renderer hardening: sandbox on, navigation + window-open denied, strict CSP
  * - validation failures reject with a friendly message the renderer localizes
+ *
+ * TP-D3 (this increment) — the codex runtime is managed in-app: the provisioner
+ * (detect → guided checksummed download → login/logout) lives in @oia/providers;
+ * this process owns the provider-mode choice (settings.json in userData), rebuilds
+ * the service context when it changes, and opens the login URL in the system
+ * browser. CI smoke/shot always run mock — a quota-billed run is never accidental.
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 let ctx: ServiceContext | null = null;
+let ctxMode: "mock" | "codex" | null = null; // what the CURRENT context was built with
+const originalCodexBin = process.env.CODEX_BIN;
+
+/** Serialize context builds — concurrent IPC must never construct two service contexts. */
+let buildLock: Promise<unknown> = Promise.resolve();
+function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = buildLock.then(fn);
+  buildLock = run.catch(() => {}); // the chain never rejects; callers see their own error
+  return run;
+}
+
 async function ensureCtx(): Promise<ServiceContext> {
-  ctx ??= await createServiceContext({ dataDir: path.join(app.getPath("userData"), "data") });
-  return ctx;
+  return withBuildLock(async () => {
+    const mode = await effectiveMode();
+    if (ctx && ctxMode === mode) return ctx;
+    if (ctx && ctxMode !== mode) cancelAllJobs(); // never mix contexts mid-job
+    // the CodexBridge pins its binary from process.env at construction — point it at
+    // the resolved runtime (PATH hit, managed install, or CODEX_BIN override)
+    if (mode === "codex") {
+      const det = await getProvisionerSafe();
+      if (det) process.env.CODEX_BIN = det;
+    } else {
+      process.env.CODEX_BIN = originalCodexBin;
+    }
+    ctx = await createServiceContext({
+      dataDir: path.join(app.getPath("userData"), "data"),
+      env: { ...process.env, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode },
+    });
+    ctxMode = mode;
+    return ctx;
+  });
+}
+
+/** Rebuild on the next ensureCtx (mode choice or runtime state changed underneath us). */
+async function rebuildContext(): Promise<void> {
+  await withBuildLock(async () => {
+    const mode = await effectiveMode();
+    if (ctx && ctxMode !== mode) cancelAllJobs();
+    ctx = null;
+  });
+  await ensureCtx();
+}
+
+/** detect() without side effects — no status probe, no login round trip. */
+async function getProvisionerSafe(): Promise<string | null> {
+  const { getProvisioner } = await import("./runtime.js");
+  return (await getProvisioner().detect()).bin;
 }
 
 /** Friendly rejections: zod/ProviderConfig errors become stable names the renderer maps. */
@@ -78,6 +129,10 @@ function cancelAllJobs(): void {
 }
 
 function registerIpc(): void {
+  registerRuntimeIpc({
+    rebuildContext,
+    currentEffective: () => ctxMode,
+  });
   ipcMain.handle(IPC.chatRun, async (event, raw: unknown) => {
     try {
       const req = chatRequestSchema.parse(raw);
@@ -224,6 +279,50 @@ async function smoke(): Promise<void> {
     text.includes("/api/files/") &&
     text.includes("</Content>");
   console.log(`DESKTOP_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} events=${events.length}`);
+  app.exit(ok ? 0 : 1);
+}
+
+/**
+ * TP-D3 exit check — the REAL run through the shell wiring (quota-billed, opt-in via
+ * OIA_DESKTOP_REAL_SMOKE=1, never in CI): auto mode must resolve codex from the live
+ * runtime state, one real banner completes, assets land in the store with bytes on disk.
+ */
+async function realSmoke(): Promise<void> {
+  const t0 = Date.now();
+  const c = await ensureCtx();
+  const events: { error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[] } }[] = [];
+  const { outcome, jobId } = await runChat({ prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" }, c, {
+    sink: (ev) => {
+      events.push(ev as (typeof events)[number]);
+    },
+  });
+  const snap = await runtimeSnapshotFor(ctxMode);
+  const canvasMeta = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
+  // asset bytes must exist on disk — a canvas meta without stored bytes is not a banner
+  let assetBytes = 0;
+  const scene = (canvasMeta as { canvas?: { objects?: { src?: string }[] } } | undefined)?.canvas;
+  for (const o of scene?.objects ?? []) {
+    const src = o.src ?? "";
+    if (src.startsWith("/api/files/")) {
+      try {
+        assetBytes += (await c.files.read(src.replace("/api/files/", ""))).length;
+      } catch {
+        /* missing asset counted as 0 */
+      }
+    }
+  }
+  const err = events.find((e) => e.errorClass);
+  const ok =
+    outcome === "completed" &&
+    snap.effective === "codex" &&
+    snap.runtime.state === "ready" &&
+    Boolean(canvasMeta) &&
+    assetBytes > 10_000;
+  console.log(
+    `DESKTOP_REAL_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
+      `version=${snap.runtime.version ?? "?"} assetBytes=${assetBytes} events=${events.length} ` +
+      `${err ? `error=${err.errorClass}` : "no-error"} jobId=${jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
+  );
   app.exit(ok ? 0 : 1);
 }
 
@@ -481,10 +580,18 @@ function registerMenu(): void {
 }
 
 app.whenReady().then(async () => {
+  initRuntimeController(path.join(app.getPath("userData")));
   registerIpc();
   registerMenu();
   if (process.env.OIA_DESKTOP_SMOKE === "1") {
     await smoke();
+    return;
+  }
+  if (process.env.OIA_DESKTOP_REAL_SMOKE === "1") {
+    await realSmoke().catch((err) => {
+      console.error("DESKTOP_REAL_SMOKE CRASHED:", err);
+      app.exit(1);
+    });
     return;
   }
   if (process.env.OIA_DESKTOP_SHOT === "1") {

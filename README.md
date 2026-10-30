@@ -174,12 +174,13 @@ packages/skills     Coding-agent instructions
 
 ## Desktop direction (in progress)
 
-The product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. The [design](docs/designs/desktop-app.md) is approved (owner gates Q1–Q10, 2026-10-30) and the first shell slice is merged:
+The product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. The [design](docs/designs/desktop-app.md) is approved (owner gates Q1–Q10, 2026-10-30); shipped so far:
 
 - `apps/desktop` — Electron + electron-vite shell with a typed, zod-validated IPC surface over the same service layer (`@oia/services`) the web app uses; banner Home flow with clean-plate toggle, stop control, Vietnamese error map, and a canvas preview served by a custom `oia://files` asset protocol (no HTTP server needed).
-- Verified end to end on macOS with a scripted real-window check (`OIA_DESKTOP_SHOT`) and a CI `desktop-smoke` job (xvfb). The chat loop runs keyless (mock pair) or against the owner's Codex login via env, exactly like the web shell.
+- **In-app Codex runtime (D3 increment 1)** — a runtime panel manages the engine with zero terminal use: detect (PATH/well-known/managed) → guided download of the official checksummed `codex-package-<target>.tar.gz` (sha256 verified against the published sums, recoverable swap) → in-app ChatGPT login (origin-checked auth URL, opened in the system browser, shown copyable as fallback) → provider-mode switch (auto/codex/mock) that rebuilds the context without a restart. Auto picks Codex only after you act through the panel (install/login/explicit choice) — a pre-installed codex never auto-bills your quota. CI smoke stays mock.
+- Verified end to end on macOS with a scripted real-window check (`OIA_DESKTOP_SHOT`) and a CI `desktop-smoke` job (xvfb). The chat loop runs keyless (mock pair) or against the owner's Codex login, exactly like the web shell.
 
-**Desktop installers are not available yet.** Remaining slices: the full renderer port (editor, templates), in-app Codex provisioning + login, install-and-upgrade persistence (schemaVersion, per-project files, `.data` import), Windows verification (physical-machine gate), and signed auto-updates. The setup instructions above describe the current self-hosted web implementation.
+**Desktop installers are not available yet.** Remaining slices: the full renderer port (editor, templates), install-and-upgrade persistence (schemaVersion, per-project files, `.data` import), Windows verification (physical-machine gate), and signed auto-updates. The setup instructions above describe the current self-hosted web implementation.
 
 ## Deployment & current boundaries
 

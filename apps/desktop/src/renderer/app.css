@@ -286,3 +286,25 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
   .dialog { padding: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+.status { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+/* ---- TP-D3: Codex runtime panel ---- */
+.runtimePanel { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 16px 0; display: grid; gap: 8px; background: var(--surface); }
+.runtimeRow { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
+.runtimeRow.actions { gap: 8px; }
+.runtimeRow.progress { color: var(--muted); }
+.runtimeRow.error { color: var(--danger); }
+.runtimeHead { display: inline-flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.runtimeDetail { color: var(--muted); font-size: 12px; }
+.dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }
+.dot.ok { background: #16a34a; }
+.dot.warn { background: #f59e0b; }
+.dot.err { background: var(--danger); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.segBtn { border: none; background: transparent; padding: 5px 11px; font: inherit; font-size: 12px; cursor: pointer; color: var(--muted); }
+.segBtn.on { background: var(--ink); color: #fff; }
+.segBtn:disabled { opacity: 0.5; cursor: default; }
+.runtimeBtn { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.runtimeBtn:disabled { opacity: 0.5; cursor: default; }
+.loginUrl { display: block; font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: all; padding: 2px 0; }
+.runtimeBtn.subtle { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0 4px; font-size: 12px; }

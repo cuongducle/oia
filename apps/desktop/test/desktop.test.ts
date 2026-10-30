@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { chatRequestSchema } from "@oia/services";
+import { runtimeSetModeSchema } from "../src/shared/ipc.js";
+import { runtimeViewModel, installPhaseText, runtimeErrorText } from "../src/renderer/runtime-panel.js";
+import { resolveEffectiveMode } from "../src/shared/providers-mode.js";
+import type { RuntimeStatus } from "@oia/providers";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../src/shared/assets.js";
 import { IPC } from "../src/shared/channels.js";
 import { filesUploadSchema, exportSaveSchema, projectsSaveSchema } from "../src/shared/ipc.js";
@@ -92,5 +96,97 @@ describe("D2 renderer port IPC schemas", () => {
     expect(projectsSaveSchema.safeParse({ id: "prj_1", name: "N", pages: [{ id: "p1" }] }).success).toBe(true);
     expect(projectsSaveSchema.safeParse({ id: "", pages: [] }).success).toBe(false);
     expect(projectsSaveSchema.safeParse({ id: "prj_1", name: "x".repeat(121) }).success).toBe(false);
+  });
+});
+
+// ---- TP-D3: codex runtime surface ----
+describe("runtime IPC schema", () => {
+  it("accepts the three provider-mode choices and rejects junk", () => {
+    expect(runtimeSetModeSchema.parse({ mode: "auto" })).toEqual({ mode: "auto" });
+    expect(runtimeSetModeSchema.parse({ mode: "mock" })).toEqual({ mode: "mock" });
+    expect(runtimeSetModeSchema.parse({ mode: "codex" })).toEqual({ mode: "codex" });
+    expect(runtimeSetModeSchema.safeParse({ mode: "gpt" }).success).toBe(false);
+    expect(runtimeSetModeSchema.safeParse({}).success).toBe(false);
+  });
+  it("declares the runtime channels (pure data, sandbox-safe)", () => {
+    expect(IPC.runtimeStatus).toBe("runtime:status");
+    expect(IPC.runtimeInstall).toBe("runtime:install");
+    expect(IPC.runtimeLogin).toBe("runtime:login");
+    expect(IPC.runtimeLogout).toBe("runtime:logout");
+    expect(IPC.runtimeSetMode).toBe("runtime:setMode");
+    expect(IPC.runtimeCancel).toBe("runtime:cancel");
+    expect(IPC.runtimeEvent).toBe("runtime:event");
+  });
+});
+
+describe("runtimeViewModel (the panel action matrix, Q11 English copy)", () => {
+  const base: RuntimeStatus = { state: "missing", source: null, bin: null };
+  it("missing → install CTA with the checksum promise, NO drifting byte count", () => {
+    const vm = runtimeViewModel(base, "auto", "mock");
+    expect(vm.badge).toBe("err");
+    expect(vm.actions).toEqual(["install"]);
+    expect(vm.headline).toContain("Codex is not installed");
+    expect(vm.detail).not.toMatch(/MB|GB/);
+  });
+  it("not_logged_in → login ONLY (enableReal before login just sets up a failure)", () => {
+    const st: RuntimeStatus = { state: "not_logged_in", source: "path", bin: "/usr/local/bin/codex", version: "0.163.0" };
+    expect(runtimeViewModel(st, "auto", "mock").actions).toEqual(["login"]);
+    expect(runtimeViewModel(st, "codex", "mock").actions).toEqual(["login"]);
+  });
+  it("ready + effective mock → enableReal offered next to logout", () => {
+    const st: RuntimeStatus = { state: "ready", source: "managed", bin: "/x/codex", version: "0.166.0", loggedIn: true, loginMethod: "chatgpt" };
+    const vm = runtimeViewModel(st, "auto", "mock");
+    expect(vm.badge).toBe("ok");
+    expect(vm.actions).toEqual(["logout", "enableReal"]);
+    expect(vm.detail).toContain("ChatGPT");
+    expect(vm.detail).toContain("installed by the app");
+  });
+  it("ready + effective codex → no enableReal (already real)", () => {
+    const st: RuntimeStatus = { state: "ready", source: "path", bin: "/x/codex", loggedIn: true, loginMethod: "api-key" };
+    expect(runtimeViewModel(st, "codex", "codex").actions).toEqual(["logout"]);
+  });
+  it("install phases localize (Q11 English) with the percentage threaded through", () => {
+    expect(installPhaseText("download", 42)).toBe("Downloading Codex… 42%");
+    expect(installPhaseText("checksum")).toBe("Verifying checksum…");
+    expect(installPhaseText("finalize")).toBe("Finishing up…");
+  });
+});
+
+// ---- D3 hardening: consent-gated auto mode + English (Q11) error mapping ----
+
+describe("resolveEffectiveMode (quota consent: a brew-installed codex never auto-bills)", () => {
+  const base = { choice: "auto" as const, runtimeState: "ready" as const, env: {} };
+  it("auto + ready + NO consent → mock (the dev machine must not silently burn quota)", () => {
+    expect(resolveEffectiveMode({ ...base, consent: false })).toBe("mock");
+  });
+  it("auto + ready + consent → codex (the seller who acted through the panel)", () => {
+    expect(resolveEffectiveMode({ ...base, consent: true })).toBe("codex");
+  });
+  it("consent alone is not enough — the runtime must be ready", () => {
+    expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: "not_logged_in" })).toBe("mock");
+    expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: "missing" })).toBe("mock");
+    expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: null })).toBe("mock");
+  });
+  it("CI smoke/shot are pinned mock no matter what; an env pin beats everything else", () => {
+    expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SMOKE: "1" } })).toBe("mock");
+    expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SHOT: "1" } })).toBe("mock");
+    expect(resolveEffectiveMode({ choice: "auto", consent: false, runtimeState: "ready", env: { OIA_DESKTOP_PROVIDERS: "codex" } })).toBe("codex");
+    expect(resolveEffectiveMode({ choice: "auto", consent: false, runtimeState: "ready", env: { OIA_DESKTOP_REAL_SMOKE: "1" } })).toBe("codex"); // explicit owner run
+    expect(resolveEffectiveMode({ choice: "codex", consent: false, runtimeState: null, env: {} })).toBe("codex");
+  });
+});
+
+describe("runtimeErrorText (Q11 English; errorClass crosses IPC, not raw dumps)", () => {
+  const rt = (message: string) => ({ name: "RuntimeProviderError", message });
+  it("maps the runtime error classes to actionable English", () => {
+    expect(runtimeErrorText(rt("provider_missing"))).toContain("Install Codex");
+    expect(runtimeErrorText(rt("rate_limited"))).toContain("GitHub");
+    expect(runtimeErrorText(rt("cancelled"))).toContain("Cancelled");
+    expect(runtimeErrorText({ name: "Error", message: "checksum mismatch for codex-package-x.tar.gz" })).toContain("checksum");
+  });
+  it("unknown errors keep a SHORT tail, not the whole message", () => {
+    const text = runtimeErrorText({ name: "Error", message: "some very long error message ".repeat(10) });
+    expect(text).toMatch(/^Something went wrong/);
+    expect(text.length).toBeLessThan(200);
   });
 });
