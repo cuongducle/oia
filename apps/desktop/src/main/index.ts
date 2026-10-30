@@ -562,9 +562,19 @@ async function shot(): Promise<void> {
     app.exit(2);
     return;
   }
-  // drive the SAME bridge the user would: renderer runs the chat and renders the stream
+  // drive the SAME UI a user would: type into the composer and click Create —
+  // gates the real submit path (progress chips, ✓ summary, result card), not just the bridge
   await win.webContents.executeJavaScript(
-    `window.oia.chatRun({ prompt: "banner smoke trà sữa giảm 20%", mode: "clean-plate" })`,
+    `(() => {
+      const ta = document.querySelector('textarea[aria-label="Design idea"]');
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(ta, 'banner smoke trà sữa giảm 20%');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      const btn = document.querySelector('[data-testid="create-btn"]');
+      if (!btn || btn.disabled) return 'create-btn missing/disabled';
+      btn.click();
+      return 'submitted';
+    })()`,
     true,
   );
   // wait for the canvas section to mount and fabric to settle
@@ -581,8 +591,9 @@ async function shot(): Promise<void> {
   // in-page assertion: canvas mounted, no error banner, and the artwork region is NOT blank
   const verify = await win.webContents.executeJavaScript(`(() => {
     const err = document.querySelector('[role=alert]')?.textContent ?? "";
+    const gen = document.querySelector('.genSummary')?.textContent ?? "";
     const canvas = document.querySelector(".result canvas");
-    if (!canvas) return { ok: false, why: "no canvas", err };
+    if (!canvas) return { ok: false, why: "no canvas", err, gen };
     // fabric wraps the element: upper-canvas is a SIBLING inside .canvas-container, not a child
     const inner = canvas.parentElement?.querySelector("canvas.upper-canvas") ?? canvas.parentElement?.querySelectorAll("canvas")[1];
     if (!inner) return { ok: false, why: "no fabric upper-canvas", err };
@@ -593,7 +604,7 @@ async function shot(): Promise<void> {
     for (let i = 0; i < data.length; i += 16) {
       if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
     }
-    return { ok: nonWhite > 50 && !err, painted: nonWhite, err };
+    return { ok: nonWhite > 50 && !err && gen.length > 0, painted: nonWhite, err, gen };
   })()`, true);
   console.log("[shot] verify:", JSON.stringify(verify));
   if (!verify || !verify.ok) {

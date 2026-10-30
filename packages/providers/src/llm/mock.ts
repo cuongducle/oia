@@ -22,7 +22,7 @@ export class MockLlmProvider implements LlmProvider {
       title: user.slice(0, 60) || "Untitled",
       plan: ["layout", "imagery", "typography"],
       imagePrompt: user,
-      copy: "GIAM GIA 20%",
+      copy: "GIẢM GIÁ 20%",
     });
   }
   async isAvailable(): Promise<ProviderDiagnostic> {

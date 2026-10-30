@@ -4,6 +4,7 @@
 * **Phạm vi:** chẩn đoán UI desktop hiện tại (shot thật 2026-10-30) + bằng chứng đối thủ (SurgePix RE sẵn có, Canva glow-up editor, Photroom web REA mới, Adobe contextual task bar) → rút ra DNA "sản phẩm thiết kế" và danh sách gap ưu tiên cho Oia.
 * **Tình trạng:** research — chưa phải quyết định. Là đầu vào cho một vòng thiết kế lại UI (không chạm wire contract, không đổi ngôn ngữ UI theo D8).
 * **Đã qua Goldfish review (2026-10-30):** report `docs/private/egm-ui-2026/goldfish_review_report.md` — 1 blocker pháp lý (evidence chuyển về private), 1 gap giả bị loại (auto-fit đã có trong code), các overgeneralize đã sửa trong bản này; sequencing với bước 7 còn treo chờ owner (xem cuối doc).
+* **ĐÃ SHIP phần C — presentation (2026-10-30):** result card (tên + dims + Ready + primary "Open in editor" + "Download PNG") thay transcript; progress chips chỉ hiện khi đang chạy + dòng "✓ Generated in Ns" khi xong; narrative rời khỏi surface (còn trong session history); CTA "Create" có nhãn; runtime panel compact khi khỏe; editor: frame label trên artboard + zoom % editable + rail "Uploads"; mock copy đúng dấu "GIẢM GIÁ 20%". Gate: shot giờ đi qua UI thật (điền textarea + click create-btn) và assert `.genSummary`. Còn lại: layers/inspector (P0), Codex strip → settings (nit cuối), dày hóa Home.
 * **Ghi chú pháp lý:** chỉ học pattern/ cấu trúc tương tác; không sao chép asset, tên, layout y hệt của đối thủ.
 
 ---

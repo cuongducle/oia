@@ -109,9 +109,11 @@ export default function RuntimePanel({ onModeChanged }: Props) {
     enableReal: "Use real Codex",
   };
   const cancellable = busy === "install" || busy === "login";
+  // healthy state = nothing to do: render as a quiet status strip instead of a card
+  const compact = vm.actions.length === 0 && !installText && !loginNote && !loginUrl && !error;
 
   return (
-    <section className="runtimePanel" aria-label="Codex runtime">
+    <section className={`runtimePanel ${compact ? "compact" : ""}`} aria-label="Codex runtime">
       <div className="runtimeRow">
         <span className={`dot ${vm.badge}`} aria-hidden="true" />
         <span className="runtimeHead">

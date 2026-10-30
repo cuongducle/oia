@@ -40,6 +40,7 @@ const Icon = {
   chevron: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="m6 9 6 6 6-6" /></svg>,
   arrow: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>,
   stop: <svg width="15" height="15" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor" /></svg>,
+  check: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   pencil: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>,
   download: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>,
@@ -81,6 +82,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const [activeFormat, setActiveFormat] = useState("Poster");
   const [preview, setPreview] = useState<string | null>(null);
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
+  const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
+  const startedAtRef = useRef<number | null>(null);
   const activeJobRef = useRef<string | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<import("fabric").Canvas | null>(null);
@@ -133,7 +136,10 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       }
       if (ev.renderData?.exportMeta?.projectName) setResultName(ev.renderData.exportMeta.projectName);
       if (ev.content) setNarrative((n) => (n ? `${n}\n${stripMarkers(ev.content)}` : stripMarkers(ev.content)));
-      for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") setCanvasMeta(m);
+      for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") {
+        setCanvasMeta(m);
+        if (startedAtRef.current) setGenSeconds(Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)));
+      }
     });
     return () => offRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,6 +191,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   async function submit(retryOf?: string) {
     if (!prompt.trim() || busy || uploading) return;
     setBusy(true);
+    startedAtRef.current = retryOf ? startedAtRef.current : Date.now();
+    if (!retryOf) setGenSeconds(null);
     activeJobRef.current = retryOf ? null : activeJobRef.current;
     if (!retryOf) activeJobRef.current = null;
     setError("");
@@ -299,9 +307,9 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
             {Icon.sliders}<span>Advanced settings</span>{Icon.chevron}
           </button>
           {busy ? (
-            <button className="generateBtn stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}</button>
+            <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
-            <button className="generateBtn" aria-label="Generate design" disabled={!prompt.trim() || uploading} onClick={() => void submit()}>{Icon.arrow}</button>
+            <button className="generateBtn labeled" aria-label="Create design" data-testid="create-btn" disabled={!prompt.trim() || uploading} onClick={() => void submit()}>Create{Icon.arrow}</button>
           )}
         </div>
         {advanced && (
@@ -370,32 +378,47 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           )}
         </div>
       )}
-      {busy && <p className="hintP" role="status">Your assistant is designing. Your creation will appear here…</p>}
+      {busy && <p className="hintP" role="status">Designing your request — the result will appear below as an editable canvas.</p>}
 
-      {timeline.length > 0 && (
-        <div className="timeline">
+      {busy && timeline.length > 0 && (
+        <div className="timeline" role="status" aria-label="Progress">
           {timeline.map((tl) => (
-            <div key={tl.content} className={`tl ${tl.done ? "done" : ""}`}>
-              {tl.content} {tl.done ? "· done" : "· running…"}
+            <div key={tl.content} className={`tl ${tl.done ? "done" : "running"}`}>
+              <span className="tlIcon" aria-hidden="true">{tl.done ? Icon.check : <span className="spin" />}</span>
+              <span className="tlLabel">{tl.content}</span>
+              <span className="tlState">{tl.done ? "Done" : "Working…"}</span>
             </div>
           ))}
         </div>
       )}
-      {narrative && <div className="narrative">{narrative.trim()}</div>}
+      {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
 
-      {canvasMeta && (
-        <section className="result" aria-label="Your design" data-testid="home-result">
-          <div className="canvasWrap">
-            <canvas ref={canvasElRef} />
-          </div>
-          <div className="resultActions">
-            {canvasMeta.thumbnail && <button onClick={() => setPreview(toDisplayUrl(canvasMeta.thumbnail!))}>Preview</button>}
-            <button data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>
-            {canvasMeta.thumbnail && <button onClick={() => setRefs((r) => [...r, canvasMeta.thumbnail!])}>{Icon.images} Use as reference</button>}
-            <button onClick={() => void exportPng()}>{Icon.download} PNG</button>
-          </div>
-        </section>
-      )}
+      {canvasMeta && (() => {
+        const clip = canvasMeta.canvas.objects.find((o) => o.name === "clip");
+        const w = clip?.width || 1360, h = clip?.height || 2048;
+        return (
+          <section className="result" aria-label="Your design" data-testid="home-result">
+            <div className="resultCard">
+              <div className="resultHead">
+                <div className="resultTitle">
+                  <strong>{(resultName || prompt.slice(0, 60) || "New design").replace(/^./, (c) => c.toUpperCase())}</strong>
+                  <span className="resultDims">{w} × {h} px</span>
+                </div>
+                <span className="resultBadge">Ready</span>
+              </div>
+              <div className="canvasWrap">
+                <canvas ref={canvasElRef} />
+              </div>
+              <div className="resultActions">
+                <button className="primary" data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>
+                {canvasMeta.thumbnail && <button onClick={() => setPreview(toDisplayUrl(canvasMeta.thumbnail!))}>Preview</button>}
+                {canvasMeta.thumbnail && <button onClick={() => setRefs((r) => [...r, canvasMeta.thumbnail!])}>{Icon.images} Use as reference</button>}
+                <button onClick={() => void exportPng()}>{Icon.download} Download PNG</button>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <section aria-labelledby="gallery-title">
         <div className="sectionHeading">

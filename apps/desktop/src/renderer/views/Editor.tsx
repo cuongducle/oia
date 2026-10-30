@@ -625,7 +625,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
     }
   }
 
-  const toolLabels: Record<Panel, string> = { templates: "Templates", assets: "Assets", text: "Text", shapes: "Shapes", tables: "Tables", draw: "Draw", settings: "Settings" };
+  const toolLabels: Record<Panel, string> = { templates: "Templates", assets: "Uploads", text: "Text", shapes: "Shapes", tables: "Tables", draw: "Draw", settings: "Settings" };
   const shapeLabels: Record<ShapeKind, string> = useMemo(() => ({
     circle: "◯", rectRounded: "▢", rect: "□", triangleUp: "△", triangleDown: "▽",
     diamond: "◇", line: "—", lineDotted: "┄", arrowRight: "→",
@@ -754,8 +754,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
           )}
           {panel === "assets" && (
             <>
-              <h4>Assets</h4>
-              <p className="hintP">Upload an image, then select it to add it to the canvas.</p>
+              <h4>Uploads</h4>
+              <p className="hintP">Add your product photos, then select one to place it on the canvas.</p>
               <label className="presetBtn small" style={{ cursor: "pointer" }}>
                 Upload image
                 <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0])} />
@@ -828,13 +828,32 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
         )}
         {/* Canvas */}
         <section className="canvasArea" ref={canvasAreaRef} aria-label="Design workspace">
-          <div className="canvasViewport"><div className="canvasWrap">
-            <canvas ref={canvasElRef} width={500} height={750} />
-          </div></div>
+          <div className="canvasViewport">
+            <div className="canvasColumn">
+              <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
+              <div className="canvasWrap">
+                <canvas ref={canvasElRef} width={500} height={750} />
+              </div>
+            </div>
+          </div>
           <div className="zoomBar">
             <button onClick={togglePan} title="Pan canvas" aria-label="Pan canvas" aria-pressed={panning} style={{ background: panning ? "var(--accent-soft)" : "transparent" }}><I d={icons.hand} size={15} /></button>
             <button onClick={() => zoomBy(-0.1)} aria-label="Zoom out"><I d={icons.minus} size={15} /></button>
-            <span>{Math.round(zoom * 100)}%</span>
+            <input
+              className="zoomInput"
+              type="number"
+              min={5}
+              max={400}
+              aria-label="Zoom percent"
+              value={Math.round(zoom * 100)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (!Number.isFinite(v) || v <= 0) return;
+                const z = Math.min(4, Math.max(0.05, v / 100));
+                setZoom(z);
+                if (fabricRef.current) applyZoom(fabricRef.current, z);
+              }}
+            /><span className="zoomAffix" aria-hidden="true">%</span>
             <button onClick={() => zoomBy(0.1)} aria-label="Zoom in"><I d={icons.plus} size={15} /></button>
             <button onClick={fitView} title="Fit to screen" aria-label="Fit to screen"><I d={icons.fit} size={15} /></button>
           </div>
