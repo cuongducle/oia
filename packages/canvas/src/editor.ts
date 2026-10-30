@@ -3,6 +3,21 @@ import type { SceneCanvas } from "@oia/schema";
 import { TEXT_PRESET_SPECS, SHAPES, SIZE_PRESETS, DEFAULT_POSTER, type TextPreset, type ShapeKind, type SizePresetName } from "./presets.js";
 import { stampUser } from "./provenance.js";
 
+/**
+ * F4 follow-up (found visually, 2026-11-06): fabric 7 changed the object defaults
+ * originX/originY from left/top to CENTER. Every scene this app authors, saves,
+ * and exchanges — the whole .data corpus, the designer's output, the studio
+ * templates — was built on v6 semantics, so on fabric 7 each legacy object hangs
+ * half its size off the top-left corner (workspace thumbnails rendered posters as
+ * a quarter-size strip; the editor drew the same shift). Restore the v6 defaults
+ * on the shared fabric class: one call per process, before any loadFromJSON.
+ */
+export function fabricV6OriginDefaults(): void {
+  fabric.FabricObject.ownDefaults.originX = "left";
+  fabric.FabricObject.ownDefaults.originY = "top";
+}
+fabricV6OriginDefaults(); // module scope: importers mutate the same shared class once
+
 /** Fabric wrapper — canvas setup + scene JSON loading. */
 export async function createEditor(canvasEl: HTMLCanvasElement, scene?: SceneCanvas) {
   // Artboard identity must survive editor autosave and thumbnail serialization.

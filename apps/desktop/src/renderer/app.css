@@ -249,6 +249,11 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 
 /* ---------- scene preview (workspace + page thumbs) ---------- */
 .scenePreview { width: 100%; height: 100%; position: relative; overflow: hidden; }
+/* fabric (7.x) wraps the canvas in .canvas-container with inline fixed px sizes —
+   without the !important override the 480×640 render overflows small cards and
+   gets clipped (the workspace thumbnails shipped half-cut until the owner caught
+   it visually). contain letterboxes any page ratio inside the box. */
+.scenePreview .canvas-container { width: 100% !important; height: 100% !important; }
 .scenePreview canvas { display: block; width: 100% !important; height: 100% !important; object-fit: contain; }
 .previewFailure { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; padding: 16px; color: var(--muted); background: #eeeef0; }
 

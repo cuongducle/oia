@@ -29,6 +29,12 @@ step away from one. When a review says "this test is low-value", it points here.
 - **Treat a one-off manual run as a gate.** The live skill-script e2e that ran
   once on a dev machine proved the design, not the build. Repeatable gates live
   in the repo (`smoke`, `crash-smoke`, `shot`) and run in CI.
+- **Assert an element exists and call the visual verified.** The shot gate
+  checked `.scenePreview` EXISTS while fabric 7's center-origin default drew
+  every thumbnail quarter-size and half-clipped — for two weeks, until the
+  owner looked. Visual claims need geometry or pixels: the fit gate now asserts
+  every canvas rect sits inside its card (fitOk), and the fix was verified by
+  scanning the rendered bitmap's content bbox (fill 0.25 → 1.0).
 
 ## Fixtures that
 

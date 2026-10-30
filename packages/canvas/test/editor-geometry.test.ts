@@ -3,12 +3,24 @@ import type { Canvas } from "fabric";
 vi.mock("fabric", () => {
   class Shape { [key:string]:unknown; constructor(options: object) { Object.assign(this,options); } }
   class Textbox extends Shape { constructor(text:string,options:object) { super({...options,text}); } }
-  return { Rect:Shape, Textbox };
+  // mirrors the real class surface editor.ts touches at module scope (fabricV6OriginDefaults)
+  const FabricObject = { ownDefaults: { originX: "center", originY: "center" }, customProperties: [] as string[] };
+  return { Rect:Shape, Textbox, FabricObject };
 });
-import { addTextPreset, addShape, resizeCanvas, patchSelectedText } from "../src/editor";
+import { addTextPreset, addShape, resizeCanvas, patchSelectedText, fabricV6OriginDefaults } from "../src/editor";
+import { FabricObject } from "fabric";
+
 function canvas() {
   return {getWidth:()=>450,getHeight:()=>600,getZoom:()=>0.5,add:vi.fn(),setActiveObject:vi.fn(),requestRenderAll:vi.fn(),fire:vi.fn(),setDimensions:vi.fn()} as unknown as Canvas;
 }
+
+describe("F4 follow-up — v6 origin defaults restored on the shared fabric class", () => {
+  it("fabric 7 ships center/center; this codebase's whole corpus is authored left/top", () => {
+    fabricV6OriginDefaults();
+    expect(FabricObject.ownDefaults.originX).toBe("left");
+    expect(FabricObject.ownDefaults.originY).toBe("top");
+  });
+});
 describe("Zoom-independent editing and persistent properties", () => {
   it("positions text and shapes in document coordinates, not zoomed viewport pixels", () => {
     const c = canvas();

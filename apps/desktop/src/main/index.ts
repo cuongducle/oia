@@ -700,7 +700,18 @@ async function shot(): Promise<void> {
     const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
     const chats = document.querySelectorAll(".chatGrid .chatCard").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && !err, cards, preview, samples, chats, err };
+    // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box —
+    // the fabric wrapper's inline px sizes used to overflow and clip half the artwork.
+    const fits = [...document.querySelectorAll(".projectGrid .projectPreview .scenePreview")].map((s) => {
+      const box = s.closest(".projectPreview").getBoundingClientRect();
+      const c = s.querySelector("canvas");
+      if (!c) return { ok: false, why: "no canvas" };
+      const r = c.getBoundingClientRect();
+      return { ok: r.left >= box.left - 2 && r.right <= box.right + 2 && r.top >= box.top - 2 && r.bottom <= box.bottom + 2,
+               why: Math.round(r.width) + "x" + Math.round(r.height) + " in " + Math.round(box.width) + "x" + Math.round(box.height) };
+    });
+    const fitOk = fits.length > 0 && fits.every((f) => f.ok);
+    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && fitOk && !err, cards, preview, samples, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
   })()`, true);
   console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
   if (!wsVerify || !wsVerify.ok) {
