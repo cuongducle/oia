@@ -532,7 +532,8 @@ async function realSmoke(): Promise<void> {
  * Visual verification (the "open eyes" mode): open the real window, run a chat through
  * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-*.png.
  * Exit codes: 2 bridge missing · 3 home verify · 4/5 editor · 6 autosave · 7/8 workspace
- * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate.
+ * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate
+ * · 17 A1 variant gate (preview-apply — docs/designs/variant-preview-apply.md).
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
@@ -723,6 +724,111 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
   }
   console.log(`[shot] autosave settled: ${savedSeen}`);
+
+  // ---- A1 preview-apply: edit via the AI dock must NEVER touch the canvas ----------
+  // The regression this pins: the pre-A1 code auto-merged the result onto the page.
+  // If that path ever comes back, canvasUntouched fails here (variant-preview-apply VA-3).
+  console.log("[shot] A1: running an editor AI edit (mock pair)…");
+  const submitted = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    if (!c) return "no-canvas";
+    (window).__oiaShotBefore = JSON.stringify(c.toObject().objects.map((o) => o.src ?? null));
+    const ta = document.querySelector('[aria-label="AI edit request"]');
+    if (!ta) return "no-composer";
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    setter.call(ta, "make the background pastel");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    const btn = document.querySelector('.aiComposerControls .generateBtn[aria-label="Send edit request"]');
+    if (!btn || btn.disabled) return "send-missing";
+    btn.click();
+    return "submitted";
+  })()`, true);
+  if (submitted !== "submitted") {
+    console.error(`DESKTOP_SHOT A1 FAILED — could not submit edit (${submitted})`);
+    app.exit(17);
+    return;
+  }
+  let variantReady = false;
+  for (let i = 0; i < 60; i++) {
+    variantReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="variant-card"]'))`,
+      true,
+    );
+    if (variantReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 600)); // let the job settle (busy state clears)
+  const a1Verify = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    const before = JSON.parse((window).__oiaShotBefore);
+    const after = c.toObject().objects.map((o) => o.src ?? null);
+    const cards = document.querySelectorAll('[data-testid="variant-card"]').length;
+    const replace = document.querySelector('[data-testid="variant-replace"]');
+    return {
+      cards,
+      replaceDisabledNoSelection: replace ? replace.disabled : null,
+      canvasUntouched: JSON.stringify(after) === JSON.stringify(before), // VA-3 — the core pin
+      costHintHiddenInMock: !document.querySelector('[data-testid="cost-hint"]'),
+    };
+  })()`, true);
+  console.log("[shot] A1 verify:", JSON.stringify(a1Verify));
+  if (!a1Verify || a1Verify.cards !== 1 || a1Verify.canvasUntouched !== true || a1Verify.replaceDisabledNoSelection !== true || a1Verify.costHintHiddenInMock !== true) {
+    console.error("DESKTOP_SHOT A1 VERIFY FAILED (exactly 1 deduped card / untouched canvas)");
+    app.exit(17);
+    return;
+  }
+  // select the artwork image → Replace must run the apply path (VA-4). NOTE: the
+  // mock provider returns ONE fixed placeholder PNG — sha256 dedupe gives the swap-in
+  // asset the SAME url, so "exactly one src changed" is pinned by the unit tests
+  // (provenance.test.ts, controlled data); here we pin the WIRING: the apply path
+  // runs (undo becomes enabled on a fresh editor), object count is kept, no error.
+  const selected = await win.webContents.executeJavaScript(`(async () => {
+    const c = (window).__oiaCanvas;
+    const img = c.getObjects().find((o) => o.src && o.name !== "clip");
+    if (!img) return false;
+    c.setActiveObject(img);
+    c.requestRenderAll();
+    await new Promise((r) => setTimeout(r, 200));
+    const replace = document.querySelector('[data-testid="variant-replace"]');
+    const undo = document.querySelector('.edTop [title="Undo"]');
+    return { enabled: Boolean(replace && !replace.disabled), undoDisabledBefore: undo ? undo.disabled : null };
+  })()`, true);
+  if (!selected || selected.enabled !== true || selected.undoDisabledBefore !== true) {
+    console.error(`DESKTOP_SHOT A1 FAILED — Replace enable state wrong (${JSON.stringify(selected)})`);
+    app.exit(17);
+    return;
+  }
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="variant-replace"]').click()`, true);
+  await new Promise((r) => setTimeout(r, 1200)); // replaceCurrentScene reloads the page
+  const swapVerify = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    const before = JSON.parse((window).__oiaShotBefore);
+    const objs = c.toObject().objects;
+    const changed = objs.filter((o, i) => (o.src ?? null) !== (before[i] ?? null)).length;
+    const undo = document.querySelector('.edTop [title="Undo"]');
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { countKept: objs.length === before.length, changedSrcs: changed, undoEnabledAfter: undo ? !undo.disabled : null, err };
+  })()`, true);
+  console.log("[shot] A1 swap:", JSON.stringify(swapVerify));
+  if (!swapVerify || swapVerify.countKept !== true || swapVerify.changedSrcs > 1 || swapVerify.undoEnabledAfter !== true || swapVerify.err) {
+    console.error("DESKTOP_SHOT A1 SWAP FAILED — apply path must run (undo on), keep count, change ≤ 1 src, no error");
+    app.exit(17);
+    return;
+  }
+  // "Not now" hides the card (VA-7) — the record stays in the session either way
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="variant-dismiss"]').click()`, true);
+  await new Promise((r) => setTimeout(r, 300));
+  const dismissed = await win.webContents.executeJavaScript(
+    `!document.querySelector('[data-testid="variant-card"]')`,
+    true,
+  );
+  if (dismissed !== true) {
+    console.error("DESKTOP_SHOT A1 FAILED — Not now did not hide the card");
+    app.exit(17);
+    return;
+  }
+  console.log("[shot] A1 preview-apply OK (1 deduped card + untouched canvas + apply path + dismiss)");
+
   await snap(win, "desktop-editor.png");
 
   // ---- Workspace view: projects list + recent conversations over IPC -------------
