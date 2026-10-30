@@ -55,6 +55,7 @@ export default function App() {
 
   const nav = (
     <nav className="viewNav" aria-label="App sections">
+      <span className="wordmark" aria-hidden="true">oia<span>.</span></span>
       <button className={`navPill ${view.name === "home" ? "active" : ""}`} onClick={() => setView({ name: "home" })} aria-current={view.name === "home" ? "page" : undefined}>Home</button>
       <button className={`navPill ${view.name === "workspace" ? "active" : ""}`} onClick={() => setView({ name: "workspace" })} aria-current={view.name === "workspace" ? "page" : undefined}>Workspace</button>
     </nav>

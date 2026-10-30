@@ -307,6 +307,7 @@ async function shot(): Promise<void> {
     app.exit(3);
     return;
   }
+  await snap(win, "desktop-home.png");
 
   // ---- D2 remainder: drive the EDITOR port with eyes -------------------------
   // Home "Open in editor" → project created by id (TP.7) → editor mounts with
@@ -369,6 +370,7 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
   }
   console.log(`[shot] autosave settled: ${savedSeen}`);
+  await snap(win, "desktop-editor.png");
 
   // ---- Workspace view: projects list + recent conversations over IPC -------------
   console.log("[shot] opening Workspace…");
@@ -419,8 +421,46 @@ async function shot(): Promise<void> {
   const { writeFile, mkdir } = await import("node:fs/promises");
   await mkdir(path.join(here, "../..", "out"), { recursive: true });
   await writeFile(path.join(here, "../..", "out", "desktop-shot.png"), image.toPNG());
+  await writeFile(path.join(here, "../..", "out", "desktop-workspace.png"), image.toPNG());
   console.log("DESKTOP_SHOT wrote out/desktop-shot.png");
   app.exit(savedSeen ? 0 : 6);
+}
+
+/** Per-view PNG capture for UI audits (out/desktop-<view>.png). Expands the window
+ *  to the document height first so below-the-fold sections (result, gallery) are captured. */
+async function snap(win: BrowserWindow, name: string): Promise<void> {
+  try {
+    const height = await win.webContents.executeJavaScript(
+      `(() => { const m = document.querySelector('.viewFrame > main') ?? document.body;
+        const r = document.querySelector('.result'); const g = document.querySelector('.galleryGrid');
+        window.__snapDebug = 'main.h=' + m.scrollHeight + ' result=' + (r ? Math.round(r.getBoundingClientRect().top) + ':' + Math.round(r.getBoundingClientRect().height) : 'none') + ' gallery=' + (g ? Math.round(g.getBoundingClientRect().top) + ':' + Math.round(g.getBoundingClientRect().height) : 'none') + ' body.h=' + document.body.scrollHeight
+          + ' rc=' + (() => { const c = document.querySelector('.result canvas'); if (!c) return 'none'; const b = c.getBoundingClientRect(); const el = document.elementFromPoint(b.left + 8, Math.min(b.top + 100, window.innerHeight - 10)); return Math.round(b.width) + 'x' + Math.round(b.height) + '@' + Math.round(b.top) + ' hit=' + (el ? el.tagName + '.' + String(el.className).slice(0, 30) : 'null'); })();
+        return Math.max((document.scrollingElement ?? document.body).scrollHeight, m.scrollHeight); })()`, true,
+    );
+    const target = Math.max(600, Math.min(Number(height) || 600, 4200));
+    const dbg = await win.webContents.executeJavaScript(`window.__snapDebug ?? ''`, true).catch(() => "");
+    console.log(`[snap] ${name}: ${String(dbg)} (target=${target})`);
+    // macOS clamps windows to the screen — when the page is taller than the CSS viewport,
+    // zoom out so the WHOLE page (result card + gallery below the fold) fits one capture.
+    // NOTE: getContentSize() is DEVICE px; scrollHeight is CSS px — compare in CSS px only.
+    const cssH = await win.webContents.executeJavaScript("window.innerHeight", true).catch(() => 0);
+    const pageH = Number(height) || 0;
+    if (cssH && pageH > cssH) {
+      win.webContents.setZoomFactor(Math.max(0.3, (cssH - 16) / pageH));
+      await new Promise((r) => setTimeout(r, 500)); // reflow + lazy scene previews mount
+    }
+  } catch {
+    /* keep the viewport capture if the measurement fails */
+  }
+  try {
+    const image = await win.webContents.capturePage();
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    await mkdir(path.join(here, "../..", "out"), { recursive: true });
+    await writeFile(path.join(here, "../..", "out", name), image.toPNG());
+    console.log(`[shot] wrote out/${name}`);
+  } finally {
+    win.webContents.setZoomFactor(1); // never leak the audit zoom into the next view
+  }
 }
 
 function registerMenu(): void {

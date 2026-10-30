@@ -58,6 +58,7 @@ const icons = {
   copy: "M9 9h10v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1",
   x: "M18 6L6 18M6 6l12 12",
   up: "M12 19V5M5 12l7-7 7 7",
+  paperclip: "M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48",
   history: "M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 3",
   chevronsUp: "M17 11l-5-5-5 5M17 18l-5-5-5 5",
   chevronUp: "M6 15l6-6 6 6",
@@ -70,6 +71,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   const fabricRef = useRef<fabricNS.Canvas | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
   const canvasAreaRef = useRef<HTMLElement>(null);
+  const aiFileRef = useRef<HTMLInputElement>(null);
   const sceneDimensions = useRef({ width: 1360, height: 2048 });
   const autoFit = useRef(true);
   const [notice, setNotice] = useState("");
@@ -100,6 +102,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
   const [refCapable, setRefCapable] = useState(true);
+  const [aiRefs, setAiRefs] = useState<string[]>([]); // explicit AI-dock attachments (canonical)
+  const [aiUploading, setAiUploading] = useState(false);
   const [aiNarrative, setAiNarrative] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<{ id: number; name: string; updatedAt: number }[]>([]);
@@ -418,6 +422,20 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
       setNotice(bridgeErrorMessage(e, "The image could not be uploaded. Please try again."));
     }
   }
+  /** AI-dock attach — upload without inserting; the image rides the NEXT edit request (TP.11). */
+  async function attachAiRef(file: File) {
+    setAiUploading(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const up = await oia().uploadAsset(file.name, bytes);
+      setAiRefs((r) => [...r, up.url].slice(0, 4));
+      setAssets((a) => (a.includes(up.url) ? a : [...a, up.url]));
+    } catch (e) {
+      setAiError({ message: bridgeErrorMessage(e, "The reference image could not be uploaded. Please try again.") });
+    } finally {
+      setAiUploading(false);
+    }
+  }
   async function addImageLayer(url: string) {
     const c = fabricRef.current; if (!c) return;
     const fabric = await import("fabric");
@@ -496,13 +514,12 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
     try {
       const scene = fabricRef.current?.toObject() as SceneCanvas | undefined;
       // TP.11: capability-gated — never send refs to a provider that cannot use them;
-      // srcs are display-form on the canvas → canonical for the provider
-      const refs = refCapable
-        ? (scene?.objects ?? [])
-            .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
-            .filter((u): u is string => u !== null)
-            .slice(0, 2)
-        : undefined;
+      // srcs are display-form on the canvas → canonical for the provider.
+      // Explicitly attached refs (paperclip) go first, then canvas images.
+      const canvasRefs = (scene?.objects ?? [])
+        .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
+        .filter((u): u is string => u !== null);
+      const refs = refCapable ? [...aiRefs, ...canvasRefs].slice(0, 4) : undefined;
       const res = await oia().chatRun({ prompt: aiPrompt, ...(refs?.length ? { referenceImages: refs } : {}) });
       // events stream in through the onChatEvent subscription; wait for the job to settle
       await res;
@@ -789,8 +806,21 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession }: E
             {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
             {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
             <div className="aiComposer">
+              {aiRefs.length > 0 && (
+                <div className="attachmentList" style={{ paddingTop: 0, paddingBottom: 8 }}>
+                  {aiRefs.map((u, i) => (
+                    <div key={u} className="attachment">
+                      <img src={toDisplayUrl(u)} alt={`Reference ${i + 1}`} />
+                      <button className="iconBtn" aria-label={`Remove reference image ${i + 1}`} onClick={() => setAiRefs((r) => r.filter((x) => x !== u))}><I d={icons.x} size={11} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <textarea aria-label="AI edit request" value={aiPrompt} rows={3} placeholder="Describe the changes you have in mind…" onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void runAiEdit(); } }} />
-              <div className="aiComposerControls"><button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{aiBusy
+              <div className="aiComposerControls">
+                <button className="iconBtn" title="Attach a reference image" aria-label="Attach a reference image" disabled={aiUploading || !refCapable} onClick={() => aiFileRef.current?.click()}><I d={icons.paperclip} size={16} /></button>
+                <input ref={aiFileRef} aria-label="AI reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachAiRef(e.target.files[0]); e.target.value = ""; }} />
+                <button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{aiBusy
                 ? <button className="generateBtn" style={{ background: "#dc2626" }} onClick={stopAiEdit} aria-label={STOP_LABEL} title={STOP_LABEL}><span style={{ width: 12, height: 12, background: "#fff", display: "inline-block" }} /></button>
                 : <button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy ? "Editing" : "Send edit request"}><I d={icons.up} /></button>}</div>
             </div>

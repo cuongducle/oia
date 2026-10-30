@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Project } from "@oia/schema";
 import { ScenePreview } from "../components/ScenePreview.js";
+import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 
 /**
@@ -23,6 +24,10 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  // per-card management: rename (inline) + delete (confirm) — projects:save/remove over IPC
+  const [renaming, setRenaming] = useState<Project | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [deleting, setDeleting] = useState<Project | null>(null);
 
   useEffect(() => {
     void Promise.all([oia().listSessions(), oia().listProjects()])
@@ -53,6 +58,30 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
     } catch (e) {
       setError(bridgeErrorMessage(e, "Could not create the project."));
     } finally { setBusy(false); }
+  }
+
+  async function rename() {
+    if (!renaming || !renameName.trim()) { setRenaming(null); return; }
+    try {
+      await oia().saveProject(renaming.id, { name: renameName.trim().slice(0, 120) });
+      setProjects((ps) => ps.map((p) => (p.id === renaming.id ? { ...p, name: renameName.trim().slice(0, 120) } : p)));
+    } catch (e) {
+      setError(bridgeErrorMessage(e, "Could not rename the project."));
+    } finally {
+      setRenaming(null);
+    }
+  }
+  async function remove() {
+    if (!deleting) return;
+    const id = deleting.id;
+    try {
+      await oia().removeProject(id);
+      setProjects((ps) => ps.filter((p) => p.id !== id));
+    } catch (e) {
+      setError(bridgeErrorMessage(e, "Could not delete the project."));
+    } finally {
+      setDeleting(null);
+    }
   }
 
   const matches = (name: string) => name.toLocaleLowerCase("vi").includes(query.trim().toLocaleLowerCase("vi"));
@@ -98,9 +127,13 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
                     {p.pages[0] && <ScenePreview scene={p.pages[0].canvas as never} label={p.name} />}
                   </button>
                   <div className="projectMeta">
-                    <div>
-                      <strong>{p.name}</strong>
+                    <div className="projectMetaName">
+                      <strong title={p.name}>{p.name}</strong>
                       <small>{timeAgo(p.updatedAt ?? Date.now())} · {p.pages.length} {p.pages.length === 1 ? "page" : "pages"}</small>
+                    </div>
+                    <div className="projectMetaActions">
+                      <button className="iconBtn" aria-label={`Rename ${p.name}`} title="Rename" onClick={() => { setRenaming(p); setRenameName(p.name); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg></button>
+                      <button className="iconBtn danger" aria-label={`Delete ${p.name}`} title="Delete" onClick={() => setDeleting(p)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg></button>
                     </div>
                   </div>
                 </article>
@@ -127,6 +160,28 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
             {visibleChats.length === 0 && <p className="hintP">{query ? "No matching conversations." : "Your conversations with the assistant will appear here."}</p>}
           </section>
         </>
+      )}
+
+      {renaming && (
+        <Dialog onClose={() => setRenaming(null)} label="Rename project">
+          <h2>Rename project</h2>
+          <label htmlFor="rename-input" style={{ fontSize: 12, display: "block", margin: "16px 0 8px" }}>Project name</label>
+          <input id="rename-input" value={renameName} maxLength={120} onChange={(e) => setRenameName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void rename(); }} />
+          <div className="dialogActions">
+            <button className="secondaryBtn" onClick={() => setRenaming(null)}>Cancel</button>
+            <button className="primaryBtn" disabled={!renameName.trim()} onClick={() => void rename()}>Save name</button>
+          </div>
+        </Dialog>
+      )}
+      {deleting && (
+        <Dialog onClose={() => setDeleting(null)} label="Delete project">
+          <h2>Delete project?</h2>
+          <p>“{deleting.name}” and its pages will be removed from this app. This cannot be undone.</p>
+          <div className="dialogActions">
+            <button className="secondaryBtn" onClick={() => setDeleting(null)}>Keep it</button>
+            <button className="primaryBtn danger" onClick={() => void remove()}>Delete</button>
+          </div>
+        </Dialog>
       )}
     </main>
   );
