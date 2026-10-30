@@ -33,6 +33,17 @@ export class ProviderConfigError extends Error {
   }
 }
 
+/** Hard rule 6 — a budget knob that fails to parse must NEVER silently mean "unlimited". */
+function parseDailyLimit(env: NodeJS.ProcessEnv, name: string): number | undefined {
+  const raw = env[name]?.trim();
+  if (raw === undefined || raw === "") return undefined; // unset = unlimited (today's behavior)
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new ProviderConfigError(`${name} must be a non-negative integer (got "${raw}") — refusing to boot rather than guessing an unlimited budget`);
+  }
+  return n;
+}
+
 export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv } = {}): Promise<ServiceContext> {
   const env = opts.env ?? process.env;
   // TP.2/TP.4: a mock provider paired with a real provider never boots silently
@@ -57,7 +68,10 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   const chatSessions = new ChatSessionStore(path.join(dataDir, "chat-sessions.json"), files);
   await chatSessions.load();
 
-  const meter = new QuotaMeter();
+  const meter = new QuotaMeter({
+    imageDailyLimit: parseDailyLimit(env, "OIA_DAILY_IMAGE_LIMIT"),
+    llmDailyLimit: parseDailyLimit(env, "OIA_DAILY_LLM_LIMIT"),
+  });
   const chat = {
     llm: meterLlm(getLlmProvider(env), meter),
     image: meterImage(getImageProvider(env), meter),

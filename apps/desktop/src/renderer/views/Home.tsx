@@ -62,7 +62,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const [error, setError] = useState("");
   const [retryable, setRetryable] = useState(false);
   const [mockMode, setMockMode] = useState(false);
-  const [quota, setQuota] = useState<{ planner: number; image: number } | null>(null);
+  const [quota, setQuota] = useState<{ planner: number; image: number; imageLimit: number | null } | null>(null);
   /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
   const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
@@ -93,7 +93,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       .providerStatus()
       .then((s) => {
         setMockMode(s.image.capabilities.isMock);
-        setQuota(s.quota);
+        setQuota({ planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image });
         setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
       })
       .catch(() => {});
@@ -215,7 +215,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       void oia()
         .providerStatus()
         .then((s) => {
-          setQuota(s.quota);
+          setQuota((prev) => (prev ? { ...prev, planner: s.quota.planner, image: s.quota.image } : { planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image }));
           setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
         })
         .catch(() => {});
@@ -350,7 +350,9 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
         </div>
       )}
       {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && (
-        <p className="hintP" role="status">🪙 {quota.image} images · {quota.planner} reads</p>
+        <p className="hintP" role="status">
+          🪙 {quota.image}{quota.imageLimit !== null ? `/${quota.imageLimit}` : ""} images · {quota.planner} reads
+        </p>
       )}
 
       <RuntimePanel onModeChanged={refreshProviderStatus} />

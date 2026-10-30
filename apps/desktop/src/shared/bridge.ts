@@ -39,7 +39,7 @@ export interface OiaBridge {
   providerStatus: () => Promise<{
     image: { name: string; capabilities: { isMock: boolean; referenceImages: boolean } };
     llm: { name: string; capabilities: { isMock: boolean } };
-    quota: { day: string; planner: number; image: number; limitHits: number; session: { planner: number; image: number } };
+    quota: { day: string; planner: number; image: number; limitHits: number; session: { planner: number; image: number }; limits: { planner: number | null; image: number | null } };
     /** B7 — stores whose LAST disk write failed (basename only). Empty = all durable. */
     persistence: { file: string; error: string; code: string | null; failedWrites: number }[];
   }>;
