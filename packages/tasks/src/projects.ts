@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { projectSchema, SCENE_VERSION, OIA_SCHEMA_VERSION, type Project } from "@oia/schema";
-import { atomicWriteJson, loadJsonArrayDurable, sweepTempFiles } from "./atomic.js";
+import { atomicWriteJson, fireAndForgetWrite, loadJsonArrayDurable, sweepTempFiles } from "./atomic.js";
 import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import type { FileStore } from "./storage.js";
 
@@ -125,7 +125,7 @@ export class ChatSessionStore {
   const id = Date.now() * 1000 + (__chatSeq % 1000); // unique even for back-to-back calls in the same ms
     this.data.set(id, { id, name: name?.slice(0, 80) || "New chat", messages: [], createdAt: id, updatedAt: id });
     this.__lastUpdated = Math.max(this.__lastUpdated + 1, id); // monotonic — same-ms bursts must not tie
-    void this.save();
+    fireAndForgetWrite(this.save()); // sync API: failure is recorded by atomicWriteJson (B7), not silently dropped
     return { id, name: this.data.get(id)!.name };
   }
 

@@ -63,6 +63,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const [retryable, setRetryable] = useState(false);
   const [mockMode, setMockMode] = useState(false);
   const [quota, setQuota] = useState<{ planner: number; image: number } | null>(null);
+  /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
+  const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
   const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
   const [sessionId] = useState<number | null>(resumeSession ?? null);
   const [community, setCommunity] = useState<Template[]>([]);
@@ -92,6 +94,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       .then((s) => {
         setMockMode(s.image.capabilities.isMock);
         setQuota(s.quota);
+        setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
       })
       .catch(() => {});
   }, []);
@@ -211,7 +214,10 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       setBusy(false);
       void oia()
         .providerStatus()
-        .then((s) => setQuota(s.quota))
+        .then((s) => {
+          setQuota(s.quota);
+          setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
+        })
         .catch(() => {});
     }
   }
@@ -337,6 +343,12 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       </div>
 
       {mockMode && <div className="notice warn" role="status">{MOCK_BANNER}</div>}
+      {writeFailures && (
+        <div className="notice warn" role="status">
+          ⚠ Could not save some data to disk ({writeFailures.map((f) => `${f.file} ×${f.failedWrites}`).join(", ")}).
+          Check free space or folder permissions — changes since the last successful save are at risk until saving works again.
+        </div>
+      )}
       {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && (
         <p className="hintP" role="status">🪙 {quota.image} images · {quota.planner} reads</p>
       )}

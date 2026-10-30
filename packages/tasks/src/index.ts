@@ -5,6 +5,7 @@ export * from "./processors.js";
 export * from "./apikeys.js";
 export * from "./storage.js";
 export * from "./atomic.js";
+export * from "./persistenceHealth.js";
 export * from "./migrate.js";
 export * from "./queue.js";
 export * from "./upload.js";

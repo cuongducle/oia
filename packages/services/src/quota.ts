@@ -78,9 +78,13 @@ export interface ProviderStatus {
   image: { name: string; capabilities: ProviderCapabilities; diagnostic: ProviderDiagnostic };
   llm: { name: string; capabilities: ProviderCapabilities; diagnostic: ProviderDiagnostic };
   quota: QuotaCounters & { session: { planner: number; image: number } };
+  /** B7 — stores whose LAST disk write failed (basename only: no absolute paths cross the wire). */
+  persistence: { file: string; error: string; code: string | null; failedWrites: number }[];
 }
 
 import type { ServiceContext } from "./context.js";
+import { basename } from "node:path";
+import { persistenceWriteFailures } from "@oia/tasks";
 
 /** TP.6 — health snapshot over a service context (both shells render this the same way). */
 export async function providerStatusSnapshot(ctx: ServiceContext): Promise<ProviderStatus> {
@@ -89,5 +93,11 @@ export async function providerStatusSnapshot(ctx: ServiceContext): Promise<Provi
     image: { name: ctx.chat.image.name, capabilities: ctx.chat.image.capabilities, diagnostic: imageDiag },
     llm: { name: ctx.chat.llm.name, capabilities: ctx.chat.llm.capabilities, diagnostic: llmDiag },
     quota: ctx.chat.meter.snapshot(),
+    persistence: persistenceWriteFailures().map((f) => ({
+      file: basename(f.file),
+      error: f.error,
+      code: f.code,
+      failedWrites: f.failedWrites,
+    })),
   };
 }

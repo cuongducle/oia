@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { noteWriteFailure, noteWriteSuccess } from "./persistenceHealth.js";
 
 /**
  * TP.7 (Slice 3) — atomic JSON persistence for the file-backed stores.
@@ -55,13 +56,19 @@ export async function sweepTempFiles(file: string): Promise<void> {
 export async function atomicWriteJson(file: string, data: unknown): Promise<void> {
   const prev = chains.get(file) ?? Promise.resolve();
   const job = prev.catch(() => {}).then(async () => {
-    await mkdir(path.dirname(file), { recursive: true });
-    const tmp = path.join(path.dirname(file), `.${path.basename(file)}.tmp-${randomUUID()}`);
-    await writeFile(tmp, JSON.stringify(data, null, 2));
     try {
-      await renameWithRetry(tmp, file);
+      await mkdir(path.dirname(file), { recursive: true });
+      const tmp = path.join(path.dirname(file), `.${path.basename(file)}.tmp-${randomUUID()}`);
+      await writeFile(tmp, JSON.stringify(data, null, 2));
+      try {
+        await renameWithRetry(tmp, file);
+      } catch (err) {
+        await rm(tmp, { force: true }).catch(() => {});
+        throw err;
+      }
+      noteWriteSuccess(file); // B7: a recovered store stops alarming
     } catch (err) {
-      await rm(tmp, { force: true }).catch(() => {});
+      noteWriteFailure(file, err); // B7: the write failure is recorded, never silent — then it still throws to the caller
       throw err;
     }
   });
@@ -71,6 +78,13 @@ export async function atomicWriteJson(file: string, data: unknown): Promise<void
   } finally {
     if (chains.get(file) === job) chains.delete(file);
   }
+}
+
+/** For sync store methods that cannot await their save (ChatSessionStore.create).
+ *  The failure is NOT swallowed: atomicWriteJson records it in persistenceHealth —
+ *  this catch only prevents an unhandled promise rejection. */
+export function fireAndForgetWrite(save: Promise<void>): void {
+  save.catch(() => {});
 }
 
 /**
