@@ -16,7 +16,7 @@ a{color:inherit;text-decoration:none}
 .display{font-family:'Anton',sans-serif;font-weight:400;letter-spacing:.01em;line-height:.94;text-transform:uppercase}
 
 /* three.js grain canvas (Hermes recipe) */
-#grain-canvas{position:fixed;inset:0;z-index:101;pointer-events:none;opacity:.055}
+#grain-canvas{position:fixed;inset:0;z-index:101;pointer-events:none;opacity:.025}
 .edge{position:fixed;top:0;left:0;right:0;height:2px;z-index:100;background:linear-gradient(90deg,transparent 4%,var(--accent) 50%,transparent 96%);transform-origin:0 50%;transform:scaleX(0)}
 
 /* custom cursor */
