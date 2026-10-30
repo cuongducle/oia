@@ -140,6 +140,7 @@ oia/
 - Gate: `pnpm build && pnpm typecheck && pnpm test` toàn repo xanh SAU khi xóa ✅ (build 8 task, typecheck 15 task, test 16 task; providers 74 test gồm integration codex thật của owner); `node config/audit/desktop-audit.mjs` OK (acknowledged zod còn duy nhất).
 
 **Bước 7 — Đóng gói đa nền tảng + bảo mật + phát hành**
+- Nghiên cứu đầu vào (macOS): [`../reference/macos-design-2026.md`](../reference/macos-design-2026.md) — Liquid Glass/Tahoe, bug `_cornerMask` (Oia Electron 39.8.10 đã chứa fix — giữ luật Electron ≥ 39), khuyến nghị T1 (titleBarStyle hiddenInset + icon Icon Composer + vibrancy sidebar) và checklist icon/window/gate kéo cửa sổ.
 - `electron-builder.yml`: mac arm64 + x64 (hoặc universal), win x64 NSIS; `resources/` icons.
 - **D12 — extraResources cho codex đóng kèm:** build trước bằng `pnpm --filter @oia/desktop fetch-codex -- --platform <target> --arch <target>` (mỗi target build trên CI tương ứng hoặc truyền chéo), electron-builder chép `resources/codex` → `Contents/Resources/codex` (mac) / `resources/codex` (win); detect đã sẵn nguồn `bundled` (xem D12). CI cần cache download theo tag để không tải 166 MB mỗi build.
 - **Updater implement thật (review điểm 6):** electron-updater + kênh cập nhật; auto-update macOS CHỈ hoạt động khi app đã ký.
