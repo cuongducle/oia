@@ -8,13 +8,14 @@
 | # | Quyết định |
 |---|---|
 | D1 | Desktop (Electron) là sản phẩm DUY NHẤT. Web app sunset sau khi port xong. |
-| D2 | Bỏ hết cái thừa: `apps/web`, `apps/worker`, `packages/db` (code chết), `packages/skills` (chết theo server), `docker/`, Redis CI, BullMQ. |
+| D2 | Bỏ hết cái thừa: `apps/web`, `packages/db` (code chết), Redis CI, BullMQ. **GIỮ `packages/skills`** — xem D9. (`apps/worker`, `docker/` đã xóa ở bước 3.) |
 | D3 | Tổ chức cho macOS + Windows. Gate: build macOS pass KHÔNG phải bằng chứng cho Windows — phải kiểm trên máy Windows thật. |
 | D4 | Brand Kit: port panel tối giản sang desktop (dữ liệu đã có trong `tasks/brandkits.ts`, planner đã đọc qua `services/context.ts`). |
 | D5 | Toolbox: GIỮ TOÀN BỘ 13 tool + Background Remover. PPT Translator hiện là landing — xếp implement hậu kỳ, không chặn v1. |
 | D6 | Không tạo `packages/studio` / `packages/desktop-contract` — chỉ còn 1 consumer (YAGNI), UI ở `apps/desktop`, hợp đồng IPC ở `src/shared`. |
 | D7 | Mượn từ Orca 3 thứ: baseline ratchet (nợ đo bằng số, chỉ được giảm), process-host pattern cho CliRuntime Windows, knip dò code chết. Không copy `cloud/`, `mobile/`, `Casks/`. |
 | D8 | ĐÃ ĐÓNG (tìm thấy ghi chép trong `apps/desktop/src/renderer/lib/errors.ts`, quyết định D2 2026-10-30): desktop UI ship bằng TIẾNG ANH — tiếng Việt chỉ ở mức nội dung banner (font Be Vietnam Pro). i18n web 12 locale không port. |
+| D9 | THAY ĐỔI (2026-10-30, sau khi chủ sở hữu chất vấn việc xóa): **GIỮ `packages/skills`** + thêm loopback agent API trong desktop main — HTTP server `node:http` bind 127.0.0.1, tái dùng ServiceContext đã có (taskStore submit/poll/cancel, apiKeyStore, fileStore). Bắt buộc API key (mọi process local đều thấy cổng). Envelope `{code,data,msg}` giữ nguyên → skill chỉ đổi `OIA_BASE_URL=http://127.0.0.1:<port>`. |
 
 ## Cây thư mục đích
 
@@ -63,11 +64,9 @@ oia/
 | Bỏ | Lý do |
 |---|---|
 | `apps/web` | D1. Xóa ở bước 6, SAU khi cắt phụ thuộc ngược (xem B2) |
-| `apps/worker` | Triển khai server riêng (BullMQ + ghi chung data dir) — desktop chạy in-process |
 | `packages/db` | 0 import (đã verify bằng grep) |
-| `packages/skills` | 15 skill POST vào REST của web — chết theo server |
-| `docker/`, Redis CI, `bullmq`, `ioredis` | Chỉ phục vụ worker/integration test Redis |
-| Tính năng web-only | `for-agents` (API key), `p/[id]` (share link), UI skills/docs |
+| `docker/`, Redis CI, `bullmq`, `ioredis` | Chỉ phục vụ worker — ĐÃ XÓA ở bước 3 |
+| Tính năng web-only | UI skills/docs trên web (bản thân `packages/skills` GIỮ theo D9), `p/[id]` share link |
 
 ## Phát hiện review quan trọng (không được quên)
 
@@ -99,10 +98,11 @@ oia/
 - CI: bỏ redis service. Xóa `docker/`.
 - Gate: test packages xanh không cần Redis.
 
-**Bước 4 — Port Tools + BrandKit**
+**Bước 4 — Port Tools + BrandKit + Loopback agent API (D9)**
 - `views/Tools.tsx` + `components/ToolRunner`: nhấc `tools-registry.ts` + logic `runner.tsx` (~400 dòng); đổi 4 đường fetch → IPC: upload (đã có `files:upload`), task (services in-process), projects.save, provider.status.
 - `views/BrandKit.tsx` tối giản: form → `tasks/brandkits.ts`, hiệu lực qua `services/context.ts`.
-- Gate: tool local (convert/resize) + tool AI (mock pair) chạy end-to-end trong desktop; brandkit lưu → generation nhận brand guidance.
+- Loopback agent API: HTTP server `node:http` trong main, bind 127.0.0.1 chỉ; routes `/api/tasks/*` (submit/poll/cancel) + `/api/upload/*`; key BẮT BUỘC qua apiKeyStore; panel For Agents tối giản (tạo/xem/thu hồi). Skills giữ nguyên 15 cái, đổi `OIA_BASE_URL`.
+- Gate: tool local (convert/resize) + tool AI (mock pair) chạy end-to-end trong desktop; brandkit lưu → generation nhận brand guidance; curl submit task qua loopback API với key → poll ra URL.
 
 **Bước 5 — Port nốt editor/templates + cứu test**
 - Checklist parity editor web↔desktop (tính năng từng cái, không đo theo dòng).
@@ -110,7 +110,7 @@ oia/
 - Gate: parity checklist tick hết; tổng số test không giảm.
 
 **Bước 6 — Xóa 1 lượt**
-- Xóa: `apps/web`, `packages/db`, `packages/skills`, `docs/private/ui-audit`. (`apps/worker`, `docker/` đã xóa ở bước 3.)
+- Xóa: `apps/web`, `packages/db`, `docs/private/ui-audit`. (`apps/worker`, `docker/` đã xóa ở bước 3; `packages/skills` GIỮ theo D9.)
 - Dọn `.env.example` (bỏ DATABASE_URL/S3/REDIS). Viết lại README (quick start chỉ còn desktop).
 - Gate: `pnpm build && pnpm typecheck && pnpm test` toàn repo xanh SAU khi xóa.
 
@@ -125,4 +125,4 @@ oia/
 - PPT Translator: implement thật (hiện chỉ landing).
 - rembg: bundle vào installer hay hướng dẫn cài — quyết ở bước 7.
 - knip vào CI hằng ngày.
-- D8: VI-first cho desktop UI.
+- Loopback API mở rộng: upload chunked cho file lớn (v1 chỉ cần `/api/upload/direct`), SSE progress nếu agent cần.
