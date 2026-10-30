@@ -2,10 +2,11 @@ import { presentError, type ErrorActionKind } from "./provider-errors.js";
 import type { I18nKey } from "./i18n.js";
 
 /**
- * D2 owner decision (2026-10-30): the desktop UI ships ENGLISH — no Vietnamese UI
- * strings anywhere in renderer code. Vietnamese is supported at the CONTENT level
- * only (Be Vietnam Pro font renders seller text in banners). The desktop owns its
- * copies of provider-errors/i18n (reorg step 2) and maps keys to its own English copy.
+ * Owner decision FINAL (2026-10-30, recorded as D8 in docs/designs/desktop-only-reorg.md):
+ * the desktop UI ships ENGLISH — no Vietnamese UI strings anywhere in renderer code.
+ * Vietnamese is supported at the CONTENT level only (Be Vietnam Pro font renders seller
+ * text in banners). provider-errors maps errorClass→i18n KEY only; the English copy
+ * lives here. i18n.ts gets trimmed to en-only (reorg step 4e) — I18nKey union unchanged.
  */
 const EN: Partial<Record<I18nKey, string>> = {
   "error.provider_missing": "The AI tool (Codex CLI) is not installed yet. Install it, then try again.",

@@ -1,5 +1,7 @@
 # Oia banner-maker loop (Stage 0 — web)
 
+> **SUPERSEDED IN PARTS (2026-10-30)** — owner chốt desktop-only; xem [`desktop-only-reorg.md`](./desktop-only-reorg.md) (D10) cho trạng thái hiện hành. Còn đúng: mục tiêu loop, tiêu chí validation seller, các TP về engine (đã shipped + test). Đã lỗi thời: mọi tham chiếu `apps/web/...` (route.ts, page.tsx), TP.4 parity BullMQ (bullmq đã xóa), TP.5 cross-process cancel qua Redis (cancel giờ thuần in-process), cách validate "owner runs the web app" (validation chuyển sang desktop), G7 plain-Vietnamese UI (D8: UI tiếng Anh).
+
 *   **Author:** cuongducle
 *   **Status:** Approved (owner, 2026-10-29)
 *   **Date:** 2026-10-28
