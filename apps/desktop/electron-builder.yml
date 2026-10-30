@@ -37,6 +37,7 @@ extraResources:
 # No-signing budget plan (reorg step 7): local builds are unsigned; Gatekeeper
 # bypass instructions live in the README; NO auto-update channel until signing
 # exists. `identity: null` keeps electron-builder from probing for identities.
+afterPack: ./scripts/afterPack.mjs
 mac:
   icon: resources/icons/icon.icns
   category: public.app-category.graphics-design
