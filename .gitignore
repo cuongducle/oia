@@ -20,3 +20,7 @@ docs/private/
 # misc
 .DS_Store
 *.log
+
+# D12 — codex binary bundled at build time (fetched by fetch-codex from the pinned
+# release; the PIN is committed, the ~166MB tree is a build artifact)
+apps/desktop/resources/codex/

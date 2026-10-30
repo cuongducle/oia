@@ -1,4 +1,4 @@
-import { ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { app, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { RuntimeProvisioner, type RuntimeStatus } from "@oia/providers";
@@ -65,7 +65,17 @@ async function markConsent(): Promise<void> {
 }
 
 export function getProvisioner(): RuntimeProvisioner {
-  provisioner ??= new RuntimeProvisioner({ managedDir: path.join(userDataDir, "codex") });
+  provisioner ??= new RuntimeProvisioner({
+    managedDir: path.join(userDataDir, "codex"),
+    // D12 — codex bundled INSIDE the app: packaged → Contents/Resources/codex (Windows:
+    // resources/codex) via electron-builder extraResources; dev → apps/desktop/resources/codex
+    // (populated by `pnpm --filter @oia/desktop fetch-codex`). Probed BEFORE PATH —
+    // the bundled pair is the one this build was tested with, and it survives a
+    // Dock/Finder launch where the shell PATH is invisible.
+    bundledDir: app.isPackaged
+      ? path.join(process.resourcesPath, "codex")
+      : path.join(app.getAppPath(), "resources", "codex"),
+  });
   return provisioner;
 }
 

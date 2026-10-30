@@ -24,8 +24,10 @@ import { CliRuntime } from "./runtime.js";
  *   the saved session at START — killing `codex login` mid-flow leaves the user logged
  *   out. Cancel is therefore an explicit, warned action — never a cleanup side effect.
  *
- * Detection order (Q4): CODEX_BIN env → PATH (+ well-known dirs: GUI apps do not
- * inherit the shell PATH) → managed install at <managedDir>/current/bin/codex.
+ * Detection order (Q4, revised D12): CODEX_BIN env → BUNDLED binary shipped with the
+ * app (resources/codex — the pair this build was tested with) → PATH (+ well-known
+ * dirs: GUI apps do not inherit the shell PATH) → managed install at
+ * <managedDir>/current/bin/codex.
  * Guided download is an explicit user action from the runtime panel — never automatic.
  *
  * Swap discipline (D3 hardening): staging extract → rename current→.old → rename
@@ -36,7 +38,7 @@ import { CliRuntime } from "./runtime.js";
  * honest version: bounded window + recovery.
  */
 
-export type RuntimeSource = "env" | "path" | "managed";
+export type RuntimeSource = "env" | "bundled" | "path" | "managed";
 export type RuntimeState = "ready" | "not_logged_in" | "missing";
 export type LoginMethod = "chatgpt" | "api-key";
 
@@ -133,6 +135,10 @@ async function canExecute(file: string, platform: NodeJS.Platform): Promise<bool
 
 export interface DetectOptions {
   env?: NodeJS.ProcessEnv;
+  /** D12 — codex shipped INSIDE the app package (read-only; same layout as a managed
+   *  install: <bundledDir>/current/bin/codex). Beats PATH: the bundled pair is the one
+   *  this build was tested against (the OpenAI-SDK philosophy). */
+  bundledDir?: string;
   managedDir?: string;
   platform?: NodeJS.Platform;
   extraPaths?: string[];
@@ -141,9 +147,10 @@ export interface DetectOptions {
 }
 
 /**
- * Pure binary resolution, no subprocesses. Order: env override → PATH scan (with
- * well-known dirs + extras) → managed install. Returns { source: null } when absent.
- * Recovers an interrupted managed swap (.old present, current missing) best-effort.
+ * Pure binary resolution, no subprocesses. Order: env override → bundled (D12) →
+ * PATH scan (with well-known dirs + extras) → managed install. Returns { source: null }
+ * when absent. Recovers an interrupted managed swap (.old present, current missing)
+ * best-effort.
  */
 export async function resolveCodexBin(opts: DetectOptions = {}): Promise<RuntimeDetection> {
   const env = opts.env ?? process.env;
@@ -153,6 +160,11 @@ export async function resolveCodexBin(opts: DetectOptions = {}): Promise<Runtime
 
   if (env.CODEX_BIN) {
     if (await canExecute(env.CODEX_BIN, platform)) return { source: "env", bin: env.CODEX_BIN };
+  }
+
+  if (opts.bundledDir) {
+    const bundled = path.join(opts.bundledDir, "current", "bin", isWin ? "codex.exe" : "codex");
+    if (await canExecute(bundled, platform)) return { source: "bundled", bin: bundled };
   }
 
   const pathVar = env.PATH ?? "";
@@ -194,6 +206,8 @@ async function recoverManagedSwap(managedDir: string): Promise<void> {
 export interface ProvisionerOptions {
   /** Root for the managed install (Electron userData/codex on the desktop). */
   managedDir: string;
+  /** D12 — codex shipped inside the app package; probed before PATH (see DetectOptions). */
+  bundledDir?: string;
   env?: NodeJS.ProcessEnv;
   runtime?: CliRuntime;
   fetchImpl?: typeof fetch;
@@ -229,6 +243,7 @@ export class RuntimeProvisioner {
   detect(): Promise<RuntimeDetection> {
     return resolveCodexBin({
       env: this.opts.env,
+      bundledDir: this.opts.bundledDir,
       managedDir: this.opts.managedDir,
       platform: this.platform,
       extraPaths: this.opts.extraPaths,
@@ -368,7 +383,7 @@ export class RuntimeProvisioner {
    */
   install(
     onProgress?: (p: InstallProgress) => void,
-    opts: { signal?: AbortSignal } = {},
+    opts: { signal?: AbortSignal; tag?: string } = {},
   ): Promise<{ status: RuntimeStatus; manifest: ManagedManifest }> {
     this.installInFlight ??= this.doInstall(onProgress, opts).finally(() => {
       this.installInFlight = null;
@@ -382,11 +397,13 @@ export class RuntimeProvisioner {
 
   private async doInstall(
     onProgress?: (p: InstallProgress) => void,
-    opts: { signal?: AbortSignal } = {},
+    opts: { signal?: AbortSignal; tag?: string } = {},
   ): Promise<{ status: RuntimeStatus; manifest: ManagedManifest }> {
     const asset = codexPackageAsset(this.platform, this.arch);
     onProgress?.({ phase: "resolve" });
-    const rel = await this.resolveLatest(opts.signal);
+    // D12: an explicit tag pins the release (bundle fetch); default stays rolling
+    // latest for the in-app guided install.
+    const rel = await this.resolveRelease(opts.tag ?? "latest", opts.signal);
     const assetMeta = rel.assets[asset];
     const sumsMeta = rel.assets[SUMS_ASSET];
     if (!assetMeta || !sumsMeta) {
@@ -507,10 +524,12 @@ export class RuntimeProvisioner {
   }
 
   /** Latest release: { tag, assets: name → { url, size } } (unauthenticated API — a one-shot install is within rate limits). */
-  private async resolveLatest(signal?: AbortSignal): Promise<{ tag: string; assets: Record<string, { url: string; size: number }> }> {
+  /** "latest" or an explicit release tag (D12 bundle pinning). */
+  private async resolveRelease(ref: string, signal?: AbortSignal): Promise<{ tag: string; assets: Record<string, { url: string; size: number }> }> {
+    const endpoint = ref === "latest" ? "releases/latest" : `releases/tags/${encodeURIComponent(ref)}`;
     let res: Response;
     try {
-      res = await this.fetchImpl(`${this.apiBase}/repos/${GH_REPO}/releases/latest`, {
+      res = await this.fetchImpl(`${this.apiBase}/repos/${GH_REPO}/${endpoint}`, {
         headers: { accept: "application/vnd.github+json" },
         signal,
       });
@@ -522,7 +541,10 @@ export class RuntimeProvisioner {
         detail: { reason: "github_rate_limited" },
       });
     }
-    if (!res.ok) throw new ProviderError("network", `GitHub API ${res.status} for releases/latest`);
+    if (res.status === 404) {
+      throw new ProviderError("unknown", `codex release "${ref}" not found`, { detail: { reason: "release_not_found", ref } });
+    }
+    if (!res.ok) throw new ProviderError("network", `GitHub API ${res.status} for ${endpoint}`);
     const json = (await res.json()) as {
       tag_name?: string;
       assets?: Array<{ name: string; browser_download_url: string; size: number }>;

@@ -25,13 +25,15 @@ export function runtimeViewModel(
   effective: "mock" | "codex",
 ): RuntimeViewModel {
   const sourceLabel =
-    runtime.source === "path"
-      ? "found on this machine"
-      : runtime.source === "managed"
-        ? "installed by the app"
-        : runtime.source === "env"
-          ? "environment override"
-          : "";
+    runtime.source === "bundled"
+      ? "bundled with the app"
+      : runtime.source === "path"
+        ? "found on this machine"
+        : runtime.source === "managed"
+          ? "installed by the app"
+          : runtime.source === "env"
+            ? "environment override"
+            : "";
   if (runtime.state === "missing") {
     return {
       badge: "err",

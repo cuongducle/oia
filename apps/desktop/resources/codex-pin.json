@@ -1,0 +1,4 @@
+{
+  "$comment": "D12 — the codex release this app build is paired with. fetch-codex.mjs pins on this tag (sha256 still verified against the release's published SHA256SUMS at download). Bump deliberately: binary + app are released as a tested pair.",
+  "tag": "rust-v0.166.0"
+}

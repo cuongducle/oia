@@ -119,12 +119,29 @@ describe("codexPackageAsset (S5 — always the checksummed package variant)", ()
   });
 });
 
-describe("resolveCodexBin (env → PATH+wellKnown → managed)", () => {
+describe("resolveCodexBin (env → bundled → PATH+wellKnown → managed)", () => {
   it("env override wins when the file is executable", async () => {
     const bin = path.join(dir, "env-codex");
     writeFileSync(bin, "#!/bin/sh\n", { mode: 0o755 });
     const det = await resolveCodexBin({ env: { CODEX_BIN: bin, PATH: "" }, platform: "darwin", includeWellKnown: false });
     expect(det).toEqual({ source: "env", bin });
+  });
+  it("D12 — the BUNDLED binary wins over a PATH hit (the shipped pair is the tested pair)", async () => {
+    const binDir = path.join(dir, "pathbin-d12");
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(path.join(binDir, "codex"), "#!/bin/sh\n", { mode: 0o755 });
+    const bundled = path.join(dir, "bundled-root");
+    mkdirSync(path.join(bundled, "current", "bin"), { recursive: true });
+    writeFileSync(path.join(bundled, "current", "bin", "codex"), "#!/bin/sh\n", { mode: 0o755 });
+    const det = await resolveCodexBin({ env: { PATH: binDir }, bundledDir: bundled, platform: "darwin", includeWellKnown: false });
+    expect(det).toEqual({ source: "bundled", bin: path.join(bundled, "current", "bin", "codex") });
+  });
+  it("D12 — bundled survives an EMPTY PATH (the Dock/Finder launch: no shell PATH)", async () => {
+    const bundled = path.join(dir, "bundled-alone");
+    mkdirSync(path.join(bundled, "current", "bin"), { recursive: true });
+    writeFileSync(path.join(bundled, "current", "bin", "codex"), "#!/bin/sh\n", { mode: 0o755 });
+    const det = await resolveCodexBin({ env: { PATH: "" }, bundledDir: bundled, platform: "darwin", includeWellKnown: false });
+    expect(det.source).toBe("bundled");
   });
   it("env override pointing nowhere is skipped, not fatal", async () => {
     const det = await resolveCodexBin({ env: { CODEX_BIN: "/nope/codex", PATH: "" }, platform: "darwin", managedDir: path.join(dir, "m1"), includeWellKnown: false });
