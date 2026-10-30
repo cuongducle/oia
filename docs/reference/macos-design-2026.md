@@ -85,6 +85,14 @@ thời lượng, Cancel luôn hiện, không overclaim) — T1 không chạm n�
 IconComposer cần Xcode 26 (có sẵn trên máy dev); icon nhiều lớp cũng render fallback đúng cho
 macOS cũ — không mất gì khi chỉ xuất icon.
 
+## 4b. Thí nghiệm T2 — glass thật qua binding native (2026-10-30 tối, nhánh glass-experiment)
+
+Sau khi vibrancy legacy chết (mục 5), thử **đường duy nhất còn sống**: `electron-liquid-glass` (Meridius-Labs) — binding `NSGlassEffectView` (API TƯ NHÂN của Apple, dịch ngược; chính README ghi "DO NOT USE IN PROD" cho các nút variant/scrim/subdued). Cài vào nhánh theo đúng công thức của họ (transparent:true, vibrancy OFF, addView sau load).
+
+**Kết quả trên máy thật (macOS 27, Electron 39):** view native ĐÚNG được mount — bar probe đổi thành **màu aqua đặc** (tôi set tint trắng 15% — không được tôn trọng) chứng tỏ có lớp native sống. Nhưng **không bao giờ lấy nền sau**: bar phẳng, cạnh cứng, 0 sắc màu wallpaper trong khi widget Calendar cùng khung hình frost chuẩn (nhóm chứng); `unstable_setVariant(2)` và `(19)` — hai variant được ghi là "functional" — không đổi gì. Kết luận: binding mount được nhưng **không composite backdrop qua cửa sổ Electron** trên OS build này.
+
+**Phán quyết:** giữ nguyên luật "không native glass trong v1" — giờ có bằng chứng sống: kể cả binding được duy trì cũng chưa chạy được trên OS đích. Điều kiện revisit nâng cấp thành: (a) Electron core expose API glass công khai, HOẶC (b) một binding chứng minh được backdrop-sampling thật trên OS đích qua gate có nhóm chứng như lần này. Chi phí mỗi lần thí nghiệm ~30 phút theo nghi thức đã có sẵn.
+
 ## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-10-30 (bước 7c)
 
 - [x] Icon: **placeholder .icns đã ship (7a)** — squircle tím accent + O serif. Quyết định icon THẬT (nhiều lớp Icon Composer vs icns thường) vẫn chờ owner — không chặn v1.
