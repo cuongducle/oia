@@ -97,7 +97,14 @@ Start with a bundled **Sample** project (seeded on first run) to try real text a
 
 **Real generations:** the app bundles a pinned Codex CLI binary, so the recommended keyless path is zero-setup — open **Runtime** in the app, sign in with ChatGPT, and generate against your plan quota. No API key required. Alternatively set `IMAGE_PROVIDER`/`LLM_PROVIDER` (see `.env.example`) to use OpenAI or fal keys.
 
-> Installers are not published yet (packaging lands with the release step). Run from source for now. The landing page's Download button points at the [releases page](https://github.com/cuongducle/oia/releases) and goes live with the first installer.
+> Installers are not published yet. You can build a local macOS `.app` yourself — no signing, no notarization:
+>
+> ```bash
+> pnpm --filter @oia/desktop dist:mac        # .dmg (fetches the pinned Codex binary first)
+> pnpm --filter @oia/desktop dist:mac:dir     # quick dist/mac-arm64/Oia.app
+> ```
+>
+> The build is unsigned (deliberate — no signing budget yet). A locally built app opens normally; a build **downloaded** from GitHub carries a quarantine flag, so on first open right-click the app → **Open** → **Open** (or System Settings → Privacy & Security → "Open Anyway") to pass Gatekeeper. There is no auto-update channel until signing exists — pick up new versions from the releases page.
 
 ## Bring your own provider
 

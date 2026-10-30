@@ -1,0 +1,41 @@
+# Reorg step 7 — packaging (D12, no-signing budget plan).
+# mac arm64 first (owner machine); x64/universal + win NSIS are CI follow-ups —
+# each arch needs its own `fetch-codex --arch` run BEFORE building (extraResources
+# copies resources/codex, which is a gitignored build artifact).
+appId: app.oia.desktop
+productName: Oia
+copyright: Copyright © 2026 Oia
+
+directories:
+  output: dist
+  buildResources: resources
+
+# The app runs from out/ (electron-vite output). node_modules production deps
+# are packaged automatically (main externalizes them at build time).
+files:
+  - out/**/*
+  - "!out/*.png" # shot-gate artifacts, not app code
+  - "!**/*.map"
+
+# D12 — codex pinned pair rides in Contents/Resources/codex; runtime.ts reads
+# process.resourcesPath/codex when app.isPackaged. Source tree is created by
+# `pnpm --filter @oia/desktop fetch-codex` (verifies SHA256SUMS at download).
+extraResources:
+  - from: resources/codex
+    to: codex
+
+# No-signing budget plan (reorg step 7): local builds are unsigned; Gatekeeper
+# bypass instructions live in the README; NO auto-update channel until signing
+# exists. `identity: null` keeps electron-builder from probing for identities.
+mac:
+  icon: resources/icons/icon.icns
+  category: public.app-category.graphics-design
+  identity: null
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  # unsigned local builds must not be gated on notarization tooling
+  notarize: false
+dmg:
+  title: ${productName} ${version}
