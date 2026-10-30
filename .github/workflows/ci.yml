@@ -12,8 +12,8 @@ jobs:
       - run: pnpm build
       - run: pnpm test
       - run: pnpm typecheck
-      # F4 — dependency gate for the SHIPPED tree: fails on high/critical touching
-      # anything except the frozen reference projects (deleted in step 6); the one
+      # F4 — dependency gate for the SHIPPED tree: fails on high/critical touching any
+      # workspace project (the frozen reference apps died in reorg step 6); the one
       # acknowledged advisory (zod 3, fix only in zod 4) is listed with its removal path.
       - run: node config/audit/desktop-audit.mjs
   desktop-smoke:
@@ -26,8 +26,9 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # workspace dist/types must exist before the desktop typecheck
-      # Ratchet (reorg step 2): apps/desktop must never reach back into apps/web.
-      # The baseline may only DECREASE — the desktop owns its lib copies now.
+      # Ratchet (reorg step 2): apps/desktop must never reach back into a web shell.
+      # apps/web was deleted in step 6; the guard stays so it can never come back.
+      # The baseline may only DECREASE — the desktop owns its lib copies.
       - name: "@oia-web import ratchet"
         run: |
           COUNT=$(grep -r "@oia-web" apps/desktop/src --include='*.ts' --include='*.tsx' | wc -l | tr -d ' ')

@@ -1,20 +1,13 @@
 #!/usr/bin/env node
 /**
- * F4 — the dependency audit gate for what we SHIP.
- *
- * Plain `pnpm audit` fails on the frozen reference apps (apps/web pulls next's
- * postcss + fabric-6/tar chains; packages/db pulls drizzle) which are deleted
- * in reorg step 6 — a gate that is always red on them is a gate nobody reads.
- * This gate fails when a HIGH/CRITICAL advisory touches anything we actually
- * ship (every workspace project except the frozen set).
+ * F4 — the dependency audit gate for the SHIPPED tree (everything: reorg
+ * step 6 deleted the frozen reference apps, their transitive vulns died with
+ * them). Fails when a HIGH/CRITICAL advisory touches any workspace project.
  *
  * Acknowledged advisories need a reason and a removal path, or they are just
  * an ignore list that rots.
  */
 import { spawnSync } from "node:child_process";
-
-/** Deleted in reorg step 6 — their transitive vulns die with them. */
-const FROZEN = new Set(["apps__web", "packages__db"]);
 
 /** advisory → why it is currently accepted, and what removes it. */
 const ACKNOWLEDGED = {
@@ -37,8 +30,8 @@ for (const a of Object.values(advisories)) {
   for (const finding of adv.findings ?? []) {
     for (const p of finding.paths ?? []) projects.add(p.split(">")[0]);
   }
-  const shipped = [...projects].filter((p) => !FROZEN.has(p));
-  if (shipped.length === 0) continue; // frozen-only: dies with step 6
+  const shipped = [...projects];
+  if (shipped.length === 0) continue;
   if (ACKNOWLEDGED[adv.github_advisory_id]) {
     console.log(`acknowledged ${adv.github_advisory_id} (${adv.module_name}) — ${ACKNOWLEDGED[adv.github_advisory_id]}`);
     continue;
@@ -51,4 +44,4 @@ if (failures.length > 0) {
   for (const f of failures) console.error(`  ${f}`);
   process.exit(1);
 }
-console.log("shipped-tree audit OK (frozen reference projects excluded; acknowledged advisories listed above)");
+console.log("shipped-tree audit OK (acknowledged advisories listed above)");

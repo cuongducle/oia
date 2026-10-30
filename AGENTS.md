@@ -2,9 +2,9 @@
 
 ## Current state (read this first)
 
-Oia is mid-migration to **desktop-only** (Electron, macOS + Windows). The web app is
-a frozen reference and will be deleted. The single source of truth for scope,
-decisions (D1–D11), step status, and known debt is
+Oia is **desktop-only** (Electron, macOS + Windows). The web app was deleted in
+reorg step 6 — it exists only in git history and in verification records. The single
+source of truth for scope, decisions (D1–D14), step status, and known debt is
 [`docs/designs/desktop-only-reorg.md`](docs/designs/desktop-only-reorg.md) —
 check its checklist before starting work, and update it (with gates run) after.
 
@@ -15,7 +15,6 @@ The design ledger for older docs is [`docs/designs/SITEMAP.md`](docs/designs/SIT
 ```bash
 pnpm install
 pnpm exec turbo run build --filter='./packages/*'   # packages BEFORE apps
-pnpm --filter @oia/web dev                          # web reference shell (frozen)
 pnpm --filter @oia/desktop dev                      # the product
 
 pnpm build && pnpm test && pnpm typecheck           # gates (turbo)

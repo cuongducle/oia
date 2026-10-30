@@ -20,9 +20,9 @@
 
 A campaign headline changes. An event date moves. A client wants the logo larger. These are layout and copy edits—not reasons to generate a whole new image.
 
-**Oia pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
+**Oia is a desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
 
-Run it on your own machine or server. Bring your own supported provider. Keep your projects under your control.
+Everything runs on your machine. Bring your own supported provider. Keep your projects under your control.
 
 ## What editable actually means
 
@@ -53,7 +53,7 @@ Describe the visual, choose dimensions and page count, and follow the streamed g
 
 ### 02 — Make the design yours
 
-Edit native objects directly on the Fabric.js canvas. Add your own images and copy, adjust the stacking order, use undo/redo, and work across pages with different dimensions. Save projects locally through the app, reopen them, or publish an editable community template.
+Edit native objects directly on the Fabric.js canvas. Add your own images and copy, adjust the stacking order, use undo/redo, and work across pages with different dimensions. Save projects locally through the app, reopen them, or publish an editable template.
 
 Brand Kit stores brand information; its written guidance is passed to the generation planner. It is a prompt aid, not a guarantee that every font, logo, or color will be applied automatically.
 
@@ -74,40 +74,38 @@ The Toolbox also brings together format conversion, image resizing, chart creati
 | Organize a multi-page project | Manage separate outputs | Keep pages, dimensions, and revisions in one project |
 | Reuse a layout | Rebuild it or reuse a flattened image | Save and share an editable scene as a template |
 | Deliver files | Convert and assemble them elsewhere | Export images, PDF, PPTX, and ZIP from the editor |
-| Automate recurring tasks | Depends on the service and its API | Use the self-hosted task API and coding-agent skills |
+| Automate recurring tasks | Depends on the service and its API | Use the local agent API and coding-agent skills |
 
 **Non-destruction guarantee:** AI refinement never deletes your own layers. Objects you add (uploads, product photos, hand-placed text, tables) are stamped `origin: "user"` and survive every AI refinement on top of the regenerated scene — position intact. Layer objects without provenance (legacy projects) default to the same protection. Removing them is a manual, explicit act.
 
 ## Quick start
 
-**Requirements:** Node.js 22 and pnpm 10. No provider key, PostgreSQL, or Redis is needed to explore the default local setup.
+**Requirements:** Node.js 22 and pnpm 10. macOS or Windows. No provider key, database, or broker is needed to explore the default local setup.
 
 ```bash
 git clone https://github.com/cuongducle/oia.git
 cd oia
 pnpm install
 
-# Build the workspace packages before starting the web app.
+# Build the workspace packages before starting the desktop app.
 pnpm exec turbo run build --filter='./packages/*'
-pnpm --filter @oia/web dev
+pnpm --filter @oia/desktop dev
 ```
 
-Open **[localhost:3100](http://localhost:3100)**. Start with a bundled template to try real text and object editing. The default mock provider is for testing the workflow; it does not generate production AI artwork.
+Start with a bundled **Sample** project (seeded on first run) to try real text and object editing. The default mock provider is for testing the workflow; it does not generate production AI artwork.
+
+**Real generations:** the app bundles a pinned Codex CLI binary, so the recommended keyless path is zero-setup — open **Runtime** in the app, sign in with ChatGPT, and generate against your plan quota. No API key required. Alternatively set `IMAGE_PROVIDER`/`LLM_PROVIDER` (see `.env.example`) to use OpenAI or fal keys.
+
+> Installers are not published yet (packaging lands with the release step). Run from source for now.
 
 ## Bring your own provider
 
-For the web app, copy the example configuration into Next.js's local environment file, then edit it and restart the server:
-
-```bash
-cp .env.example apps/web/.env.local
-```
-
-The **current provider registry** implements:
+The **provider registry** implements:
 
 | Role | Provider | Setup |
 | :--- | :--- | :--- |
-| Image | `mock` | Default; no credentials (labeled **“Chế độ thử nghiệm”** in the UI) |
-| Image | `codex` | Installed Codex CLI with image generation available and an authenticated ChatGPT login |
+| Image | `mock` | Default when no runtime is ready; no credentials (labeled **"Chế độ thử nghiệm"** in the UI) |
+| Image | `codex` | Bundled CLI with image generation available and an authenticated ChatGPT login |
 | Image | `openai` | `OPENAI_API_KEY` (generations **and** edits with reference images; one pinned model) |
 | Image | `fal` | `FAL_KEY` |
 | Planner | `mock` | Default; no credentials |
@@ -116,79 +114,63 @@ The **current provider registry** implements:
 
 A mixed mock/real pair (for example a mock planner feeding the real Codex image channel) **refuses to boot** — canned planner output never rides a real generation channel silently.
 
-For example, to use your existing Codex login for **both** roles (the recommended keyless pair — one login, one channel, two uses):
-
-```bash
-codex login
-IMAGE_PROVIDER=codex LLM_PROVIDER=codex pnpm --filter @oia/web dev
-```
-
 For Vietnamese sellers this enables the banner loop end to end: describe the banner in Vietnamese → the planner reads price/date/name out of the request (editable text blocks, font Be Vietnam Pro) → clean-plate artwork (no baked text) is generated through your ChatGPT plan quota → attach the real product photo as a **reference image** (`codex exec -i`) so the scene is built around the actual product → export at marketplace sizes (Shopee / Lazada / TikTok Shop presets).
 
-Codex image generation depends on CLI support and account access, and consumes the applicable account allowance. Other paid providers bill through your own account. **Self-hosted does not mean generation is free.** Provider names beyond the implemented registry should not be treated as working integrations.
+Codex image generation depends on CLI support and account access, and consumes the applicable account allowance. Other paid providers bill through your own account. **Local does not mean generation is free.** Provider names beyond the implemented registry should not be treated as working integrations.
 
 ## Build it into your workflow
 
-Submit tasks from a script, another app, or a coding agent. Create a key in **For Agents** and set `OIA_REQUIRE_KEY=1` to enforce keys on the guarded task endpoints.
+The desktop app runs a **loopback agent API** bound to `127.0.0.1` (random port). The port is published in a discovery file `agent-api.json` (mode 0600) under the app's user-data directory (`~/Library/Application Support/Oia` on packaged macOS, `%APPDATA%\Oia` on Windows).
+
+1. Open the app → **For agents** → create an API key (shown once).
+2. Point an agent at it — either set `OIA_BASE_URL`/`OIA_API_KEY`, or do nothing: the skill scripts read the discovery file themselves (a stale file whose PID is dead is skipped).
 
 ```bash
-curl -X POST http://localhost:3100/api/tasks/generate-poster \
+curl -X POST http://127.0.0.1:<port>/api/tasks/generate-poster \
   -H 'Content-Type: application/json' \
-  -H "Authorization: ${OIA_API_KEY}" \
+  -H "Authorization: Bearer ${OIA_API_KEY}" \
   -d '{"prompt":"A minimal coffee campaign poster"}'
 ```
 
-The default submission returns a task ID; poll `GET /api/tasks/{taskId}` for the result. Responses use a `{code, data, msg}` envelope. Task records have a 24-hour TTL.
+The default submission returns a task ID; poll `GET /api/tasks/{id}` for the result. Responses use a `{code, data, msg}` envelope. Task records have a 24-hour TTL. When the app is closed the server goes away — agents get `ECONNREFUSED`.
 
-Installable instructions for coding agents live in [`packages/skills/skills`](packages/skills/skills). Configure `OIA_BASE_URL` and `OIA_API_KEY` for your instance.
+Quota is protected: at most one metered generation in flight, per-key rate limits on submissions, and every agent-created job is labeled in the app's job feed so you can see who is spending your quota.
+
+Installable instructions for coding agents live in [`packages/skills/skills`](packages/skills/skills).
 
 <details>
 <summary><strong>Development, tests, and project structure</strong></summary>
 
 ```bash
-pnpm build
-pnpm typecheck
-pnpm test
-
-# Include real Redis-backed integration tests when Redis is available.
-docker compose -f docker/docker-compose.yml up -d redis
-REDIS_URL=redis://localhost:6379 pnpm exec turbo run test --force
+pnpm build && pnpm test && pnpm typecheck     # gates (turbo)
+pnpm --filter @oia/desktop smoke              # happy-path e2e (mock pair, real Electron)
+pnpm --filter @oia/desktop crash-smoke        # error-path e2e: kill services → self-heal
+pnpm --filter @oia/desktop shot               # visual verification → out/*.png
+node config/audit/desktop-audit.mjs           # dependency gate for the shipped tree
 ```
 
-The repository includes unit and integration coverage for the editor utilities, stream protocol, providers, task processing, persistence, and worker flows. See [browser verification notes](docs/verification/editor-export-checks.md) for the recorded editor and export checks.
+The repository includes unit and integration coverage for the editor utilities, stream protocol, providers, task processing, persistence, and the loopback API. See the [verification notes](docs/verification/) for recorded editor, export, and parity checks.
 
 ```text
-apps/web            Next.js studio, Fabric editor, REST and SSE endpoints
-apps/worker         Background worker
-packages/agent      Planning and streamed scene generation
-packages/canvas     Canvas utilities, page handling, and export planning
-packages/providers  Image and language-model adapters
-packages/protocol   Stream decoder and message markers
-packages/schema     Shared validation and scene schemas
-packages/tasks      Task processing, files, projects, and templates
-packages/db         Database schema definitions
-packages/skills     Coding-agent instructions
+apps/desktop         Electron app: main + utility process, renderer (React), shared IPC contracts
+packages/agent       Planning and streamed scene generation
+packages/canvas      Canvas utilities, page handling, and export planning
+packages/providers   Image and language-model adapters (CLI + process-host)
+packages/protocol    Stream decoder and message markers
+packages/schema      Shared validation and scene schemas
+packages/services    Chat orchestration, quota, context
+packages/tasks       Task processing, stores, files, projects, and templates
+packages/skills      Coding-agent instructions (consumer of the loopback API)
 ```
 
 </details>
 
-## Desktop direction (in progress)
+## Current boundaries
 
-The product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. The [design](docs/designs/desktop-app.md) is approved (owner gates Q1–Q10, 2026-10-30); shipped so far:
-
-- `apps/desktop` — Electron + electron-vite shell with a typed, zod-validated IPC surface over the same service layer (`@oia/services`) the web app uses; banner Home flow with clean-plate toggle, stop control, Vietnamese error map, and a canvas preview served by a custom `oia://files` asset protocol (no HTTP server needed).
-- **In-app Codex runtime (D3 increment 1)** — a runtime panel manages the engine with zero terminal use: detect (PATH/well-known/managed) → guided download of the official checksummed `codex-package-<target>.tar.gz` (sha256 verified against the published sums, recoverable swap) → in-app ChatGPT login (origin-checked auth URL, opened in the system browser, shown copyable as fallback) → provider-mode switch (auto/codex/mock) that rebuilds the context without a restart. Auto picks Codex only after you act through the panel (install/login/explicit choice) — a pre-installed codex never auto-bills your quota. CI smoke stays mock.
-- Verified end to end on macOS with a scripted real-window check (`OIA_DESKTOP_SHOT`) and a CI `desktop-smoke` job (xvfb). The chat loop runs keyless (mock pair) or against the owner's Codex login, exactly like the web shell.
-
-**Desktop installers are not available yet.** Remaining slices: the full renderer port (editor, templates), install-and-upgrade persistence (schemaVersion, per-project files, `.data` import), Windows verification (physical-machine gate), and signed auto-updates. The setup instructions above describe the current self-hosted web implementation.
-
-## Deployment & current boundaries
-
-- **Designed for a trusted self-hosted environment.** API-key checks on guarded routes are not a complete, application-wide authentication system. Put the app behind access control before exposing it publicly.
-- **Local storage by default.** Project and asset persistence uses the app's local data directory. Use a persistent volume or set `OIA_DATA_DIR`; back it up before upgrading.
+- **Local storage.** Projects and assets live in the app's data directory as per-project files (atomic writes; a corrupt file never takes the whole library). Import from a legacy web-app `.data` folder via Workspace → **Import from web app**.
 - **Artwork remains raster.** Object-level canvas edits do not edit pixels inside the underlying image. Reference-image support also varies by provider.
-- **Some tools need extra setup or are unfinished.** Background removal requires `rembg`. PPT Translator is coming soon; the image-translation task is not implemented.
-- **Your provider remains involved.** Prompts and images used for generation go to the configured provider. Running the studio locally does not make external model calls private to your machine.
+- **Some tools need extra setup or are unfinished.** Background removal requires `rembg`. PPT Translator is a landing page; the translation task is not implemented yet.
+- **Your provider remains involved.** Prompts and images used for generation go to the configured provider. Running locally does not make external model calls private to your machine.
 
 ## Open source
 
