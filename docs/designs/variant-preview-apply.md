@@ -1,7 +1,7 @@
 # A1 — Preview-before-apply: khay variant + Replace selected layer
 
 **Ngày:** 2026-10-31
-**Trạng thái:** Đang triển khai (owner kích hoạt sớm — xem "Quyết định sequencing" dưới).
+**Trạng thái:** ĐÃ IMPLEMENT trên nhánh `a1-preview-apply` (5 commit, gates xanh — xem cuối doc). Owner kích hoạt sớm — xem "Quyết định sequencing" dưới.
 **Nguồn quyết định cha:** [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) mục A1 + Q1 (chốt 2026-10-31). Doc này là bản "tốt nghiệp" theo Q5 — mọi quyết định triển khai sống ở ĐÂY, brainstorm doc ngừng cập nhật chi tiết A1.
 **Ràng buộc cha:** `design-direction.md` (UX rules, no-silent-fallback), hard rules AGENTS.md (B7 records-must-not-lie, quota-is-money G3, D8 English UI).
 
@@ -75,12 +75,16 @@ replaceObjectSrc(scene: SceneCanvas, index: number, src: string): SceneCanvas  /
 - **B7 (records must not lie):** job feed Runs giữ nguyên; variant card là bản trình bày của canvas msgMeta — canvas thật persist trong session record, card không tự sao chép dữ liệu riêng (một nguồn, không lệch bản).
 - **D8:** mọi chuỗi UI mới là tiếng Anh.
 
-## Gates (định nghĩa xong khi code xong)
+## Gates (đã chạy 2026-10-31, nhánh `a1-preview-apply`)
 
-1. `packages/canvas/test/provenance.test.ts`: replaceObjectSrc giữ geometry + mọi object khác + clip; sai index throw; variantArtworkObject chọn đúng largest-area, bỏ clip/user/src-less. (error path: index ngoài range.)
-2. `packages/services/test/chat-service.test.ts`: runChat trả sessionId; gọi lại với sessionId đó tái dùng đúng session (đếm messages, không sinh session mới).
-3. **Shot (mắt script, mock pair):** trong Editor, chạy 1 edit qua dock thật → card `[data-testid=variant-card]` xuất hiện; **src các object canvas KHÔNG đổi** (pin canvas-giữ-nguyên — lỗi dễ tái phát là auto-merge cũ còn sót); select artwork bằng `__oiaCanvas` → bấm Replace → src của đúng object đó đổi, số lượng + vị trí object khác không đổi; Not now → card biến mất. Exit code mới.
-4. `pnpm build && pnpm test && pnpm typecheck` xanh; `pnpm --filter @oia/desktop shot` xanh (kể cả chrome/dark-mode gates cũ).
+1. ✅ `packages/canvas/test/provenance.test.ts` — 38 test canvas xanh (gồm 9 mới: largest-area pick, legacy-default, copy-on-write giữ geometry/reference, RangeError/TypeError error paths).
+2. ✅ `packages/services/test/chat-service.test.ts` — 21 test xanh (2 mới: join đúng session qua sessionId — 2 cặp tin trong 1 session, không sinh session mới; refusal vẫn trả sessionId vì prompt đã persist — B7).
+3. ✅ **Shot (mock pair, exit 17 khi sai):** submit edit qua dock thật → **đúng 1 card** (dedupe — xem phát hiện dưới) → canvas srcs **byte-identical** khi kết quả về (pin chống auto-merge cũ sống lại) → Replace disabled khi chưa chọn → chọn artwork xong enabled → bấm Replace: apply path chạy (undo bật trên editor mới), object count giữ, ≤ 1 src đổi, không error → Not now ẩn card. Mock placeholder dedupe về cùng URL nên "đúng 1 src đổi" pin ở unit test (dữ liệu kiểm soát được) — shot pin wiring.
+4. ✅ `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh (8/16/15 task).
+
+**Phát hiện nhờ gate:** designer stream phát LẠI cùng một canvas meta nhiều lần trong 1 job (designer.ts các yield canvasMeta) — code merge cũ che việc này (đè lên nhau vô hại); khay variant mà không dedupe sẽ hiện card ma. Đã dedupe theo `jobId:canvasId` (VA-2). Đây đúng họ bài học "gate element-tồn-tại không bắt được vẽ-sai" — gate ĐẾM card mới bắt được.
+
+**Sự cố vận hành (ghi lại để cả nhà tránh):** một phiên agent khác làm glass/icon trong cùng repo chạy `git reset --hard` giữa chừng, xóa sạch working tree chưa commit của phiên này (05:40). Toàn bộ A1 được khôi phục lại từ ngữ cảnh và commit theo tầng + push nhánh `origin/a1-preview-apply` ngay sau đó. Bài học: KHÔNG để work-in-progress nằm ngoài commit trong repo đa-agent; commit sau mỗi tầng xong.
 
 ## Rủi ro / cạnh đã nghĩ
 
