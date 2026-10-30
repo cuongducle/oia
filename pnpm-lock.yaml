@@ -88,7 +88,7 @@ importers:
         specifier: 39.8.10
         version: 39.8.10
       electron-builder:
-        specifier: ^26.0.0
+        specifier: 26.18.0
         version: 26.18.0(electron-builder-squirrel-windows@26.18.0)
       electron-vite:
         specifier: ^4.0.0
