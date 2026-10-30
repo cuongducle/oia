@@ -11,11 +11,21 @@ directories:
   buildResources: resources
 
 # The app runs from out/ (electron-vite output). node_modules production deps
-# are packaged automatically (main externalizes them at build time).
+# are packaged automatically (main externalizes them at build time). The pnpm
+# workspace symlinks drag each @oia package's WHOLE dir — src/, test/ and .turbo
+# logs are build noise, not app code (found by asar inspection, not by review).
 files:
   - out/**/*
   - "!out/*.png" # shot-gate artifacts, not app code
   - "!**/*.map"
+  - "!node_modules/**/.turbo/**"
+  - "!node_modules/**/@oia/*/src/**"
+  - "!node_modules/**/@oia/*/test/**"
+# Known packaging characteristic (accepted 2026-10-30): pnpm nests workspace deps,
+# so @oia/schema & co exist TWICE in the asar (top-level + under @oia/tasks).
+# Same shape as `pnpm dev` runtime (identical resolution), so no behavior drift —
+# but it means TWO module instances; anything relying on module-level state in a
+# shared package would split. Revisit only if a store ever grows such state.
 
 # D12 — codex pinned pair rides in Contents/Resources/codex; runtime.ts reads
 # process.resourcesPath/codex when app.isPackaged. Source tree is created by

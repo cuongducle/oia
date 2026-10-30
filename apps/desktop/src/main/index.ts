@@ -10,6 +10,7 @@ import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
 import { runOcrScenario } from "./shotOcr.js";
+import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
   chatRequestSchema,
@@ -114,8 +115,9 @@ function createWindow(): BrowserWindow {
     title: "Oia",
     // T1 (macos-design-2026.md): native-feel chrome on macOS — traffic lights
     // inline with the app's top bars (padding + drag region in app.css); the
-    // system title bar stays intact on Windows/Linux.
-    ...(process.platform === "darwin" ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 20, y: 21 } } : {}),
+    // system title bar stays intact on Windows/Linux. x + the bar inset share
+    // TRAFFIC_LIGHTS (shared/trafficLights.ts) — the shot gate pins the pair.
+    ...(process.platform === "darwin" ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: TRAFFIC_LIGHTS.x, y: 21 } } : {}),
     webPreferences: {
       preload: path.join(here, "../preload/index.cjs"), // .cjs — see electron.vite.config note
       contextIsolation: true,
@@ -546,6 +548,25 @@ async function shot(): Promise<void> {
     setTimeout(() => resolve(), 15_000); // never hang forever
   });
   console.log("[shot] loaded; probing oia:// image load…");
+  // T1 chrome gate (darwin): the traffic-light padding shipped GREEN while broken
+  // once — the marker wasn't set and no assert noticed. Pin the PAIR now: marker
+  // present AND the bar's computed padding equals the shared constant exactly.
+  if (process.platform === "darwin") {
+    const chrome = await win.webContents.executeJavaScript(`(() => {
+      const bar = document.querySelector(".viewNav");
+      return {
+        marker: document.documentElement.dataset.platform ?? null,
+        pad: bar ? getComputedStyle(bar).paddingLeft : null,
+        drag: bar ? getComputedStyle(bar).webkitAppRegion : null,
+      };
+    })()`, true);
+    console.log("[shot] chrome verify:", JSON.stringify(chrome));
+    if (chrome.marker !== "darwin" || chrome.pad !== `${TRAFFIC_LIGHTS.insetPx}px` || chrome.drag !== "drag") {
+      console.error("DESKTOP_SHOT CHROME VERIFY FAILED");
+      app.exit(15);
+      return;
+    }
+  }
   const probe = await win.webContents.executeJavaScript(`(async () => {
     const src = "oia://files/uploads/20261029/295ef2b2-mvtw036q.png";
     const load = (crossOrigin) => new Promise((res) => {

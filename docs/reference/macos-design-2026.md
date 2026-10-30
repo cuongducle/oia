@@ -85,7 +85,7 @@ thời lượng, Cancel luôn hiện, không overclaim) — T1 không chạm n�
 IconComposer cần Xcode 26 (có sẵn trên máy dev); icon nhiều lớp cũng render fallback đúng cho
 macOS cũ — không mất gì khi chỉ xuất icon.
 
-## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-11-06 (bước 7c)
+## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-10-30 (bước 7c)
 
 - [x] Icon: **placeholder .icns đã ship (7a)** — squircle tím accent + O serif. Quyết định icon THẬT (nhiều lớp Icon Composer vs icns thường) vẫn chờ owner — không chặn v1.
 - [x] Window chrome: `hiddenInset` + traffic light padding — SHIP (7c); dark mode + wallpaper sáng/tối còn nợ quick-check owner (gate kéo + vision sáng thường đã xanh).

@@ -2,6 +2,16 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Step 7 CSP: every extra token is claimed by a lane and pinned by
+      test/csp-pin.test.ts — jsdelivr = tesseract.js worker script + wasm core +
+      lang data (first OCR run), blob: = that worker + tool image previews,
+      wasm-unsafe-eval = WebAssembly.instantiate (blocked without it — found by
+      the OIA_SHOT_OCR gate), oia:/data: = scene assets + inline previews.
+      Decision (2026-10-30): allowlist the CDN instead of bundling the recognizer
+      (~30 MB lang data) — matches the web behavior; offline cost = OCR tool
+      errors visibly, everything else unaffected. jsdelivr stays the ONLY net origin.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' oia: blob: data:; font-src 'self' data:; connect-src 'self' oia: blob: data: https://cdn.jsdelivr.net"

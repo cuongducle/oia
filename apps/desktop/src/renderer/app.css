@@ -101,13 +101,15 @@ pre, code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9
 
 /* T1 (macos-design-2026.md) — hiddenInset chrome: the top bars ARE the title bar.
    Drag comes from the bar; every interactive child opts back out. Left padding
-   reserves the traffic-light zone. Other platforms keep the system title bar. */
+   reserves the traffic-light zone — the inset value is owned by shared/trafficLights.ts
+   (set as --traffic-inset by the preload); the fallback matches it for a dead preload.
+   Other platforms keep the system title bar. */
 html[data-platform="darwin"] .viewNav, html[data-platform="darwin"] .edTop { -webkit-app-region: drag; }
-html[data-platform="darwin"] .viewNav { padding-left: 92px; }
-html[data-platform="darwin"] .edTop { padding-left: 92px; }
+html[data-platform="darwin"] .viewNav { padding-left: var(--traffic-inset, 92px); }
+html[data-platform="darwin"] .edTop { padding-left: var(--traffic-inset, 92px); }
 html[data-platform="darwin"] .viewNav button, html[data-platform="darwin"] .viewNav a, html[data-platform="darwin"] .viewNav input,
 html[data-platform="darwin"] .edTop button, html[data-platform="darwin"] .edTop a, html[data-platform="darwin"] .edTop input,
-html[data-platform="darwin"] .edTop select, html[data-platform="darwin"] .edTop .textToolbar { -webkit-app-region: no-drag; }
+html[data-platform="darwin"] .edTop select { -webkit-app-region: no-drag; }
 .viewFrame > main { overflow-y: auto; }
 
 /* ---------- Home (studio refresh — docs/design-direction.md) ---------- */

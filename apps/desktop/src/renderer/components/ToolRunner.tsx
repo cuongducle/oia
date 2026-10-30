@@ -241,6 +241,9 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       const worker = await Tesseract.createWorker("eng+vie");
       let words: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[];
       try {
+        // SAFETY: tesseract's own .d.ts ships no blocks→words depth types; the
+        // flatten below only reads fields the v7 worker actually returns (verified
+        // against a real recognize in the OIA_SHOT_OCR gate — wordCount=2).
         const res = (await worker.recognize(file, {}, { blocks: true })) as unknown as {
           data: { blocks: { paragraphs: { lines: { words: typeof words }[] }[] }[] | null };
         };

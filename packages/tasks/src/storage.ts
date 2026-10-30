@@ -27,6 +27,8 @@ export class LocalFileStore implements FileStore {
   private legacyFullMd5Index = new Map<string, string>(); // 32-hex md5 names → key
   /** LEGACY pre-F3 names: 8-char prefix — a HINT, bytes verified before any claim. */
   private legacyPrefixIndex = new Map<string, string>();
+  /** Realpath of rootDir, resolved once — it never moves (see read()). */
+  private realRootP: Promise<string> | undefined;
   constructor(
     private rootDir = process.env.OIA_DATA_DIR ?? ".data/files",
     private publicBase = "/api/files",
@@ -126,8 +128,13 @@ export class LocalFileStore implements FileStore {
     const full = path.join(this.rootDir, safe);
     // Reorg step 7 security gate: safeKey stops ".."/absolute keys, but a symlink
     // planted inside the tree would still escape — resolve BOTH ends and require
-    // the file to stay inside the real root (throws ENOENT-miss as before when absent).
-    const [realFile, realRoot] = await Promise.all([realpath(full), realpath(this.rootDir)]);
+    // the file to stay inside the real root (throws ENOENT-miss as before when
+    // absent). Known TOCTOU: the link could swap between realpath and readFile —
+    // accepted (defeating it needs an attacker who can already write the tree,
+    // at which point they own the data anyway). realRoot never moves — cached.
+    this.realRootP ??= realpath(this.rootDir);
+    const realRoot = await this.realRootP;
+    const realFile = await realpath(full);
     if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) throw new Error("invalid key");
     return new Uint8Array(await readFile(full));
   }

@@ -58,12 +58,16 @@ const api: OiaBridge = {
 
 contextBridge.exposeInMainWorld("oia", api);
 
-// Platform marker for chrome CSS (T1, macos-design-2026): hiddenInset traffic
-// lights need reserved padding + a drag region in the top bars. Sandbox-safe:
-// the polyfilled `process` exposes platform without node access. The preload can
-// run BEFORE documentElement exists (probed on Electron 39) — defer when needed.
-const setPlatformMarker = (): void => {
+// Platform marker + traffic-light inset for chrome CSS (T1, macos-design-2026).
+// Sandbox-safe: the polyfilled `process` exposes platform without node access.
+// The preload can run BEFORE documentElement exists (probed on Electron 39) —
+// defer to DOMContentLoaded then; the readyState guard is belt-and-braces for
+// late-running preloads (after DCL documentElement always exists, so the
+// immediate branch covers that case, but the guard keeps the intent explicit).
+import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
+const applyPlatformChrome = (): void => {
   document.documentElement.dataset.platform = process.platform;
+  document.documentElement.style.setProperty("--traffic-inset", `${TRAFFIC_LIGHTS.insetPx}px`);
 };
-if (document.documentElement) setPlatformMarker();
-else document.addEventListener("DOMContentLoaded", setPlatformMarker);
+if (document.documentElement && document.readyState !== "loading") applyPlatformChrome();
+else document.addEventListener("DOMContentLoaded", applyPlatformChrome);
