@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oia — Generate the image. Keep the control.</title>
+<meta name="description" content="Oia is the free, open-source image agent: AI artwork on a real, layer-based canvas. Editable text, shapes and your own assets. MIT, self-hosted, bring your own provider.">
+<meta name="theme-color" content="#0e0d1f">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Oia — Generate the image. Keep the control.">
+<meta property="og:description" content="Free & open-source image agent. AI artwork on a real, layer-based canvas. MIT · self-hosted · bring your own provider.">
+<meta property="og:image" content="qa-shots/1-hero.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body id="top">
+<canvas id="grain-canvas" aria-hidden="true"></canvas>
+<div class="edge" id="progress"></div>
+<div class="cursor-dot" id="cdot" aria-hidden="true"></div>
+<div class="cursor-ring" id="cring" aria-hidden="true"></div>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="rail" id="rail" aria-label="Chapters">
+  <a href="#top" class="on" data-ch="hero"><i></i><span>01 canvas</span></a>
+  <a href="#layers" data-ch="layers"><i></i><span>02 layers</span></a>
+  <a href="#templates" data-ch="templates"><i></i><span>03 templates</span></a>
+  <a href="#workflow" data-ch="workflow"><i></i><span>04 workflow</span></a>
+  <a href="#oss" data-ch="oss"><i></i><span>05 open source</span></a>
+</nav>
+
+<nav aria-label="Main">
+  <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
+  <div class="navlinks">
+    <a href="#layers">How it works</a>
+    <a href="#templates">Templates</a>
+    <a href="#oss">Open source</a>
+  </div>
+  <div class="navcta">
+    <!-- TODO: replace # with the real repository URL before launch -->
+    <a class="github" href="#" title="GitHub (link pending)" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+    <a class="btn btn-ghost" href="#">Download</a>
+  </div>
+</nav>
+
+<header class="hero" id="hero">
+  <div class="hero-copy">
+    <h1 class="display">
+      <span class="line"><span>Generate the image.</span></span>
+      <span class="line"><span>Keep the control.</span></span>
+    </h1>
+    <p class="trust"><span>FREE &amp; OPEN SOURCE</span> <b>·</b> <span>MIT</span> <b>·</b> <span>SELF-HOSTED</span> <b>·</b> <span>BYO PROVIDER</span></p>
+    <div class="ctas">
+      <!-- TODO: point to real per-OS downloads before launch -->
+      <a class="btn btn-accent" href="#">Download for macOS</a>
+      <a class="btn btn-ghost" href="#">View on GitHub</a>
+    </div>
+  </div>
+
+  <div class="board" id="board" aria-label="Oia canvas moodboard — drag the layers">
+    <span class="board-tag">canvas · 6 layers — drag me</span>
+    <figure class="tile t-palette drag-hint">
+      <span class="sw" style="background:#0c2b1e"></span><span class="sw" style="background:#f4f1e8"></span><span class="sw" style="background:#2753d4"></span><span class="sw" style="background:#b4552d"></span><span class="sw" style="background:#7c5cff"></span>
+      <span class="cap mono">palette</span>
+    </figure>
+    <figure class="tile t-festival">
+      <img src="assets/festival.webp" alt="City Sound Fest template" width="262" height="349">
+      <span class="sel-ghost"></span>
+      <span class="selchip">image · city-sound-fest · layer 1</span>
+    </figure>
+    <figure class="tile t-matcha">
+      <img src="assets/matcha.webp" alt="Matcha Every Day template" width="335" height="447">
+      <span class="handles"><i></i><i></i><i></i><i></i></span>
+      <figcaption class="layerchip">text · matcha-everyday · layer 4</figcaption>
+    </figure>
+    <figure class="tile t-botanical"><img src="assets/botanical.webp" alt="Lumea skincare template" width="240" height="320"></figure>
+    <figure class="tile t-persp">
+      <div class="t1">Good tea,<br>brighter days.</div>
+      <div class="t2">text · layer 6</div>
+      <span class="cap mono">native text object</span>
+    </figure>
+
+    <div class="chip chip-prompt">
+      <div class="k">prompt</div>
+      <div class="t">a matcha editorial study — <em>cream type</em>, quiet morning light</div>
+    </div>
+    <div class="chip chip-log">
+      <div class="row"><span>generate scene</span><b>done · 12.4s</b></div>
+      <div class="row"><span>place copy layer</span><b>done · 0.3s</b></div>
+      <div class="row"><span>export png</span><span><span class="spin"></span></span></div>
+    </div>
+
+    <svg class="arrow" style="right:24%;bottom:21%;width:118px" viewBox="0 0 118 74" fill="none" aria-hidden="true">
+      <path class="draw" d="M112 64 C 78 70, 40 52, 12 12" stroke="#7c5cff" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
+      <path class="draw" d="M10 26 L12 12 L26 16" stroke="#7c5cff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".65"/>
+    </svg>
+  </div>
+</header>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span>Open image agent <i>◆</i></span><span>Editable text objects <i>◆</i></span><span>Export PNG · PDF · PPTX <i>◆</i></span><span>Bring your own provider <i>◆</i></span><span>Task API &amp; agent skills <i>◆</i></span><span>Non-destructive refinement <i>◆</i></span>
+    <span>Open image agent <i>◆</i></span><span>Editable text objects <i>◆</i></span><span>Export PNG · PDF · PPTX <i>◆</i></span><span>Bring your own provider <i>◆</i></span><span>Task API &amp; agent skills <i>◆</i></span><span>Non-destructive refinement <i>◆</i></span>
+  </div>
+</div>
+
+<main id="main">
+<section id="layers">
+  <div class="wrap layers-grid">
+    <div class="stack" id="stack">
+      <div class="card card-photo"><img src="assets/matcha.webp" alt="Generated scene" width="340" height="453"></div>
+      <div class="card card-copy">
+        <div class="big">Matcha<br>every <span>day.</span></div>
+        <div class="small">native text object — not pixels</div>
+      </div>
+    </div>
+    <div>
+      <p class="kicker">Layers, not magic</p>
+      <h2>The image and the design are different things.</h2>
+      <p class="hint">scroll — the layers separate</p>
+      <div class="chips3">
+        <span class="c3">text</span><span class="c3">images</span><span class="c3">shapes</span><span class="c3">your uploads</span><span class="c3">multi-page</span><span class="c3">undo · autosave</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="templates">
+  <div class="wrap">
+    <p class="kicker">Studio templates</p>
+    <h2>Start from a scene.<br>Finish it yourself.</h2>
+    <div class="gallery-grid">
+      <figure class="gtile"><img loading="lazy" src="assets/matcha.webp" alt="Matcha Every Day" width="300" height="400"><span class="tag">matcha</span></figure>
+      <figure class="gtile"><img loading="lazy" src="assets/festival.webp" alt="City Sound Fest" width="300" height="400"><span class="tag">festival</span></figure>
+      <figure class="gtile"><img loading="lazy" src="assets/botanical.webp" alt="Lumea skincare" width="300" height="400"><span class="tag">botanical</span></figure>
+      <figure class="gtile"><img loading="lazy" src="assets/perspective.webp" alt="Perspective study" width="300" height="400"><span class="tag">perspective</span></figure>
+    </div>
+    <p class="gallery-note">→ publish your own as editable community templates</p>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="wrap">
+    <p class="kicker">Workflow</p>
+    <h2>A studio around your image model.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">01 — GENERATE</div>
+        <h3>Describe it</h3>
+        <div class="log"><div>plan scene <b>ok · 2.1s</b></div><div>generate artwork <b>ok · 12.4s</b></div></div>
+      </div>
+      <div class="step">
+        <div class="num">02 — MAKE IT YOURS</div>
+        <h3>Edit the layers</h3>
+        <div class="log"><div>your layers are stamped</div><div class="trust-line"><b>origin: user</b> — AI never deletes them</div></div>
+      </div>
+      <div class="step">
+        <div class="num">03 — PRODUCE</div>
+        <h3>Export</h3>
+        <div class="log"><div>png · jpg · pdf · pptx · zip</div><div>export pdf <b>ok · 1.8s</b></div></div>
+      </div>
+    </div>
+    <div class="editor-frame">
+      <img loading="lazy" src="assets/editor.png" alt="Oia editor with the Matcha Every Day headline selected as a native text object" width="1600" height="1000">
+      <span class="cap mono">real editor · headline is a text object</span>
+    </div>
+  </div>
+</section>
+
+<section id="oss">
+  <div class="wrap">
+    <p class="kicker">Open source</p>
+    <h2>Yours to run.<br>Yours to keep.</h2>
+    <div class="oss-grid">
+      <div class="oss-cell"><div class="k">MIT license</div></div>
+      <div class="oss-cell"><div class="k">Self-hosted</div></div>
+      <div class="oss-cell"><div class="k">BYO provider</div></div>
+      <div class="oss-cell"><div class="k">Agent-ready</div></div>
+    </div>
+    <div class="term">
+      <div class="bar"><i></i><i></i><i></i></div>
+      <pre><span class="p">$</span> oia generate "a matcha editorial study" --pages 2 <span class="c"># agent task api</span>
+<span class="c">✓ scene planned · artwork generated · copy layer placed</span> <span class="caret"></span></pre>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
+  <span class="meta">MIT · site — Oct 2026</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/Draggable.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/split-type@0.3.4/umd/index.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script src="main.js" defer></script>
+</body>
+</html>
