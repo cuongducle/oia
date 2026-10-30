@@ -54,11 +54,58 @@ never in CI, only when the owner asks.
 ## First-class citizens
 
 - **macOS AND Windows.** A passing macOS build is not evidence for Windows (D3).
-  Watch: `.cmd` shims, `C:\` paths, PATH from GUI launch, EPERM on rename.
+  BEFORE changing process spawning, file paths, the codex bridge, or the
+  Electron shell, read
+  [`docs/reference/cross-platform-support.md`](docs/reference/cross-platform-support.md)
+  — it is the distilled battle log (`.cmd` shims, `C:\` path shapes, GUI-launch
+  PATH, EPERM renames, detached trees, `.cjs` preload, `oia://` CORS).
 - **The seller's quota.** Every generation path must be cancellable, metered once,
   and visible (UI or agent-job events).
 - **Wire contracts are stable names.** `errorClass` / error `name` cross IPC and
   HTTP; the renderer and skills map on them. Renaming one is a breaking change.
+
+## Reuse before reimplementing
+
+Before writing new logic at any scale — a store call, an IPC handler, an HTTP
+route, a validation — check whether it already exists:
+
+- `@oia/tasks` (stores, processors, upload, api keys) and `@oia/services`
+  (chat orchestration, quota, context) own the logic; shells only wire it.
+- **The web app's routes are the reference implementation of every API
+  semantic.** When porting, mirror them exactly — drift here produced the
+  `language`-field skill bug (the API rejected a field the skill sent, and
+  nothing caught it until the live e2e).
+- `@oia/schema` is the single home for shapes, versions, and constants.
+
+## Code style pointers
+
+- **Comments**: only when code does not describe itself; one line if possible;
+  WHY, not how; cite the spec tag (`TP.7`, `D9`) as a pointer, never as the only
+  record of a decision.
+- **Type assertions**: avoid except `as const`. An unavoidable cast needs a
+  line-specific `SAFETY:` comment saying why it cannot lie.
+- **File naming**: name files after the domain concept they hold
+  (`copy-zones.ts`, `utilityClient.ts`), never after their role (`helpers`,
+  `utils`, `common`) — those become dumping grounds.
+- Full conventions: [`docs/STYLEGUIDE.md`](docs/STYLEGUIDE.md).
+
+## UI validation
+
+- `pnpm --filter @oia/desktop shot` is the scripted eyes: it opens the real
+  window, drives the bridge, and asserts painted pixels (not just DOM). Extend
+  it when porting views — a view without a shot check is unverified.
+- Rebuild (`electron-vite build`) before launching smoke/shot after changing
+  startup/launch-policy code — a stale `out/` wrapper can run old behavior and
+  produce confident nonsense.
+- The gates run in CI on Linux (xvfb). They prove wiring, not platform
+  behavior: platform claims need the real-machine gates (step 7).
+
+## Tests
+
+Before adding a test, check it against
+  [`docs/reference/test-antipatterns.md`](docs/reference/test-antipatterns.md).
+  The short version: gate the error path, exercise real stores/servers over temp
+  dirs, never count tests as coverage.
 
 ## Architecture map (post step 4a)
 
@@ -79,3 +126,13 @@ do not "discover" it as new; do not fix silently either: update the ledger.
 
 Code conventions: [`docs/STYLEGUIDE.md`](docs/STYLEGUIDE.md).
 Commit style: imperative subject + structured body explaining WHY (see `git log`).
+
+## Git / GitHub
+
+- Commit style and gates-run evidence: see STYLEGUIDE "Commits".
+- A failed CI run: `gh run rerun <run-id> --failed` reruns only the failed jobs —
+  preserve the green ones. A code fix always needs a new push and fresh checks,
+  never a rerun of the old SHA.
+- The `@oia-web` ratchet and the smoke gates live in `.github/workflows/ci.yml`;
+  if a change legitimately needs to move a baseline DOWN is fine, UP never
+  (baselines only decrease).

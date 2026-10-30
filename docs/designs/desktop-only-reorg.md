@@ -168,3 +168,8 @@ Còn treo (chưa sửa, đã biết): `oia://` đi vòng IPC lấy bytes + conte
 - **SITEMAP.md** giữ vai trò sổ cái thiết kế — thêm dòng reorg plan (đánh dấu "đang thực thi").
 - Giữ nguyên: `private/` (swarm archive, competitor RE, ui-audit chờ bước 6), `validation/`, `screenshots/`.
 - Không adopt của Orca: `docs/readme/` đa ngôn ngữ (UI đã chốt EN — D8), `docs/site/` (chưa có website sản phẩm).
+
+Bổ sung cùng ngày (vòng 2, theo yêu cầu "tham khảo cả nội dung"): học CÁCH VIẾT của Orca — battle log chưng cất thành luật, mỗi quy tắc gắn bẫy thật + hàm đúng + lý do:
+- `docs/reference/cross-platform-support.md` (mới): toàn bộ bẫy đa nền tảng repo này từng dính — .cmd shim, 3 dạng path Windows, PATH từ GUI launch, EPERM rename, detached tree, .cjs preload, oia:// CORS, thứ tự gate loopback.
+- `docs/reference/test-antipatterns.md` (mới): mỗi anti-pattern gắn miss thật (4 bug xanh gate, bug language-field, e2e chạy tay một lần).
+- `AGENTS.md` nâng nội dung: reuse-before-reimplementing (route web = tham chiếu semantic), quy tắc comment/assertion SAFETY:, kỷ luật UI validation (shot = mắt script, rebuild trước khi smoke), git/gh rerun-failed.

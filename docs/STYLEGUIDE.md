@@ -80,3 +80,12 @@ A tag in code is a POINTER to the spec, not a replacement for it.
   (`desktop/D9:`, `schema:`, `reorg step N`).
 - Body answers WHY the change is safe: what gates ran, what could break.
 - Never mix a docs-only change with code changes if you can help it.
+
+## Comments & assertions
+
+- A comment exists to answer WHY the code looks wrong, in one line if possible.
+  Cite the spec tag (`TP.7`, `B7`, `D9`) as a pointer; the decision itself lives
+  in the plan doc, never only in the comment.
+- Type assertions are avoided except `as const`. An unavoidable one carries a
+  line-specific `SAFETY:` note explaining why the cast cannot lie — reviewers
+  grep for this word; if it is missing, the cast is a bug waiting.
