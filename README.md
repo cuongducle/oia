@@ -172,11 +172,14 @@ packages/skills     Coding-agent instructions
 
 </details>
 
-## Desktop direction (planned)
+## Desktop direction (in progress)
 
-The planned product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. See the [desktop architecture research](docs/desktop-architecture.md) for the Electron proposal, reference projects, migration sequence, and platform verification requirements.
+The product direction is a shared **macOS and Windows desktop app**, with a public website for product information and downloads. The [design](docs/designs/desktop-app.md) is approved (owner gates Q1–Q10, 2026-10-30) and the first shell slice is merged:
 
-**Desktop installers are not available yet.** The setup instructions above describe the current self-hosted web implementation, not a packaged desktop release.
+- `apps/desktop` — Electron + electron-vite shell with a typed, zod-validated IPC surface over the same service layer (`@oia/services`) the web app uses; banner Home flow with clean-plate toggle, stop control, Vietnamese error map, and a canvas preview served by a custom `oia://files` asset protocol (no HTTP server needed).
+- Verified end to end on macOS with a scripted real-window check (`OIA_DESKTOP_SHOT`) and a CI `desktop-smoke` job (xvfb). The chat loop runs keyless (mock pair) or against the owner's Codex login via env, exactly like the web shell.
+
+**Desktop installers are not available yet.** Remaining slices: the full renderer port (editor, templates), in-app Codex provisioning + login, install-and-upgrade persistence (schemaVersion, per-project files, `.data` import), Windows verification (physical-machine gate), and signed auto-updates. The setup instructions above describe the current self-hosted web implementation.
 
 ## Deployment & current boundaries
 

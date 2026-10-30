@@ -172,6 +172,52 @@ a non-technical user can produce.
 Gates restated: packaging investment (D2+) starts only after the seller sessions meet
 the Stage-0 exit criteria — the unproven-loop rule. D0–D1 may proceed now.
 
+## Remaining work (task ledger, updated 2026-10-30)
+
+The consolidated list of everything between here and a shippable v1 desktop app.
+Owner gates are marked 👤; everything else is implementable work.
+
+### D2 remainder — renderer port (macOS, mock-first)
+- [ ] Editor port: fullscreen editing shell (canvas, layers, text/shapes/tables, undo/redo, autosave) over IPC + `@oia/canvas`
+- [ ] Editor AI dock: refine flow with the non-destruction merge (TP.10 already in `@oia/canvas`)
+- [ ] Marketplace size presets panel (Shopee/Lazada/TikTok Shop — data already in `@oia/canvas`)
+- [ ] Export: PNG/JPG (canvas), PDF/PPTX (reuse the processors via services)
+- [ ] Template gallery + open-template → project-by-id handoff (services exist)
+- [ ] Projects/workspace list + recent
+- [ ] Studio design-system parity (tokens, fonts bundled — Be Vietnam Pro ships offline)
+
+### D3 — Codex in-app runtime
+- [ ] Spike S5: Codex CLI redistribution licensing + auto-provision (download + checksum) viability
+- [ ] Spike S6: in-app login flow (`codex login` browser+callback) on macOS and Windows
+- [ ] RuntimeProvisioner: PATH → bundled → guided download; diagnostics panel reuse
+- [ ] Real-login end-to-end in the shell (macOS; quota-billed verification runs)
+
+### D4 — persistence v2 (install-and-upgrade)
+- [ ] `schemaVersion` on every store + migration framework (failed migration ⇒ quarantine, never delete)
+- [ ] Per-project files (stop whole-file `projects.json` rewrites)
+- [ ] `.data` importer (web → desktop first run; projects/sessions/templates/files)
+- [ ] userData storage layout freeze
+
+### D5 — Windows
+- [ ] Windows build in CI (build-only job first)
+- [ ] Windows e2e fixtures (`.cmd` spawn, taskkill tree-kill, `C:\` path forms)
+- [ ] 👤 S3 physical gate: one `-i` reference generation on a real Windows machine + re-check openai/codex#40233 (owner runs; checklist in the Stage-0 kit applies)
+- [ ] CUJ 6 verification: first Windows run end to end
+
+### D6 — packaging, signing, updates
+- [ ] electron-builder: dmg/zip (macOS) + NSIS (Windows)
+- [ ] electron-updater against signed releases + beta/stable channels
+- [ ] 👤 Apple Developer Program enrollment + notarization (recurring cost)
+- [ ] 👤 Windows signing path (Azure Trusted Signing or cert) — SmartScreen reality accepted
+- [ ] TP-D7 diagnostics bundle export (one click: job log, transcripts, provider status)
+- [ ] Landing-page flip: website → product + downloads
+
+### Carried risks / deliberately deferred (recorded, not hidden)
+- Seller sessions skipped by owner override — the loop ships **unvalidated by real sellers**; the moderation kit stays ready if this is revisited
+- A7 `protectBox` (needs a product-bbox source), TP.10 confirmRequest UI (no page-replace action yet), format_drift stays log-level
+- Worker/BullMQ topology remains a web-deployment path only (desktop is in-process by design)
+- Web app retirement at ship (Q3) — the 19 routes thin out as services absorb them
+
 ## Alternatives Considered
 
 1. **Tauri vs Electron** — Electron chosen (research §1): the engine is Node; Tauri
