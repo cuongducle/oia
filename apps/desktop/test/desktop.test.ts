@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { chatRequestSchema } from "@oia/services";
 import { runtimeSetModeSchema } from "../src/shared/ipc.js";
 import { runtimeViewModel, installPhaseText, runtimeErrorText } from "../src/renderer/runtime-panel.js";
-import { resolveEffectiveMode } from "../src/shared/providers-mode.js";
+import { resolveEffectiveMode, normalizeProvidersSettings } from "../src/shared/providers-mode.js";
 import type { RuntimeStatus } from "@oia/providers";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../src/shared/assets.js";
 import { IPC } from "../src/shared/channels.js";
@@ -186,6 +186,23 @@ describe("runtimeViewModel (the panel action matrix, Q11 English copy)", () => {
 });
 
 // ---- D3 hardening: consent-gated auto mode + English (Q11) error mapping ----
+
+describe("normalizeProvidersSettings (D13 — fresh installs default to auto + GRANTED consent)", () => {
+  it("missing/corrupt file → auto + consent granted (zero-config real mode, owner's call)", () => {
+    expect(normalizeProvidersSettings(null)).toEqual({ providers: "auto", codexConsent: true });
+    expect(normalizeProvidersSettings("garbage")).toEqual({ providers: "auto", codexConsent: true });
+    expect(normalizeProvidersSettings({ providers: "codex" })).toEqual({ providers: "codex", codexConsent: true });
+  });
+  it("an explicit opt-out stays an opt-out; junk providers values fall back to auto", () => {
+    expect(normalizeProvidersSettings({ providers: "auto", codexConsent: false })).toEqual({ providers: "auto", codexConsent: false });
+    expect(normalizeProvidersSettings({ providers: "yolo", codexConsent: false }).providers).toBe("auto");
+  });
+  it("the D13 default does NOT bypass the runtime gate: no login → mock even with consent", () => {
+    const s = normalizeProvidersSettings(null);
+    expect(resolveEffectiveMode({ choice: s.providers, consent: s.codexConsent, runtimeState: "not_logged_in", env: {} })).toBe("mock");
+    expect(resolveEffectiveMode({ choice: s.providers, consent: s.codexConsent, runtimeState: "ready", env: {} })).toBe("codex");
+  });
+});
 
 describe("resolveEffectiveMode (quota consent: a brew-installed codex never auto-bills)", () => {
   const base = { choice: "auto" as const, runtimeState: "ready" as const, env: {} };

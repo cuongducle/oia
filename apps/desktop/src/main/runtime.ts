@@ -3,9 +3,9 @@ import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { RuntimeProvisioner, type RuntimeStatus } from "@oia/providers";
 import { IPC } from "../shared/channels.js";
-import { runtimeSetModeSchema, type RuntimeModeChoice } from "../shared/ipc.js";
+import { runtimeSetModeSchema } from "../shared/ipc.js";
 import type { RuntimeEvent, RuntimeSnapshot } from "../shared/bridge.js";
-import { resolveEffectiveMode } from "../shared/providers-mode.js";
+import { resolveEffectiveMode, normalizeProvidersSettings, type ProvidersSettings } from "../shared/providers-mode.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 
 /**
@@ -15,11 +15,7 @@ import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
  * The context rebuild stays in index.ts and is injected as a hook.
  */
 
-export interface DesktopSettings {
-  providers: RuntimeModeChoice;
-  /** Set the first time the user completes a guided install / in-app login / picks Codex. */
-  codexConsent: boolean;
-}
+export type DesktopSettings = ProvidersSettings;
 
 export interface RuntimeControllerDeps {
   /** Rebuild the service context when the effective mode may have changed. */
@@ -43,11 +39,11 @@ function settingsFile(): string {
 
 export async function readSettings(): Promise<DesktopSettings> {
   try {
-    const raw = JSON.parse(await readFile(settingsFile(), "utf8")) as Partial<DesktopSettings>;
-    const providers = raw.providers === "mock" || raw.providers === "codex" || raw.providers === "auto" ? raw.providers : "auto";
-    return { providers, codexConsent: raw.codexConsent === true };
+    // D13: normalization lives in the PURE shared module — the "fresh install = auto +
+    // consent granted" default is pinned by tests there, not by this electron side.
+    return normalizeProvidersSettings(JSON.parse(await readFile(settingsFile(), "utf8")));
   } catch {
-    return { providers: "auto", codexConsent: false };
+    return normalizeProvidersSettings(null);
   }
 }
 

@@ -4,11 +4,11 @@ import type { RuntimeModeChoice } from "./ipc.js";
 /**
  * TP-D3 — the provider-mode resolver, pure and testable (no Electron imports).
  *
- * Consent rule (the quota-honesty fix): "auto" only ever selects codex when the user
- * has ACTED through the runtime surface — completed a guided install, completed an
- * in-app login, or explicitly chosen the Codex segment. A dev machine with a brew
- * codex + live ChatGPT session must not silently start burning quota on first launch;
- * it gets mock + a one-click "Dùng Codex thật" instead. CI (smoke/shot) is pinned mock
+ * Consent rule (the quota-honesty fix): "auto" only ever selects codex when consent
+ * is granted AND the runtime is ready (binary found + logged in). D13 (owner) moved
+ * the DEFAULT of that consent to GRANTED — zero-config real mode was the ask — so
+ * the protection that remains is the runtime itself: no codex binary or no live
+ * login still means mock, whatever consent says. CI (smoke/shot) is pinned mock
  * regardless; an explicit env pin wins over everything else.
  */
 
@@ -18,6 +18,28 @@ export interface DesktopProvidersEnv {
   OIA_DESKTOP_PROVIDERS?: string;
   /** Owner's explicit opt-in real run (OIA_DESKTOP_REAL_SMOKE) — counts as consent. */
   OIA_DESKTOP_REAL_SMOKE?: string;
+}
+
+/** The persisted runtime settings (settings.json in userData) — TP-D3/D13. */
+export interface ProvidersSettings {
+  providers: RuntimeModeChoice;
+  codexConsent: boolean;
+}
+
+/**
+ * D13 (owner, 2026-11-06): a FRESH install defaults to auto + CONSENT GRANTED —
+ * a machine already running codex CLI with a live ChatGPT session goes real on
+ * first launch (zero-config was the owner's ask; the quota risk is accepted and
+ * recorded in the plan doc). Absent/invalid data means the DEFAULTS; an explicit
+ * `codexConsent: false` is still honored (a deliberate opt-out stays an opt-out).
+ * Protection that REMAINS regardless: no codex binary or no login → mock
+ * (resolveEffectiveMode gates on runtimeState === "ready").
+ */
+export function normalizeProvidersSettings(raw: unknown): ProvidersSettings {
+  const r = (raw ?? {}) as Partial<ProvidersSettings>;
+  const providers =
+    r.providers === "mock" || r.providers === "codex" || r.providers === "auto" ? r.providers : "auto";
+  return { providers, codexConsent: r.codexConsent !== false };
 }
 
 export function resolveEffectiveMode(input: {
