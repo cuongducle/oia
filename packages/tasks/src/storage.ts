@@ -16,8 +16,12 @@ export interface FileStore {
 }
 
 export class LocalFileStore implements FileStore {
-  private md5Index = new Map<string, string>(); // full md5 → key (in-process)
-  private prefixIndex = new Map<string, string>(); // 8-char md5 prefix → key (hydrated from disk filenames)
+  private md5Index = new Map<string, string>(); // FULL md5 → key (authoritative)
+  /** LEGACY names (pre-F3) embed only an 8-char prefix — a 32-bit key. Matching a
+   *  new upload by that prefix alone returned the WRONG image silently (~1% at
+   *  ~9k assets). Prefix hits are only a HINT now: the file is read back and
+   *  hash-verified before any dedupe claim; a mismatch writes a new file. */
+  private legacyPrefixIndex = new Map<string, string>();
   constructor(
     private root = process.env.OIA_DATA_DIR ?? ".data/files",
     private publicBase = "/api/files",
@@ -31,11 +35,13 @@ export class LocalFileStore implements FileStore {
 
   async put(bytes: Uint8Array, ext: string): Promise<{ key: string; url: string; md5: string }> {
     const md5 = createHash("md5").update(bytes).digest("hex");
-    const existing = await this.findByMd5(md5);
-    if (existing) return { key: this.md5Index.get(md5) ?? this.prefixIndex.get(md5.slice(0, 8))!, url: existing, md5 };
+    const existing = await this.resolveExistingKey(md5);
+    if (existing) return { key: existing, url: `${this.publicBase}/${existing}`, md5 };
 
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    const key = `uploads/${day}/${md5.slice(0, 8)}-${Date.now().toString(36)}.${ext}`;
+    // FULL md5 in the name — hydrate rebuilds the authoritative index with no
+    // prefix ambiguity (F3)
+    const key = `uploads/${day}/${md5}-${Date.now().toString(36)}.${ext}`;
     const abs = path.join(this.root, key);
     await mkdir(path.dirname(abs), { recursive: true });
     await writeFile(abs, bytes);
@@ -43,23 +49,44 @@ export class LocalFileStore implements FileStore {
     return { key, url: `${this.publicBase}/${key}`, md5 };
   }
 
+  /** Full-md5 hit, else a VERIFIED legacy-prefix hit (bytes hashed back). */
+  private async resolveExistingKey(md5: string): Promise<string | null> {
+    const direct = this.md5Index.get(md5);
+    if (direct) return direct;
+    const hinted = this.legacyPrefixIndex.get(md5.slice(0, 8));
+    if (!hinted) return null;
+    const onDisk = await this.read(hinted).catch(() => null);
+    if (!onDisk) {
+      this.legacyPrefixIndex.delete(md5.slice(0, 8)); // file vanished — drop the stale hint
+      return null;
+    }
+    const actual = createHash("md5").update(onDisk).digest("hex");
+    if (actual !== md5) return null; // prefix collision — different image, never dedupe
+    this.md5Index.set(md5, hinted); // promote: verified full md5
+    this.legacyPrefixIndex.delete(md5.slice(0, 8));
+    return hinted;
+  }
+
   async findByMd5(md5: string): Promise<string | null> {
-    const key = this.md5Index.get(md5) ?? this.prefixIndex.get(md5.slice(0, 8));
+    const key = await this.resolveExistingKey(md5);
     return key ? `${this.publicBase}/${key}` : null;
   }
 
-/** Reload the md5 index from disk (dedupe survives server restarts).
- *  Filenames carry the 8-char md5 prefix — indexed by prefix and matched by prefix in findByMd5. */
+/** Reload the md5 index from disk (dedupe survives restarts).
+ *  New names carry the FULL md5 (authoritative). Legacy 8-char-prefix names are
+ *  hints only — verified against the bytes before any dedupe claim (F3). */
   async hydrate(): Promise<void> {
     const dir = path.join(this.root, "uploads");
     try {
       for (const day of await readdir(dir)) {
         for (const f of await readdir(path.join(dir, day)).catch(() => [])) {
-          const m = f.match(/^([0-9a-f]{8})-/);
-          if (m) {
-  // an 8-char md5 prefix is enough for practical dedupe (collisions overwrite)
-            this.prefixIndex.set(m[1], path.join("uploads", day, f));
+          const full = f.match(/^([0-9a-f]{32})-/);
+          if (full) {
+            this.md5Index.set(full[1], path.join("uploads", day, f));
+            continue;
           }
+          const legacy = f.match(/^([0-9a-f]{8})-/);
+          if (legacy) this.legacyPrefixIndex.set(legacy[1], path.join("uploads", day, f));
         }
       }
     } catch { /* no data yet */ }
