@@ -9,13 +9,9 @@
  */
 import { spawnSync } from "node:child_process";
 
-/** advisory → why it is currently accepted, and what removes it. */
-const ACKNOWLEDGED = {
-  "GHSA-mrhx-c7xc-m3w5":
-    "zod 3 memory-exhaust on oversized constrained collections — patch exists only in zod 4 (no 3.x fix). " +
-    "Exposure here: authenticated loopback bodies (50MB cap) and our own renderer IPC (25MB cap); failure is a " +
-    "recoverable process crash. Removed by the zod-4 migration task in docs/designs/desktop-only-reorg.md.",
-};
+/** advisory → why it is currently accepted, and what removes it.
+ *  Empty since T10 (zod 3 → 4 removed GHSA-mrhx-c7xc-m3w5) — keep it that way. */
+const ACKNOWLEDGED = {};
 
 // audit exits non-zero whenever ANY vuln exists (incl. frozen-only) — the stdout
 // JSON is what we judge, not the exit code.
