@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runDesignerAgent, detectLanguage, foldAscii } from "../src/index.js";
+import { runDesignerAgent, detectLanguage, foldAscii, type DesignerAgentDeps } from "../src/index.js";
 import type { ImageProvider, LlmProvider, ImageGenInput } from "@oia/providers";
 import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@oia/schema";
 import { parseMarkers } from "@oia/protocol";
@@ -398,5 +398,107 @@ describe("STAGE-0 remediation: A5 reusePlan / B3 provider attribution / A4 reset
     expect(failure.errorClass).toBe("quota_exceeded");
     expect(failure.resetAt).toBe("2026-10-30T08:00:00Z");
     expect(failure.provider).toBe("codex");
+  });
+});
+
+/* ---------- C1 outline gate (docs/designs/outline-gate.md) ---------- */
+
+/** Image stub that COUNTS calls — the gate's whole promise is "zero image calls". */
+function countingImage(maxCalls = Infinity): { provider: ImageProvider; calls: () => number } {
+  let n = 0;
+  return {
+    calls: () => n,
+    provider: {
+      name: "counting", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async generate(input: ImageGenInput) {
+        if (++n > maxCalls) throw new Error("unexpected extra image call");
+        return { url: `https://cdn.test/page_${n}_${input.prompt.slice(0, 8)}.png`, provider: "counting", model: "x" };
+      },
+    },
+  };
+}
+const gatePlan = (n: number, pageOutline?: { title: string; summary: string }[]) => JSON.stringify({
+  title: "Deck", imagePrompt: "deck cover",
+  ...(n > 1 ? { imagePrompts: Array.from({ length: n }, (_, i) => `page ${i + 1}`) } : {}),
+  pageOutline: pageOutline ?? Array.from({ length: n }, (_, i) => ({ title: `Page ${i + 1}`, summary: `content ${i + 1}` })),
+});
+const llmReturning = (raw: string): LlmProvider => ({
+  name: "stub", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+  async chat() { return raw; },
+});
+async function run(input: Parameters<typeof runDesignerAgent>[0], deps: DesignerAgentDeps): Promise<ChatEvent[]> {
+  const out: ChatEvent[] = [];
+  for await (const ev of runDesignerAgent(input, deps)) out.push(ev);
+  return out;
+}
+
+describe("C1 phase 1 — outlineGate stops before the first image call (OC-1/OC-2)", () => {
+  it("emits the outline event with exactly N rows, closes the node, ends </Content> — ZERO image calls", async () => {
+    const img = countingImage();
+    const out = await run({ prompt: "deck", pages: 3, outlineGate: true }, { llm: llmReturning(gatePlan(3)), image: img.provider });
+    expect(img.calls()).toBe(0); // the whole point of the gate
+    const outlineEv = out.find((e) => e.renderData.outline?.length);
+    expect(outlineEv?.renderData.outline).toHaveLength(3);
+    expect(outlineEv?.renderData.outline?.[0]).toEqual({ title: "Page 1", summary: "content 1" });
+    expect(out.at(-1)?.content).toBe("</Content>");
+    const nodeDone = outlineEv?.renderData.taskMeta.find((t) => t.content === "Designer Agent");
+    expect(nodeDone?.status).toBe("1"); // timeline closes — no dangling "running…"
+  });
+
+  it("error path: wrong outline count fails plan_parse_failed and still burns NOTHING", async () => {
+    const img = countingImage();
+    const wrongCount = JSON.stringify({ title: "T", imagePrompt: "I", pageOutline: [{ title: "a", summary: "b" }] }); // 1/2
+    const out = await run({ prompt: "deck", pages: 2, outlineGate: true }, { llm: llmReturning(wrongCount), image: img.provider });
+    expect(img.calls()).toBe(0);
+    expect(out.find((e) => e.error)?.errorClass).toBe("plan_parse_failed");
+  });
+
+  it("single page never enters the gate (a poster has no outline concept)", async () => {
+    const img = countingImage();
+    const out = await run({ prompt: "poster", pages: 1, outlineGate: true }, { llm: llmReturning(gatePlan(1)), image: img.provider });
+    expect(img.calls()).toBe(1); // normal single-page flow
+    expect(out.some((e) => e.renderData.outline?.length)).toBe(false);
+  });
+});
+
+describe("C1 phase 2 — approvedOutline is the page-count contract (OC-2/OC-3)", () => {
+  const approved = [
+    { title: "Cover", summary: "hook" },
+    { title: "Price", summary: "20% off" },
+  ];
+  it("generates exactly N pages from the planner prompts", async () => {
+    const img = countingImage();
+    const out = await run({ prompt: "deck", approvedOutline: approved }, { llm: llmReturning(gatePlan(2)), image: img.provider });
+    expect(img.calls()).toBe(2);
+    // terminal events RE-emit the last canvas — count DISTINCT canvas ids, not events
+    const canvasIds = new Set(out.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas").map((m) => m.id)));
+    expect(canvasIds.size).toBe(2);
+  });
+
+  it("error path: planner returns the wrong page count → fail BEFORE any image burns", async () => {
+    const img = countingImage();
+    const mismatch = JSON.stringify({ title: "T", imagePrompt: "I", imagePrompts: ["only one"] }); // 1/2
+    const out = await run({ prompt: "deck", approvedOutline: approved }, { llm: llmReturning(mismatch), image: img.provider });
+    expect(img.calls()).toBe(0);
+    expect(out.find((e) => e.error)?.errorClass).toBe("plan_parse_failed");
+  });
+});
+
+describe("C1/OC-4 — cancel mid-deck stops BETWEEN pages; generated pages survive", () => {
+  it("aborting after page 1 of 3 never calls page 2, and page 1 was already yielded", async () => {
+    const ac = new AbortController();
+    let n = 0;
+    const img3: ImageProvider = {
+      name: "paged", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async generate() {
+        n += 1;
+        if (n === 1) ac.abort("user-stop"); // user hits Stop while page 2 is being requested
+        return { url: `https://cdn.test/p${n}.png`, provider: "paged", model: "x" };
+      },
+    };
+    const out = await run({ prompt: "deck", pages: 3, signal: ac.signal }, { llm: llmReturning(gatePlan(3)), image: img3 });
+    expect(n).toBe(1); // stopped between pages
+    expect(out.some((e) => e.renderData.msgMeta.some((m) => m.type === "canvas"))).toBe(true); // page 1 kept
+    expect(out.some((e) => e.content.includes("variation 3"))).toBe(false);
   });
 });

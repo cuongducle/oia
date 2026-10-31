@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, GenerationMode, PlannerPlan } from "@oia/schema";
+import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan } from "@oia/schema";
 import { parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION } from "@oia/schema";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
@@ -23,6 +23,12 @@ export interface DesignerAgentInput {
   pages?: number;
   /** Outline mode: emit the outline (title + bullets) BEFORE generating. */
   outlineMode?: boolean;
+  /** C1 outline gate phase 1 (docs/designs/outline-gate.md OC-1): stop after the
+   * planner returns pageOutline — NO image call. Phase 2 sends approvedOutline. */
+  outlineGate?: boolean;
+  /** C1 phase 2: the user-edited outline. Planner is constrained to it; the page
+   * COUNT is a hard contract both ways (OC-2) — mismatch aborts before any image. */
+  approvedOutline?: PlanPage[];
   /** Selected skill (e.g. "Presentation Maker") — structure hint for the planner. */
   skill?: string;
   /** TP.3 — generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
@@ -191,6 +197,8 @@ export async function* runDesignerAgent(
             (input.skill ? `\nSkill structure hint: ${input.skill}.` : "")
             + (pagesWanted > 1 ? `\nProduce exactly ${pagesWanted} imagePrompts[] (one per page, coherent series).` : "")
             + (input.outlineMode ? `\nAlso return outline[] — 3-6 short bullets planning the content (Outline Mode).` : "")
+            + (input.outlineGate && pagesWanted > 1 ? `\nAlso return pageOutline[] — EXACTLY ${pagesWanted} entries {title, summary}, one per page in order (Outline Gate).` : "")
+            + (input.approvedOutline?.length ? `\nThe user APPROVED this page outline — implement each page faithfully; do NOT merge, add, drop or reorder pages:\n${input.approvedOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n")}` : "")
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
               ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].`
@@ -214,11 +222,47 @@ export async function* runDesignerAgent(
 
   const title = plan.title || input.prompt.slice(0, 60);
   const blocks = normalizeBlocks(plan);
+
+  // ---- C1 outline gate phase 1: emit the outline and STOP — zero image calls (OC-1) ----
+  if (input.outlineGate && !input.approvedOutline && pagesWanted > 1) {
+    const pageOutline = plan.pageOutline;
+    if (!pageOutline || pageOutline.length !== pagesWanted) {
+      // OC-2: a wrong-count outline is a planner failure — abort before any quota burns
+      yield fail(
+        new ProviderError("plan_parse_failed", `the planner returned ${pageOutline?.length ?? 0}/${pagesWanted} outline pages`, { provider: deps.llm.name }),
+        deps.llm.name,
+      );
+      return;
+    }
+    taskMeta = taskMeta.map((x) => (x.id === nodeId ? { ...x, status: "1" } : x));
+    yield ev(`Outline for ${pagesWanted} pages:`);
+    yield ev(pageOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n"), {
+      renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, outline: pageOutline },
+    });
+    yield ev(`</Content>`);
+    return;
+  }
+
+  // ---- C1 phase 2: the approved outline is the page-count contract (OC-2/OC-3) ----
+  if (input.approvedOutline?.length) {
+    const approved = input.approvedOutline;
+    const got = plan.imagePrompts?.length ?? 0;
+    if (got !== approved.length) {
+      yield fail(
+        new ProviderError("plan_parse_failed", `the planner returned ${got}/${approved.length} page prompts for the approved outline`, { provider: deps.llm.name }),
+        deps.llm.name,
+      );
+      return;
+    }
+  }
+
   const imagePrompts =
-    pagesWanted > 1 && plan.imagePrompts?.length
-      ? plan.imagePrompts.slice(0, pagesWanted)
-      : Array.from({ length: pagesWanted }, (_, i) =>
-          i === 0 ? (plan.imagePrompt ?? input.prompt) : `${plan.imagePrompt ?? input.prompt} — variation ${i + 1}`);
+    input.approvedOutline?.length
+      ? plan.imagePrompts!
+      : pagesWanted > 1 && plan.imagePrompts?.length
+        ? plan.imagePrompts.slice(0, pagesWanted)
+        : Array.from({ length: pagesWanted }, (_, i) =>
+            i === 0 ? (plan.imagePrompt ?? input.prompt) : `${plan.imagePrompt ?? input.prompt} — variation ${i + 1}`);
 
   yield ev(
     input.referenceImages?.length
