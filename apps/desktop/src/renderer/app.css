@@ -21,8 +21,9 @@
 @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/instrument-serif-400-latinext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
-  /* D8: light by design — pin UA colors against macOS dark mode (nav pill text
-     went white-on-white without it; gate: dark-mode pixel check, 2026-10-30). */
+  /* D8: light by design — pin UA rendering so a future Chromium that flips UA
+     defaults with system appearance can never wash this app out. Hygiene, not a
+     bug fix: the claimed white-on-white symptom was never reproduced (2026-10-31). */
   color-scheme: light;
   --ink: #242529;
   --muted: #6e707b;
@@ -363,15 +364,15 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 
 /* ---------- A1 preview-apply: the variant tray (docs/designs/variant-preview-apply.md) ---------- */
 .variantTray { display: flex; flex-direction: column; gap: 10px; }
-.variantCard { display: flex; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--bg, #faf9fd); }
+.variantCard { display: flex; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--bg); }
 .variantThumb { width: 64px; height: 84px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
 .variantThumb img { width: 100%; height: 100%; object-fit: cover; }
 .variantThumb .scenePreview { width: 100%; height: 100%; }
 .variantMeta { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
-.variantPrompt { font-size: 11px; color: var(--ink-soft, #55524e); line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.variantPrompt { font-size: 11px; color: var(--muted); line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .variantActions { display: flex; flex-wrap: wrap; gap: 4px; }
 .variantActions button { font-size: 10.5px; padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
-.variantActions button:hover:not(:disabled) { border-color: var(--accent, #6d5bd0); }
+.variantActions button:hover:not(:disabled) { border-color: var(--accent); }
 .variantActions .primaryBtn.small { font-size: 10.5px; padding: 3px 7px; min-height: 0; }
 .aiComposer textarea { width: 100%; border: none; padding: 0; resize: none; min-height: 95px; font-size: 12px; outline: none; background: none; }
 .aiComposerControls { display: flex; gap: 4px; align-items: center; }

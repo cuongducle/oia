@@ -74,8 +74,15 @@ function sessionPlans(): Map<number, PlannerPlan> {
 }
 
 /** The return adds `sessionId` (A1 preview-apply, VA-9): the editor dock pins its
- * conversation so variants + the A5 plan stash attach to ONE session across edits. */
-export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunChatOptions): Promise<{ jobId: string; outcome: ChatOutcome; sessionId: number }> {
+ * conversation so variants + the A5 plan stash attach to ONE session across edits.
+ * Exported — the IPC bridge types its return from HERE, not from a hand mirror. */
+export interface ChatRunResult {
+  jobId: string;
+  outcome: ChatOutcome;
+  sessionId: number;
+}
+
+export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunChatOptions): Promise<ChatRunResult> {
   const jobId = randomUUID();
   const baseRender = { msgMeta: [], fileMeta: [], taskMeta: [], exportMeta: null, confirmRequest: null };
   const { sink } = opts;

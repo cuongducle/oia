@@ -51,7 +51,6 @@ interface VariantCard {
   prompt: string;
   thumbnail: string; // canonical asset URL ("" → render ScenePreview from the canvas)
   canvas: SceneCanvas; // canonical /api/files form
-  at: number;
 }
 
 /* Small inline icon set (lucide is a web dep — the desktop keeps zero extra deps). */
@@ -183,7 +182,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
       sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height);
       c.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       undoStack.current = [JSON.stringify(c.toObject())]; redoStack.current = [];
-      setCanUndo(false); setCanRedo(false); setSelectedText(false); fitView();
+      setCanUndo(false); setCanRedo(false); setSelectedText(false); setSelectedImg(false); fitView();
       c.requestRenderAll(); captureThumb(idx);
     } finally { restoring.current = false; }
     scheduleSave();
@@ -242,7 +241,6 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
             prompt: aiLastPromptRef.current,
             thumbnail: typeof m.thumbnail === "string" ? m.thumbnail : "",
             canvas: m.canvas as SceneCanvas,
-            at: Date.now(),
           }]));
         }
       }
@@ -395,6 +393,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
     const prev = undoStack.current.at(-1)!;
     restoring.current = true;
     try { await c.loadFromJSON(JSON.parse(prev)); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
+    setSelectedText(false); setSelectedImg(false); // the reloaded page clears selection — state must not lie
     setCanUndo(undoStack.current.length >= 2); setCanRedo(true);
     scheduleSave();
   }
@@ -404,6 +403,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
     undoStack.current.push(next);
     restoring.current = true;
     try { await c.loadFromJSON(JSON.parse(next)); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
+    setSelectedText(false); setSelectedImg(false);
     setCanUndo(true); setCanRedo(redoStack.current.length > 0);
     scheduleSave();
   }
@@ -611,7 +611,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
     try {
       const next = replaceObjectSrc(unmapAssetUrls(c.toObject() as SceneCanvas), idx, artwork.src);
       await replaceCurrentScene(mapAssetUrls(next));
-    } catch {
+    } catch (err) {
+      // never swallow silently — the oia:// poisoned-realpath bug hid for hours behind a mute catch
+      console.error("[editor] variant replace failed:", err instanceof Error ? err.message : String(err));
       setAiError({ message: "The layer could not be replaced. Select the image layer again and retry." });
     }
   }
@@ -908,7 +910,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
                   const canReplace = Boolean(artwork) && selectedImg;
                   const why = !artwork ? "This variant has no artwork image" : !selectedImg ? "Select an image layer on the canvas first" : "";
                   return (
-                    <div key={v.id} className="variantCard" data-testid="variant-card">
+                    <div key={v.id} className="variantCard" data-testid="variant-card" aria-label={`Variant: ${v.prompt.slice(0, 60) || "untitled edit"}`}>
                       <div className="variantThumb">
                         {v.thumbnail ? <img src={toDisplayUrl(v.thumbnail)} alt="" /> : <ScenePreview scene={v.canvas} label="Variant" />}
                       </div>

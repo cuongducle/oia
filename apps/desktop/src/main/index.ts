@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, protocol, session, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -569,28 +569,12 @@ async function shot(): Promise<void> {
       app.exit(15);
       return;
     }
-    // Dark-mode regression (found live on the packaged build 2026-10-30): without
-    // color-scheme:light, UA default colors flip with the system appearance and
-    // nav pill text went white-on-white. nativeTheme.themeSource IS the mechanism
-    // that produced the bug — flip the app to dark and pin the pill color.
-    try {
-      nativeTheme.themeSource = "dark";
-      await new Promise((r) => setTimeout(r, 300));
-      const pill = await win.webContents.executeJavaScript(`(() => {
-        const p = document.querySelector(".viewNav .navPill");
-        return p ? getComputedStyle(p).color : null;
-      })()`, true);
-      console.log("[shot] dark-mode pill color:", JSON.stringify(pill));
-      const m = typeof pill === "string" ? pill.match(/\d+/g)?.map(Number) : null;
-      const tooLight = m ? (m[0] > 235 && m[1] > 235 && m[2] > 235) : true;
-      if (tooLight) {
-        console.error("DESKTOP_SHOT DARK-MODE VERIFY FAILED (pill text flipped white)");
-        app.exit(16);
-        return;
-      }
-    } finally {
-      nativeTheme.themeSource = "system"; // never leak the override into later gates
-    }
+    // Dark-mode: a gate here was REMOVED (2026-10-31 teardown). It flipped
+    // nativeTheme and asserted the nav pill color — but nothing in this stack
+    // flips (probe: neither themeSource=dark nor real system dark moves ANY
+    // computed color, explicit or UA-default). The gate could never fail; it
+    // was theater shipped against a symptom that was never reproduced. The
+    // color-scheme:light pin stays as light-app hygiene (D8), not as a fix.
   }
   const probe = await win.webContents.executeJavaScript(`(async () => {
     const src = "oia://files/uploads/20261029/295ef2b2-mvtw036q.png";

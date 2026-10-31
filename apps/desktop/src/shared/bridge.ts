@@ -1,5 +1,5 @@
 import type { ChatEvent, Project, Template, TaskStatus, BrandKit } from "@oia/schema";
-import type { ChatRequest, ChatOutcome } from "@oia/services";
+import type { ChatRequest, ChatRunResult } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
 import type { ApiKeyRecord, WebImportCounts } from "@oia/tasks";
@@ -52,9 +52,9 @@ export interface AgentJobFrame {
 }
 
 export interface OiaBridge {
-  /** `sessionId` is additive (A1 preview-apply): the editor dock pins a conversation
-   * across edits — variants + the A5 plan stash attach to one session. */
-  chatRun: (req: ChatRequest) => Promise<{ jobId: string; outcome: ChatOutcome; sessionId: number }>;
+  /** Return type IS `ChatRunResult` from @oia/services — no hand mirror (the
+   * `sessionId` field is the A1 preview-apply conversation pin). */
+  chatRun: (req: ChatRequest) => Promise<ChatRunResult>;
   /** Streaming ChatEvents; the returned function unsubscribes. */
   onChatEvent: (cb: (ev: ChatEvent) => void) => () => void;
   cancelChat: (jobId: string) => Promise<boolean>;
