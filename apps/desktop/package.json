@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "dist:mac": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac",
-    "dist:mac:dir": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac --dir"
+    "dist:mac:dir": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac --dir",
+    "dist:win": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && electron-vite build && electron-builder --win --x64",
+    "dist:win:dir": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && electron-vite build && electron-builder --win --x64 --dir"
   },
   "dependencies": {
     "@oia/canvas": "workspace:*",
@@ -33,7 +35,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tesseract.js": "^7.0.0",
-    "zod": "^3.25.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

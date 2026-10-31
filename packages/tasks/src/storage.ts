@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, readFile, readdir, realpath } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir, realpath, rm, stat, utimes } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -50,7 +50,13 @@ export class LocalFileStore implements FileStore {
     const sha = createHash("sha256").update(bytes).digest("hex");
     const md5 = createHash("md5").update(bytes).digest("hex"); // legacy resolution only
     const existing = await this.resolveExistingKey(sha, md5);
-    if (existing) return { key: existing, url: `${this.publicBase}/${existing}`, hash: sha };
+    if (existing) {
+      // a dedupe hit hands an OLD file to a new owner that has not saved yet — refresh
+      // its mtime so the asset GC grace window counts from this hand-out, not from birth
+      const now = new Date();
+      await utimes(path.join(this.rootDir, existing), now, now).catch(() => {});
+      return { key: existing, url: `${this.publicBase}/${existing}`, hash: sha };
+    }
 
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     // FULL sha256 in the name — hydrate rebuilds the authoritative index (F3/F4)
@@ -147,6 +153,30 @@ export class LocalFileStore implements FileStore {
     const realFile = await realpath(full);
     if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) throw new Error("invalid key");
     return new Uint8Array(await readFile(full));
+  }
+
+  /** Every stored upload with its mtime (T11 asset GC input). */
+  async listUploads(): Promise<{ key: string; mtimeMs: number }[]> {
+    const dir = path.join(this.rootDir, "uploads");
+    const out: { key: string; mtimeMs: number }[] = [];
+    for (const day of await readdir(dir).catch(() => [] as string[])) {
+      for (const f of await readdir(path.join(dir, day)).catch(() => [] as string[])) {
+        const s = await stat(path.join(dir, day, f)).catch(() => null);
+        if (s?.isFile()) out.push({ key: `uploads/${day}/${f}`, mtimeMs: s.mtimeMs });
+      }
+    }
+    return out;
+  }
+
+  /** Delete one upload AND forget it in every dedupe index — a stale index entry
+   *  would hand the next identical upload a URL to a file that no longer exists. */
+  async remove(key: string): Promise<void> {
+    const safe = this.safeKey(key);
+    if (!safe) throw new Error("invalid key");
+    await rm(path.join(this.rootDir, safe), { force: true });
+    for (const index of [this.sha256Index, this.legacyFullMd5Index, this.legacyPrefixIndex]) {
+      for (const [hash, k] of index) if (k === safe || k === key) index.delete(hash);
+    }
   }
 
   contentType(ext: string): string {

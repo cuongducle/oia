@@ -118,10 +118,27 @@ export function extractAuthUrl(text: string): string | null {
 }
 
 /** GUI processes do not inherit the interactive shell PATH — probe the usual suspects too. */
-function wellKnownBinDirs(platform: NodeJS.Platform): string[] {
-  if (platform === "win32") return [];
+function wellKnownBinDirs(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string[] {
+  if (platform === "win32") {
+    // `npm i -g @openai/codex` drops codex.cmd in %APPDATA%\npm — on the user PATH
+    // in a fresh shell, but not always in an app launched before that PATH change
+    const appData = envValue(env, "APPDATA");
+    return appData ? [path.join(appData, "npm")] : [];
+  }
   const home = homedir();
   return ["/opt/homebrew/bin", "/usr/local/bin", path.join(home, ".local/bin"), path.join(home, ".volta/bin")];
+}
+
+/**
+ * Case-insensitive env lookup. Windows names the variable `Path`; `process.env` itself
+ * hides that, but any COPY of it (`{ ...process.env }`, an env object sent over RPC)
+ * is a plain object where `env.PATH` is undefined — PATH resolution would silently find nothing.
+ */
+export function envValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  if (env[name] !== undefined) return env[name];
+  const upper = name.toUpperCase();
+  const key = Object.keys(env).find((k) => k.toUpperCase() === upper);
+  return key === undefined ? undefined : env[key];
 }
 
 async function canExecute(file: string, platform: NodeJS.Platform): Promise<boolean> {
@@ -167,10 +184,10 @@ export async function resolveCodexBin(opts: DetectOptions = {}): Promise<Runtime
     if (await canExecute(bundled, platform)) return { source: "bundled", bin: bundled };
   }
 
-  const pathVar = env.PATH ?? "";
+  const pathVar = envValue(env, "PATH") ?? "";
   const dirs = [
     ...pathVar.split(isWin ? ";" : ":").filter(Boolean),
-    ...(opts.includeWellKnown === false ? [] : wellKnownBinDirs(platform)),
+    ...(opts.includeWellKnown === false ? [] : wellKnownBinDirs(platform, env)),
     ...(opts.extraPaths ?? []),
   ];
   for (const dir of dirs) {

@@ -97,14 +97,16 @@ Start with a bundled **Sample** project (seeded on first run) to try real text a
 
 **Real generations:** the app bundles a pinned Codex CLI binary, so the recommended keyless path is zero-setup — open **Runtime** in the app, sign in with ChatGPT, and generate against your plan quota. No API key required. Alternatively set `IMAGE_PROVIDER`/`LLM_PROVIDER` (see `.env.example`) to use OpenAI or fal keys.
 
-> Installers are not published yet. You can build a local macOS `.app` yourself — no signing, no notarization:
+> Installers are not published yet. You can build one yourself — no signing, no notarization. Build each platform on its own OS:
 >
 > ```bash
-> pnpm --filter @oia/desktop dist:mac        # .dmg (fetches the pinned Codex binary first)
-> pnpm --filter @oia/desktop dist:mac:dir     # quick dist/mac-arm64/Oia.app
+> pnpm --filter @oia/desktop dist:mac        # macOS: .dmg (fetches the pinned Codex binary first)
+> pnpm --filter @oia/desktop dist:mac:dir     # macOS: quick dist/mac-arm64/Oia.app
+> pnpm --filter @oia/desktop dist:win        # Windows: dist/Oia-<version>-win-x64.exe (NSIS, per-user, no admin)
+> pnpm --filter @oia/desktop dist:win:dir     # Windows: quick dist/win-unpacked/Oia.exe
 > ```
 >
-> The build is unsigned (deliberate — no signing budget yet). A locally built app opens normally; a build **downloaded** from GitHub carries a quarantine flag, so on first open right-click the app → **Open** → **Open** (or System Settings → Privacy & Security → "Open Anyway") to pass Gatekeeper. There is no auto-update channel until signing exists — pick up new versions from the releases page.
+> The builds are unsigned (deliberate — no signing budget yet). On macOS, a build **downloaded** from GitHub carries a quarantine flag, so on first open right-click the app → **Open** → **Open** (or System Settings → Privacy & Security → "Open Anyway") to pass Gatekeeper. On Windows, SmartScreen shows "Windows protected your PC" → **More info** → **Run anyway**. The Windows installer puts the app in `%LOCALAPPDATA%\Programs\Oia`; projects live in `%APPDATA%\Oia` and survive uninstall and upgrade. There is no auto-update channel until signing exists — pick up new versions from the releases page.
 
 ## Bring your own provider
 
