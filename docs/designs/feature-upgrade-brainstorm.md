@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle + agent
 * **Date:** 2026-10-31
-* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp đầu tiên → [`variant-preview-apply.md`](variant-preview-apply.md); chi tiết A1 sống ở đó từ nay, doc này ngừng cập nhật mục A1.**
+* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp → [`variant-preview-apply.md`](variant-preview-apply.md) (ĐÃ SHIP); C1 tốt nghiệp → [`outline-gate.md`](outline-gate.md) (ĐÃ SHIP 2026-10-31). Chi tiết từng feature sống ở doc riêng từ lúc tốt nghiệp.**
 * **Branch:** `cuongducle/docs-feature-brainstorm`
 * **Phạm vi:** đối thủ trực tiếp nhất (cùng thesis prompt-first → layer editor, đang chạy web + credit subscription) nghiên cứu ở mức **tính năng/capability** từ trang công khai + phân tích vision 6 ảnh minh họa + RE nội bộ của owner (private, 2026-10-27 — mức UI/protocol, không lặp ở đây) + gap table `docs/reference/design-product-ui-2026.md` (mức cấu trúc UI, không lặp). Theo precedent bảo mật đối thủ: tên sản phẩm, URL, bundle KHÔNG ghi trong repo công khai.
 
