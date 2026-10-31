@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle + agent
 * **Date:** 2026-10-31
-* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp → [`variant-preview-apply.md`](variant-preview-apply.md) (ĐÃ SHIP); C1 tốt nghiệp → [`outline-gate.md`](outline-gate.md) (ĐÃ SHIP 2026-10-31). Chi tiết từng feature sống ở doc riêng từ lúc tốt nghiệp.**
+* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp → [`variant-preview-apply.md`](variant-preview-apply.md) (ĐÃ SHIP); C1 tốt nghiệp → [`outline-gate.md`](outline-gate.md) (ĐÃ SHIP 2026-10-31); C3 tốt nghiệp → [`live-overlay-presets.md`](live-overlay-presets.md) (DESIGN 2026-10-31, triển khai ngay — owner chốt "chốt hết theo đề xuất" cùng ngày: cả 2 nền tảng guides từ đầu, B1 làm sau C3, không thăng cấp candidate nào). Chi tiết từng feature sống ở doc riêng từ lúc tốt nghiệp.**
 * **Branch:** `cuongducle/docs-feature-brainstorm`
 * **Phạm vi:** đối thủ trực tiếp nhất (cùng thesis prompt-first → layer editor, đang chạy web + credit subscription) nghiên cứu ở mức **tính năng/capability** từ trang công khai + phân tích vision 6 ảnh minh họa + RE nội bộ của owner (private, 2026-10-27 — mức UI/protocol, không lặp ở đây) + gap table `docs/reference/design-product-ui-2026.md` (mức cấu trúc UI, không lặp). Theo precedent bảo mật đối thủ: tên sản phẩm, URL, bundle KHÔNG ghi trong repo công khai.
 
@@ -106,7 +106,7 @@ Trước khi sinh N trang: planner trả outline (tiêu đề + tóm tắt mỗi
 
 **C2. Long-image narrative (ảnh dài XHS/blog)** *(candidate — chưa chốt, xem lại cùng dữ liệu D10)*: artboard dài + cột text native theo khối — dùng thế mạnh text sạch của Oia, dùng image model chỉ cho nền/illustration từng đoạn. Mục tiêu ngách: bài review/product-story dài cho Xiaohongshu/RED và blog seller.
 
-**C3. Live-commerce overlay presets** — **Q3 ĐÃ CHỐT (owner, 2026-10-31): preset trung thực + safe-zone guides**
+**C3. Live-commerce overlay presets** — **Q3 ĐÃ CHỐT (owner, 2026-10-31): preset trung thực + safe-zone guides** — *tốt nghiệp → [`live-overlay-presets.md`](live-overlay-presets.md) (2026-10-31); chi tiết sống ở doc riêng*
 
 Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + template pack đi kèm; đổi giá/đổi chữ qua A1/A3, không regenerate. Use case này đối thủ chọn làm video demo đầu tiên = nhu cầu thật của khán giả chung.
 
