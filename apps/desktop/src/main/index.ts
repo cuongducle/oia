@@ -783,10 +783,19 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 200));
     const replace = document.querySelector('[data-testid="variant-replace"]');
     const undo = document.querySelector('.edTop [title="Undo"]');
-    return { enabled: Boolean(replace && !replace.disabled), undoDisabledBefore: undo ? undo.disabled : null };
+    // painted-pixel proxy: a white-on-white label passed every DOM assert before
+    // (the dark-mode lesson — element-exists gates cannot see color). Contrast check:
+    // enabled Replace must not share background and text color.
+    const cs = replace ? getComputedStyle(replace) : null;
+    return { enabled: Boolean(replace && !replace.disabled), undoDisabledBefore: undo ? undo.disabled : null, bg: cs ? cs.backgroundColor : null, fg: cs ? cs.color : null };
   })()`, true);
   if (!selected || selected.enabled !== true || selected.undoDisabledBefore !== true) {
     console.error(`DESKTOP_SHOT A1 FAILED — Replace enable state wrong (${JSON.stringify(selected)})`);
+    app.exit(17);
+    return;
+  }
+  if (!selected.bg || !selected.fg || selected.bg.replace(/\s/g, "") === selected.fg.replace(/\s/g, "")) {
+    console.error(`DESKTOP_SHOT A1 FAILED — Replace label invisible (bg=${selected.bg} fg=${selected.fg})`);
     app.exit(17);
     return;
   }

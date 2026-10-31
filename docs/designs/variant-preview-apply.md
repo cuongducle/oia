@@ -84,7 +84,24 @@ replaceObjectSrc(scene: SceneCanvas, index: number, src: string): SceneCanvas  /
 
 **Phát hiện nhờ gate:** designer stream phát LẠI cùng một canvas meta nhiều lần trong 1 job (designer.ts các yield canvasMeta) — code merge cũ che việc này (đè lên nhau vô hại); khay variant mà không dedupe sẽ hiện card ma. Đã dedupe theo `jobId:canvasId` (VA-2). Đây đúng họ bài học "gate element-tồn-tại không bắt được vẽ-sai" — gate ĐẾM card mới bắt được.
 
-**Sự cố vận hành (ghi lại để cả nhà tránh):** một phiên agent khác làm glass/icon trong cùng repo chạy `git reset --hard` giữa chừng, xóa sạch working tree chưa commit của phiên này (05:40). Toàn bộ A1 được khôi phục lại từ ngữ cảnh và commit theo tầng + push nhánh `origin/a1-preview-apply` ngay sau đó. Bài học: KHÔNG để work-in-progress nằm ngoài commit trong repo đa-agent; commit sau mỗi tầng xong.
+**Sự cố vận hành (ghi lại để cả nhà tránh):** một phiên agent khác làm glass/icon trong cùng repo chạy `git reset --hard` giữa chừng, xóa sạch working tree chưa commit của phiên này (05:40). Toàn bộ A1 được khôi phục lại từ ngữ cảnh và commit theo tầng + push nhánh `origin/a1-preview-apply` ngay sau đó. Bài học: KHÔNG để work-in-progress nằm ngoài commit trong repo đa-agent; commit sau mỗi tầng xong. (Lần 2, 08:3x: chính agent đó checkout nhánh khác làm rớt 1 commit khỏi lịch sử — cứu bằng cherry-pick từ commit mồ côi; quy tắc không đổi.)
+
+## Hậu kiểm self-review vòng 1 (2026-10-31, owner yêu cầu xé code — đã trả nợ trong ngày)
+
+6 sửa từ teardown + 1 phát hiện mới nhờ mắt vision:
+
+1. **`selectedImg` state mồ côi** — loadPage/undo/redo giờ reset cả selectedText lẫn selectedImg; trước đó nút Replace bật sáng khi không có gì được chọn sau khi chuyển trang/áp template.
+2. **Catch nuốt lỗi** — applyVariantToSelection giờ console.error lỗi thật (bài học oia:// poisoned-realpath).
+3. **CSS token đoán mò** — bỏ fallback sai (`--ink-soft` không tồn tại, fallback `--bg` lệch màu); dùng token thật.
+4. **Hand-mirror trên wire** — export `ChatRunResult` từ @oia/services; bridge import thay vì tay gõ (header bridge tự cấm điều này).
+5. **Logic trộn trong component** — tách `renderer/lib/variant-tray.ts` (dedupe same-ref, bindPromptForJob — event trễ không còn nhận nhãn prompt của job sau, B7; variantsFromSession) + 10 unit test.
+6. **Nợ spec 4a** — mở conversation trong lịch sử editor giờ load lại variant vào khay + ghim session (bản ghi vẫn luôn persist; giờ UX cũng vậy). Cảnh báo méo: aspect khác >5% → notice nói rõ ảnh bị stretch (trung thực thay vì để user tự phát hiện).
+7. **PHÁT HIỆN MỚI (vision trên ảnh crop): nút Replace vô hình** — `.variantActions button` (0,1,1) đè `background:#fff` lên `.primaryBtn` (0,1,0) trong khi color vẫn `#fff`: chữ trắng trên nền trắng, đúng họ bug dark-mode-pill từng ghi sổ. Gate DOM cũ không bắt được (assert `disabled`, không assert màu). Sửa CSS (primary restates bg+color, disabled = accent-soft + muted) + **gate contrast mới trong shot**: computed bg ≠ fg của nút Replace khi enabled — trắng-trên-trắng giờ fail gate ngay lập thức.
+8. **Gate yếu hơn lời hứa** — mock placeholder giờ deterministic theo prompt (fnv1a → PNG 8×8, cùng prompt cùng bytes) nên shot pin được `changedSrcs === 1` THẬT (trước đây ≤1 + proxy undo vì mock cũ dedupe mọi ảnh về cùng URL); thêm pin VA-1 e2e (2 edit → sessions tăng đúng 1); `desktop-editor.png` giờ chụp CÓ khay variant (trước đó dismiss trước rồi chụp dock trống).
+
+**Đính chính nhận định sai của teardown:** mục "imageMock cache vĩnh viễn từ lúc mount" KHÔNG phải bug — đổi provider mode phải qua Runtime Panel ở Home, rời editor = unmount, vào lại = fetch mới. Nhận định rút lại.
+
+**Gates vòng 1:** canvas 39, services 21, desktop 115 (10 mới variant-tray), providers 79 (5 mới mock), shot xanh toàn bộ kèm gate A1 nâng cấp (card dedupe + canvas bất động + đúng 1 src đổi + session pinning + contrast + dismiss).
 
 ## Rủi ro / cạnh đã nghĩ
 

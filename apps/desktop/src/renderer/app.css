@@ -373,7 +373,11 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .variantActions { display: flex; flex-wrap: wrap; gap: 4px; }
 .variantActions button { font-size: 10.5px; padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
 .variantActions button:hover:not(:disabled) { border-color: var(--accent); }
-.variantActions .primaryBtn.small { font-size: 10.5px; padding: 3px 7px; min-height: 0; }
+/* The primary MUST restate bg+color: .variantActions button (0,1,1) outspecifies
+   .primaryBtn (0,1,0) — without this the label rendered white-on-white (the exact
+   bug class the dark-mode gate was built for; caught by vision on the tray crop). */
+.variantActions .primaryBtn.small { font-size: 10.5px; padding: 3px 7px; min-height: 0; background: var(--accent); color: #fff; border-color: transparent; }
+.variantActions .primaryBtn.small:disabled { background: var(--accent-soft); color: var(--muted); cursor: default; }
 .aiComposer textarea { width: 100%; border: none; padding: 0; resize: none; min-height: 95px; font-size: 12px; outline: none; background: none; }
 .aiComposerControls { display: flex; gap: 4px; align-items: center; }
 .generateBtn { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--accent); color: #fff; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px #7050e51c; }
