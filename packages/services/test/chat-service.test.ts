@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChatEvent, ImageProvider, ProviderCapabilities } from "@oia/schema";
-import { createServiceContext, runChat, cancelJob, jobControllers, type ServiceContext } from "../src/index.js";
+import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, type ServiceContext } from "../src/index.js";
 import { MockImageProvider, MockLlmProvider, FailingMockLlmProvider } from "@oia/providers";
 
 /**
@@ -220,5 +220,23 @@ describe("D2 remediation: chatRequestSchema is the single boundary schema", () =
   it("refusals are distinguishable without event sniffing", async () => {
     // (typed outcome union: refused-rate-limited | refused-unavailable — compile-time,
     //  exercised at runtime by the guard/preflight tests above)
+  });
+});
+
+describe("C1 teardown fix: the wire validates deck bounds at the boundary", () => {
+  it("approvedOutline caps at 9 — 10 rows is a schema rejection, not a planner failure", () => {
+    const ten = Array.from({ length: 10 }, (_, i) => ({ title: `P${i}`, summary: "s" }));
+    expect(chatRequestSchema.safeParse({ prompt: "deck", approvedOutline: ten }).success).toBe(false);
+    const nine = Array.from({ length: 9 }, (_, i) => ({ title: `P${i}`, summary: "s" }));
+    expect(chatRequestSchema.safeParse({ prompt: "deck", approvedOutline: nine }).success).toBe(true);
+  });
+
+  it("blank rows are rejected by the shared planPageSchema (no blank reaches the planner)", () => {
+    expect(chatRequestSchema.safeParse({ prompt: "deck", approvedOutline: [{ title: " ", summary: "s" }] }).success).toBe(false);
+  });
+
+  it("pages caps at 9 too — the composer's ceiling holds on the wire", () => {
+    expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 10 }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 9 }).success).toBe(true);
   });
 });

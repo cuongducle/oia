@@ -43,10 +43,12 @@ export const planBlockSchema = z.object({
 export type PlanBlock = z.infer<typeof planBlockSchema>;
 
 /** C1 outline gate — one approved deck page: title + what the page will say.
- * The outline card edits THIS shape; phase 2 generation honors it by count (OC-2). */
+ * The outline card edits THIS shape; phase 2 generation honors it by count (OC-2).
+ * .trim(): a whitespace-only title is BLANK — the wire, the planner parse and the
+ * card's validity check must all agree on that (teardown 2026-10-31). */
 export const planPageSchema = z.object({
-  title: z.string().min(1),
-  summary: z.string().min(1),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
 });
 export type PlanPage = z.infer<typeof planPageSchema>;
 

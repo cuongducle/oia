@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
-import { nextMsgId, type ChatEvent, type PlannerPlan } from "@oia/schema";
+import { nextMsgId, planPageSchema, type ChatEvent, type PlannerPlan } from "@oia/schema";
 import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
@@ -35,12 +35,16 @@ export const chatRequestSchema = z.object({
   sessionId: z.number().int().optional(),
   brandKitId: z.string().optional(),
   referenceImages: z.array(z.string()).optional(),
-  pages: z.number().int().positive().optional(),
+  pages: z.number().int().positive().max(9).optional(),
   outlineMode: z.boolean().optional(),
   /** C1 outline gate phase 1 — stop after the outline (docs/designs/outline-gate.md). */
   outlineGate: z.boolean().optional(),
-  /** C1 phase 2 — the user-approved page outline; count is a hard contract. */
-  approvedOutline: z.array(z.object({ title: z.string().min(1), summary: z.string().min(1) })).optional(),
+  /** C1 phase 2 — the user-approved page outline; count is a hard contract.
+   * planPageSchema imported (not hand-inlined): the wire shape IS the plan shape —
+   * a hand mirror here was the exact anti-pattern the A1 teardown killed. Cap 9 =
+   * the composer's ceiling; >9 must fail at the BOUNDARY with a clear 400, not
+   * deep inside the planner as a confusing plan_parse_failed. */
+  approvedOutline: z.array(planPageSchema).max(9).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
   retryOf: z.string().optional(),
