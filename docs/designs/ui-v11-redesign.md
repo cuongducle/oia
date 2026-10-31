@@ -129,12 +129,12 @@ A2 (plan card), A3 (sửa theo layer đang chọn), E1 (chọn brand kit ngay tr
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ From a spark to something great.                             │
+│  Flash sale · New product · Livestream · Menu · Social · Deck │  ← chip "làm gì" (use case)
 │ ┌──────────────────────────────────────────────────────────┐ │
 │ │ banner trà sữa giảm 20% ngày 8/11                        │ │
-│ │ 📎  [Shopee 1:1 ▾] [2K ▾] [Brand: Lumea ▾] [Pages: 1 ▾]  │ │
+│ │ 📎 [Skills ▾] [Shopee 1:1 · 2K ▾] [Brand: Lumea ▾] [Pages: 1 ▾] │
 │ │                         ≈ 1 image   [ Create → ]         │ │
 │ └──────────────────────────────────────────────────────────┘ │
-│  Shopee · Lazada · TikTok Shop · Livestream · Poster · Deck  │  ← chip size theo nền tảng
 │                                                              │
 │  ┌ Step 2 of 2 · Review the outline (khi Pages ≥ 2) ──────┐  │
 │  │  … (outline card C1, full width của composer)          │  │
@@ -152,7 +152,8 @@ A2 (plan card), A3 (sửa theo layer đang chọn), E1 (chọn brand kit ngay tr
 ```
 
 - Banner Trial mode + card runtime **rời Home** → chip ở chân sidebar + một dòng nhỏ trong composer khi đang ở Trial ("Trial mode · placeholder images" — vẫn hiện đúng chỗ người dùng sắp bấm Create, đúng tinh thần TP.6-3 mock labeling).
-- Chip định dạng cũ (Poster/Social post/Presentation/Banner) thay bằng **chip kích thước theo nền tảng** đặt ratio thật (từ vựng niche — luật DNA #6).
+- Chip định dạng cũ (Poster/Social post/Presentation/Banner) thay bằng **chip "làm gì" đặt TRÊN composer** theo từ vựng seller: Flash sale · New product · Livestream · Menu · Social post · Deck (luật DNA #6). Chọn chip = gợi câu mở đầu cho prompt + đặt khổ mặc định hợp lý (Livestream → 9:16, Deck → 16:9 + Pages 3); người dùng vẫn đổi được. Khổ và độ phân giải gộp **một pill** trong composer ("Shopee 1:1 · 2K ▾") — menu của pill nhóm theo nền tảng như Create sheet.
+- **Skills ▾ trong composer** (và hàng chip nhanh trong ô nhập của tab AI): các tool hay dùng (Remove background, Resize for…, Make text editable) gọi được ngay trong luồng; trang Tools vẫn là thư viện đầy đủ.
 - **Brand pill** (E1-a): chọn kit cho request này; mặc định = kit `applyByDefault`. Chỉ đổi phần composer — việc kit tác động lên text layers (E1-c) là doc riêng.
 - Outline card C1 thành **bước 2 của composer** (cùng chiều rộng, nhãn "Step 2 of 2"), hành vi và gate C1 giữ nguyên.
 - "Recent designs" đưa lên trước inspiration (luật DNA #3).
@@ -184,7 +185,7 @@ A2 (plan card), A3 (sửa theo layer đang chọn), E1 (chọn brand kit ngay tr
 - **Layers panel:** thứ tự object Fabric (trên cùng = trước nhất), tên layer (dùng `name` đã có — khối chữ planner đã mang role), icon loại, ẩn/hiện, khoá, kéo đổi thứ tự, click = chọn trên canvas. Layer `origin: "user"` có dấu nhỏ "You" — giúp người dùng hiểu vì sao AI không xoá nó (TP.10).
 - **Panel phải dạng tab:**
   - **Design** — inspector theo selection: Position (X/Y/W/H/rotation), Appearance (opacity, fill), Text (font, size, weight, color, align, spacing — thay thanh text tạm hiện nay), Image (Replace image, Crop, Remove background, **Edit with AI** → chuyển tab AI với selection đã gắn = bước đầu của A3). Không có selection → hiện thuộc tính trang (như panel Page).
-  - **AI** — dock hiện tại + khay variant A1. Badge số variant mới khi đang ở tab Design.
+  - **AI** — dock hiện tại + khay variant A1. Badge số variant mới khi đang ở tab Design. Layer đang nhắm hiện thành **chip "@ <tên layer>"** ngay trong ô nhập (đến từ selection, "Edit with AI" hoặc gõ `@` — chọn từ danh sách layer của canvas); hàng chip skill nhanh nằm trên ô nhập. Nút chính của variant đổi nhãn theo đúng layer sẽ bị thay ("Replace background image") thay cho chữ chung chung "Replace selected layer".
 - **Contextual toolbar** nổi ngay trên selection: 4–6 thao tác hay dùng nhất của loại object (text: font, size, bold, align, màu; ảnh: Replace, Crop, Edit with AI; nhiều object: Align, Group). Thanh text tạm hiện tại được thay bằng thanh này.
 - **Variant card:** khi chưa chọn layer ảnh, nút "Replace selected layer" vẫn disable nhưng có dòng giải thích "Select an image layer to replace it" (hiện đang disable câm).
 - **Top bar:** icon có nhãn/tooltip rõ; "Publish template" vào menu **Share ▾** (Publish as template · Save to library); "Saved" kèm giờ ("Saved 14:02" — luật DNA #7 trust signal).
@@ -263,6 +264,21 @@ Map từ event sẵn có (`ChatEvent` status / task progress) — không đổi 
 
 R1–R3 không đụng canvas → rủi ro thấp, có thể làm song song với T6 (Windows thật). R4–R5 là phần lớn nhất (Fabric event + undo/redo).
 
+## Đối chiếu đối thủ tham chiếu (2026-10-31)
+
+Nguồn: trang công khai của đối thủ tham chiếu (landing + phần mô tả tính năng kèm ảnh minh họa giao diện app), đọc 2026-10-31; app thật nằm sau đăng nhập nên không vào. Chỉ học pattern tương tác — không sao chép asset, tên, bố cục (cùng ghi chú pháp lý với `design-product-ui-2026.md`).
+
+| Pattern của họ | Quyết định cho Oia | Đã đưa vào |
+|---|---|---|
+| Chip loại nội dung (Presentation, Festival, Poster, Invitation, Resume, E-commerce, Menu, Social Media) đặt **trên** ô prompt | **Lấy**, nhưng đổi sang use case của seller VN (Flash sale, New product, Livestream, Menu, Social post, Deck) | Home, R6 |
+| Hàng điều khiển trong ô prompt: `+` · `1:1 \| 2K` một pill · `Auto Pages ▾` · `Outline Mode` toggle · `Brand Kit ▾` | **Lấy** gộp khổ + độ phân giải một pill; Brand pill; outline toggle chỉ hiện khi Pages ≥ 2 (đã đúng với C1) | Home, R6 |
+| Preset Skills chọn ngay trong ô chat (Long image, XHS, Presentation, File translator, Background remover, Image resizer) | **Lấy**: `Skills ▾` trong composer + chip skill nhanh trong ô nhập tab AI; trang Tools giữ làm thư viện | Home, Editor AI, R3/R6 |
+| Panel AI liệt kê layer của canvas để nhắc tới khi sửa | **Lấy** dưới dạng chip `@ layer` trong ô nhập + Layers panel thật ở rail | Editor AI, R4/R5 |
+| Kết quả edit hiện thumbnail trong chat + nút "Add to canvas" | Đã có (A1). Cải thiện: nhãn nút nói rõ layer sẽ bị thay | Editor AI |
+| Checklist "Planner Agent ✓ · Designer Agent ✓ · Manager Agent ✓" | **Không lấy**: seller không cần biết tên agent; giữ động từ người dùng hiểu (Planning / Painting / Composing) | R3 |
+| Credit subscription, trừ credit ngầm | **Không lấy** (BYOK, D-series): giá hiện trước mỗi hành động tốn quota + đồng hồ quota hôm nay | R1, R3 |
+| Không thấy layers panel / inspector cố định — chỉnh qua hội thoại + toolbar nổi trên ảnh | **Làm khác**: Layers + tab Design là xương sống (luật DNA #2); toolbar nổi theo selection vẫn có | R4, R5 |
+
 ## Rủi ro
 
 - **Editor.tsx đã gần 1 200 dòng:** R4–R5 nên tách `LayersPanel`, `Inspector`, `ContextToolbar` thành component riêng thay vì nhồi tiếp.
@@ -280,3 +296,5 @@ R1–R3 không đụng canvas → rủi ro thấp, có thể làm song song vớ
 | Q4 | Làm R1–R6 trước hay sau buổi seller (D10)? | R1–R3 trước D10 (rẻ, không đụng canvas, sửa đúng các triệu chứng seller thấy đầu tiên); R4–R6 sau, ưu tiên theo dữ liệu D10 |
 | Q5 | Đổi tên Workspace → Projects? | Có — đúng thứ người dùng tìm |
 | Q6 | Brand pill vào composer ngay (E1-a) hay chờ E1 đầy đủ? | Ngay — chỉ là UI chọn `brandKitId` đã có trên wire; tác động lên text layers (E1-c) để doc riêng |
+| Q7 | Chip trên composer là "làm gì" (use case) thay cho chip kích thước? | Có — khớp cách seller nghĩ ("làm flash sale") và cách đối thủ tham chiếu làm; kích thước vẫn chọn được trong pill |
+| Q8 | Đưa Skills vào composer + tab AI (A2-nhóm D của brainstorm)? | Có, bản tối thiểu: menu gọi tool sẵn có, không thêm tool mới |
