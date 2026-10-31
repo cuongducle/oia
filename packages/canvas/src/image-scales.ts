@@ -1,5 +1,3 @@
-import type * as fabric from "fabric";
-
 /**
  * Paint-scale normalization for FabricImage objects (deconstruct-import.md
  * teardown find; the fabric source is the authority):
@@ -47,6 +45,3 @@ export function normalizeImageScales(canvas: { getObjects(): unknown[] }): numbe
   }
   return fixed;
 }
-
-/** Type shim so callers can pass a real fabric.Canvas without casts. */
-export type ImageScaleCanvas = fabric.Canvas | { getObjects(): unknown[] };

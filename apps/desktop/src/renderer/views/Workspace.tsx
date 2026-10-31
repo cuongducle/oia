@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Project } from "@oia/schema";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
@@ -55,6 +55,8 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
     if (decon?.previewUrl) URL.revokeObjectURL(decon.previewUrl);
     setDecon(null);
   }
+  // teardown B1: the preview object URL must die on unmount too, not just on close
+  useEffect(() => () => { if (decon?.previewUrl) URL.revokeObjectURL(decon.previewUrl); }, [decon]);
 
   function pickDeconFile(file: File) {
     const previewUrl = URL.createObjectURL(file);
@@ -64,12 +66,30 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
     img.src = previewUrl;
   }
 
+  const deconTaskRef = useRef<string | null>(null);
+  const deconRunRef = useRef(0);
+  /** Teardown B1 (spec deviation): "cancel is always available" — the run must
+   * be cancellable mid-flight. Cancelling closes the dialog, but the poll loop
+   * KEEPS WATCHING: if the task had already finished, the paid result still
+   * becomes a project (quota-is-money — no orphaned paid generation). */
+  async function cancelDecon() {
+    const id = deconTaskRef.current;
+    if (id) await oia().cancelTask(id).catch(() => {});
+    closeDecon();
+  }
+
   async function runDeconstruct() {
     if (!decon) return;
+    // snapshot: cancel() nulls `decon` mid-run, but a task that SUCCEEDED before
+    // the cancel landed still owes the seller its project (quota-is-money) — the
+    // success path must not depend on live dialog state.
+    const pick = decon;
+    const myRun = ++deconRunRef.current;
     setDeconBusy(true); setError(""); setNotice("");
     try {
-      const up = await oia().uploadAsset(decon.file.name, new Uint8Array(await decon.file.arrayBuffer()));
+      const up = await oia().uploadAsset(pick.file.name, new Uint8Array(await pick.file.arrayBuffer()));
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
+      deconTaskRef.current = started.taskId;
       let final = started.progress === "processing" ? null : started;
       for (let i = 0; i < 150 && !final; i++) { // 2s×150 = 5 min cap, then an honest error
         await new Promise((r) => setTimeout(r, 2000));
@@ -79,16 +99,18 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
       }
       if (!final) throw new Error("timed out after 5 minutes");
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
-        throw new Error(final.taskNote || final.msg || "deconstruct failed");
+        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "deconstruct was cancelled — nothing was imported"));
       }
       const texts = (final.taskResult.texts ?? []) as DeconstructText[];
-      const scene = deconstructScene({ imageUrl: final.taskResult.download, w: decon.w, h: decon.h, texts });
-      const p = await oia().createProject({ name: decon.file.name.replace(/\.[^.]+$/, "") || "Deconstructed design", scene });
+      const scene = deconstructScene({ imageUrl: final.taskResult.download, w: pick.w, h: pick.h, texts });
+      const p = await oia().createProject({ name: pick.file.name.replace(/\.[^.]+$/, "") || "Deconstructed design", scene });
+      if (deconRunRef.current !== myRun) return; // a newer run owns the UI — the project stays in the workspace list
       closeDecon();
       onOpenProject(p.id);
     } catch (e) {
       setError(bridgeErrorMessage(e, "Deconstruct failed — the design was not imported."));
     } finally {
+      deconTaskRef.current = null;
       setDeconBusy(false);
     }
   }
@@ -312,7 +334,7 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
         </Dialog>
       )}
       {decon && (
-        <Dialog onClose={deconBusy ? () => {} : closeDecon} label="Deconstruct old design">
+        <Dialog onClose={deconBusy ? () => void cancelDecon() : closeDecon} label="Deconstruct old design">
           <h2>Make this design editable?</h2>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 12px" }}>
             Oia reads the text in the image, cleans it off the background, and rebuilds each line as an editable text layer.
@@ -328,7 +350,7 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
           </div>
           {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading and cleaning — this usually takes 1–3 minutes…</p>}
           <div className="dialogActions">
-            <button className="secondaryBtn" disabled={deconBusy} onClick={closeDecon}>Cancel</button>
+            <button className="secondaryBtn" onClick={() => void cancelDecon()}>{deconBusy ? "Cancel run" : "Cancel"}</button>
             <button className="primaryBtn" disabled={deconBusy} data-testid="decon-confirm" onClick={() => void runDeconstruct()}>
               {deconBusy ? "Working…" : "Deconstruct"}
             </button>

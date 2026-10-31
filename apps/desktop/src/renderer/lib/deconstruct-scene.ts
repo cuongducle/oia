@@ -20,9 +20,11 @@ export function deconstructScene(input: { imageUrl: string; w: number; h: number
     { type: "Image", left: 0, top: 0, width: w, height: h, src: imageUrl, crossOrigin: "anonymous", selectable: true },
   ];
   for (const t of texts) {
-    const left = Math.round(t.box.x * w);
-    const top = Math.round(t.box.y * h);
-    const width = Math.max(24, Math.round(t.box.w * w));
+    // clamp placement INSIDE the artboard: models can return boxes whose x+w
+    // exceeds 1 (0.98 + 0.05) — data stays as-read, only placement is clamped
+    const left = Math.min(Math.round(t.box.x * w), Math.max(0, w - 24));
+    const top = Math.min(Math.round(t.box.y * h), Math.max(0, h - 24));
+    const width = Math.max(24, Math.min(Math.round(t.box.w * w), w - left));
     // Font size from the box height — a starting point the seller tunes for free
     // in the editor; clamped so a stray tiny/huge box never makes unusable text.
     const fontSize = clamp(Math.round(t.box.h * h * 0.75), 12, 200);

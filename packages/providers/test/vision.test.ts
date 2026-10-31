@@ -68,4 +68,37 @@ echo "ARGS:$@"
     expect(new MockLlmProvider().capabilities.referenceImages).toBe(true);
     expect(new CodexLlmProvider().capabilities.referenceImages).toBe(true);
   });
+
+  it("sniffImageExt tells the truth about bytes — no webp named .png (teardown B1)", async () => {
+    const { sniffImageExt } = await import("../src/llm/codex.js");
+    expect(sniffImageExt(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]))).toBe("png");
+    expect(sniffImageExt(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("jpg");
+    expect(sniffImageExt(new Uint8Array([0x52, 0x49, 0x46, 0x60, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]))).toBe("webp");
+    expect(sniffImageExt(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBe("gif");
+    expect(sniffImageExt(new Uint8Array([0x42, 0x4d, 0x00]))).toBe("bmp");
+    expect(sniffImageExt(new Uint8Array([1, 2, 3]))).toBe("png"); // unknown magic defaults to png
+  });
+
+  it("readImage materializes webp bytes under a .webp name", async () => {
+    const bin = path.join(fakeDir, "extecho");
+    // writes the -i path into the -o file so the provider RETURNS it for asserting
+    writeFileSync(
+      bin,
+      `#!/bin/sh
+OUT=""; IMG=""
+while [ $# -gt 0 ]; do
+  if [ "$1" = "-o" ]; then OUT="$2"; fi
+  if [ "$1" = "-i" ]; then IMG="$2"; fi
+  shift
+done
+printf '{"img":"%s"}' "$IMG" > "$OUT"
+`,
+    );
+    chmodSync(bin, 0o755);
+    const provider = new CodexLlmProvider(new CodexBridge({ bin }), { timeoutMs: 5_000 });
+    const webp = new Uint8Array([0x52, 0x49, 0x46, 0x60, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 1, 2, 3]);
+    const raw = await provider.readImage("read it", webp, DECONSTRUCT_JSON_SCHEMA);
+    const imgPath = JSON.parse(raw).img as string;
+    expect(imgPath).toMatch(/\.webp$/); // the extension tells the truth about the bytes
+  });
 });

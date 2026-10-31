@@ -1283,6 +1283,18 @@ async function shot(): Promise<void> {
     return;
   }
   await win.webContents.executeJavaScript(`document.querySelector('[data-testid="decon-confirm"]').click()`, true);
+  // teardown B1 pin: "Cancel" must stay clickable WHILE the run is in flight
+  // (the 2s first-poll window guarantees the busy state is observable in mock)
+  const cancelAlive = await win.webContents.executeJavaScript(`(() => {
+    const btn = [...document.querySelectorAll('.dialogActions .secondaryBtn')].find((b) => b.textContent.includes("Cancel"));
+    return btn ? { present: true, disabled: btn.disabled, label: btn.textContent.trim() } : { present: false };
+  })()`, true);
+  if (!cancelAlive?.present || cancelAlive.disabled !== false) {
+    console.error(`DESKTOP_SHOT B1 FAILED — cancel must stay alive mid-run (${JSON.stringify(cancelAlive)})`);
+    app.exit(20);
+    return;
+  }
+  console.log(`[shot] B1 cancel-alive gate:`, JSON.stringify(cancelAlive));
   let deconDone: unknown = null;
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 500));

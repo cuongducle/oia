@@ -88,6 +88,21 @@ Seller có sẵn banner làm bằng Canva/ChatGPT (ảnh phẳng, chữ cháy tr
 
 Kèm 1 sửa kịch bản shot: fixture phải là PNG THẬT (đọc từ shotOcr) — blob rác làm preview Image onerror → dialog không bao giờ mở; và thêm settle-poll (scene load async — đọc canvas ngay khi editor mount bắt 0 object).
 
+## Hậu kiểm teardown vòng 1 (2026-10-31, owner lệnh "té code 1 vòng" sau spike)
+
+**1 lệch spec thật + 1 rủi ro format thật + 2 hố null/race tự bộc lộ khi sửa + 2 vệ sinh:**
+
+1. **[SỬA — LỆCH SPEC] Cancel không hoạt động khi đang chạy.** Goals chốt "Cancel thường trực (signal xuyên suốt)" nhưng implementation disable nút Cancel khi busy (và chặn Escape). Sửa: Cancel + Escape chạy `cancelTask` rồi đóng dialog — vòng poll TIẾP TỤC canh: task đã xong trước khi cancel tới nơi → kết quả vẫn thành project + mở editor (quota đã trả không mồ côi); kết quả cancelled/failed → notice trung thực "was cancelled — nothing was imported". Gate shot mới pin nút Cancel còn click được giữa chừng chạy (cửa sổ 2 giây của poll đầu tiên bảo đảm bắt được trạng thái busy ở mock).
+2. **[SỬA — HỐ NULL tự bộc lộ khi sửa (1)] `decon` null giữa chừng:** cancel đóng dialog → state null → nhánh "task xong trước cancel" đọc `decon.w/decon.file.name` nổ TypeError → kết quả đã trả tiền mất khỏi luồng. Sửa: chụp snapshot `pick` đầu hàm — success path không phụ thuộc dialog sống.
+3. **[SỬA — RACE tự bộc lộ khi sửa (2)] cancel rồi chạy lần mới:** hai vòng poll sống song song → hai onOpenProject giành nhau. Guard `deconRunRef`: run cũ vẫn tạo project (quota) nhưng KHÔNG giành điều hướng; project nằm lại trong Workspace list.
+4. **[SỬA — RỦI RO FORMAT] readImage ghi mọi bytes dưới đuôi `.png`:** ảnh webp/jpeg ("New from old design" chấp nhận mọi image/*) tên .png có thể bị từ chối/đọc sai phía codex. Thêm `sniffImageExt` magic-byte (png/jpg/webp/gif/bmp, default png) — test unit pin webp bytes → tên file `.webp` (fake bin phản chiếu đường dẫn `-i` qua file output).
+5. **[SỬA — MINOR] Box tràn khổ (x+w > 1):** schema cho phép (model có thể trả 0.98+0.5) — Textbox原型 lơ lửng ngoài canvas. deconstructScene clamp vị trí VÀO khổ (chỉ placement, dữ liệu như model trả — không sửa silently); test mới pin biên.
+6. **[VỆ SINH] Xóa export chết `ImageScaleCanvas`; comment tiếng Việt trong Workspace.tsx bị gate VN-scan bắt đúng luật code-EN (dịch lại); objectURL preview giờ revoke cả khi unmount (trước chỉ khi close).**
+
+**Kiểm tra và loại (không phải bug):** Dialog modal chuẩn (focus trap + backdrop — không đua được với menu New); pngSize DataView xử lý đúng Buffer pooled (byteOffset); signal xuyên suốt 2 pha (cancel giữa pha đọc → inpaint không chạy); getTask throw giữa poll → catch hiện lỗi trung thực; taskResult.texts qua loopback envelope additive (agent dùng được); HEIC không decode được bị chặn ngay ở preview Image onerror (trước khi upload); EXIF orientation edge (naturalWidth đã theo orientation trong Chromium) — ghi nhận, không xử lý.
+
+**Gates vòng 1:** providers 89 (2 mới), canvas 44, desktop 142 (1 mới clamp), shot 3/3 exit=0 (kèm gate cancel-alive `label:"Cancel run", disabled:false`), repo build+test+typecheck xanh, smoke OK events=9, crash-smoke OK before=5 recovered=5.
+
 ## Còn treo (đã biết, không "phát hiện lại")
 
 - ~~SPIKE THẬT~~ **ĐÃ CHẠY & PASS (2026-10-31, owner duyệt — đốt đúng 1 lượt đọc + 1 ảnh theo cam kết):**

@@ -34,4 +34,14 @@ describe("deconstructScene", () => {
     expect(scene.objects).toHaveLength(2); // clip + artwork only
     expect(() => sceneCanvasSchema.parse(scene)).not.toThrow();
   });
+
+  it("clamps overflowing boxes INSIDE the artboard — placement only, data untouched (teardown B1)", () => {
+    const overflow: DeconstructText = { text: "x", box: { x: 0.98, y: 0.97, w: 0.5, h: 0.1 } }; // 0.98+0.5 ≫ 1
+    const scene = deconstructScene({ imageUrl: "u", w: 1000, h: 2000, texts: [overflow] });
+    const tb = scene.objects[2];
+    expect(tb.left).toBeLessThanOrEqual(1000 - 24);
+    expect(tb.top).toBeLessThanOrEqual(2000 - 24);
+    expect((tb.left ?? 0) + (tb.width ?? 0)).toBeLessThanOrEqual(1000);
+    expect(() => sceneCanvasSchema.parse(scene)).not.toThrow();
+  });
 });
