@@ -42,6 +42,14 @@ export const planBlockSchema = z.object({
 });
 export type PlanBlock = z.infer<typeof planBlockSchema>;
 
+/** C1 outline gate — one approved deck page: title + what the page will say.
+ * The outline card edits THIS shape; phase 2 generation honors it by count (OC-2). */
+export const planPageSchema = z.object({
+  title: z.string().min(1),
+  summary: z.string().min(1),
+});
+export type PlanPage = z.infer<typeof planPageSchema>;
+
 /**
  * Planner plan contract. Legacy `{title, imagePrompt, copy}` keeps working:
  * `copy`, when present, is read as a single block (see normalizeBlocks).
@@ -51,6 +59,7 @@ export const plannerPlanSchema = z.object({
   imagePrompt: z.string().min(1),
   imagePrompts: z.array(z.string()).nullable().optional(),
   outline: z.array(z.string()).nullable().optional(),
+  pageOutline: z.array(planPageSchema).nullable().optional(),
   copy: z.string().nullable().optional(),
   blocks: z.array(planBlockSchema).nullable().optional(),
 });
@@ -124,7 +133,7 @@ export const PLAN_JSON_SCHEMA = {
   title: "OiaPlannerPlan",
   type: "object",
   additionalProperties: false,
-  required: ["title", "imagePrompt", "imagePrompts", "outline", "copy", "blocks"],
+  required: ["title", "imagePrompt", "imagePrompts", "outline", "pageOutline", "copy", "blocks"],
   properties: {
     title: { type: "string", description: "Short project title, same language as the user request." },
     imagePrompt: { type: "string", description: "Art-direction prompt for the image model (English art direction is fine); do not include copy that exists as blocks." },
@@ -137,6 +146,19 @@ export const PLAN_JSON_SCHEMA = {
       type: ["array", "null"],
       items: { type: "string" },
       description: "Only in outline mode: 3-6 short planning bullets. Null otherwise.",
+    },
+    pageOutline: {
+      type: ["array", "null"],
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "summary"],
+        properties: {
+          title: { type: "string", description: "Page title, same language as the user request." },
+          summary: { type: "string", description: "One line: what this page shows/says." },
+        },
+      },
+      description: "Only in outline-gate phase 1: exactly one entry per requested page, in order. Null otherwise.",
     },
     copy: { type: ["string", "null"], description: "Legacy single-copy field. Prefer blocks[]; null when blocks are used." },
     blocks: {

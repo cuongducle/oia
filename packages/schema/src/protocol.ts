@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { sceneCanvasSchema } from "./scene.js";
-import { errorClassSchema } from "./plan.js";
+import { errorClassSchema, planPageSchema } from "./plan.js";
 
 /** Monotonic msgId: Date.now() alone collides for same-ms streams (design B-blocker note). */
 let __msgSeq = 0;
@@ -45,6 +45,8 @@ export const renderDataSchema = z.object({
   exportMeta: exportMetaSchema.nullable().default(null),
   /** TP.10 — present only when an agent action needs explicit user confirmation. */
   confirmRequest: confirmRequestSchema.nullable().default(null),
+  /** C1 outline gate — the deck outline phase 1 ends with (null on every other event). */
+  outline: z.array(planPageSchema).nullable().default(null),
 });
 
 /**

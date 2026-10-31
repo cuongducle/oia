@@ -91,6 +91,24 @@ describe("parsePlannerPlan: strict on shape, tolerant of fences", () => {
   });
 });
 
+describe("C1 outline gate: pageOutline on the plan contract", () => {
+  it("parses one entry per page with title + summary", () => {
+    const plan = parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":[{"title":"Cover","summary":"hook + logo"},{"title":"Price","summary":"20% off"}]}');
+    expect(plan?.pageOutline).toEqual([
+      { title: "Cover", summary: "hook + logo" },
+      { title: "Price", summary: "20% off" },
+    ]);
+  });
+  it("error path: empty title or summary fails the whole parse (a blank row must never reach the card)", () => {
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":[{"title":"","summary":"x"}]}')).toBeNull();
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":[{"title":"x"}]}')).toBeNull();
+  });
+  it("stays optional + nullable (legacy plans parse unchanged — D14 additive)", () => {
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I"}')?.pageOutline).toBeUndefined();
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":null}')?.pageOutline).toBeNull();
+  });
+});
+
 describe("error taxonomy (TP.4)", () => {
   it("has exactly the 14 stable classes", () => {
     expect(ERROR_CLASSES).toHaveLength(14);

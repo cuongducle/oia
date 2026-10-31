@@ -9,6 +9,7 @@
     "imagePrompt",
     "imagePrompts",
     "outline",
+    "pageOutline",
     "copy",
     "blocks"
   ],
@@ -40,6 +41,31 @@
         "type": "string"
       },
       "description": "Only in outline mode: 3-6 short planning bullets. Null otherwise."
+    },
+    "pageOutline": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "summary"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Page title, same language as the user request."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One line: what this page shows/says."
+          }
+        }
+      },
+      "description": "Only in outline-gate phase 1: exactly one entry per requested page, in order. Null otherwise."
     },
     "copy": {
       "type": [
