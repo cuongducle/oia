@@ -1,7 +1,7 @@
 # C3 — Live-commerce overlay presets + safe-zone guides
 
 **Ngày:** 2026-10-31
-**Trạng thái:** DESIGN (đã duyệt owner cùng 9 chốt ngày 2026-10-31 — "chốt hết theo đề xuất"); triển khai ngay sau doc này.
+**Trạng thái:** ĐÃ SHIP (2026-10-31, trong release v0.2.0) — gates + 2 vòng teardown ở cuối doc. (Design duyệt owner cùng 9 chốt ngày 2026-10-31 — "chốt hết theo đề xuất"; dòng trạng thái này từng quên cập nhật khi ship — đính chính trong buổi rà release-vs-docs cùng ngày.)
 **Nguồn quyết định cha:** [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) mục C3 + Q3 (chốt 2026-10-31). Doc này là bản "tốt nghiệp" theo Q5 — chi tiết C3 sống ở ĐÂY từ nay, brainstorm ngừng cập nhật chi tiết C3.
 **Ràng buộc cha:** `design-direction.md` (UI copy không overclaim), hard rules AGENTS.md (B7, D8 English UI), TP.3 (clip = ground truth kích thước artboard).
 
