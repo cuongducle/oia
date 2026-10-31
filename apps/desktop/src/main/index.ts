@@ -533,7 +533,8 @@ async function realSmoke(): Promise<void> {
  * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-*.png.
  * Exit codes: 2 bridge missing · 3 home verify · 4/5 editor · 6 autosave · 7/8 workspace
  * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate
- * · 17 A1 variant gate (preview-apply — docs/designs/variant-preview-apply.md).
+ * · 17 A1 variant gate (preview-apply — docs/designs/variant-preview-apply.md)
+ * · 18 C1 outline gate (docs/designs/outline-gate.md).
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
@@ -649,6 +650,105 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-home.png");
+
+  // ---- C1 outline gate: a 2-page deck stops for review BEFORE any image burns ----
+  console.log("[shot] C1: running a gated 2-page deck (mock pair)…");
+  const c1Setup = await win.webContents.executeJavaScript(`(async () => {
+    const adv = document.querySelector(".advancedToggle");
+    if (!adv) return "no-advanced";
+    adv.click();
+    await new Promise((r) => setTimeout(r, 200)); // React must mount the panel before we query it
+    const panel = document.querySelector("#advanced-settings");
+    if (!panel) return "no-panel";
+    const sel = panel.querySelector("select");
+    if (!sel) return "no-pages-select";
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setter.call(sel, "2");
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    const sw = panel.querySelector('[role=switch][aria-label="Review outline before generating"]');
+    const cost = document.querySelector('[data-testid="deck-cost"]')?.textContent ?? null;
+    return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
+  })()`, true);
+  console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "· 2 pages ≈ 2 images") {
+    console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
+    app.exit(18);
+    return;
+  }
+  const c1Submitted = await win.webContents.executeJavaScript(`(() => {
+    if (!document.querySelector(".result canvas")) return "stale-result"; // sanity: first run's card present
+    const ta = document.querySelector('[data-testid="design-idea"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    setter.call(ta, "two page deck about milk tea promotion");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    const btn = document.querySelector('[data-testid="create-btn"]');
+    if (!btn || btn.disabled) return "create-disabled";
+    btn.click();
+    return "submitted";
+  })()`, true);
+  if (c1Submitted !== "submitted") {
+    console.error(`DESKTOP_SHOT C1 FAILED — could not submit deck (${c1Submitted})`);
+    app.exit(18);
+    return;
+  }
+  let outlineShown = false;
+  for (let i = 0; i < 60; i++) {
+    outlineShown = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="outline-card"]'))`,
+      true,
+    );
+    if (outlineShown) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!outlineShown) {
+    console.error("DESKTOP_SHOT C1 FAILED — outline card never appeared");
+    app.exit(18);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  const c1Card = await win.webContents.executeJavaScript(`(() => {
+    const rows = [...document.querySelectorAll("[data-testid^=outline-title-]")].map((i) => i.value);
+    const gone = !document.querySelector(".result canvas"); // NO image was generated in phase 1
+    const gen = document.querySelector('[data-testid="outline-generate"]');
+    return { rows, resultHiddenWhileReviewing: gone, genEnabled: gen ? !gen.disabled : null, cost: document.querySelector('[data-testid="outline-cost"]')?.textContent ?? null };
+  })()`, true);
+  console.log("[shot] C1 card:", JSON.stringify(c1Card));
+  if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images") {
+    console.error("DESKTOP_SHOT C1 FAILED — card state wrong (rows/hidden-result/enabled/cost)");
+    app.exit(18);
+    return;
+  }
+  // edit a title (the card's whole point), snap WITH the card, then pay
+  await win.webContents.executeJavaScript(`(() => {
+    const inp = document.querySelector('[data-testid="outline-title-0"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    setter.call(inp, "Milk tea cover");
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`, true);
+  await snap(win, "desktop-outline.png");
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="outline-generate"]').click()`, true);
+  let deckReady = false;
+  for (let i = 0; i < 60; i++) {
+    deckReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".result canvas")) && !document.querySelector('[data-testid="outline-card"]')`,
+      true,
+    );
+    if (deckReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 800));
+  const deckVerify = await win.webContents.executeJavaScript(`(() => {
+    const err = document.querySelector('[role=alert]')?.textContent ?? "";
+    const canvas = document.querySelector(".result canvas");
+    return { ok: Boolean(canvas) && !err, err, hasCanvas: Boolean(canvas) };
+  })()`, true);
+  console.log("[shot] C1 deck:", JSON.stringify(deckVerify));
+  if (!deckVerify || !deckVerify.ok) {
+    console.error("DESKTOP_SHOT C1 FAILED — deck did not generate after approval");
+    app.exit(18);
+    return;
+  }
+  console.log("[shot] C1 outline gate OK (default-on + cost label + 2-row card + no burn while reviewing + deck after approval)");
 
   // ---- D2 remainder: drive the EDITOR port with eyes -------------------------
   console.log("[shot] opening the editor…");
