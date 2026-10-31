@@ -9,6 +9,7 @@ import {
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
+import { appendVariant, bindPromptForJob, variantKey, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
@@ -38,19 +39,6 @@ export interface EditorProps {
   onOpenSession: (id: number) => void;
   /** A1 preview-apply — "Open in editor" on a variant opens it as a NEW project. */
   onOpenProject: (id: string) => void;
-}
-
-/** VA-2 — one canvas msgMeta from a chat edit, shown in the dock's variant tray.
- * The durable record is the chat session (canvas assetized there); this card is
- * presentation state, never a second copy of the truth. `key` dedupes: the agent
- * stream re-emits the same canvas meta several times — one canvas, one card. */
-interface VariantCard {
-  id: string;
-  key: string; // `${jobId}:${msgMeta.id}` — the same canvas arrives repeatedly
-  jobId: string;
-  prompt: string;
-  thumbnail: string; // canonical asset URL ("" → render ScenePreview from the canvas)
-  canvas: SceneCanvas; // canonical /api/files form
 }
 
 /* Small inline icon set (lucide is a web dep — the desktop keeps zero extra deps). */
@@ -119,6 +107,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
   // preview-apply adds the variant tray + conversation pinning (VA-1)
   const [aiOpen, setAiOpen] = useState(true);
   const [aiPrompt, setAiPrompt] = useState("");
+  const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
+  useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiTimeline, setAiTimeline] = useState<{ content: string; type: string }[]>([]);
   const aiJobRef = useRef<string | null>(null);
@@ -135,7 +125,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
   const [aiSessionId, setAiSessionId] = useState<number | null>(null); // VA-1 conversation pin
   const [variants, setVariants] = useState<VariantCard[]>([]);
   const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now" — view state, never persisted (VA-7)
-  const aiLastPromptRef = useRef(""); // the prompt shown on variant cards (events outlive the closure)
+  const aiPromptByJobRef = useRef<Map<string, string>>(new Map()); // per-job prompt binding (B7) — rules in variant-tray.ts
   // Templates/Assets/Draw
   const [tplList, setTplList] = useState<Template[]>([]);
   const [assets, setAssets] = useState<string[]>([]);
@@ -231,17 +221,17 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
           // A1 preview-apply (VA-3): the canvas NEVER mutates on arrival — each canvas
           // meta becomes a variant card; TP.10 non-destruction now lives in the apply
           // step (replaceObjectSrc touches one user-designated object's src).
-          // Dedupe: the stream re-emits one canvas several times (designer.ts) — the
-          // pre-A1 merge made that invisible; a tray must not show phantom duplicates.
-          const key = `${ev.jobId ?? ""}:${m.id}`;
-          setVariants((vs) => (vs.some((x) => x.key === key) ? vs : [...vs, {
+          // Dedupe + per-job prompt rules live in variant-tray.ts (unit-tested there).
+          const jobId = ev.jobId ?? "";
+          const card: VariantCard = {
             id: crypto.randomUUID(),
-            key,
-            jobId: ev.jobId ?? "",
-            prompt: aiLastPromptRef.current,
+            key: variantKey(ev.jobId, m.id),
+            jobId,
+            prompt: bindPromptForJob(aiPromptByJobRef.current, jobId, aiPromptRef.current),
             thumbnail: typeof m.thumbnail === "string" ? m.thumbnail : "",
             canvas: m.canvas as SceneCanvas,
-          }]));
+          };
+          setVariants((vs) => appendVariant(vs, card));
         }
       }
     });
@@ -566,7 +556,6 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
   async function runAiEdit() {
     if (aiBusy || !aiPrompt.trim()) return;
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
-    aiLastPromptRef.current = aiPrompt; // variant cards read this (events outlive the closure)
     try {
       const scene = fabricRef.current?.toObject() as SceneCanvas | undefined;
       // TP.11: capability-gated — never send refs to a provider that cannot use them;
@@ -883,7 +872,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
         {aiOpen && (
           <aside className="aiPanelFloating" data-testid="ai-dock">
             <div className="aiPanelHeader"><I d={icons.spark} size={16} /><strong>AI assistant</strong>
-              <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); setVariants([]); setHiddenVariants(new Set()); setAiSessionId(null); }}><I d={icons.plus} size={16} /></button>
+              <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); setVariants([]); setHiddenVariants(new Set()); setAiSessionId(null); aiPromptByJobRef.current.clear(); }}><I d={icons.plus} size={16} /></button>
               <button className="iconBtn" aria-label="Conversation history" onClick={loadChats}><I d={icons.history} size={16} /></button>
               <button className="iconBtn" aria-label="Close AI assistant" onClick={() => setAiOpen(false)}><I d={icons.x} size={16} /></button>
             </div>
