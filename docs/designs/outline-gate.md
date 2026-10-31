@@ -75,6 +75,28 @@ Sinh deck N trang (composer chọn Pages ≥ 2) = đốt N ảnh quota tức th�
 
 **Phát hiện khi làm:** (1) pha 2 phải chốt `pagesWanted` theo approvedOutline TRƯỚC khi dựng planner prompt — không thì instruction "exactly N imagePrompts" không bao giờ vào prompt (test bắt được); (2) hành vi có sẵn: `runChat` finally mutate event cuối thành `id:"final"` cho bản ghi persist — test đếm trang phải loại id này (không phải bug, nhưng ai viết gate cho deck cần biết).
 
+## Hậu kiểm self-review vòng 1 (2026-10-31, owner yêu cầu xé code — đã trả nợ trong ngày)
+
+7 sửa từ teardown + 2 đính chính:
+
+1. **Deck 1 trang = đường chết (bug ĐÃ TÁI HIỆN):** card cho xóa xuống 1 trang nhưng pha 2 luôn fail `plan_parse_failed 0/1` (instruction chỉ gắn khi >1 trang). Sửa: instruction gắn cho mọi approvedOutline ≥ 1; regression test dùng đúng MockLlmProvider nhận thức instruction (bản repro trung thực).
+2. **Wire schema thiếu max:** `approvedOutline` + `pages` giờ `.max(9)` — >9 chết ở biên với lỗi rõ, không phải plan_parse_failed khó hiểu trong lòng planner.
+3. **Zod mirror tay:** `approvedOutline` import `planPageSchema` thay vì viết tay — lặp lại đúng anti-pattern ChatRunResult đã diệt hôm trước, sửa lại.
+4. **Regex văn xuãi liên kết 2 file:** instruction strings rút thành `PLANNER_INSTRUCTIONS` trong @oia/schema — designer nhúng, MOCK dẫn xuất matcher từ chính hằng số (reword một nơi tự đồng bộ). Cả 2 phía có test pin contract.
+5. **Trim nhất quán:** `planPageSchema` thêm `.trim()` — title toàn khoảng trắng là BLANK ở wire, planner parse, và validity check card (trước đó 3 nơi bất đồng).
+6. **Đường chết im lặng:** outcome `outline` mà payload lạc → giờ hiện error rõ (trước đó: không card, không error, không gì).
+7. **Đường thoát chưa e2e:** shot thêm nhánh switch-OFF (3 trang chạy thẳng, không card) — poll 2 pha chống photograph canvas cũ.
+8. **Đính chính comment stale:** "Auto lets the planner decide" trong designer.ts là sai từ trước C1 — Auto luôn 1 trang; sửa comment cho đúng code.
+9. **Lỗi quy trình của chính tôi (lần 2):** commit khi test đang đỏ (`51f8ba6` gốc — đã amend); quy tắc gates-trước-commit phải là: test xanh trong MỘT lệnh riêng, rồi mới lệnh commit.
+
+## Nợ đã biết (chủ ý, không "phát hiện lại" như mới)
+
+- **Card chết khi rời view:** mở Workspace lúc chờ duyệt → card mất (bản ghi conversation vẫn giữ outline nhưng không có đường load lại vào card). Load-lại-outline là việc của slice sau nếu D10 cho thấy người dùng thật bị vướng.
+- **base snapshot không thông báo:** composer vẫn sửa được (prompt/refs) khi card mở; pha 2 dùng snapshot lúc pha 1 — đúng theo "duyệt cái đã kế hoạch" nhưng không có chữ nào trên UI nói điều đó. Cần dòng hint hoặc khóa composer khi card mở.
+- **Outline trùng 2 nơi:** phase 1 nhét outline vào cả narrative text lẫn card. Gộp/thu gọn narrative là việc của pass UX sau.
+- **Focus không vào card khi hiện:** người dùng bàn phím phải tab từ đầu trang. Auto-focus tiêu đề hàng 1 là 1 dòng, để pass UX.
+- **Nội dung prompt theo title chỉ ràng buộc bằng văn xuãi (OC-3):** chỉ cardinality là cứng; không có test nào chứng minh title đã sửa THAY ĐỔI ảnh sinh (mock không mô phỏng được). Rủi ro chấp nhận, ghi rõ để D10 soi.
+
 ## Rủi ro / cạnh đã nghĩ
 
 - **Planner trả outline kém (tiêu đề chung chung):** user sửa ngay tại card — đó chính là điểm của gate; không thêm bước "regenerate outline" (exit code của D10 sẽ nói có cần không).
