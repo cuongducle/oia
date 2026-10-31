@@ -45,8 +45,9 @@ export const renderDataSchema = z.object({
   exportMeta: exportMetaSchema.nullable().default(null),
   /** TP.10 — present only when an agent action needs explicit user confirmation. */
   confirmRequest: confirmRequestSchema.nullable().default(null),
-  /** C1 outline gate — the deck outline phase 1 ends with (null on every other event). */
-  outline: z.array(planPageSchema).nullable().default(null),
+  /** C1 outline gate — the deck outline phase 1 ends with (absent on every other
+   * event; optional-nullable so every legacy producer/consumer parses unchanged). */
+  outline: planPageSchema.array().nullable().optional(),
 });
 
 /**
