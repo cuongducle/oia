@@ -633,3 +633,75 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .filterChip { border: none; background: none; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; color: var(--muted); }
 .filterChip:hover { background: var(--soft); color: var(--ink); }
 .filterChip.active { background: var(--ink); color: #fff; }
+
+/* UI v1.1 R4 — Layers panel */
+.layersPanel { display: flex; flex-direction: column; gap: 8px; }
+.layerList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.layerRow { display: flex; align-items: center; gap: 2px; border-radius: 9px; padding: 1px 2px; }
+.layerRow:hover { background: var(--soft); }
+.layerRow.selected { background: var(--accent-soft); }
+.layerRow.hidden .layerName, .layerRow.hidden .layerIcon { opacity: 0.45; }
+.layerRow.dragging { opacity: 0.4; }
+.layerMain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: none; background: none; padding: 7px 6px; text-align: left; font-size: 12.5px; color: var(--ink); cursor: grab; }
+.layerIcon { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; background: var(--card); box-shadow: 0 0 0 1px var(--line); color: var(--muted); flex-shrink: 0; }
+.layerName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layerYou { font-size: 9.5px; font-weight: 600; letter-spacing: 0.03em; color: var(--accent-dark); background: var(--accent-soft); border-radius: 999px; padding: 1px 6px; }
+.layerToggle { border: none; background: none; width: 26px; height: 26px; border-radius: 7px; color: var(--faint); display: inline-flex; align-items: center; justify-content: center; opacity: 0; }
+.layerRow:hover .layerToggle, .layerToggle[aria-pressed="true"], .layerToggle:focus-visible { opacity: 1; }
+.layerToggle:hover { background: var(--card); color: var(--ink); }
+.layerToggle.on { color: var(--ink); }
+.layersHint { font-size: 11px; margin: 4px 2px 0; }
+
+/* UI v1.1 R5 — side panel tabs, Design inspector */
+.panelTabs { display: inline-flex; background: var(--soft); border-radius: 999px; padding: 3px; }
+.panelTabs button { border: none; background: none; border-radius: 999px; padding: 5px 14px; font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.panelTabs button.active { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(20,18,30,.08); }
+.tabBadge { min-width: 16px; height: 16px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }
+.inspector { display: flex; flex-direction: column; gap: 4px; }
+.inspHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 6px; }
+.inspHead strong { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspHead span { font-size: 11px; color: var(--faint); }
+.inspSection { padding: 12px 0; box-shadow: inset 0 1px 0 var(--line); }
+.inspSection h4 { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+.inspGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.inspField { display: flex; align-items: center; gap: 6px; background: var(--soft); border-radius: 9px; padding: 0 8px; height: 32px; font-size: 11px; color: var(--faint); margin: 0 !important; }
+.inspField input { border: none; background: none; width: 100%; min-width: 0; font-size: 12.5px; color: var(--ink); padding: 0; outline: none; }
+.inspField input:disabled { color: var(--faint); }
+.inspField em { font-style: normal; }
+.inspRange, .inspColor { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); margin: 0 0 8px !important; }
+.inspRange input { flex: 1; accent-color: var(--ink); }
+.inspRange em { font-style: normal; font-size: 11.5px; color: var(--ink); min-width: 34px; text-align: right; }
+.inspColor input { width: 28px; height: 28px; border: none; padding: 0; border-radius: 8px; background: none; }
+.inspColor code { font-size: 11px; color: var(--faint); }
+.inspValue { font-size: 12.5px; color: var(--ink); margin: 0 0 8px; }
+.inspButtons { display: flex; gap: 4px; margin-top: 8px; }
+.inspButtons button { border: none; background: var(--soft); border-radius: 8px; min-width: 32px; height: 30px; font-size: 13px; color: var(--ink); }
+.inspButtons button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.inspActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.inspActions .secondaryBtn { font-size: 12px; padding: 7px 12px; }
+.aiAction { color: var(--accent-dark) !important; background: var(--accent-soft) !important; border-color: transparent !important; }
+.variantWhy { display: block; font-size: 10.5px; color: var(--faint); margin-top: 4px; }
+
+/* UI v1.1 R5 — contextual toolbar floating over the selection */
+.ctxToolbar { position: absolute; z-index: 5; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--ink); color: #fff; border-radius: 12px; box-shadow: var(--float-shadow); white-space: nowrap; }
+.ctxToolbar button { border: none; background: none; color: #fff; height: 30px; min-width: 30px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; }
+.ctxToolbar button:hover { background: rgba(255,255,255,.12); }
+.ctxToolbar button[aria-pressed="true"] { background: rgba(255,255,255,.2); }
+.ctxToolbar .ctxAi { color: #cfc3ff; }
+.ctxToolbar .ctxDanger:hover { background: rgba(220,38,38,.35); }
+.ctxValue { font-size: 12px; min-width: 24px; text-align: center; opacity: .85; }
+.ctxColor { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; margin: 0 !important; }
+.ctxColor input { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.6); border-radius: 50%; padding: 0; background: none; cursor: pointer; }
+.ctxSep { width: 1px; height: 18px; background: rgba(255,255,255,.18); margin: 0 4px; }
+
+/* UI v1.1 R5 — top bar: labeled panel toggle, Share menu */
+.labeledIcon { width: auto !important; padding: 0 10px !important; gap: 6px; font-size: 12px; border-radius: 999px !important; }
+.labeledIcon[aria-pressed="true"] { background: var(--soft); }
+.shareWrap { position: relative; }
+.shareWrap .secondaryBtn { font-size: 12.5px; padding: 7px 14px; }
+.menuScrim { position: fixed; inset: 0; background: transparent; border: 0; padding: 0; z-index: 39; cursor: default; }
+.shareMenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 240px; background: var(--card); border-radius: 14px; box-shadow: var(--float-shadow); padding: 6px; }
+.shareMenu button { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: none; background: none; border-radius: 9px; padding: 9px 11px; }
+.shareMenu button:hover { background: var(--soft); }
+.shareMenu strong { font-size: 13px; font-weight: 500; color: var(--ink); }
+.shareMenu span { font-size: 11.5px; color: var(--muted); }

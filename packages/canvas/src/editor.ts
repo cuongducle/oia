@@ -23,8 +23,9 @@ export async function createEditor(canvasEl: HTMLCanvasElement, scene?: SceneCan
   // Artboard identity must survive editor autosave and thumbnail serialization.
   // `origin` (TP.10 provenance: user | agent | generated) must survive too — without
   // whitelisting it, toObject() silently strips provenance on every save/reload and
-  // the non-destruction survival rule becomes unenforceable.
-  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name", "origin"])];
+  // the non-destruction survival rule becomes unenforceable. `locked` (layers.ts)
+  // likewise: Fabric never serializes selectable/evented.
+  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name", "origin", "locked"])];
   const canvas = new fabric.Canvas(canvasEl, {
     preserveObjectStacking: true,
     selection: true,

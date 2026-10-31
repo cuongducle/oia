@@ -727,7 +727,12 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   if (!outlineShown) {
-    console.error("DESKTOP_SHOT C1 FAILED — outline card never appeared");
+    const why = await win.webContents.executeJavaScript(`({
+      alerts: [...document.querySelectorAll('[role=alert],[role=status]')].map((n) => n.textContent.slice(0, 120)),
+      pages: document.querySelector("#advanced-settings select")?.value ?? null,
+      prompt: document.querySelector('[data-testid="design-idea"]')?.value ?? null,
+    })`, true).catch(() => null);
+    console.error(`DESKTOP_SHOT C1 FAILED — outline card never appeared (${JSON.stringify(why)})`);
     app.exit(18);
     return;
   }
@@ -882,7 +887,7 @@ async function shot(): Promise<void> {
     for (let i = 0; i < data.length; i += 16) {
       if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
     }
-    return { ok: rail === 7 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
+    return { ok: rail === 8 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
   })()`, true);
   console.log("[shot] editor verify:", JSON.stringify(edVerify));
   if (!edVerify || !edVerify.ok) {
@@ -1392,6 +1397,66 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-deconstruct.png");
   console.log("[shot] B1 OK (mock pair: read → inpaint → editable text layers)");
+
+  // ---- UI v1.1 R4/R5: Layers mirror the Fabric stack; selection drives toolbar + Design tab ----
+  const r45 = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no canvas" };
+    [...document.querySelectorAll(".railBtn")].find((b) => b.getAttribute("aria-label") === "Layers")?.click();
+    await wait(200);
+    const stack = c.getObjects().map((o, i) => (o.name === "clip" ? -1 : i)).filter((i) => i >= 0).reverse();
+    const rows = [...document.querySelectorAll('[data-testid="layers-panel"] .layerRow')].map((r) => Number(r.dataset.layerIndex));
+    const orderOk = rows.length === stack.length && rows.every((v, i) => v === stack[i]);
+
+    const tb = c.getObjects().find((o) => o.type === "textbox");
+    c.setActiveObject(tb); c.requestRenderAll();
+    await wait(150);
+    const ctxKind = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    // the toolbar floats inside the canvas area, above (or just below) the selected layer
+    const tbRect = document.querySelector('[data-testid="ctx-toolbar"]')?.getBoundingClientRect();
+    const area = document.querySelector(".canvasArea").getBoundingClientRect();
+    const wrap = document.querySelector(".canvasWrap").getBoundingClientRect();
+    const sel = tb.getBoundingRect();
+    const selTop = wrap.top + sel.top * c.viewportTransform[3];
+    const ctxPlaced = Boolean(tbRect) && tbRect.width > 120 && tbRect.left >= area.left && tbRect.right <= area.right
+      && (tbRect.bottom <= selTop + 2 || tbRect.top >= selTop);
+    const rowSelected = Boolean(document.querySelector('[data-testid="layers-panel"] .layerRow.selected'));
+    document.querySelector('[data-testid="tab-design"]')?.click();
+    await wait(150);
+    const x = document.querySelector('[data-testid="inspector"] input[aria-label="X"]');
+    const hasSize = Boolean(document.querySelector('[data-testid="inspector"] input[aria-label="Size"]'));
+    if (!x) return { ok: false, why: "no X field", orderOk, ctxKind };
+    x.focus(); await wait(30);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(x, "123");
+    x.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(30);
+    x.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); // React onBlur; blur() is a no-op in an unfocused window
+    await wait(150);
+    const leftAfter = Math.round(tb.left);
+    const undoEnabled = !document.querySelector('.edTop [title="Undo"]').disabled;
+
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    c.setActiveObject(img); c.requestRenderAll();
+    await wait(150);
+    const imgCtx = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    document.querySelector('[data-testid="ctx-edit-ai"]')?.click();
+    await wait(150);
+    const aiTab = document.querySelector('[data-testid="tab-ai"]')?.getAttribute("aria-selected");
+    const prompt = document.querySelector('textarea[aria-label="AI edit request"]')?.value ?? "";
+    c.setActiveObject(tb); c.requestRenderAll(); // leave a text layer selected for the capture
+    const ok = orderOk && ctxKind === "text" && ctxPlaced && rowSelected && hasSize && leftAfter === 123 && undoEnabled
+      && imgCtx === "image" && aiTab === "true" && prompt.includes("@(selected");
+    return { ok, rows: rows.length, orderOk, ctxKind, ctxPlaced, rowSelected, hasSize, leftAfter, undoEnabled, imgCtx, aiTab, prompt: prompt.slice(0, 60) };
+  })()`, true);
+  console.log("[shot] R4/R5 verify:", JSON.stringify(r45));
+  if (!r45 || !r45.ok) {
+    console.error("DESKTOP_SHOT R4/R5 FAILED — layers order, toolbar, inspector commit or Edit with AI");
+    app.exit(23);
+    return;
+  }
+  await snap(win, "desktop-layers.png");
+  await win.webContents.executeJavaScript(`(() => { const c = (window).__oiaCanvas; c?.discardActiveObject(); c?.requestRenderAll(); })()`, true);
   // leave the editor for the Tools scenario
   await win.webContents.executeJavaScript(`(() => {
     document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
