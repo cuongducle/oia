@@ -159,7 +159,9 @@ describe("i18n is English-only and complete (D8)", () => {
         if (f.isDirectory()) scan(full);
         else if (/\.(tsx?|css)$/.test(f.name)) {
           scanned++;
-          const rel = path.relative(root, full);
+          // POSIX-only assumption — Windows returns lib\file.ts and the allowlist
+          // (and offender names) must compare one canonical shape (battle-log: path shapes)
+          const rel = path.relative(root, full).split(path.sep).join("/");
           if (!VN_CONTENT_DATA_FILES.has(rel) && VIETNAMESE.test(readFileSync(full, "utf8"))) offenders.push(rel);
         }
       }
