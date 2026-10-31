@@ -4,7 +4,7 @@ import type { SceneCanvas, ChatEvent, Template } from "@oia/schema";
 import {
   SIZE_PRESETS, SHAPES, TEXT_PRESET_SPECS, planExport, resizeWithLock,
   addPage, removePage as removePageModel, duplicatePage, blankScene, applySizeToAllPages,
-  stampUser, variantArtworkObject, replaceObjectSrc,
+  stampUser, variantArtworkObject, replaceObjectSrc, normalizeImageScales,
   type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage,
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
@@ -184,6 +184,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       await c.loadFromJSON(mapAssetUrls(list[idx].canvas));
       const size = sceneSize(list[idx].canvas);
       sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height);
+      normalizeImageScales(c); // paint fills the declared box (mock plates, mismatched uploads)
       c.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       undoStack.current = [JSON.stringify(c.toObject())]; redoStack.current = [];
       setCanUndo(false); setCanRedo(false); setSelectedText(false); setSelectedImg(false); fitView();
@@ -291,6 +292,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       sceneDimensions.current = first ? sceneSize(first) : { width: 1360, height: 2048 };
       if (!initialPages?.length) setPages([{ id: "page_1", canvas: (first ?? editor.toObject()) as SceneCanvas }]);
       await document.fonts.ready;
+      normalizeImageScales(editor);
       editor.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       const el = canvasAreaRef.current;
       const initialZoom = fitArtboard(sceneDimensions.current.width, sceneDimensions.current.height, el?.clientWidth || 700, el?.clientHeight || 700);
@@ -706,6 +708,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           const size = sceneSize(page.canvas);
           await renderer.loadFromJSON(mapAssetUrls(page.canvas));
           renderer.setDimensions(size);
+          normalizeImageScales(renderer); // exported PNG must fill the box too
           renderer.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
           renderer.renderAll();
           images.push({ ...size, jpg: renderer.toDataURL({ format: "jpeg", quality: plan.defaultQuality, multiplier: 1 }), png: renderer.toDataURL({ format: "png", multiplier: 1 }) });

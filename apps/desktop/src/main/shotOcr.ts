@@ -16,7 +16,7 @@ import { app, type BrowserWindow } from "electron";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** "SALE 50" (Arial Bold, black on white, 600×200) — a fixture, kept with tests. */
-function fixturePngB64(): string {
+export function fixturePngB64(): string {
   const bytes = readFileSync(path.resolve(here, "../../test/fixtures/ocr-sale50.png"));
   return bytes.toString("base64");
 }

@@ -4,6 +4,8 @@ import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { LIVE_ARTBOARDS, liveArtboardScene, type LiveArtboard } from "../lib/livestream-presets.js";
+import { deconstructScene } from "../lib/deconstruct-scene.js";
+import type { DeconstructText } from "@oia/schema";
 
 /**
  * D2 renderer port — the workspace list over IPC: recent projects (ScenePreview
@@ -39,6 +41,57 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
   // reorg step 5 — web `.data` import (projects, conversations, assets, kits, templates)
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState("");
+
+  // ---- B1 deconstruct import (deconstruct-import.md DC-1) ----------------------
+  interface DeconPick { file: File; previewUrl: string; w: number; h: number }
+  const [decon, setDecon] = useState<DeconPick | null>(null);
+  const [deconBusy, setDeconBusy] = useState(false);
+  const [imageMock, setImageMock] = useState<boolean | null>(null);
+  useEffect(() => {
+    oia().providerStatus().then((s) => setImageMock(Boolean(s.image.capabilities.isMock))).catch(() => setImageMock(null));
+  }, []);
+
+  function closeDecon() {
+    if (decon?.previewUrl) URL.revokeObjectURL(decon.previewUrl);
+    setDecon(null);
+  }
+
+  function pickDeconFile(file: File) {
+    const previewUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => setDecon({ file, previewUrl, w: img.naturalWidth || 1360, h: img.naturalHeight || 2048 });
+    img.onerror = () => { URL.revokeObjectURL(previewUrl); setError("That file could not be read as an image."); };
+    img.src = previewUrl;
+  }
+
+  async function runDeconstruct() {
+    if (!decon) return;
+    setDeconBusy(true); setError(""); setNotice("");
+    try {
+      const up = await oia().uploadAsset(decon.file.name, new Uint8Array(await decon.file.arrayBuffer()));
+      const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
+      let final = started.progress === "processing" ? null : started;
+      for (let i = 0; i < 150 && !final; i++) { // 2s×150 = 5 min cap, then an honest error
+        await new Promise((r) => setTimeout(r, 2000));
+        const t = await oia().getTask(started.taskId);
+        if (!t) throw new Error("task vanished");
+        if (t.progress !== "processing") final = t;
+      }
+      if (!final) throw new Error("timed out after 5 minutes");
+      if (final.progress !== "succeeded" || !final.taskResult?.download) {
+        throw new Error(final.taskNote || final.msg || "deconstruct failed");
+      }
+      const texts = (final.taskResult.texts ?? []) as DeconstructText[];
+      const scene = deconstructScene({ imageUrl: final.taskResult.download, w: decon.w, h: decon.h, texts });
+      const p = await oia().createProject({ name: decon.file.name.replace(/\.[^.]+$/, "") || "Deconstructed design", scene });
+      closeDecon();
+      onOpenProject(p.id);
+    } catch (e) {
+      setError(bridgeErrorMessage(e, "Deconstruct failed — the design was not imported."));
+    } finally {
+      setDeconBusy(false);
+    }
+  }
 
   const importFromWeb = async () => {
     setImporting(true);
@@ -151,6 +204,10 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
             ⬆ New from image
             <input type="file" aria-label="New project from image" accept="image/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && create(e.target.files[0])} />
           </label>
+          <label className="secondaryBtn" title="Import an old banner (Canva, ChatGPT…) — text becomes editable layers">
+            ↯ New from old design
+            <input type="file" aria-label="New project from an old design" accept="image/*" hidden disabled={busy || deconBusy} onChange={(e) => { if (e.target.files?.[0]) pickDeconFile(e.target.files[0]); e.target.value = ""; }} />
+          </label>
           <div className="newMenuWrap">
             <button className="primaryBtn" disabled={busy} aria-expanded={newMenu} aria-haspopup="menu" onClick={() => setNewMenu((v) => !v)}>
               {busy ? "Creating…" : "＋ New project"}
@@ -251,6 +308,30 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
           <div className="dialogActions">
             <button className="secondaryBtn" onClick={() => setDeleting(null)}>Keep it</button>
             <button className="primaryBtn danger" onClick={() => void remove()}>Delete</button>
+          </div>
+        </Dialog>
+      )}
+      {decon && (
+        <Dialog onClose={deconBusy ? () => {} : closeDecon} label="Deconstruct old design">
+          <h2>Make this design editable?</h2>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 12px" }}>
+            Oia reads the text in the image, cleans it off the background, and rebuilds each line as an editable text layer.
+            Everything else stays a flat image — objects are not separated.
+          </p>
+          <div className="deconPreview">
+            <img src={decon.previewUrl} alt="Old design preview" />
+            <div>
+              <strong>{decon.file.name}</strong>
+              <span>{decon.w} × {decon.h}</span>
+              {imageMock === false && <span data-testid="decon-cost">≈ 1 image + 1 read</span>}
+            </div>
+          </div>
+          {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading and cleaning — this usually takes 1–3 minutes…</p>}
+          <div className="dialogActions">
+            <button className="secondaryBtn" disabled={deconBusy} onClick={closeDecon}>Cancel</button>
+            <button className="primaryBtn" disabled={deconBusy} data-testid="decon-confirm" onClick={() => void runDeconstruct()}>
+              {deconBusy ? "Working…" : "Deconstruct"}
+            </button>
           </div>
         </Dialog>
       )}

@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
-import { runOcrScenario } from "./shotOcr.js";
+import { runOcrScenario, fixturePngB64 } from "./shotOcr.js";
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
@@ -1235,6 +1235,93 @@ async function shot(): Promise<void> {
   }
   console.log("[shot] C3 OK (transparent alpha + guides never in bytes + template pack + honest refusal)");
   // leave the editor so the Tools scenario below starts from the nav
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 800));
+
+  // ---- B1: deconstruct import — old banner in, editable text layers out (mock pair)
+  // Pins deconstruct-import.md: price hidden in mock, two-phase task, texts ride
+  // the result, the scene opens in the editor with native Textboxes (DC-1/DC-8).
+  console.log("[shot] B1: deconstructing a fixture banner…");
+  const deconStarted = await win.webContents.executeJavaScript(`(async () => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "Workspace")?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    const input = document.querySelector('input[aria-label="New project from an old design"]');
+    if (!input) return "no-input";
+    // real PNG bytes (the OCR fixture) — a garbage blob would fail the preview Image load
+    const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
+    const file = new File([bytes], "old-banner.png", { type: "image/png" });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return "picked";
+  })()`, true);
+  if (deconStarted !== "picked") {
+    console.error(`DESKTOP_SHOT B1 FAILED — picker (${deconStarted})`);
+    app.exit(20);
+    return;
+  }
+  let deconDialog = false;
+  for (let i = 0; i < 20 && !deconDialog; i++) {
+    deconDialog = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="decon-confirm"]'))`, true,
+    );
+    if (!deconDialog) await new Promise((r) => setTimeout(r, 250));
+  }
+  const deconDialogState = await win.webContents.executeJavaScript(`(() => {
+    const cost = document.querySelector('[data-testid="decon-cost"]');
+    const img = document.querySelector(".deconPreview img");
+    return { dialog: Boolean(cost === null && img) }; // mock provider → cost label HIDDEN
+  })()`, true);
+  if (!deconDialog || !deconDialogState?.dialog) {
+    console.error(`DESKTOP_SHOT B1 FAILED — confirm dialog (open=${deconDialog}, state=${JSON.stringify(deconDialogState)})`);
+    app.exit(20);
+    return;
+  }
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="decon-confirm"]').click()`, true);
+  let deconDone: unknown = null;
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    deconDone = await win.webContents.executeJavaScript(`(() => {
+      const root = document.querySelector('[data-testid="editor-root"]');
+      const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+      return root ? { open: true, err } : { open: false, err };
+    })()`, true).catch(() => null);
+    if (deconDone && (deconDone as { open: boolean }).open) break;
+  }
+  // the scene load is async (loadFromJSON + fonts) — poll until objects land, not just the root
+  for (let i = 0; i < 20; i++) {
+    const n = await win.webContents.executeJavaScript(
+      `((window).__oiaCanvas ? (window).__oiaCanvas.toObject().objects.length : 0)`,
+      true,
+    ).catch(() => 0);
+    if (n >= 2) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  const deconVerify = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no-canvas" };
+    const objs = c.toObject().objects;
+    const boxes = objs.filter((o) => o.type === "Textbox");
+    const sale = boxes.some((o) => String(o.text ?? "").includes("SALE 50"));
+    const liveImg = c.getObjects().find((o) => typeof o.get("src") === "string");
+    const artScaled = liveImg ? [Math.round(liveImg.getScaledWidth()), Math.round(liveImg.getScaledHeight())] : null;
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: sale && boxes.length === 3 && !err && artScaled !== null && artScaled[0] >= 590, textboxes: boxes.length, sale, artScaled, err };
+  })()`, true);
+  console.log("[shot] B1 verify:", JSON.stringify(deconVerify));
+  if (!deconVerify || !deconVerify.ok) {
+    console.error("DESKTOP_SHOT B1 VERIFY FAILED — expected 3 native textboxes (SALE 50 present) + clean-plate artwork");
+    app.exit(20);
+    return;
+  }
+  await snap(win, "desktop-deconstruct.png");
+  console.log("[shot] B1 OK (mock pair: read → inpaint → editable text layers)");
+  // leave the editor for the Tools scenario
   await win.webContents.executeJavaScript(`(() => {
     document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
     return true;
