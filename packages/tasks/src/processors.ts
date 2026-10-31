@@ -2,6 +2,13 @@ import type { FileStore } from "./storage.js";
 import { ProviderError } from "@oia/providers";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import type { TaskContext } from "./store.js";
+import {
+  DECONSTRUCT_READ_PROMPT,
+  DECONSTRUCT_INPAINT_PROMPT,
+  DECONSTRUCT_JSON_SCHEMA,
+  deconstructReadSchema,
+  type DeconstructRead,
+} from "@oia/schema";
 
 /**
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.
@@ -68,6 +75,54 @@ export function makeRemoveBackground(ctx: ProcCtx) {
     });
     const saved = await ctx.store.put(out, "png"); // BR-11: always .png to keep transparency
     return { urls: [saved.url] };
+  };
+}
+
+/** PNG IHDR size probe — 4 lines, no dependency; non-PNG returns null and the
+ * caller falls back to a square (boxes are fractions, so positions stay honest). */
+function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes.length < 24 || bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null; // "IHDR"
+  return { width: new DataView(bytes.buffer, bytes.byteOffset).getUint32(16), height: new DataView(bytes.buffer, bytes.byteOffset).getUint32(20) };
+}
+
+/** B1 deconstruct (deconstruct-import.md): vision read (1 LLM turn) → inpaint
+ * (1 image). The order is a G2 invariant: a malformed read fails BEFORE any
+ * image is generated — a doomed job never burns the seller's quota. */
+export function makeDeconstruct(ctx: ProcCtx) {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
+    const fileUrl = String(params.fileUrl ?? "");
+    if (!fileUrl) throw new Error("deconstruct requires fileUrl");
+    const src = await ctx.store.read(fileUrl.replace(/^\/api\/files\//, "")).catch(() => null);
+    if (!src) throw new Error("fileUrl is invalid or has not been uploaded");
+
+    if (typeof ctx.llm.readImage !== "function" || !ctx.llm.capabilities.referenceImages) {
+      throw new ProviderError("capability_unsupported", `provider ${ctx.llm.name} cannot read images`, { provider: ctx.llm.name });
+    }
+    const raw = await ctx.llm.readImage(DECONSTRUCT_READ_PROMPT, src, DECONSTRUCT_JSON_SCHEMA, {
+      signal: tctx.signal,
+      ...(tctx.jobId ? { jobId: `read-${tctx.jobId}` } : {}),
+    });
+    let read: DeconstructRead;
+    try {
+      read = deconstructReadSchema.parse(JSON.parse(raw));
+    } catch {
+      throw new ProviderError("plan_parse_failed", "vision read returned malformed JSON", { provider: ctx.llm.name, detail: String(raw).slice(0, 200) });
+    }
+
+    if (!ctx.image.capabilities.referenceImages) {
+      throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
+    }
+    const size = pngSize(src) ?? { width: 1024, height: 1024 };
+    const img = await ctx.image.generate({
+      prompt: DECONSTRUCT_INPAINT_PROMPT,
+      width: size.width,
+      height: size.height,
+      referenceImages: [fileUrl],
+      signal: tctx.signal,
+    });
+    const bytes = await fetchBytes(img.url, ctx.store);
+    const saved = await ctx.store.put(bytes, "png");
+    return { urls: [saved.url], texts: read.texts };
   };
 }
 

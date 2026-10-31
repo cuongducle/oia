@@ -1,5 +1,5 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
-import { PLANNER_INSTRUCTIONS } from "@oia/schema";
+import { PLANNER_INSTRUCTIONS, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA } from "@oia/schema";
 
 /**
  * Mock planner: costs no tokens; generates the outline demos need.
@@ -13,7 +13,7 @@ import { PLANNER_INSTRUCTIONS } from "@oia/schema";
  * owes the gates deterministic variety, not one canned answer for every question.
  */
 const MOCK_CAPABILITIES: ProviderCapabilities = {
-  referenceImages: false,
+  referenceImages: true, // B1: implements readImage — the deconstruct gates ride the mock
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: true,
@@ -61,5 +61,21 @@ export class MockLlmProvider implements LlmProvider {
   }
   async isAvailable(): Promise<ProviderDiagnostic> {
     return { ok: true, detail: "mock planner — offline, no network" };
+  }
+
+  /** B1 mock vision read — deterministic, marker-keyed on the SHARED prompt
+   * constant (reword the prompt and the matcher follows, PLANNER_INSTRUCTIONS
+   * pattern). Bytes are ignored: the mock proves wiring, not eyesight. */
+  async readImage(prompt: string, _image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA): Promise<string> {
+    if (!prompt.includes(DECONSTRUCT_READ_MARKER)) {
+      throw new Error(`mock vision: prompt is not a deconstruct read (missing ${DECONSTRUCT_READ_MARKER})`);
+    }
+    return JSON.stringify({
+      texts: [
+        { text: "SALE 50", box: { x: 0.08, y: 0.1, w: 0.55, h: 0.09 } },
+        { text: "299.000₫", box: { x: 0.1, y: 0.72, w: 0.45, h: 0.07 } },
+        { text: "Chỉ hôm nay", box: { x: 0.1, y: 0.81, w: 0.4, h: 0.05 } },
+      ],
+    });
   }
 }

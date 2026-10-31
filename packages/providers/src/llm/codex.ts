@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { PLAN_JSON_SCHEMA, parsePlannerPlan } from "@oia/schema";
+import { PLAN_JSON_SCHEMA, parsePlannerPlan, DECONSTRUCT_JSON_SCHEMA } from "@oia/schema";
 import type { ProviderCapabilities, PlannerPlan } from "@oia/schema";
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic } from "../types.js";
 import { ProviderError } from "../types.js";
@@ -21,7 +21,7 @@ import { createScratchDir, removeScratchDir } from "../cli/runtime.js";
 export const CODEX_PLANNER_TIMEOUT_DEFAULT = 120_000;
 
 const LLM_CAPABILITIES: ProviderCapabilities = {
-  referenceImages: false,
+  referenceImages: true, // B1: the vision read attaches one image via -i (readImage)
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: false,
@@ -49,6 +49,38 @@ export class CodexLlmProvider implements LlmProvider {
   async chat(messages: LlmMessage[], opts?: LlmChatOpts): Promise<string> {
     const plan = await this.plan(messages, opts?.signal, opts?.jobId);
     return JSON.stringify(plan);
+  }
+
+  /** B1 — one vision read: image bytes materialized to an ASCII-named temp file
+   * (same rule as image references, TP.9), attached with -i on the planner role,
+   * output pinned by the CALLER's schema via --output-schema. Validation of the
+   * returned JSON is the caller's job (deconstructReadSchema) — this returns raw. */
+  async readImage(prompt: string, image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA, opts: LlmChatOpts = {}): Promise<string> {
+    const scratch = await createScratchDir("codex-vision-io");
+    try {
+      const schemaFile = path.join(scratch, "read.schema.json");
+      await writeFile(schemaFile, JSON.stringify(_schema), "utf8");
+      const lastMessageFile = path.join(scratch, "read.json");
+      const imgFile = path.join(scratch, `${randomUUID()}.png`); // hex uuid — ASCII-safe filename (TP.9)
+      await writeFile(imgFile, Buffer.from(image));
+      const res = await this.bridge.exec({
+        role: "planner",
+        prompt,
+        schemaFile,
+        lastMessageFile,
+        images: [imgFile],
+        timeoutMs: this.timeoutMs,
+        signal: opts.signal,
+        jobId: opts.jobId ?? `vision-${randomUUID()}`,
+      });
+      try {
+        return await this.bridge.readPlanFile(lastMessageFile, res);
+      } finally {
+        await this.bridge.cleanup(res);
+      }
+    } finally {
+      await removeScratchDir(scratch);
+    }
   }
 
   /** One text-only exec; returns the parsed plan (strict). */

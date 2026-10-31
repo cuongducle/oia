@@ -2,7 +2,7 @@ import path from "node:path";
 import {
   TaskStore, LocalFileStore, ApiKeyStore,
   BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore,
-  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask,
+  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct,
 } from "@oia/tasks";
 import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
@@ -90,6 +90,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   const procCtx = { store: files, image: chat.image, llm: chat.llm };
   taskStore.register("generate-poster", makeGeneratePoster(procCtx));
   taskStore.register("image-edit", makeImageEdit(procCtx));
+  taskStore.register("deconstruct", makeDeconstruct(procCtx));
   taskStore.register("remove-background", makeRemoveBackground(procCtx));
   taskStore.register("generate-presentation", makeGeneratePresentation(procCtx));
   taskStore.register("generate-logo", makeGenericImageTask(procCtx, { buildPrompt: (p) => `logo design, ${p.prompt ?? ""}, vector style, plain background` }));

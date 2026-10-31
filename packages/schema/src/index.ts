@@ -6,3 +6,4 @@ export * from "./plan.js";
 export * from "./zones.js";
 export * from "./protocol.js";
 export * from "./task.js";
+export * from "./deconstruct.js";

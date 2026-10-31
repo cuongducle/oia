@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus } from "@oia/schema";
+import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus, type DeconstructText } from "@oia/schema";
 import { ProviderError } from "@oia/providers";
 import { registerCancelable, releaseCancelable, abortLocal } from "./cancel.js";
 
@@ -33,7 +33,7 @@ export interface SubmitOptions {
    *  runToCompletion never rejects, so this ALWAYS fires. */
   onSettled?: (status: TaskStatus) => void;
 }
-export type TaskHandlerResult = { urls: string[]; note?: string };
+export type TaskHandlerResult = { urls: string[]; note?: string; texts?: DeconstructText[] };
 
 /** Handlers may thread cooperative cancellation into providers (TP.5). */
 export interface TaskContext {
@@ -171,7 +171,7 @@ export class TaskStore {
       const handler = this.handlers.get(type);
       if (!handler) throw new Error(`no handler registered for ${type}`);
       const result = await handler(params, { jobId: status.jobId!, signal: ac.signal });
-      status.taskResult = { download: this.finalDownload(type, result) };
+      status.taskResult = { download: this.finalDownload(type, result), ...(result.texts ? { texts: result.texts } : {}) };
       if (result.note) status.taskNote = result.note;
       if (ac.signal.aborted) {
         // B7: the handler finished but was cancelled after completion — the quota was spent,
