@@ -99,14 +99,6 @@ document.head.appendChild(st);
 /* ---- Scroll progress bar ---- */
 gsap.to('#progress',{scaleX:1,ease:'none',scrollTrigger:{trigger:document.body,start:'top top',end:'bottom bottom',scrub:.3}});
 
-/* ---- Chapter rail ---- */
-['hero','layers','templates','workflow','oss'].forEach(id=>{
-  const el = document.getElementById(id);
-  if (!el) return;
-  ScrollTrigger.create({trigger:el,start:'top 45%',end:'bottom 45%',
-    onToggle:s=>{ if(s.isActive){ document.querySelectorAll('.rail a').forEach(a=>a.classList.toggle('on',a.dataset.ch===id)); } }});
-});
-
 /* ---- Hero: idle float (images float inside draggable tiles, no drag conflict) ---- */
 if (!reduced){
   document.querySelectorAll('.tile img, .t-persp .t1').forEach((el,i)=>{
