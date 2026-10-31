@@ -1,7 +1,7 @@
 # B1 — Deconstruct import: hồi sinh banner cũ thành bản chỉnh sửa được
 
 **Ngày:** 2026-10-31
-**Trạng thái:** DESIGN → triển khai ngay trong phiên (owner đã chốt scope xong — xem "Quyết định ghi đè" dưới).
+**Trạng thái:** ĐÃ IMPLEMENT (mock pair đầy đủ, 2026-10-31 — gates xanh, xem cuối doc). Còn MỘT gate treo: **spike thật 1 lần trên máy owner** (nghi thức D12 — chạm quota phải duyệt) xác nhận planner model đọc ảnh qua `-i` + trả bbox dùng được.
 **Nguồn quyết định cha:** [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) mục B1 + Q4. Doc này là bản "tốt nghiệp" theo Q5 — chi tiết B1 sống ở ĐÂY từ nay.
 **Ràng buộc cha:** G2/G3 (không burn quota khi doomed; metered-once), B7, D8, TP.11 (no-silent-fallback), hard rule 6 (quota là tiền).
 
@@ -72,15 +72,26 @@ Seller có sẵn banner làm bằng Canva/ChatGPT (ảnh phẳng, chữ cháy tr
 - **TP.11:** capability check cả 2 pha — không silent fallback xuống mock.
 - **D8:** chuỗi UI mới EN. Nội dung text lấy từ ảnh của seller (content-level — tiếng Việt tự nhiên).
 
-## Gates
+## Gates (đã chạy 2026-10-31, mock pair)
 
-1. Unit schema: parse đủ/thiếu/ngoài khoảng 0..1/legacy (không texts).
-2. Unit providers: codex readImage dựng argv đúng (`-i` + schema file, ASCII temp, cleanup); mock readImage matcher theo hằng số prompt; capability false → processor ném `capability_unsupported` (probe: image.generate KHÔNG được gọi).
-3. Unit processor: happy (2 pha đúng thứ tự, texts truyền qua); read parse hỏng → `plan_parse_failed` + **0 lần image.generate**; fileUrl thiếu/stock read lỗi → lỗi rõ.
-4. Unit renderer: deconstructScene map fraction→px đúng biên, fontSize clamp, ≥1 Textbox khi có text; 0 text → scene chỉ artwork (hợp lệ).
-5. Shot exit 20 (mock pair) như trên.
-6. `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh.
-7. **SPIKE THẬT (chờ owner duyệt — chạm quota):** một lần `deconstruct` với ảnh banner thật qua codex: xác nhận (a) planner model nhận ảnh qua `-i` trong exec mode, (b) JSON trả theo schema, (c) bbox fraction dùng được (đặt Textbox lên đúng chỗ chữ trong ảnh gốc). Trước spike đó, mọi claim về chất lượng model là "chưa kiểm chứng" — mock chỉ chứng wiring.
+1. ✅ Schema 20 test (6 mới): fraction hợp lệ/trong khoảng/trim/rỗng hợp lệ/cap 60/JSON-Schema mirror + marker prompt.
+2. ✅ Providers 87 test (4 mới): codex readImage (fake bin ghi `-o` — trả đúng JSON), bridge planner-role gắn `-i` + giữ read-only sandbox, mock marker-keyed deterministic, capability gate pin.
+3. ✅ Tasks 111 test (6 mới): happy path (inpaint đúng khổ gốc + reference + texts truyền qua); **G2: parse hỏng → plan_parse_failed + image.generate 0 lần gọi** (probe); TP.11 cả 2 pha; fileUrl thiếu/sai lỗi rõ; non-PNG fallback vuông (fraction giữ vị trí).
+4. ✅ Desktop: deconstruct-scene 3 test (map fraction→px, clamp font, 0-text hợp lệ) trong bộ xanh; shot **exit 20 ×3 liên tiếp**: fixture PNG → dialog (giá ẨN khi mock) → confirm → editor mở → đúng 3 Textbox (có "SALE 50") + artwork + `artScaled=[600,200]` + không error; vision-verify artifact (nền phủ kín, 3 dòng chữ, thumbnail nhất quán).
+5. ✅ Repo build + test (16 task) + typecheck xanh.
+
+## Phát hiện khi làm (3 — một bug thật, hai sửa cấu trúc)
+
+1. **[BUG THẬT — fabric vẽ-sai-độ, vision bắt được] `_renderFill` vẽ ảnh tại `min(hộp, natural size)`** — object khai 600×200 trên element 8×8 (mock placeholder) vẽ một miếng 8×8 ở góc, trong khi `getScaledWidth()` báo 600 — mọi gate DOM/scene đều xanh, ảnh chụp mới lộ (trắng + ô tím nhỏ; lần 3 mắt thắng assert). Vật源头: normalizeImageScales — width/height trở về KÍCH THƯỚC ELEMENT, scale kéo paint về đúng hộp khai báo (lần sửa 1 chỉ set scale → bounding 45000 — sai hướng; hợp đồng hiển thị = hộp × scale hiện có). Chạy tại MỌI chỗ load (editor mount/page/undo/redo/export renderer + ScenePreview). **Sửa kèm bug tiềm ẩn cũ của "New from image"** (khai 1360×2048 cho ảnh bất kỳ). Idempotent; giữ nguyên semantics stretch của variant replace. Gate mới: `artScaled` pin trong shot + 4 test unit canvas (44 tổng).
+2. **meterLlm nuốt readImage** — wrapper chỉ forward `chat`, task lane nhận provider không có method → capability_unsupported ngay lần chạy shot đầu. Sửa: forward readImage qua CÙNG phễu planner (hard rule 6 — lượt đọc là lượt LLM trả tiền, không có cửa miễn phí).
+3. **Mock IMAGE provider khai `referenceImages: false` trong khi nó chấp nhận (và bỏ qua) mọi input** — nói sai về chính nó, chặn mọi gate mock-pair của B1. Flip true + comment lý do; không test nào ghim giá trị cũ.
+
+Kèm 1 sửa kịch bản shot: fixture phải là PNG THẬT (đọc từ shotOcr) — blob rác làm preview Image onerror → dialog không bao giờ mở; và thêm settle-poll (scene load async — đọc canvas ngay khi editor mount bắt 0 object).
+
+## Còn treo (đã biết, không "phát hiện lại")
+
+- **SPIKE THẬT (gate 7 của doc):** chạy MỘT lần deconstruct với ảnh banner thật qua codex — xác nhận (a) planner model nhận ảnh qua `-i` trong exec mode, (b) JSON đúng schema, (c) bbox fraction đặt Textbox đúng chỗ chữ. Chạm quota → chờ owner duyệt (nghi thức D12). Trước spike: mọi claim về chất lượng model là "chưa kiểm chứng" — mock chỉ chứng wiring.
+- Nợ B1 sau spike: text layer fontSize ước lượng từ box (seller tự tinh chỉnh); không duyệt/sửa text trước khi áp (chủ đích — Non-Goal); dialog không hiện progress theo pha (task lane chỉ có processing/succeeded/failed).
 
 ## Rủi ro / cạnh đã nghĩ
 
