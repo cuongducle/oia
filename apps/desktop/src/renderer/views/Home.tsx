@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatEvent, CanvasMsgMeta, Template, SceneCanvas } from "@oia/schema";
+import type { BrandKit, CanvasMsgMeta, Template, SceneCanvas } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
+import { RunSteps, CostHint } from "../components/RunSteps.js";
+import { costHintText, stepsFromTimeline } from "../lib/run-steps.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia } from "../lib/bridge.js";
 import { sceneDims } from "../lib/scene-dims.js";
@@ -33,13 +35,19 @@ const TRIAL_CHIP = "Trial mode · placeholder images";
 const STOP_LABEL = "Stop";
 
 const CATEGORY_LABELS: Record<StudioCategory, string> = { all: "All", poster: "Poster", social: "Social", presentation: "Presentation", other: "Branding" };
-const FORMATS = [
-  { name: "Poster", prompt: "Design a poster for " },
-  { name: "Social post", prompt: "Design a social media post for " },
-  { name: "Presentation", prompt: "Create a presentation about " },
-  { name: "Banner", prompt: "Design a banner for " },
+/** UI v1.1 R6 — seller use cases replace the generic formats: each seeds a prompt
+ *  starter and the ratio that job usually ships at (Deck also picks 3 pages). */
+const USE_CASES: { name: string; prompt: string; aspect: string; pages?: string }[] = [
+  { name: "Flash sale", prompt: "A flash sale banner for ", aspect: "1:1" },
+  { name: "New product", prompt: "A launch poster for my new product: ", aspect: "4:5" },
+  { name: "Livestream", prompt: "A livestream announcement for ", aspect: "9:16" },
+  { name: "Menu", prompt: "A menu board for ", aspect: "3:4" },
+  { name: "Social post", prompt: "A social media post for ", aspect: "1:1" },
+  { name: "Deck", prompt: "A short presentation about ", aspect: "16:9", pages: "3" },
 ];
-const ASPECTS: Record<string, [number, number] | null> = { auto: null, "1:1": [1024, 1024], "3:4": [1024, 1365], "2:3": [1024, 1536], "9:16": [1080, 1920] };
+const ASPECTS: Record<string, [number, number] | null> = {
+  auto: null, "1:1": [1024, 1024], "4:5": [1024, 1280], "3:4": [1024, 1365], "2:3": [1024, 1536], "9:16": [1080, 1920], "16:9": [1920, 1080],
+};
 
 /** Minimal inline icon set (no lucide dependency in the desktop renderer). */
 const Icon = {
@@ -95,7 +103,9 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
   const [uploading, setUploading] = useState(false);
   const [galleryTab, setGalleryTab] = useState<"featured" | "all">("featured");
   const [category, setCategory] = useState<StudioCategory>("all");
-  const [activeFormat, setActiveFormat] = useState("Poster");
+  const [useCase, setUseCase] = useState<string | null>(null);
+  const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
+  const [brandKitId, setBrandKitId] = useState(""); // "" → the kit marked "Apply to new projects" (services/chat.ts)
   const [preview, setPreview] = useState<string | null>(null);
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
@@ -122,6 +132,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
   useEffect(() => {
     refreshProviderStatus();
     void oia().listTemplates().then(setCommunity).catch(() => {}); // degradation lane: gallery works without a provider
+    void oia().listBrandKits().then(setBrandKits).catch(() => {});
     if (sessionId) {
       void oia().getSession(sessionId).then((s) => {
         if (!s) return;
@@ -234,6 +245,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
       // the direct path — the plan is already stashed server-side (A5).
       ...(pagesN && pagesN >= 2 && outlineGateOn && !retryOf ? { outlineGate: true } : {}),
       ...(refs.length ? { referenceImages: refs } : {}),
+      ...(brandKitId ? { brandKitId } : {}),
       ...(retryOf ? { retryOf } : {}),
     };
     try {
@@ -347,6 +359,15 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
         <p>Your ideas. Your models. A little help bringing it all together.</p>
       </header>
 
+      <div className="useCaseRow" aria-label="Start from a use case">
+        {USE_CASES.map((u) => (
+          <button key={u.name} className={`useCaseChip ${useCase === u.name ? "active" : ""}`} aria-pressed={useCase === u.name}
+            onClick={() => { setUseCase(u.name); setPrompt(u.prompt); setAspect(u.aspect); setPages(u.pages ?? "auto"); }}>
+            {u.name}
+          </button>
+        ))}
+      </div>
+
       <section className="promptCard" aria-label="Create a design">
         <textarea
           aria-label="Design idea"
@@ -368,22 +389,33 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
             {uploading ? <span className="spin" aria-label="Uploading">◌</span> : Icon.paperclip}
           </button>
           <input ref={fileInputRef} aria-label="Reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachFile(e.target.files[0]); e.target.value = ""; }} />
-          <span className="composerDivider" />
-          <select aria-label="Aspect ratio" value={aspect} onChange={(e) => setAspect(e.target.value)}>
-            <option value="auto">Auto ratio</option><option>1:1</option><option>3:4</option><option>2:3</option><option>9:16</option>
-          </select>
-          <select aria-label="Resolution" value={resolution} onChange={(e) => setResolution(e.target.value)}>
-            <option value="2k">2K</option><option value="1k">1K</option>
-          </select>
-          <span className="composerDivider" />
+          <span className="pillGroup">
+            <select aria-label="Aspect ratio" value={aspect} onChange={(e) => { setAspect(e.target.value); setUseCase(null); }}>
+              {Object.keys(ASPECTS).map((a) => <option key={a} value={a}>{a === "auto" ? "Auto ratio" : a}</option>)}
+            </select>
+            <span className="pillGroupSep" aria-hidden="true" />
+            <select aria-label="Resolution" value={resolution} onChange={(e) => setResolution(e.target.value)}>
+              <option value="2k">2K</option><option value="1k">1K</option>
+            </select>
+          </span>
+          {brandKits.length > 0 && (
+            <select className="pillSelect" aria-label="Brand kit" data-testid="brand-pill" value={brandKitId} onChange={(e) => setBrandKitId(e.target.value)}>
+              <option value="">{brandKits.find((k) => k.applyByDefault)?.name ?? "No brand"}</option>
+              {brandKits.filter((k) => !k.applyByDefault).map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+            </select>
+          )}
           <button className="advancedToggle" aria-expanded={advanced} aria-controls="advanced-settings" onClick={() => setAdvanced(!advanced)}>
-            {Icon.sliders}<span>Advanced settings</span>{Icon.chevron}
+            {Icon.sliders}<span>{pages === "auto" ? "More" : `${pages} ${pages === "1" ? "page" : "pages"}`}</span>{Icon.chevron}
           </button>
           {mockMode && (
             <button className="trialChip" data-testid="trial-chip" title="Placeholder images, not real AI — open Settings to use Codex" onClick={() => onOpenSettings?.()}>{TRIAL_CHIP}</button>
           )}
-          {pages !== "auto" && Number(pages) >= 2 && !busy && (
-            <span className="hintP" data-testid="deck-cost" style={{ fontSize: 11 }} title="Every page is one image on your provider">· {outlineCostLabel(Number(pages))}</span>
+          <span className="composerSpacer" />
+          {!busy && (
+            <CostHint
+              testId={pages !== "auto" && Number(pages) >= 2 ? "deck-cost" : "cost-hint"}
+              text={costHintText({ images: 1, pages: pages === "auto" ? null : Number(pages), isMock: mockMode })}
+            />
           )}
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
@@ -425,7 +457,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
       {outlineDeck && !busy && (
         <section className="outlineCard" data-testid="outline-card" aria-label="Review the page outline">
           <div className="sectionHeading" style={{ marginBottom: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 17 }}>Review the outline</h2>
+            <h2 style={{ margin: 0, fontSize: 17 }}><span className="stepLabel">Step 2 of 2</span>Review the outline</h2>
             <span className="hintP" data-testid="outline-cost">{outlineCostLabel(outlineDeck.rows.length)}</span>
           </div>
           <div className="outlineRows">
@@ -459,14 +491,6 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
         </section>
       )}
 
-      <div className="formatRow" aria-label="Suggested formats">
-        {FORMATS.map(({ name, prompt: p }) => (
-          <button key={name} className={`formatBtn ${activeFormat === name ? "active" : ""}`} onClick={() => { setActiveFormat(name); setPrompt(p); }}>
-            {name}
-          </button>
-        ))}
-      </div>
-
       {writeFailures && (
         <div className="notice warn" role="status">
           ⚠ Could not save some data to disk ({writeFailures.map((f) => `${f.file} ×${f.failedWrites}`).join(", ")}).
@@ -487,19 +511,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSe
           )}
         </div>
       )}
-      {busy && <p className="hintP">Designing your request — the result will appear below as an editable canvas.</p>}
-
-      {busy && timeline.length > 0 && (
-        <div className="timeline" role="status" aria-label="Progress">
-          {timeline.map((tl) => (
-            <div key={tl.content} className={`tl ${tl.done ? "done" : "running"}`}>
-              <span className="tlIcon" aria-hidden="true">{tl.done ? Icon.check : <span className="spin" />}</span>
-              <span className="tlLabel">{tl.content}</span>
-              <span className="tlState">{tl.done ? "Done" : "Working…"}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {busy && <RunSteps steps={timeline.length ? stepsFromTimeline(timeline) : [{ label: "Planning", state: "running" }]} />}
       {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
       {narrative && (
         <details className="aiNotes" open={notesOpen} onToggle={(e) => setNotesOpen(e.currentTarget.open)}>

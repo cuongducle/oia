@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeSnapshot } from "../src/shared/bridge.js";
 import { runtimeStatusLine } from "../src/renderer/lib/runtime-status.js";
+import { costHintText, stepsFromTimeline } from "../src/renderer/lib/run-steps.js";
 
 /**
  * UI v1.1 R1 — the sidebar status card replaces the runtime panel that used to sit
@@ -26,5 +27,43 @@ describe("runtimeStatusLine", () => {
   it("a broken runtime names what is missing", () => {
     expect(runtimeStatusLine(snap("not_logged_in", "codex"), false)).toEqual({ tone: "bad", title: "Codex", detail: "sign in needed" });
     expect(runtimeStatusLine(snap("missing", "codex"), false)).toEqual({ tone: "bad", title: "Codex", detail: "not installed" });
+  });
+});
+
+/**
+ * UI v1.1 R3 — the progress line and cost hint shared by every metered flow. The
+ * agent's internal role names must never reach a seller, and the cost hint must
+ * not show a price in Trial (nothing is billed) except the multi-page contract
+ * label C1 pins.
+ */
+describe("stepsFromTimeline", () => {
+  it("maps agent roles to seller words and runs only the first unfinished step", () => {
+    const steps = stepsFromTimeline([
+      { content: "Designer Agent", done: true },
+      { content: "Image Generator", done: false },
+      { content: "Manager Agent", done: false },
+    ]);
+    expect(steps).toEqual([
+      { label: "Planning", state: "done" },
+      { label: "Painting", state: "running" },
+      { label: "Composing", state: "pending" },
+    ]);
+  });
+
+  it("an unknown role passes through instead of vanishing", () => {
+    expect(stepsFromTimeline([{ content: "Layout Checker", done: false }])).toEqual([{ label: "Layout Checker", state: "running" }]);
+  });
+});
+
+describe("costHintText", () => {
+  it("multi-page keeps C1's contract label, Trial or not", () => {
+    expect(costHintText({ images: 1, pages: 2, isMock: true })).toBe("2 pages ≈ 2 images");
+    expect(costHintText({ images: 1, pages: 3, isMock: false })).toBe("3 pages ≈ 3 images");
+  });
+
+  it("a single paid image shows its cost; Trial shows none", () => {
+    expect(costHintText({ images: 1, isMock: false })).toBe("≈ 1 image");
+    expect(costHintText({ images: 1, reads: 1, isMock: false })).toBe("≈ 1 image + 1 read");
+    expect(costHintText({ images: 1, pages: 1, isMock: true })).toBeNull();
   });
 });

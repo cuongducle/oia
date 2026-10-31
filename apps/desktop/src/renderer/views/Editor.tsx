@@ -15,6 +15,8 @@ import { ASPECT_TOLERANCE, isNineSixteen } from "../lib/scene-dims.js";
 import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
+import { RunSteps } from "../components/RunSteps.js";
+import { stepsFromTimeline } from "../lib/run-steps.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -111,7 +113,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
   useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiTimeline, setAiTimeline] = useState<{ content: string; type: string }[]>([]);
+  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean }[]>([]);
   const aiJobRef = useRef<string | null>(null);
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
@@ -229,7 +231,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         const p = presentErrorEn(ev.errorClass);
         setAiError({ message: p.message, actionLabel: p.actionLabel });
       }
-      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, type: tm.type })));
+      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {
@@ -936,9 +938,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                 {chats.length === 0 && <p className="hintP">No conversations yet.</p>}
               </div>
             )}
-            <div className="timeline" style={{ margin: 0 }}>
-              {aiTimeline.map((tm) => <div key={tm.content + tm.type} className={`t ${tm.type}`}>{tm.content}</div>)}
-            </div>
+            {aiTimeline.length > 0 && <RunSteps steps={stepsFromTimeline(aiTimeline)} />}
             {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
             {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
             {/* A1 preview-apply — newest first; "Not now" only hides (VA-7), the

@@ -651,6 +651,32 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
+  // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
+  const r6 = await win.webContents.executeJavaScript(`(async () => {
+    const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
+    const aspect = () => document.querySelector('select[aria-label="Aspect ratio"]')?.value ?? null;
+    const live = chip("Livestream"), deck = chip("Deck");
+    if (!live || !deck) return "no-chips";
+    live.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const liveAspect = aspect();
+    deck.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const deckAspect = aspect();
+    const deckPages = document.querySelector(".advancedToggle")?.textContent ?? null;
+    const prompt = document.querySelector('[data-testid="design-idea"]')?.value ?? "";
+    const sel = document.querySelector('select[aria-label="Aspect ratio"]');
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, "auto"); // C1 below runs at the default ratio
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    return { liveAspect, deckAspect, deckPages, prompt };
+  })()`, true);
+  console.log("[shot] R6 chips:", JSON.stringify(r6));
+  if (!r6 || r6.liveAspect !== "9:16" || r6.deckAspect !== "16:9" || r6.deckPages !== "3 pages" || !r6.prompt) {
+    console.error("DESKTOP_SHOT R6 FAILED — a use-case chip did not set its ratio/pages");
+    app.exit(21);
+    return;
+  }
+
   // ---- C1 outline gate: a 2-page deck stops for review BEFORE any image burns ----
   console.log("[shot] C1: running a gated 2-page deck (mock pair)…");
   const c1Setup = await win.webContents.executeJavaScript(`(async () => {
@@ -670,7 +696,7 @@ async function shot(): Promise<void> {
     return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
-  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "· 2 pages ≈ 2 images") {
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images") {
     console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
     app.exit(18);
     return;
@@ -775,7 +801,7 @@ async function shot(): Promise<void> {
     return { cost, off: sw.getAttribute("aria-checked") };
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
-  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "· 3 pages ≈ 3 images") {
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images") {
     console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;
