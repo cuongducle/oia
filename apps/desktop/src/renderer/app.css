@@ -378,6 +378,19 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
    bug class the dark-mode gate was built for; caught by vision on the tray crop). */
 .variantActions .primaryBtn.small { font-size: 10.5px; padding: 3px 7px; min-height: 0; background: var(--accent); color: #fff; border-color: transparent; }
 .variantActions .primaryBtn.small:disabled { background: var(--accent-soft); color: var(--muted); cursor: default; }
+
+/* ---------- C1 outline gate: the review card (docs/designs/outline-gate.md) ---------- */
+.outlineCard { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--card); max-width: 720px; }
+.outlineRows { display: flex; flex-direction: column; gap: 8px; }
+.outlineRow { display: flex; gap: 8px; align-items: flex-start; }
+.outlineNum { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; margin-top: 7px; }
+.outlineInputs { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.outlineInputs input { border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; font-size: 12.5px; }
+.outlineInputs input:first-child { font-weight: 600; }
+.outlineRowBtns { display: flex; gap: 2px; }
+.outlineRowBtns button { width: 24px; height: 24px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1; }
+.outlineRowBtns button:hover:not(:disabled) { border-color: var(--accent); }
+.outlineActions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .aiComposer textarea { width: 100%; border: none; padding: 0; resize: none; min-height: 95px; font-size: 12px; outline: none; background: none; }
 .aiComposerControls { display: flex; gap: 4px; align-items: center; }
 .generateBtn { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--accent); color: #fff; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px #7050e51c; }

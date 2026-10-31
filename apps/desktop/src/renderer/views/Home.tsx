@@ -11,6 +11,12 @@ import { oia } from "../lib/bridge.js";
 import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
+import {
+  addPage, editPage, movePage, outlineCostLabel, outlineRowsValid, readOutlineGatePref, removePage, writeOutlineGatePref,
+  type OutlineRow,
+} from "../lib/outline-card.js";
+import type { PlanPage } from "@oia/schema";
+import type { ChatRequest } from "@oia/services";
 
 /**
  * Home — studio refresh port of the web composer (docs/design-direction.md):
@@ -23,6 +29,7 @@ import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.
  */
 
 const MODE_TOGGLE_LABEL = "Editable text right away";
+const OUTLINE_SWITCH_LABEL = "Review outline before generating";
 const MOCK_BANNER = "Trial mode — placeholder images, not real AI";
 const STOP_LABEL = "Stop";
 
@@ -69,13 +76,18 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
   const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
-  const [sessionId] = useState<number | null>(resumeSession ?? null);
+  // C1: conversation pin (A1 VA-9) — every run on this mount joins ONE session;
+  // the outline stub and the deck result land in the same conversation (OC-8)
+  const [sessionId, setSessionId] = useState<number | null>(resumeSession ?? null);
   const [community, setCommunity] = useState<Template[]>([]);
   // studio refresh composer state
   const [aspect, setAspect] = useState("auto");
   const [resolution, setResolution] = useState("2k");
   const [pages, setPages] = useState("auto");
-  const [outlineMode, setOutlineMode] = useState(false);
+  const [outlineGateOn, setOutlineGateOn] = useState(() => readOutlineGatePref()); // C1 default ON (OC-6)
+  /** C1: the outline awaiting review — rows + the phase-1 request to resume from. */
+  const [outlineDeck, setOutlineDeck] = useState<{ rows: OutlineRow[]; base: ChatRequest } | null>(null);
+  const pendingOutlineRef = useRef<PlanPage[] | null>(null); // events outlive the submit closure
   const [advanced, setAdvanced] = useState(false);
   const [refs, setRefs] = useState<string[]>([]); // canonical /api/files/… form
   const [uploading, setUploading] = useState(false);
@@ -138,6 +150,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       if (ev.renderData?.taskMeta?.length) {
         setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       }
+      if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
       if (ev.renderData?.exportMeta?.projectName) setResultName(ev.renderData.exportMeta.projectName);
       if (ev.content) setNarrative((n) => (n ? `${n}\n${stripMarkers(ev.content)}` : stripMarkers(ev.content)));
       for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") {
@@ -206,34 +219,83 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
     setTimeline([]);
     setNarrative("");
     setCanvasMeta(null);
+    pendingOutlineRef.current = null;
+    const [w, h] = ASPECTS[aspect] ?? [1360, 2048] as [number, number];
+    const scale = resolution === "1k" ? 0.75 : 1;
+    const pagesN = pages === "auto" ? null : Number(pages);
+    const req: ChatRequest = {
+      prompt,
+      ...(editableText ? { mode: "clean-plate" as const } : {}),
+      ...(sessionId ? { sessionId } : {}),
+      ...(aspect !== "auto" || resolution !== "2k" ? { width: Math.round(w * scale), height: Math.round(h * scale) } : {}),
+      ...(pagesN ? { pages: pagesN } : {}),
+      // C1 gate (OC-1): multi-page + switch on → stop after the outline. Retry keeps
+      // the direct path — the plan is already stashed server-side (A5).
+      ...(pagesN && pagesN >= 2 && outlineGateOn && !retryOf ? { outlineGate: true } : {}),
+      ...(refs.length ? { referenceImages: refs } : {}),
+      ...(retryOf ? { retryOf } : {}),
+    };
     try {
-      const base = ASPECTS[aspect] ?? [1360, 2048] as [number, number];
-      const scale = resolution === "1k" ? 0.75 : 1;
-      await oia().chatRun({
-        prompt,
-        ...(editableText ? { mode: "clean-plate" as const } : {}),
-        ...(sessionId ? { sessionId } : {}),
-        ...(aspect !== "auto" || resolution !== "2k" ? { width: Math.round(base[0] * scale), height: Math.round(base[1] * scale) } : {}),
-        ...(pages !== "auto" ? { pages: Number(pages) } : {}),
-        ...(outlineMode ? { outlineMode: true } : {}),
-        ...(refs.length ? { referenceImages: refs } : {}),
-        ...(retryOf ? { retryOf } : {}),
-      });
+      const res = await oia().chatRun(req);
+      setSessionId(res.sessionId);
+      // SAFETY: TS control flow only sees the `= null` above; the chat-event closure
+      // assigns the outline DURING the awaited call. The optional-chain guards null.
+      const outline = pendingOutlineRef.current as PlanPage[] | null;
+      if (res.outcome === "outline" && outline?.length) {
+        // C1: show the card; phase 2 resumes from this exact request + the edited rows
+        const { outlineGate: _drop, pages: _drop2, retryOf: _r, ...base } = req;
+        setOutlineDeck({ rows: outline, base });
+      }
     } catch (e) {
-      const name = e instanceof Error ? e.name : "";
-      if (name === "IpcValidationError") setError("Invalid request — please try again.");
-      else if (name === "ProviderConfigError") setError("Provider configuration is invalid (mock mixed with real). See the README.");
-      else setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      setChatRunError(e);
     } finally {
       setBusy(false);
-      void oia()
-        .providerStatus()
-        .then((s) => {
-          setQuota((prev) => (prev ? { ...prev, planner: s.quota.planner, image: s.quota.image } : { planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image }));
-          setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
-        })
-        .catch(() => {});
+      refreshQuota();
     }
+  }
+
+  /** C1 phase 2 — the user-edited outline becomes the deck (OC-1/OC-2). */
+  async function generateFromOutline(rows: OutlineRow[]) {
+    if (!outlineDeck || busy || !outlineRowsValid(rows)) return;
+    const base = outlineDeck.base;
+    setOutlineDeck(null);
+    pendingOutlineRef.current = null;
+    setBusy(true);
+    setNotesOpen(true);
+    startedAtRef.current = Date.now();
+    setGenSeconds(null);
+    activeJobRef.current = null;
+    setError("");
+    setRetryable(false);
+    setTimeline([]);
+    setNarrative("");
+    setCanvasMeta(null);
+    try {
+      const res = await oia().chatRun({ ...base, ...(sessionId ? { sessionId } : {}), approvedOutline: rows });
+      setSessionId(res.sessionId);
+    } catch (e) {
+      setChatRunError(e);
+    } finally {
+      setBusy(false);
+      refreshQuota();
+    }
+  }
+
+  function setChatRunError(e: unknown) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "IpcValidationError") setError("Invalid request — please try again.");
+    else if (name === "ProviderConfigError") setError("Provider configuration is invalid (mock mixed with real). See the README.");
+    else setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+  }
+
+  function refreshQuota() {
+    void oia()
+      .providerStatus()
+      .then((s) => {
+        setQuota((prev) => (prev ? { ...prev, planner: s.quota.planner, image: s.quota.image } : { planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image }));
+        setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
+      })
+      .catch(() => {});
   }
   async function stop() {
     if (jobId) await oia().cancelChat(jobId).catch(() => {});
@@ -312,6 +374,9 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           <button className="advancedToggle" aria-expanded={advanced} aria-controls="advanced-settings" onClick={() => setAdvanced(!advanced)}>
             {Icon.sliders}<span>Advanced settings</span>{Icon.chevron}
           </button>
+          {pages !== "auto" && Number(pages) >= 2 && !busy && (
+            <span className="hintP" data-testid="deck-cost" style={{ fontSize: 11 }} title="Every page is one image on your provider">· {outlineCostLabel(Number(pages))}</span>
+          )}
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
@@ -327,8 +392,8 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
               </select>
             </label>
             <label className="switchRow">
-              <button type="button" role="switch" aria-checked={outlineMode} aria-label="Create an outline first" className={`switch ${outlineMode ? "on" : ""}`} onClick={() => setOutlineMode(!outlineMode)} />
-              Create an outline first
+              <button type="button" role="switch" aria-checked={outlineGateOn} aria-label={OUTLINE_SWITCH_LABEL} title="Multi-page decks stop for outline review first; turn off to generate straight through" className={`switch ${outlineGateOn ? "on" : ""}`} onClick={() => { const v = !outlineGateOn; setOutlineGateOn(v); writeOutlineGatePref(v); }} />
+              {OUTLINE_SWITCH_LABEL}
             </label>
             <label className="switchRow">
               <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Generated banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
@@ -347,6 +412,44 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           </div>
         )}
       </section>
+
+      {/* C1 outline gate — the review card (OC-2: rows are editable; count is the contract) */}
+      {outlineDeck && !busy && (
+        <section className="outlineCard" data-testid="outline-card" aria-label="Review the page outline">
+          <div className="sectionHeading" style={{ marginBottom: 10 }}>
+            <h2 style={{ margin: 0, fontSize: 17 }}>Review the outline</h2>
+            <span className="hintP" data-testid="outline-cost">{outlineCostLabel(outlineDeck.rows.length)}</span>
+          </div>
+          <div className="outlineRows">
+            {outlineDeck.rows.map((r, i) => (
+              <div className="outlineRow" key={i}>
+                <span className="outlineNum" aria-hidden="true">{i + 1}</span>
+                <div className="outlineInputs">
+                  <input aria-label={`Page ${i + 1} title`} data-testid={`outline-title-${i}`} value={r.title}
+                    onChange={(e) => setOutlineDeck((d) => (d ? { ...d, rows: editPage(d.rows, i, { title: e.target.value }) } : d))} />
+                  <input aria-label={`Page ${i + 1} summary`} data-testid={`outline-summary-${i}`} value={r.summary}
+                    onChange={(e) => setOutlineDeck((d) => (d ? { ...d, rows: editPage(d.rows, i, { summary: e.target.value }) } : d))} />
+                </div>
+                <div className="outlineRowBtns">
+                  <button aria-label={`Move page ${i + 1} up`} disabled={i === 0} onClick={() => setOutlineDeck((d) => (d ? { ...d, rows: movePage(d.rows, i, -1) } : d))}>↑</button>
+                  <button aria-label={`Move page ${i + 1} down`} disabled={i === outlineDeck.rows.length - 1} onClick={() => setOutlineDeck((d) => (d ? { ...d, rows: movePage(d.rows, i, 1) } : d))}>↓</button>
+                  <button aria-label={`Remove page ${i + 1}`} disabled={outlineDeck.rows.length <= 1} onClick={() => setOutlineDeck((d) => (d ? { ...d, rows: removePage(d.rows, i) } : d))}>×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="outlineActions">
+            <button className="ghostBtn" data-testid="outline-add" disabled={outlineDeck.rows.length >= 9} onClick={() => setOutlineDeck((d) => (d ? { ...d, rows: addPage(d.rows) } : d))}>+ Add page</button>
+            <span className="spacer" />
+            <button className="ghostBtn" data-testid="outline-cancel" onClick={() => setOutlineDeck(null)}>Cancel</button>
+            <button className="primaryBtn" data-testid="outline-generate" disabled={!outlineRowsValid(outlineDeck.rows)}
+              title={outlineRowsValid(outlineDeck.rows) ? "Generate every page below" : "Every page needs a title and a summary"}
+              onClick={() => void generateFromOutline(outlineDeck.rows)}>
+              Generate · {outlineCostLabel(outlineDeck.rows.length)}
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="formatRow" aria-label="Suggested formats">
         {FORMATS.map(({ name, prompt: p }) => (
