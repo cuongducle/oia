@@ -1193,7 +1193,26 @@ async function shot(): Promise<void> {
     app.exit(19);
     return;
   }
+  // Snap WITH guides visible — the artifact must show the feature it certifies
+  // (same rule as the A1 tray snap). Guides were switched off in the alpha gate.
+  await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    if (btn && !btn.disabled) { btn.click(); await new Promise((r) => setTimeout(r, 300)); }
+    return document.querySelectorAll(".canvasWrap .guideZone").length;
+  })()`, true);
   await snap(win, "desktop-live-overlay.png");
+  // and off again before the refusal check measures a clean slate
+  await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    let n = -1;
+    for (let i = 0; i < 3; i++) {
+      btn?.click();
+      await new Promise((r) => setTimeout(r, 300));
+      n = document.querySelectorAll(".canvasWrap .guideZone").length;
+      if (n === 0) break;
+    }
+    return n;
+  })()`, true);
   // LV-6 honest refusal: a 3:4 studio template must DISABLE the guide toggle,
   // not show a 9:16 guide on a poster artboard.
   const refused = await win.webContents.executeJavaScript(`(async () => {

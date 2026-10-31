@@ -22,6 +22,12 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [newMenu, setNewMenu] = useState(false);
+  useEffect(() => {
+    if (!newMenu) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setNewMenu(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newMenu]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
