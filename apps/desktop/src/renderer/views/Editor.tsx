@@ -9,7 +9,7 @@ import {
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
-import { appendVariant, bindPromptForJob, variantKey, type VariantCard } from "../lib/variant-tray.js";
+import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
@@ -35,8 +35,6 @@ type Panel = "templates" | "assets" | "text" | "shapes" | "tables" | "draw" | "s
 export interface EditorProps {
   projectId: string | null;
   onExit: () => void;
-  /** AI dock history → resume a conversation on Home. */
-  onOpenSession: (id: number) => void;
   /** A1 preview-apply — "Open in editor" on a variant opens it as a NEW project. */
   onOpenProject: (id: string) => void;
 }
@@ -75,7 +73,7 @@ function hasSrc(o: fabricNS.Object | undefined): boolean {
   return typeof (o as { src?: unknown } | undefined)?.src === "string";
 }
 
-export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onOpenProject }: EditorProps) {
+export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: EditorProps) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const fabricRef = useRef<fabricNS.Canvas | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -546,6 +544,24 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
     try { setChats(await oia().listSessions()); } catch { /* keep old list */ }
     setHistoryOpen((h) => !h);
   }
+  /** A1 resume (spec goal 5): opening a conversation in the EDITOR loads its
+   *  variants back into the tray and pins the session — the dock conversation
+   *  continues where it left off. Home's resume (canvas view) is unchanged. */
+  async function resumeConversationInDock(id: number) {
+    try {
+      const s = await oia().getSession(id);
+      if (!s) return;
+      setAiSessionId(id);
+      setVariants(variantsFromSession(id, s.messages as Parameters<typeof variantsFromSession>[1]));
+      setHiddenVariants(new Set());
+      aiPromptByJobRef.current.clear();
+      setAiTimeline([]);
+      setAiNarrative([...(s.messages as { role: string; content?: string }[])].reverse().find((m) => m.role === "assistant")?.content ?? "");
+      setHistoryOpen(false);
+    } catch {
+      setAiError({ message: "The conversation could not be opened. Please try again." });
+    }
+  }
   function mentionSelection() {
     const c = fabricRef.current; if (!c) return;
     const obj = c.getActiveObject() as (fabricNS.Object & { text?: string; src?: string }) | undefined;
@@ -600,6 +616,14 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
     try {
       const next = replaceObjectSrc(unmapAssetUrls(c.toObject() as SceneCanvas), idx, artwork.src);
       await replaceCurrentScene(mapAssetUrls(next));
+      // honest UI: keeping the layer's geometry means a differently-proportioned
+      // artwork is STRETCHED into it — say so instead of letting the user discover it
+      const tw = (active.width ?? 0) * (active.scaleX ?? 1);
+      const th = (active.height ?? 0) * (active.scaleY ?? 1);
+      if (artwork.aspect > 0 && tw > 0 && th > 0) {
+        const delta = Math.abs(artwork.aspect - tw / th) / (tw / th);
+        if (delta > 0.05) setNotice("The new artwork has a different aspect ratio — it was stretched to fit the selected layer. Undo works if you prefer the original.");
+      }
     } catch (err) {
       // never swallow silently — the oia:// poisoned-realpath bug hid for hours behind a mute catch
       console.error("[editor] variant replace failed:", err instanceof Error ? err.message : String(err));
@@ -880,7 +904,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenSession, onO
             {historyOpen && (
               <div style={{ maxHeight: 140, overflowY: "auto", borderBottom: "1px solid var(--line)", marginBottom: 8 }}>
                 {chats.map((c) => (
-                  <div key={c.id} className="presetBtn small" style={{ cursor: "pointer" }} onClick={() => onOpenSession(c.id)}>{c.name}</div>
+                  <div key={c.id} className="presetBtn small" style={{ cursor: "pointer" }} onClick={() => void resumeConversationInDock(c.id)}>{c.name}</div>
                 ))}
                 {chats.length === 0 && <p className="hintP">No conversations yet.</p>}
               </div>

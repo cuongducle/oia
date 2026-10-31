@@ -28,17 +28,24 @@ export function objectOrigin(obj: FabricObject): ObjectOrigin {
 
 /** VA-5 — the artwork image a generated variant would swap in: candidates are
  * non-clip, non-user objects carrying a `src`. Largest displayed area wins
- * (deterministic; right for collages too). Null when the variant has no image. */
-export function variantArtworkObject(scene: SceneCanvas): { src: string } | null {
-  const area = (o: FabricObject) =>
-    (typeof o.width === "number" ? o.width : 0) * (typeof o.scaleX === "number" ? Math.abs(o.scaleX) : 1) *
-    (typeof o.height === "number" ? o.height : 0) * (typeof o.scaleY === "number" ? Math.abs(o.scaleY) : 1);
+ * (deterministic; right for collages too). Null when the variant has no image.
+ * `aspect` (display width/height) lets the apply step warn when the swap would
+ * stretch into a differently-proportioned layer. */
+export function variantArtworkObject(scene: SceneCanvas): { src: string; aspect: number } | null {
+  const extent = (o: FabricObject, axis: "x" | "y") => {
+    const base = axis === "x" ? o.width : o.height;
+    const scale = axis === "x" ? o.scaleX : o.scaleY;
+    return (typeof base === "number" ? base : 0) * (typeof scale === "number" ? Math.abs(scale) : 1);
+  };
+  const area = (o: FabricObject) => extent(o, "x") * extent(o, "y");
   const candidates = (scene.objects ?? []).filter(
     (o) => o.name !== CLIP_NAME && objectOrigin(o) !== "user" && typeof o.src === "string" && o.src.length > 0,
   );
   if (!candidates.length) return null;
   const best = candidates.reduce((a, b) => (area(b) > area(a) ? b : a));
-  return { src: best.src as string };
+  const w = extent(best, "x");
+  const h = extent(best, "y");
+  return { src: best.src as string, aspect: h > 0 ? w / h : 0 };
 }
 
 /** VA-4 — copy-on-write `src` swap for ONE object (by index): geometry, every other

@@ -22,7 +22,7 @@ describe("A1 preview-apply: variantArtworkObject picks the swap-in image (VA-5)"
   };
 
   it("returns the largest-area generated image, skipping clip / user / text layers", () => {
-    expect(variantArtworkObject(variant)).toEqual({ src: "https://x/new-artwork.png" });
+    expect(variantArtworkObject(variant)).toEqual({ src: "https://x/new-artwork.png", aspect: 1 });
   });
 
   it("largest displayed area wins (scale factored), not z-order", () => {
@@ -33,7 +33,17 @@ describe("A1 preview-apply: variantArtworkObject picks the swap-in image (VA-5)"
         { type: "Image", name: "big", origin: "generated", left: 0, top: 0, width: 100, height: 100, scaleX: 3, scaleY: 3, src: "https://x/b.png", visible: true },
       ],
     };
-    expect(variantArtworkObject(collage)).toEqual({ src: "https://x/b.png" });
+    expect(variantArtworkObject(collage)).toEqual({ src: "https://x/b.png", aspect: 1 });
+  });
+
+  it("aspect reflects the displayed proportions (scale included) — the stretch warning needs it", () => {
+    const wide: SceneCanvas = {
+      version: "7.3.1",
+      objects: [
+        { type: "Image", name: "wide", origin: "generated", left: 0, top: 0, width: 800, height: 400, scaleX: 1, scaleY: 0.5, src: "https://x/w.png", visible: true },
+      ],
+    };
+    expect(variantArtworkObject(wide)).toEqual({ src: "https://x/w.png", aspect: 4 }); // 800×1 / (400×0.5)
   });
 
   it("returns null when the variant has no artwork image (VA-5) — the UI disables Replace", () => {
