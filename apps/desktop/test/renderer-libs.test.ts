@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { sceneCanvasSchema } from "@oia/schema";
 import { fitArtboard, sceneSize, templateCategory, filterTemplates, imageSource } from "../src/renderer/lib/studio-ui.js";
@@ -139,6 +139,11 @@ describe("i18n is English-only and complete (D8)", () => {
   /** Vietnamese-specific letters — none may appear in desktop UI copy (D8). */
   const VIETNAMESE = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/;
 
+  /** D8 content-level exception, enumerated: files carrying seller-copy DATA
+   * (template text rendered by Be Vietnam Pro), not UI strings. Existence is
+   * asserted below so a dead exemption fails loudly instead of rotting. */
+  const VN_CONTENT_DATA_FILES = new Set(["lib/livestream-presets.ts"]);
+
   it("the EN dictionary carries no Vietnamese copy", () => {
     const offenders = Object.entries(EN_MESSAGES).filter(([, v]) => VIETNAMESE.test(v));
     expect(offenders.map(([k]) => k)).toEqual([]);
@@ -154,7 +159,8 @@ describe("i18n is English-only and complete (D8)", () => {
         if (f.isDirectory()) scan(full);
         else if (/\.(tsx?|css)$/.test(f.name)) {
           scanned++;
-          if (VIETNAMESE.test(readFileSync(full, "utf8"))) offenders.push(path.relative(root, full));
+          const rel = path.relative(root, full);
+          if (!VN_CONTENT_DATA_FILES.has(rel) && VIETNAMESE.test(readFileSync(full, "utf8"))) offenders.push(rel);
         }
       }
     };
@@ -163,6 +169,10 @@ describe("i18n is English-only and complete (D8)", () => {
     // restructure FAILS this test instead of silently going blind (self-review lesson)
     expect(scanned).toBeGreaterThanOrEqual(20);
     expect(offenders).toEqual([]);
+    // an allowlist entry that no longer exists would silently widen the gate — refuse
+    for (const rel of VN_CONTENT_DATA_FILES) {
+      expect(existsSync(path.join(root, rel)), `VN content-data allowlist entry is stale: ${rel}`).toBe(true);
+    }
   });
 
   it("every error class renders REAL English — no silent unknown fallback (coverage for the Partial EN dict)", () => {

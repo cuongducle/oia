@@ -12,6 +12,8 @@ export const templateSchema = z.object({
   scene: sceneCanvasSchema,
   featured: z.boolean().default(false),
   tipCredits: z.number().int().min(0).default(0),
+  /** Optional grouping for template galleries ("livestream" — live-overlay-presets.md LV-7). Additive, D14. */
+  category: z.string().trim().min(1).max(40).optional(),
   createdAt: z.number(),
 });
 export type Template = z.infer<typeof templateSchema>;
