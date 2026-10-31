@@ -5,6 +5,7 @@ import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { LIVE_ARTBOARDS, liveArtboardScene, type LiveArtboard } from "../lib/livestream-presets.js";
 import { deconstructScene } from "../lib/deconstruct-scene.js";
+import { webImportSummary } from "../lib/web-import.js";
 import type { DeconstructText } from "@oia/schema";
 
 /**
@@ -122,14 +123,7 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
     try {
       const counts = await oia().importWebData(""); // empty → main opens the native folder picker
       if (counts) {
-        const parts = [
-          counts.projects ? `${counts.projects} project${counts.projects === 1 ? "" : "s"}` : null,
-          counts.sessions ? `${counts.sessions} conversation${counts.sessions === 1 ? "" : "s"}` : null,
-          counts.assets ? `${counts.assets} image${counts.assets === 1 ? "" : "s"}` : null,
-          counts.brandKits ? `${counts.brandKits} brand kit${counts.brandKits === 1 ? "" : "s"}` : null,
-          counts.templates ? `${counts.templates} template${counts.templates === 1 ? "" : "s"}` : null,
-        ].filter(Boolean);
-        setNotice(parts.length ? `Imported ${parts.join(", ")}.` : "Nothing new to import — everything was already here.");
+        setNotice(webImportSummary(counts));
         const [c, p] = await Promise.all([oia().listSessions(), oia().listProjects()]);
         setChats(c);
         setProjects(p);

@@ -557,7 +557,7 @@ async function shot(): Promise<void> {
   // present AND the bar's computed padding equals the shared constant exactly.
   if (process.platform === "darwin") {
     const chrome = await win.webContents.executeJavaScript(`(() => {
-      const bar = document.querySelector(".viewNav");
+      const bar = document.querySelector(".sidebarHead");
       return {
         marker: document.documentElement.dataset.platform ?? null,
         pad: bar ? getComputedStyle(bar).paddingLeft : null,
@@ -1042,7 +1042,7 @@ async function shot(): Promise<void> {
   await new Promise((r) => setTimeout(r, 800));
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    const ws = pills.find((p) => p.textContent.trim() === "Workspace");
+    const ws = pills.find((p) => p.textContent.trim() === "Projects");
     if (!ws) return false;
     ws.click();
     return true;
@@ -1247,7 +1247,7 @@ async function shot(): Promise<void> {
   console.log("[shot] B1: deconstructing a fixture banner…");
   const deconStarted = await win.webContents.executeJavaScript(`(async () => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Workspace")?.click();
+    pills.find((p) => p.textContent.trim() === "Projects")?.click();
     await new Promise((r) => setTimeout(r, 600));
     const input = document.querySelector('input[aria-label="New project from an old design"]');
     if (!input) return "no-input";
@@ -1449,7 +1449,7 @@ async function shot(): Promise<void> {
   console.log("[shot] opening Brand kit…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Brand kit")?.click();
+    pills.find((p) => p.textContent.trim() === "Brand kits")?.click();
     return true;
   })()`, true);
   let kitReady = false;
@@ -1480,7 +1480,13 @@ async function shot(): Promise<void> {
   console.log("[shot] opening For agents…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "For agents")?.click();
+    pills.find((p) => p.textContent.trim() === "Settings")?.click();
+    return true;
+  })()`, true);
+  // UI v1.1 R1: For agents is a Settings section now
+  for (let i = 0; i < 20 && !(await win.webContents.executeJavaScript(`Boolean(document.querySelector(".settingsTab"))`, true)); i++) await new Promise((r) => setTimeout(r, 150));
+  await win.webContents.executeJavaScript(`(() => {
+    [...document.querySelectorAll(".settingsTab")].find((t) => t.textContent.trim() === "For agents")?.click();
     return true;
   })()`, true);
   let agentsReady = false;
@@ -1499,8 +1505,12 @@ async function shot(): Promise<void> {
     const emptyKeys = Boolean(document.querySelector(".emptyState"));
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     const portStr = baseUrl.slice("http://127.0.0.1:".length, baseUrl.length - "/api".length);
-    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && !err;
-    return { ok, form, baseUrl, keysTable, emptyKeys, err };
+    // UI v1.1 R1: For agents lives inside Settings, and the sidebar status card replaces
+    // the runtime panel that used to sit on the Home hero
+    const inSettings = Boolean(document.querySelector(".settingsView .agentsView"));
+    const statusCard = Boolean(document.querySelector(".appSidebar .statusCard"));
+    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && inSettings && statusCard && !err;
+    return { ok, form, baseUrl, keysTable, emptyKeys, inSettings, statusCard, err };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] agents verify:", JSON.stringify(agentsVerify));
   if (!agentsVerify || !agentsVerify.ok) {

@@ -6,7 +6,6 @@ import { filterTemplates, templateCategory, type StudioCategory } from "../lib/s
 import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
 import { Dialog } from "../components/Dialog.js";
-import RuntimePanel from "../RuntimePanel.js";
 import { oia } from "../lib/bridge.js";
 import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
@@ -30,7 +29,7 @@ import type { ChatRequest } from "@oia/services";
 
 const MODE_TOGGLE_LABEL = "Editable text right away";
 const OUTLINE_SWITCH_LABEL = "Review outline before generating";
-const MOCK_BANNER = "Trial mode — placeholder images, not real AI";
+const TRIAL_CHIP = "Trial mode · placeholder images";
 const STOP_LABEL = "Stop";
 
 const CATEGORY_LABELS: Record<StudioCategory, string> = { all: "All", poster: "Poster", social: "Social", presentation: "Presentation", other: "Branding" };
@@ -60,9 +59,13 @@ export interface HomeProps {
   /** Resume a conversation (recent conversations hand this in). */
   resumeSession?: number | null;
   onOpenProject: (id: string) => void;
+  /** Focus the composer on mount (New design / ⌘N). */
+  autoFocus?: boolean;
+  /** The Trial chip and runtime problems route here (UI v1.1 R1: infra lives in Settings). */
+  onOpenSettings?: () => void;
 }
 
-export function Home({ resumeSession, onOpenProject }: HomeProps) {
+export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSettings }: HomeProps) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -72,7 +75,6 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
   const [error, setError] = useState("");
   const [retryable, setRetryable] = useState(false);
   const [mockMode, setMockMode] = useState(false);
-  const [quota, setQuota] = useState<{ planner: number; image: number; imageLimit: number | null } | null>(null);
   /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
   const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
@@ -112,7 +114,6 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       .providerStatus()
       .then((s) => {
         setMockMode(s.image.capabilities.isMock);
-        setQuota({ planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image });
         setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
       })
       .catch(() => {});
@@ -297,7 +298,6 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
     void oia()
       .providerStatus()
       .then((s) => {
-        setQuota((prev) => (prev ? { ...prev, planner: s.quota.planner, image: s.quota.image } : { planner: s.quota.planner, image: s.quota.image, imageLimit: s.quota.limits.image }));
         setWriteFailures(s.persistence.length > 0 ? s.persistence : null);
       })
       .catch(() => {});
@@ -342,7 +342,6 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
 
   return (
     <main className="studioPage homeView">
-      <div className="studioTopline"><span>Studio</span><span className="privateNote">Your private creative space</span></div>
       <header className="studioHero">
         <h1>From a spark to something great.</h1>
         <p>Your ideas. Your models. A little help bringing it all together.</p>
@@ -355,6 +354,7 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           value={prompt}
           placeholder="What would you like to create today?"
           rows={3}
+          autoFocus={autoFocus}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -379,6 +379,9 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
           <button className="advancedToggle" aria-expanded={advanced} aria-controls="advanced-settings" onClick={() => setAdvanced(!advanced)}>
             {Icon.sliders}<span>Advanced settings</span>{Icon.chevron}
           </button>
+          {mockMode && (
+            <button className="trialChip" data-testid="trial-chip" title="Placeholder images, not real AI — open Settings to use Codex" onClick={() => onOpenSettings?.()}>{TRIAL_CHIP}</button>
+          )}
           {pages !== "auto" && Number(pages) >= 2 && !busy && (
             <span className="hintP" data-testid="deck-cost" style={{ fontSize: 11 }} title="Every page is one image on your provider">· {outlineCostLabel(Number(pages))}</span>
           )}
@@ -464,20 +467,12 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
         ))}
       </div>
 
-      {mockMode && <div className="notice warn" role="status">{MOCK_BANNER}</div>}
       {writeFailures && (
         <div className="notice warn" role="status">
           ⚠ Could not save some data to disk ({writeFailures.map((f) => `${f.file} ×${f.failedWrites}`).join(", ")}).
           Check free space or folder permissions — changes since the last successful save are at risk until saving works again.
         </div>
       )}
-      {quota && !mockMode && (quota.image > 0 || quota.planner > 0) && (
-        <p className="hintP" role="status">
-          🪙 {quota.image}{quota.imageLimit !== null ? `/${quota.imageLimit}` : ""} images · {quota.planner} reads
-        </p>
-      )}
-
-      <RuntimePanel onModeChanged={refreshProviderStatus} />
 
       {error && (
         <div className="notice error" role="alert">

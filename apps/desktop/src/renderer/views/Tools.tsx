@@ -21,7 +21,6 @@ export function Tools({ onOpenProject }: { onOpenProject: (id: string) => void }
   if (tool) {
     return (
       <main className="studioPage toolsView" data-testid="tools-view">
-        <div className="studioTopline"><span>Toolbox</span><span className="privateNote">{tool.category}</span></div>
         <button className="ghostBtn" onClick={() => setSelected(null)}>← All tools</button>
         <header className="sectionHeading" style={{ marginTop: 18 }}>
           <div>
@@ -38,7 +37,6 @@ export function Tools({ onOpenProject }: { onOpenProject: (id: string) => void }
   const categories = Object.keys(CATEGORY_TITLES) as QuickTool["category"][];
   return (
     <main className="studioPage toolsView" data-testid="tools-view">
-      <div className="studioTopline"><span>Toolbox</span><span className="privateNote">The right tool for every part of your creative process</span></div>
       <header className="studioHero" style={{ marginBottom: 34 }}>
         <h1>Quick tools.</h1>
         <p>Convert, resize, chart, and create — without leaving the app.</p>

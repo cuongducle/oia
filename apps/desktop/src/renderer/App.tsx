@@ -1,28 +1,29 @@
-import { useState, Component, type ReactNode } from "react";
+import { useCallback, useEffect, useState, Component, type ReactNode } from "react";
 import { Home } from "./views/Home.js";
 import { Editor, EditorErrorBoundary } from "./views/Editor.js";
 import { Workspace } from "./views/Workspace.js";
 import { Tools } from "./views/Tools.js";
 import { BrandKit } from "./views/BrandKit.js";
-import { ForAgents } from "./views/ForAgents.js";
+import { Settings } from "./views/Settings.js";
+import { Sidebar, type SectionName } from "./components/Sidebar.js";
 
 /**
- * D2 renderer shell — view routing: Home composer / Workspace / Tools (quick
- * tools, reorg 4c) / Brand kit + For agents (reorg 4d) / fullscreen Editor. Each
- * view owns its bridge subscriptions; switching views remounts them (keyed), so
- * streams never leak across views.
+ * Renderer shell — UI v1.1 R1 (docs/designs/ui-v11-redesign.md): a left sidebar
+ * (New design, sections, recent projects, runtime + usage status) and the active
+ * view on a raised content sheet. The Editor stays a fullscreen view of its own.
+ * Each view owns its bridge subscriptions; switching views remounts them (keyed),
+ * so streams never leak across views. For agents now lives under Settings.
  *
- * UI copy is English by owner decision (design doc, D2 remainder): Vietnamese is
- * supported at the content/font level only (banner text, Be Vietnam Pro), never in
- * interface strings.
+ * UI copy is English by owner decision (D8): Vietnamese is supported at the
+ * content/font level only (banner text, Be Vietnam Pro), never in interface strings.
  */
 
 type View =
-  | { name: "home"; resumeSession?: number | null }
+  | { name: "home"; resumeSession?: number | null; focusComposer?: number }
   | { name: "workspace" }
   | { name: "tools" }
   | { name: "brandkit" }
-  | { name: "agents" }
+  | { name: "settings" }
   | { name: "editor"; projectId: string | null };
 
 /** A renderer crash must never be a white window for a non-technical user. */
@@ -48,9 +49,23 @@ export { ErrorBoundary };
 
 export default function App() {
   const [view, setView] = useState<View>({ name: "home" });
+  // bumps when runtime settings change, so the sidebar status card re-reads
+  const [statusRev, setStatusRev] = useState(0);
 
   const openProject = (id: string) => setView({ name: "editor", projectId: id });
   const openSession = (id: number) => setView({ name: "home", resumeSession: id });
+  const newDesign = useCallback(() => setView({ name: "home", focusComposer: Date.now() }), []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "n" && view.name !== "editor") {
+        e.preventDefault();
+        newDesign();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newDesign, view.name]);
 
   if (view.name === "editor") {
     return (
@@ -60,66 +75,39 @@ export default function App() {
     );
   }
 
-  const nav = (
-    <nav className="viewNav" aria-label="App sections">
-      <span className="wordmark" aria-hidden="true">oia<span>.</span></span>
-      <button className={`navPill ${view.name === "home" ? "active" : ""}`} onClick={() => setView({ name: "home" })} aria-current={view.name === "home" ? "page" : undefined}>Home</button>
-      <button className={`navPill ${view.name === "workspace" ? "active" : ""}`} onClick={() => setView({ name: "workspace" })} aria-current={view.name === "workspace" ? "page" : undefined}>Workspace</button>
-      <button className={`navPill ${view.name === "tools" ? "active" : ""}`} onClick={() => setView({ name: "tools" })} aria-current={view.name === "tools" ? "page" : undefined}>Tools</button>
-      <button className={`navPill ${view.name === "brandkit" ? "active" : ""}`} onClick={() => setView({ name: "brandkit" })} aria-current={view.name === "brandkit" ? "page" : undefined}>Brand kit</button>
-      <button className={`navPill ${view.name === "agents" ? "active" : ""}`} onClick={() => setView({ name: "agents" })} aria-current={view.name === "agents" ? "page" : undefined}>For agents</button>
-    </nav>
-  );
+  const navigate = (name: SectionName) => setView({ name } as View);
 
-  if (view.name === "workspace") {
-    return (
-      <ErrorBoundary>
-        <div className="viewFrame">
-          {nav}
-          <Workspace key="ws" onOpenProject={openProject} onOpenSession={openSession} />
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  if (view.name === "tools") {
-    return (
-      <ErrorBoundary>
-        <div className="viewFrame">
-          {nav}
-          <Tools key="tools" onOpenProject={openProject} />
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  if (view.name === "brandkit") {
-    return (
-      <ErrorBoundary>
-        <div className="viewFrame">
-          {nav}
-          <BrandKit key="brandkit" onDesignWithKit={() => setView({ name: "home" })} />
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  if (view.name === "agents") {
-    return (
-      <ErrorBoundary>
-        <div className="viewFrame">
-          {nav}
-          <ForAgents key="agents" />
-        </div>
-      </ErrorBoundary>
-    );
+  let body: ReactNode;
+  switch (view.name) {
+    case "workspace":
+      body = <Workspace key="ws" onOpenProject={openProject} onOpenSession={openSession} />;
+      break;
+    case "tools":
+      body = <Tools key="tools" onOpenProject={openProject} />;
+      break;
+    case "brandkit":
+      body = <BrandKit key="brandkit" onDesignWithKit={() => setView({ name: "home" })} />;
+      break;
+    case "settings":
+      body = <Settings key="settings" onChanged={() => setStatusRev((n) => n + 1)} />;
+      break;
+    default:
+      body = (
+        <Home
+          key={`home-${view.resumeSession ?? "new"}-${view.focusComposer ?? 0}`}
+          resumeSession={view.resumeSession ?? null}
+          autoFocus={Boolean(view.focusComposer)}
+          onOpenProject={openProject}
+          onOpenSettings={() => setView({ name: "settings" })}
+        />
+      );
   }
 
   return (
     <ErrorBoundary>
       <div className="viewFrame">
-        {nav}
-        <Home key={`home-${view.resumeSession ?? "new"}`} resumeSession={view.resumeSession ?? null} onOpenProject={openProject} />
+        <Sidebar key={statusRev} current={view.name} onNavigate={navigate} onNewDesign={newDesign} onOpenProject={openProject} />
+        {body}
       </div>
     </ErrorBoundary>
   );
