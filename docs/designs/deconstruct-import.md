@@ -1,7 +1,7 @@
 # B1 — Deconstruct import: hồi sinh banner cũ thành bản chỉnh sửa được
 
 **Ngày:** 2026-10-31
-**Trạng thái:** ĐÃ IMPLEMENT (mock pair đầy đủ, 2026-10-31 — gates xanh, xem cuối doc). Còn MỘT gate treo: **spike thật 1 lần trên máy owner** (nghi thức D12 — chạm quota phải duyệt) xác nhận planner model đọc ảnh qua `-i` + trả bbox dùng được.
+**Trạng thái:** ĐÃ IMPLEMENT + **SPIKE THẬT ĐÃ CHẠY (2026-10-31, owner duyệt "oke chạy thử đi") — ĐÓNG GATE 7.** Chi tiết kết quả ở mục Gates.
 **Nguồn quyết định cha:** [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) mục B1 + Q4. Doc này là bản "tốt nghiệp" theo Q5 — chi tiết B1 sống ở ĐÂY từ nay.
 **Ràng buộc cha:** G2/G3 (không burn quota khi doomed; metered-once), B7, D8, TP.11 (no-silent-fallback), hard rule 6 (quota là tiền).
 
@@ -90,7 +90,11 @@ Kèm 1 sửa kịch bản shot: fixture phải là PNG THẬT (đọc từ shotO
 
 ## Còn treo (đã biết, không "phát hiện lại")
 
-- **SPIKE THẬT (gate 7 của doc):** chạy MỘT lần deconstruct với ảnh banner thật qua codex — xác nhận (a) planner model nhận ảnh qua `-i` trong exec mode, (b) JSON đúng schema, (c) bbox fraction đặt Textbox đúng chỗ chữ. Chạm quota → chờ owner duyệt (nghi thức D12). Trước spike: mọi claim về chất lượng model là "chưa kiểm chứng" — mock chỉ chứng wiring.
+- ~~SPIKE THẬT~~ **ĐÃ CHẠY & PASS (2026-10-31, owner duyệt — đốt đúng 1 lượt đọc + 1 ảnh theo cam kết):**
+  - **Pha đọc — 10,6 giây:** (a) planner model NHẬN ảnh qua `-i` trong exec mode ✅; (b) JSON trả đúng `DECONSTRUCT_JSON_SCHEMA` (2 dòng, fraction hợp lệ) ✅; (c) **bbox khít 100%** — overlay đỏ vẽ theo fraction được vision xác nhận từng cạnh ô chạm đúng chữ, không sót/chệch ✅.
+  - **Pha inpaint — 37,9 giây:** xóa toàn bộ chữ, giữ nguyên mọi shape pastel + paper texture, không smudge/seam/artifact, đúng khổ 1024×1536 ✅ (vision-verify trên file thật).
+  - **Hạn chế ghi nhận trung thực:** (1) model chèn SPACE GIẢ vào chữ giãn cách rộng ("OIA" → "OI A") — artifact nội dung đã biết của reading; không phá use case (seller sửa text layer 0 phí), nhưng KHÔNG tự sửa trong engine — nếu D10 thấy phiền, xử lý ở bước normalize text (quyết định riêng). (2) **Tiếng Việt chưa kiểm trong spike này** (ảnh test chỉ có chữ Latin) — prompt có yêu cầu đọc mọi ngôn ngữ nhưng chất lượng chữ VN là "chưa kiểm chứng" cho tới lần deconstruct thật có chữ VN.
+  - Hiệu năng: tổng ~49 giây — khớp copy dialog "usually takes 1–3 minutes".
 - Nợ B1 sau spike: text layer fontSize ước lượng từ box (seller tự tinh chỉnh); không duyệt/sửa text trước khi áp (chủ đích — Non-Goal); dialog không hiện progress theo pha (task lane chỉ có processing/succeeded/failed).
 
 ## Rủi ro / cạnh đã nghĩ
