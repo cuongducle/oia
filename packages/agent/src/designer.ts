@@ -171,7 +171,10 @@ export async function* runDesignerAgent(
     });
   };
 
-  const pagesWanted = Math.max(1, Math.min(9, input.pages ?? 1));
+  // C1: the approved outline (phase 2) DECIDES the page count before the planner
+  // prompt is built — otherwise the "exactly N imagePrompts" instruction never fires.
+  const approvedPages = input.approvedOutline?.length ?? 0;
+  const pagesWanted = Math.max(1, Math.min(9, approvedPages || (input.pages ?? 1)));
   // ---- 1) Planner node ----
   const nodeId = uuid32();
   taskMeta = [{ id: nodeId, content: "Designer Agent", type: "node", status: "0" }];

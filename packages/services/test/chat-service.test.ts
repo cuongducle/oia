@@ -76,6 +76,46 @@ describe("D1 runChat — happy path", () => {
     expect(ctx.chatSessions.recent().length).toBe(1);
   });
 
+  it("C1: outlineGate (pages>=2) ends with outcome 'outline' — zero canvases on the wire", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const { outcome, sessionId } = await runChat({ prompt: "sales deck", pages: 3, outlineGate: true }, ctx, { sink });
+    expect(outcome).toBe("outline");
+    const canvases = events.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas"));
+    expect(canvases).toHaveLength(0); // no image was generated
+    const outline = events.find((e) => e.renderData.outline?.length)?.renderData.outline;
+    expect(outline).toHaveLength(3);
+    expect(typeof sessionId).toBe("number");
+  });
+
+  it("C1: phase 2 with approvedOutline joins the SAME session (OC-8) and completes", async () => {
+    const ctx = await freshCtx();
+    const phase1 = await runChat({ prompt: "sales deck", pages: 2, outlineGate: true }, ctx, { sink: () => {} });
+    const { events, sink } = collector();
+    const phase2 = await runChat(
+      {
+        prompt: "sales deck", sessionId: phase1.sessionId,
+        approvedOutline: [
+          { title: "Page 1", summary: "sales deck — part 1" },
+          { title: "Page 2", summary: "sales deck — part 2" },
+        ],
+      },
+      ctx,
+      { sink },
+    );
+    expect(phase2.outcome).toBe("completed");
+    expect(phase2.sessionId).toBe(phase1.sessionId);
+    expect(new Set(events.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas").map((m) => m.id))).size).toBe(2);
+    // ONE conversation holds the outline stub AND the deck result
+    expect(ctx.chatSessions.get(phase1.sessionId)!.messages.length).toBe(4);
+  });
+
+  it("C1: outlineGate on a single page behaves as a normal completed run (no gate concept)", async () => {
+    const ctx = await freshCtx();
+    const { outcome } = await runChat({ prompt: "poster", pages: 1, outlineGate: true }, ctx, { sink: () => {} });
+    expect(outcome).toBe("completed");
+  });
+
   it("A1 VA-9: refusals still return the sessionId (the prompt was persisted — the record must not lie)", async () => {
     const ctx = await freshCtx();
     const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in", available: false });

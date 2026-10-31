@@ -37,14 +37,19 @@ export const chatRequestSchema = z.object({
   referenceImages: z.array(z.string()).optional(),
   pages: z.number().int().positive().optional(),
   outlineMode: z.boolean().optional(),
+  /** C1 outline gate phase 1 — stop after the outline (docs/designs/outline-gate.md). */
+  outlineGate: z.boolean().optional(),
+  /** C1 phase 2 — the user-approved page outline; count is a hard contract. */
+  approvedOutline: z.array(z.object({ title: z.string().min(1), summary: z.string().min(1) })).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-/** Distinguishes the two refusal flavors without event sniffing. */
-export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable";
+/** Distinguishes the refusal flavors without event sniffing. `outline` = C1 phase 1
+ *  completed: the deck outline is ready for review, zero images generated. */
+export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable" | "outline";
 
 export interface RunChatOptions {
   /** Cooperative cancellation wired by the shell (Stop button, disconnect grace, window close). */
@@ -116,6 +121,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
 
   let lastEvent: ChatEvent | null = null;
   let lastCanvas: unknown = null;
+  let outlineEmitted = false; // C1: outcome "outline" is decided by THIS flag, never by content sniffing
   let outcome: ChatOutcome = "completed";
   const cleanup = () => {
     clearTimeout(budget);
@@ -152,6 +158,8 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         referenceImages: req.referenceImages,
         pages: req.pages,
         outlineMode: req.outlineMode,
+        outlineGate: req.outlineGate,
+        approvedOutline: req.approvedOutline,
         skill: req.skill,
         mode: req.mode,
         signal: ac.signal,
@@ -162,12 +170,15 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
     )) {
       await assetizeEvent(event, ctx.files); // A1: no base64 on any wire
       lastEvent = event;
+      if (event.renderData?.outline?.length) outlineEmitted = true;
       for (const m of event.renderData?.msgMeta ?? []) if (m.type === "canvas") lastCanvas = m.canvas;
       await send(event);
     }
     if (ac.signal.aborted) {
       terminalCancelled();
       outcome = "cancelled";
+    } else if (req.outlineGate && outlineEmitted) {
+      outcome = "outline"; // C1 phase 1 landed — the UI shows the outline card
     }
   } catch (err) {
     if (ac.signal.aborted) {

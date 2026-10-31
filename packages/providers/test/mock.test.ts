@@ -36,3 +36,36 @@ describe("MockImageProvider", () => {
     expect((await p.isAvailable()).ok).toBe(true);
   });
 });
+
+/* ---------- C1: the mock planner honors the gate instructions (llm) ---------- */
+import { MockLlmProvider } from "../src/llm/mock.js";
+
+describe("MockLlmProvider — prompt-aware planning (C1 gate flows need it)", () => {
+  const llm = new MockLlmProvider();
+  const msgs = (system: string) => [
+    { role: "system" as const, content: system },
+    { role: "user" as const, content: "sales deck" },
+  ];
+
+  it("outline-gate instruction → pageOutline with EXACTLY N rows", async () => {
+    const raw = await llm.chat(msgs("Also return pageOutline[] — EXACTLY 3 entries {title, summary}, one per page in order (Outline Gate)."));
+    const plan = JSON.parse(raw) as { pageOutline?: { title: string; summary: string }[] };
+    expect(plan.pageOutline).toHaveLength(3);
+    expect(plan.pageOutline?.[0]?.title).toBe("Page 1");
+  });
+
+  it("approved-outline instruction → imagePrompts with EXACTLY N entries (distinct — per-page images differ)", async () => {
+    const raw = await llm.chat(msgs("Produce exactly 2 imagePrompts[] (one per page, coherent series)."));
+    const plan = JSON.parse(raw) as { imagePrompts?: string[] };
+    expect(plan.imagePrompts).toHaveLength(2);
+    expect(new Set(plan.imagePrompts).size).toBe(2);
+  });
+
+  it("no instructions → legacy canned plan (smoke/shot single-page flows unchanged)", async () => {
+    const raw = await llm.chat(msgs("You are a poster/banner planner."));
+    const plan = JSON.parse(raw) as { pageOutline?: unknown; imagePrompts?: unknown; copy?: string };
+    expect(plan.pageOutline).toBeUndefined();
+    expect(plan.imagePrompts).toBeUndefined();
+    expect(plan.copy).toBe("GIẢM GIÁ 20%");
+  });
+});

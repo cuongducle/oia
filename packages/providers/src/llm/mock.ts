@@ -5,6 +5,11 @@ import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, Provider
  * TP.6/TP.4: declares `isMock: true` so the UI can label "Chế độ thử nghiệm";
  * the registry refuses to boot a mock planner paired with a real image provider
  * (assertNoMixedMockConfig) — mock output must never reach a real user silently.
+ *
+ * Prompt-aware (C1): the designer's planner instructions are honored literally —
+ * "EXACTLY N entries" yields a pageOutline of N rows, "exactly N imagePrompts"
+ * yields N per-page prompts. Same philosophy as the per-prompt image mock: a mock
+ * owes the gates deterministic variety, not one canned answer for every question.
  */
 const MOCK_CAPABILITIES: ProviderCapabilities = {
   referenceImages: false,
@@ -22,11 +27,25 @@ export class MockLlmProvider implements LlmProvider {
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
   async chat(messages: LlmMessage[], _opts?: LlmChatOpts): Promise<string> {
     const user = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+    const system = [...messages].reverse().find((m) => m.role === "system")?.content ?? "";
+    const pageOutlineN = /EXACTLY (\d+) entries \{title, summary\}/.exec(system)?.[1];
+    const imagePromptsN = /exactly (\d+) imagePrompts/.exec(system)?.[1];
     return JSON.stringify({
       title: user.slice(0, 60) || "Untitled",
       plan: ["layout", "imagery", "typography"],
       imagePrompt: user,
       copy: MOCK_PROMO_COPY,
+      ...(pageOutlineN
+        ? {
+            pageOutline: Array.from({ length: Number(pageOutlineN) }, (_, i) => ({
+              title: `Page ${i + 1}`,
+              summary: `${user.slice(0, 40) || "deck"} — part ${i + 1}`,
+            })),
+          }
+        : {}),
+      ...(imagePromptsN
+        ? { imagePrompts: Array.from({ length: Number(imagePromptsN) }, (_, i) => `page ${i + 1} of ${imagePromptsN} — ${user.slice(0, 40)}`) }
+        : {}),
     });
   }
   async isAvailable(): Promise<ProviderDiagnostic> {
