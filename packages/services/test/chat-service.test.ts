@@ -105,7 +105,10 @@ describe("D1 runChat — happy path", () => {
     );
     expect(phase2.outcome).toBe("completed");
     expect(phase2.sessionId).toBe(phase1.sessionId);
-    expect(new Set(events.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas").map((m) => m.id))).size).toBe(2);
+    // id "final" is the runChat persistence rewrite of the LAST event (pre-existing) —
+    // the real generations are the distinct ids besides it
+    const pageIds = new Set(events.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas" && m.id !== "final").map((m) => m.id)));
+    expect(pageIds.size).toBe(2);
     // ONE conversation holds the outline stub AND the deck result
     expect(ctx.chatSessions.get(phase1.sessionId)!.messages.length).toBe(4);
   });
