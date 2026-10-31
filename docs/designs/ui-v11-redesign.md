@@ -264,6 +264,25 @@ Map từ event sẵn có (`ChatEvent` status / task progress) — không đổi 
 
 R1–R3 không đụng canvas → rủi ro thấp, có thể làm song song với T6 (Windows thật). R4–R5 là phần lớn nhất (Fabric event + undo/redo).
 
+## Hệ thị giác v2 (để đạt chất lượng phát hành)
+
+Vòng mockup đầu đúng cấu trúc nhưng chưa đạt chất lượng phát hành: render lại cả 6 màn và soi thì ra 5 lỗi lặp — artwork là khối màu phẳng (đọc như wireframe), tím dùng cho gần như mọi nút/active/chip, viền 1px ở mọi khối (đúng triệu chứng "shadcn mặc định" #5 của design-product-ui-2026), icon thiếu/không đồng bộ, tiến trình thành ba chip xanh nặng. Hệ v2 sửa ở mức token — áp cho mọi view, không theo từng màn. Đối chiếu tham khảo: open-design.ai (app desktop cùng tư thế "agent cục bộ / BYOK", đo trực tiếp CSS trang của họ 2026-10-31: chrome trung tính, nút chính màu mực dạng pill, một màu nhấn dùng rất ít, bóng dài mềm thay viền) — chỉ học nguyên tắc, không lấy font, màu hay bố cục của họ.
+
+| Token / luật | v1 (hiện tại, `app.css`) | v2 đề xuất |
+|---|---|---|
+| Nền chrome | `#fafaf9`, nội dung trên cùng mặt phẳng | Chrome `#f3f2ef`; nội dung nằm trên **tấm trắng nổi** (radius 18) và panel nổi (radius 16) — kiểu UI3 |
+| Nút chính | Tím `#7050e5` | **Mực `#1d1c21`**, pill (radius 999), cao 40 / 34 |
+| Màu tím | Nhấn chung | **Chỉ cho AI và vùng chọn** (`#6d4ce8`: tay nắm chọn, nhãn layer trên canvas, nút "Edit with AI", chip @layer) — nhìn tím là biết "AI / đang chọn" |
+| Phân lớp | Viền 1px `#e5e3ea` | Tông nền (`#f6f5f3` / `#f3f2ef`) + bóng mềm `0 24px 48px -24px rgba(20,18,30,.18)`; viền chỉ còn dạng ring 1px rất nhạt khi cần |
+| Chữ | Serif + sans trộn ở nhiều cấp | Instrument Serif **chỉ cho tiêu đề trang** (34–58px); UI Be Vietnam Pro 13 (chrome) / 14 (nội dung) / 17 (ô prompt); số dùng `tabular-nums` |
+| Chữ hiển thị tiếng Việt | line-height .92–1 | **line-height ≥ 1.0 + padding trên** cho chữ lớn có dấu — mockup v2 bắt được dấu hỏi của "Ả" bị cắt khỏi khung chọn |
+| Icon | Thiếu / glyph unicode (↶ ⛶ ✦) | Một bộ nét 1.7px, 18–20px, cùng hình học |
+| Trạng thái chạy | Ba chip xanh | **Một dòng**: chấm màu + "Done in 41 s · 1 image used" |
+| Artwork trong UI | Khối màu | Ảnh thật (4 ảnh studio đã có trong `renderer/public/studio`) — mọi empty/sample/recent đều phải là thiết kế thật, đúng luật DNA #5 |
+| Canvas editor | Nền xám phẳng | Lưới chấm nhạt; artboard có bóng sâu; nhãn kích thước; tay nắm 8px trắng viền tím; nhãn "tên · W × H" dưới vùng chọn |
+
+Mockup v2 trên canvas (Home, Create sheet, Editor, Editor · AI, Projects, Settings) đã áp toàn bộ bảng này. Khi triển khai: token v2 vào `app.css` ở slice R1 (một lần, trước mọi slice khác) để R2–R6 không phải tự chọn màu.
+
 ## Đối chiếu đối thủ tham chiếu (2026-10-31)
 
 Nguồn: trang công khai của đối thủ tham chiếu (landing + phần mô tả tính năng kèm ảnh minh họa giao diện app), đọc 2026-10-31; app thật nằm sau đăng nhập nên không vào. Chỉ học pattern tương tác — không sao chép asset, tên, bố cục (cùng ghi chú pháp lý với `design-product-ui-2026.md`).
@@ -298,3 +317,4 @@ Nguồn: trang công khai của đối thủ tham chiếu (landing + phần mô 
 | Q6 | Brand pill vào composer ngay (E1-a) hay chờ E1 đầy đủ? | Ngay — chỉ là UI chọn `brandKitId` đã có trên wire; tác động lên text layers (E1-c) để doc riêng |
 | Q7 | Chip trên composer là "làm gì" (use case) thay cho chip kích thước? | Có — khớp cách seller nghĩ ("làm flash sale") và cách đối thủ tham chiếu làm; kích thước vẫn chọn được trong pill |
 | Q8 | Đưa Skills vào composer + tab AI (A2-nhóm D của brainstorm)? | Có, bản tối thiểu: menu gọi tool sẵn có, không thêm tool mới |
+| Q9 | Áp hệ thị giác v2 — đổi nút chính từ tím sang mực, tím chỉ còn cho AI/vùng chọn, chrome `#f3f2ef`? Đây là sửa `design-direction.md` (hiện ghi violet là accent chung) | Có — tím dùng cho mọi thứ là lý do lớn nhất UI trông như boilerplate; cập nhật `design-direction.md` cùng PR R1 |
