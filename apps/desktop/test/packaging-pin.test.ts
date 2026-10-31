@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const yml = readFileSync(path.resolve(here, "../electron-builder.yml"), "utf8");
+// a Windows checkout (core.autocrlf) hands us CRLF — the line regexes below speak \n
+const yml = readFileSync(path.resolve(here, "../electron-builder.yml"), "utf8").replace(/\r\n/g, "\n");
 const pkg = JSON.parse(readFileSync(path.resolve(here, "../package.json"), "utf8")) as { scripts: Record<string, string> };
 
 /** The value on `key:` inside a top-level `section:` block (two-space indented). */
