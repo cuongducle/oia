@@ -1,7 +1,7 @@
 # Reorg step 7 — packaging (D12, no-signing budget plan).
-# mac arm64 first (owner machine); x64/universal + win NSIS are CI follow-ups —
-# each arch needs its own `fetch-codex --arch` run BEFORE building (extraResources
-# copies resources/codex, which is a gitignored build artifact).
+# mac arm64 + win x64 NSIS. Each target needs its own `fetch-codex --platform --arch`
+# run BEFORE building (extraResources copies resources/codex, a gitignored build
+# artifact) — dist:mac / dist:win do that; build each on its own OS (CI jobs).
 appId: app.oia.desktop
 productName: Oia
 copyright: Copyright © 2026 Oia
@@ -38,6 +38,22 @@ extraResources:
 # bypass instructions live in the README; NO auto-update channel until signing
 # exists. `identity: null` keeps electron-builder from probing for identities.
 afterPack: ./scripts/afterPack.mjs
+
+# Release hardening (review F7): flip the Electron fuses at package time, on every
+# platform. Without these a shipped Oia binary is a general-purpose Node runtime
+# (ELECTRON_RUN_AS_NODE / NODE_OPTIONS / --inspect) that inherits the app's identity
+# — on macOS its TCC grants too. grantFileProtocolExtraPrivileges stays default:
+# the renderer loads from file:// (loadFile) and its relative font/studio assets.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  # flipping fuses edits the binary — an unsigned arm64 build must be re-ad-hoc-signed or it won't launch
+  resetAdHocDarwinSignature: true
+
 mac:
   icon: resources/icons/icon.icns
   category: public.app-category.graphics-design
@@ -50,3 +66,27 @@ mac:
   notarize: false
 dmg:
   title: ${productName} ${version}
+
+# T8 — Windows x64, unsigned (same no-signing plan: SmartScreen shows "Windows
+# protected your PC" → More info → Run anyway; README documents it). No auto-update
+# until signing exists, so no publish/updater config here either.
+win:
+  icon: resources/icons/icon_1024.png # builder converts a ≥256px PNG to .ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+
+# Per-user install under %LOCALAPPDATA%\Programs\Oia — no admin prompt (CUJ-D1).
+# User data lives in %APPDATA%\Oia and is NEVER removed by uninstall or upgrade:
+# projects survive both (CUJ-D2).
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ${productName}
