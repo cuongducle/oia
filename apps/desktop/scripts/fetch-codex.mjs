@@ -43,7 +43,11 @@ const provisioner = new RuntimeProvisioner({
 try {
   const managed = JSON.parse(await readFile(path.join(resourcesDir, "codex", "managed.json"), "utf8"));
   const pinnedVersion = pin.tag.match(/v(\d+\.\d+\.\d+)/)?.[1];
-  const binExists = await stat(path.join(resourcesDir, "codex", "current", "bin", process.platform === "win32" ? "codex.exe" : "codex"))
+  // Cross-packaging: the binary name follows the TARGET platform (--platform),
+  // not the host running the script — a mac cross-building for win checks codex.exe.
+  const target = flag("platform") ?? process.platform;
+  const binName = target === "win32" ? "codex.exe" : "codex";
+  const binExists = await stat(path.join(resourcesDir, "codex", "current", "bin", binName))
     .then((s) => s.isFile())
     .catch(() => false);
   if (managed?.version === pinnedVersion && binExists) {
