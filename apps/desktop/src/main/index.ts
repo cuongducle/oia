@@ -1221,7 +1221,11 @@ async function shot(): Promise<void> {
     tpl.click();
     await new Promise((r) => setTimeout(r, 900));
     const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
-    return { ok: Boolean(btn && btn.disabled), disabled: btn ? btn.disabled : null, title: btn?.title ?? "" , zones: document.querySelectorAll(".canvasWrap .guideZone").length };
+    // Teardown C3: applying an opaque template must flip the wrap OFF transparent —
+    // the attr drives the checkerboard AND the export alpha hint; a stale pages
+    // state would keep lying "transparent" after the scene went white.
+    const wrap = document.querySelector('[data-testid="editor-root"] .canvasWrap');
+    return { ok: Boolean(btn && btn.disabled && !wrap?.getAttribute("data-transparent")), disabled: btn ? btn.disabled : null, title: btn?.title ?? "", zones: document.querySelectorAll(".canvasWrap .guideZone").length, stillTransparent: wrap?.getAttribute("data-transparent") ?? null };
   })()`, true);
   console.log("[shot] C3 refusal gate:", JSON.stringify(refused));
   if (!refused || !refused.ok) {

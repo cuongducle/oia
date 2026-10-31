@@ -41,6 +41,15 @@ describe("live artboard presets", () => {
 });
 
 describe("livestream template pack", () => {
+  // Textbox heights are auto-computed by fabric at render time, so the static
+  // JSON carries no height — estimate fontSize × 1.2 per line or the band check
+  // goes blind for text (a Textbox with height undefined would count as zero).
+  const estHeight = (o: { type: string; fontSize?: number; text?: string; height?: number }): number => {
+    if (typeof o.height === "number") return o.height;
+    if (o.type === "Textbox") return (o.fontSize ?? 40) * 1.2 * String(o.text ?? "").split("\n").length;
+    return 0;
+  };
+
   it("every template parses, is categorized livestream, and is a transparent 9:16 artboard", () => {
     expect(LIVESTREAM_TEMPLATES.length).toBe(3);
     for (const t of LIVESTREAM_TEMPLATES) {
@@ -63,8 +72,27 @@ describe("livestream template pack", () => {
     for (const t of LIVESTREAM_TEMPLATES) {
       for (const o of t.scene.objects) {
         if (o.name === "clip") continue;
+        expect((o.top ?? 0) + estHeight(o as never)).toBeLessThanOrEqual(bottom);
         expect(o.top ?? 0).toBeGreaterThanOrEqual(top);
-        expect((o.top ?? 0) + (o.height ?? 0)).toBeLessThanOrEqual(bottom);
+      }
+    }
+  });
+
+  it("no bare text on the transparent artboard — every label sits on a plate (teardown C3)", () => {
+    // Bare colored text is invisible over real stream footage: the overlay's
+    // actual backdrop is a video, not a checkerboard. Every Textbox must have a
+    // plate Rect covering its position in the same template.
+    for (const t of LIVESTREAM_TEMPLATES) {
+      const plates = t.scene.objects.filter((o) => o.type === "Rect" && o.name !== "clip");
+      const texts = t.scene.objects.filter((o) => o.type === "Textbox");
+      for (const tb of texts) {
+        const covered = plates.some((p) => {
+          const pl = (p.left ?? 0), pt = (p.top ?? 0), pw = (p.width ?? 0), ph = (p.height ?? 0);
+          const tl = (tb.left ?? 0), tt = (tb.top ?? 0), tw = (tb.width ?? 0);
+          const th = estHeight(tb as never);
+          return tl >= pl - 2 && tt >= pt - 2 && tl + tw <= pl + pw + 2 && tt + th <= pt + ph + 8;
+        });
+        expect(covered, `${t.id}: "${String(tb.text).slice(0, 24)}" floats on transparency`).toBe(true);
       }
     }
   });

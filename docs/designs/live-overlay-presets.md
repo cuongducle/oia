@@ -102,6 +102,21 @@ Default pref guides = **`"off"`** — seller chủ động bật (guides là tr�
 2. **Artifact phải thể hiện feature nó chứng nhận** (quy tắc A1 tray) — snap live-overlay giờ chụp guides ĐANG bật, tắt lại trước refusal check để đo clean slate.
 3. **Đã xem xét, giữ nguyên:** JPG flatten không nói màu nền (hint chỉ nói "flattens" — không overclaim hai chiều); text template đo độ rộng an toàn trong pill/box (13 ký tự × ~33px < 640px) — nếu D10 thấy tràn thì chỉnh data, không đổi engine; guides re-position theo zoom qua re-render React (đúng theo cấu trúc; không assert riêng trong shot — rủi ro thấp ghi nhận).
 
+## Hậu kiểm teardown vòng 2 (2026-10-31, owner lệnh "té code" sau khi ship)
+
+Té toàn bộ C3 + giao điểm A1×C3 (A1/C1 đã có teardown round 1 riêng hôm trước). **4 sửa + 1 gate mới + 2 ghi nhận:**
+
+1. **[SỬA — bug thật về chất lượng sản phẩm] Text trần trên nền trong suốt = vô hình trên video.** Countdown label "DEAL CHỈ TRONG" + nhãn giờ/phút/giây + dòng phụ freeship vốn là chữ màu trần (không plate) — trên checkerboard nhìn được, nhưng backdrop THẬT của overlay là video stream: chữ màu sẫm trên footage nào đó biến mất. Mọi template giờ mọi Textbox nằm trên plate (label pill mực 85%, nhãn đơn vị TRONG box tím, dòng phụ freeship TRONG pill xanh). Test mới "no bare text on the transparent artboard" pin bất biến này bằng hình học (mỗi Textbox phải có Rect phủ) — fail đúng trên dữ liệu cũ (nhãn cũ top 1092 nằm ngoài box cũ kết thúc 1080).
+2. **[SỬA — copy nói dối nhỏ] "Blank canvas · 3:4 poster · 1360 × 2048"** — 1360:2048 = 0,664 ≈ 2:3, KHÔNG phải 3:4 (0,75). Đúng luật không-overclaim kể cả ở copy phụ: đổi "Portrait poster · 1360 × 2048".
+3. **[SỬA — phân nhóm sai] "Load your library" + template người dùng** nằm ngay dưới nhóm "Posters" — nhìn như poster. Thêm nhóm "Your library" riêng.
+4. **[SỬA — gate mù một nửa] Test band-an-toàn không đo chiều cao Textbox** — JSON tĩnh không có height (fabric tự tính lúc render) nên `(o.height ?? 0)` = 0: Textbox chỉ được kiểm `top`, không kiểm đáy. Tăng cường: ước lượng fontSize × 1,2 × số dòng — giờ nhãn/giá cũng bị kiểm biên dưới.
+5. **[GATE MỚI] data-transparent phải lật theo scene thật** — áp poster template (clip trắng) lên overlay project → attr `data-transparent` phải BIẾN MẤT (attr này lái checkerboard + hint alpha export; pages state stale sẽ nói dối "transparent" trên scene trắng). Pin trong refusal gate: `stillTransparent: null`.
+6. **[GHI NHẬN — chủ đích, không sửa]** (a) Pref platform ≠ off tự hiện lại guides trên MỌI artboard 9:16 khi mở project — semantics "nhớ lựa chọn" chủ đích; đổi theo dữ liệu D10 nếu seller thấy ồn. (b) TikTok cover 1080×1920 cũng là 9:16 → guides bật ĐƯỢC trên cover — data không phân biệt được cover vs overlay (cùng khổ); toggle là opt-in + có nhãn, chấp nhận. (c) Badge guides nằm trong vùng hatch (đúng chỗ — nó là chú thích editor, KHÔNG phải nội dung export; vision một lần nữa hỏi "nếu là overlay" — gate bytes-identical là câu trả lời bằng chứng).
+
+**Kiểm tra và loại (không phải bug):** `replaceCurrentScene` setPages đồng bộ → attr/hint recompute đúng (giờ có gate pin); double-click menu item không đua được (menu đóng cùng tick); clip fill là object (gradient) → `=== "transparent"` false → không hint (đúng); guide rounding lệch ≤1px ở mép phải khi zoom lẻ (mỹ phẩm, bỏ); A1×C3: Replace variant trên overlay project vẫn đúng (replaceObjectSrc theo index canvas hiện hành, không phụ thuộc template).
+
+**Gates vòng 2:** desktop 138/138 (test "no bare text" mới), shot 3/3 exit=0 (kể cả gate stillTransparent=null), vision-verify artifact: không còn text trần nào, plate đỏ giữa vùng an toàn, badge đúng; repo build + test (16 task) + typecheck xanh.
+
 ## Nguồn safe-zone (researched 2026-10-31)
 
 - TikTok 1080×1920 đa nguồn hội tụ: ~108–160 top · ~320–484 bottom · ~60 left · ~120–140 right (safe-zone tools cộng đồng + hướng dẫn ads/video 2025–2026; không nguồn chính thức nào công bố zone LIVE — đúng dự đoán brainstorm). Làm tròn: 130/480/60/120.

@@ -161,7 +161,7 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
                 <div className="newMenu" role="menu">
                   <button role="menuitem" className="newMenuItem" disabled={busy} onClick={() => { setNewMenu(false); void create(); }}>
                     <strong>Blank canvas</strong>
-                    <span>3:4 poster · 1360 × 2048</span>
+                    <span>Portrait poster · 1360 × 2048</span>
                   </button>
                   {LIVE_ARTBOARDS.map((a) => (
                     <button key={a.id} role="menuitem" className="newMenuItem" disabled={busy} onClick={() => void createLive(a)}>

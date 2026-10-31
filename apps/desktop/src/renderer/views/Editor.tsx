@@ -876,6 +876,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                   {tpl.name}
                 </button>
               ))}
+              <h5 className="tplGroup">Your library</h5>
               <button className="presetBtn small" onClick={loadTemplates}>Load your library</button>
               {tplList.map((tpl) => (
                 <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
