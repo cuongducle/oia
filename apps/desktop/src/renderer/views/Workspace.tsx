@@ -3,6 +3,7 @@ import type { Project } from "@oia/schema";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
+import { LIVE_ARTBOARDS, liveArtboardScene, type LiveArtboard } from "../lib/livestream-presets.js";
 
 /**
  * D2 renderer port — the workspace list over IPC: recent projects (ScenePreview
@@ -20,6 +21,7 @@ export interface WorkspaceProps {
 export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [newMenu, setNewMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -89,6 +91,17 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
     } finally { setBusy(false); }
   }
 
+  /** C3 (LV-2): livestream artboard presets — clip-only scenes, no assets to map. */
+  async function createLive(a: LiveArtboard) {
+    setBusy(true); setError(""); setNewMenu(false);
+    try {
+      const p = await oia().createProject({ name: a.projectName, scene: liveArtboardScene(a) });
+      onOpenProject(p.id);
+    } catch (e) {
+      setError(bridgeErrorMessage(e, "Could not create the project."));
+    } finally { setBusy(false); }
+  }
+
   async function rename() {
     if (!renaming || !renameName.trim()) { setRenaming(null); return; }
     try {
@@ -132,9 +145,28 @@ export function Workspace({ onOpenProject, onOpenSession }: WorkspaceProps) {
             ⬆ New from image
             <input type="file" aria-label="New project from image" accept="image/*" hidden disabled={busy} onChange={(e) => e.target.files?.[0] && create(e.target.files[0])} />
           </label>
-          <button className="primaryBtn" disabled={busy} onClick={() => create()}>
-            {busy ? "Creating…" : "＋ New project"}
-          </button>
+          <div className="newMenuWrap">
+            <button className="primaryBtn" disabled={busy} aria-expanded={newMenu} aria-haspopup="menu" onClick={() => setNewMenu((v) => !v)}>
+              {busy ? "Creating…" : "＋ New project"}
+            </button>
+            {newMenu && (
+              <>
+                <button className="menuBackdrop" aria-label="Close menu" tabIndex={-1} onClick={() => setNewMenu(false)} />
+                <div className="newMenu" role="menu">
+                  <button role="menuitem" className="newMenuItem" disabled={busy} onClick={() => { setNewMenu(false); void create(); }}>
+                    <strong>Blank canvas</strong>
+                    <span>3:4 poster · 1360 × 2048</span>
+                  </button>
+                  {LIVE_ARTBOARDS.map((a) => (
+                    <button key={a.id} role="menuitem" className="newMenuItem" disabled={busy} onClick={() => void createLive(a)}>
+                      <strong>{a.label}{a.official ? " · official spec" : ""}</strong>
+                      <span>{a.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 

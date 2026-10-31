@@ -9,6 +9,9 @@ import {
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
+import { LIVESTREAM_TEMPLATES } from "../lib/livestream-presets.js";
+import { guideFor, guideRects, readGuidePref, writeGuidePref, type GuidePlatform } from "../lib/live-guides.js";
+import { ASPECT_TOLERANCE, isNineSixteen } from "../lib/scene-dims.js";
 import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
@@ -132,6 +135,19 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [pageThumbs, setPageThumbs] = useState<Record<string, string>>({});
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [activePage, setActivePage] = useState(0);
+  // C3 — safe-zone guides (live-overlay-presets.md LV-4/LV-6/LV-11): view state +
+  // localStorage pref. NEVER scene data — rendered as a DOM layer over the canvas.
+  const [guidePlatform, setGuidePlatform] = useState<GuidePlatform>(readGuidePref);
+  const guidesEligible = isNineSixteen(customW, customH);
+  const guidesOn = guidePlatform !== "off" && guidesEligible;
+  const activeGuide = guidePlatform === "off" ? null : guideFor(guidePlatform);
+  const activeClipFill = pages[activePage]?.canvas?.objects?.find((o) => o.name === "clip")?.fill;
+  function cycleGuides() {
+    const order: GuidePlatform[] = ["off", "tiktok", "shopee"];
+    const next = order[(order.indexOf(guidePlatform) + 1) % order.length];
+    setGuidePlatform(next);
+    writeGuidePref(next);
+  }
   const currentState = useRef({ pages, activePage, projectName, projectId, customW, customH });
   const restoring = useRef(false);
   const pendingSave = useRef<Promise<string | null> | null>(null);
@@ -622,7 +638,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       const th = (active.height ?? 0) * (active.scaleY ?? 1);
       if (artwork.aspect > 0 && tw > 0 && th > 0) {
         const delta = Math.abs(artwork.aspect - tw / th) / (tw / th);
-        if (delta > 0.05) setNotice("The new artwork has a different aspect ratio — it was stretched to fit the selected layer. Undo works if you prefer the original.");
+        if (delta > ASPECT_TOLERANCE) setNotice("The new artwork has a different aspect ratio — it was stretched to fit the selected layer. Undo works if you prefer the original.");
       }
     } catch (err) {
       // never swallow silently — the oia:// poisoned-realpath bug hid for hours behind a mute catch
@@ -848,6 +864,13 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             <>
               <h4>Templates</h4>
               <p className="hintP">Choose a template for the current page.</p>
+              <h5 className="tplGroup">Livestream</h5>
+              {LIVESTREAM_TEMPLATES.map((tpl) => (
+                <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
+                  {tpl.name}
+                </button>
+              ))}
+              <h5 className="tplGroup">Posters</h5>
               {STUDIO_TEMPLATES.map((tpl) => (
                 <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
                   {tpl.name}
@@ -966,8 +989,22 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           <div className="canvasViewport">
             <div className="canvasColumn">
               <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
-              <div className="canvasWrap">
+              <div className="canvasWrap" data-transparent={activeClipFill === "transparent" ? "true" : undefined}>
                 <canvas ref={canvasElRef} width={500} height={750} />
+                {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
+                  <div
+                    key={r.edge}
+                    className="guideZone"
+                    data-edge={r.edge}
+                    aria-hidden="true"
+                    style={{ left: Math.round(r.left * zoom), top: Math.round(r.top * zoom), width: Math.round(r.width * zoom), height: Math.round(r.height * zoom) }}
+                  />
+                ))}
+                {guidesOn && activeGuide && (
+                  <span className="guideBadge" title={activeGuide.note}>
+                    {activeGuide.label} safe zones · {activeGuide.confidence === "measured" ? "community-measured" : "estimated"}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -988,6 +1025,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             /><span className="zoomAffix" aria-hidden="true">%</span>
             <button onClick={() => zoomBy(0.1)} aria-label="Zoom in"><I d={icons.plus} size={15} /></button>
             <button onClick={fitView} title="Fit to screen" aria-label="Fit to screen"><I d={icons.fit} size={15} /></button>
+            <button
+              onClick={cycleGuides}
+              disabled={!guidesEligible}
+              aria-pressed={guidesOn}
+              aria-label="Toggle platform safe-zone guides"
+              title={!guidesEligible ? "This guide assumes a 9:16 stage (1080 × 1920)" : guidesOn ? activeGuide?.note : "Show where the platform UI usually covers the stream"}
+              style={{ width: "auto", padding: "0 8px", gap: 4, fontSize: 11, fontWeight: 600, color: guidesOn ? "var(--accent)" : undefined, background: guidesOn ? "var(--accent-soft)" : undefined }}
+            >
+              Safe zones{guidesOn && activeGuide ? `: ${activeGuide.label}` : ""}
+            </button>
           </div>
           <div className="boardLabel">Page {activePage + 1} / {Math.max(1, pages.length)}</div>
           <div className="pageStrip">
@@ -1023,6 +1070,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             <button className={exportScope === "all" ? "chip active" : "chip"} onClick={() => setExportScope("all")}>All ({Math.max(1, pages.length)})</button>
             <button className={exportScope === "current" ? "chip active" : "chip"} onClick={() => setExportScope("current")}>Current page</button>
           </div>
+          {(exportScope === "all" ? pages : [pages[activePage] ?? pages[0]]).some(
+            (p) => p?.canvas?.objects?.find((o) => o.name === "clip")?.fill === "transparent",
+          ) && (
+            <p className="hintP" data-testid="alpha-hint" style={{ margin: "6px 0 0" }}>PNG keeps transparency — JPG flattens it.</p>
+          )}
           <button className="primaryBtn wide" disabled={exporting} onClick={doExport} data-testid="export-download">
             {exporting ? "Exporting…" : "Download"}
           </button>

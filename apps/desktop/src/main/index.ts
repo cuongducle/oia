@@ -1084,6 +1084,140 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-workspace.png");
 
+  // ---- C3: livestream overlay preset + safe-zone guides + export purity ----------
+  // Pins live-overlay-presets.md gates 2–4: transparent PNG survives the real
+  // fabric toDataURL lane; guides (DOM layer) never leak into rendered bytes;
+  // the guide toggle refuses a non-9:16 artboard instead of lying.
+  console.log("[shot] C3: creating a livestream overlay project…");
+  const liveCreated = await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector(".workspaceActions .primaryBtn");
+    if (!btn) return "no-new-btn";
+    btn.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const items = [...document.querySelectorAll(".newMenu .newMenuItem")];
+    if (items.length !== 4) return "menu-items-" + items.length;
+    const overlay = items.find((b) => b.textContent.includes("Livestream overlay"));
+    if (!overlay) return "no-overlay-item";
+    overlay.click();
+    return "clicked";
+  })()`, true);
+  if (liveCreated !== "clicked") {
+    console.error(`DESKTOP_SHOT C3 FAILED — new menu (${liveCreated})`);
+    app.exit(19);
+    return;
+  }
+  let liveReady = false;
+  for (let i = 0; i < 40; i++) {
+    liveReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="editor-root"] .canvasWrap[data-transparent="true"] canvas'))`,
+      true,
+    );
+    if (liveReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+  if (!liveReady) {
+    console.error("DESKTOP_SHOT C3 FAILED — overlay artboard never mounted transparent");
+    app.exit(19);
+    return;
+  }
+  // Alpha + guides-purity on the REAL canvas (same fabric toDataURL lane export uses).
+  const alphaGate = await win.webContents.executeJavaScript(`(async () => {
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no-canvas" };
+    const corners = async (url) => {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const cv = document.createElement("canvas");
+      cv.width = img.width; cv.height = img.height;
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const px = (x, y) => ctx.getImageData(x, y, 1, 1).data[3];
+      return { w: img.width, h: img.height, tl: px(0, 0), tr: px(img.width - 1, 0), bl: px(0, img.height - 1), br: px(img.width - 1, img.height - 1) };
+    };
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    if (!btn) return { ok: false, why: "no-guide-btn" };
+    if (btn.disabled) return { ok: false, why: "guide-btn-disabled-on-916" };
+    btn.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const zones = document.querySelectorAll(".canvasWrap .guideZone").length;
+    const badge = document.querySelector(".canvasWrap .guideBadge")?.textContent ?? "";
+    const pressed = btn.getAttribute("aria-pressed");
+    const pngOn = c.toDataURL({ format: "png", multiplier: 1 });
+    const cornersOn = await corners(pngOn);
+    // Re-query the button each time: React re-renders it on state change and a
+    // stale node's click() is silently lost (caught by the vision check on the snap).
+    // The cycle is off→TikTok→Shopee→off, so click UNTIL it is off, bounded.
+    let zonesOff = -1;
+    for (let i = 0; i < 3; i++) {
+      document.querySelector('[aria-label="Toggle platform safe-zone guides"]')?.click();
+      await new Promise((r) => setTimeout(r, 300));
+      zonesOff = document.querySelectorAll(".canvasWrap .guideZone").length;
+      if (zonesOff === 0) break;
+    }
+    const pngOff = c.toDataURL({ format: "png", multiplier: 1 });
+    return {
+      ok: pressed === "true" && zones >= 3 && badge.length > 0 && zonesOff === 0
+        && cornersOn.tl === 0 && cornersOn.tr === 0 && cornersOn.bl === 0 && cornersOn.br === 0
+        && pngOn === pngOff,
+      zones, zonesOff, badge, pressed, cornersOn, bytesIdentical: pngOn === pngOff,
+    };
+  })()`, true);
+  console.log("[shot] C3 alpha/guides gate:", JSON.stringify(alphaGate));
+  if (!alphaGate || !alphaGate.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — alpha corners must be 0 and guides must not change rendered bytes");
+    app.exit(19);
+    return;
+  }
+  // Template pack: apply "Flash sale price" — native text on the transparent artboard.
+  const tplApplied = await win.webContents.executeJavaScript(`(async () => {
+    const rail = [...document.querySelectorAll('.railBtn')].find((b) => b.getAttribute("aria-label") === "Templates");
+    if (!rail) return "no-rail";
+    rail.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const groups = [...document.querySelectorAll(".panelBox h5.tplGroup")].map((h) => h.textContent);
+    const tpl = [...document.querySelectorAll(".panelBox .presetBtn")].find((b) => b.textContent.includes("Flash sale price"));
+    if (!tpl) return "no-template-btn:" + groups.join("|");
+    tpl.click();
+    await new Promise((r) => setTimeout(r, 900));
+    const c = (window).__oiaCanvas;
+    const objs = c ? c.toObject().objects : [];
+    const flash = objs.some((o) => o.type === "Textbox" && String(o.text ?? "").includes("FLASH SALE"));
+    const clip = objs.find((o) => o.name === "clip");
+    return { ok: Boolean(flash && clip && clip.fill === "transparent"), groups, flash, fill: clip?.fill ?? null };
+  })()`, true);
+  console.log("[shot] C3 template gate:", JSON.stringify(tplApplied));
+  if (!tplApplied || !tplApplied.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — Flash sale template did not land as native text on a transparent clip");
+    app.exit(19);
+    return;
+  }
+  await snap(win, "desktop-live-overlay.png");
+  // LV-6 honest refusal: a 3:4 studio template must DISABLE the guide toggle,
+  // not show a 9:16 guide on a poster artboard.
+  const refused = await win.webContents.executeJavaScript(`(async () => {
+    const tpl = [...document.querySelectorAll(".panelBox .presetBtn")].find((b) => b.textContent.includes("Matcha every day"));
+    if (!tpl) return { ok: false, why: "no-poster-template" };
+    tpl.click();
+    await new Promise((r) => setTimeout(r, 900));
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    return { ok: Boolean(btn && btn.disabled), disabled: btn ? btn.disabled : null, title: btn?.title ?? "" , zones: document.querySelectorAll(".canvasWrap .guideZone").length };
+  })()`, true);
+  console.log("[shot] C3 refusal gate:", JSON.stringify(refused));
+  if (!refused || !refused.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — guide toggle must refuse a non-9:16 artboard");
+    app.exit(19);
+    return;
+  }
+  console.log("[shot] C3 OK (transparent alpha + guides never in bytes + template pack + honest refusal)");
+  // leave the editor so the Tools scenario below starts from the nav
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 800));
+
   // ---- reorg 4c: Tools view — grid + one real runner ----------------------------
   console.log("[shot] opening Tools…");
   await win.webContents.executeJavaScript(`(() => {
