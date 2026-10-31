@@ -39,6 +39,19 @@ describe("MockImageProvider", () => {
 
 /* ---------- C1: the mock planner honors the gate instructions (llm) ---------- */
 import { MockLlmProvider } from "../src/llm/mock.js";
+import { PLANNER_INSTRUCTIONS } from "@oia/schema";
+
+  it("matchers DERIVE from PLANNER_INSTRUCTIONS — rewording the constant keeps the mock in sync", async () => {
+    const local = new MockLlmProvider();
+    const ask = (system: string) => local.chat([
+      { role: "system" as const, content: system },
+      { role: "user" as const, content: "deck" },
+    ]);
+    const plan2 = JSON.parse(await ask(`You are a planner. ${PLANNER_INSTRUCTIONS.imagePrompts(2)}`)) as { imagePrompts?: string[] };
+    expect(plan2.imagePrompts).toHaveLength(2);
+    const planGate = JSON.parse(await ask(`You are a planner. ${PLANNER_INSTRUCTIONS.pageOutline(4)}`)) as { pageOutline?: unknown[] };
+    expect(planGate.pageOutline).toHaveLength(4);
+  });
 
 describe("MockLlmProvider — prompt-aware planning (C1 gate flows need it)", () => {
   const llm = new MockLlmProvider();

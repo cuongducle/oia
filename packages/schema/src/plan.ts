@@ -50,6 +50,14 @@ export const planPageSchema = z.object({
 });
 export type PlanPage = z.infer<typeof planPageSchema>;
 
+/** C1 — the planner instruction fragments are SHARED CONSTANTS, not prose owned by
+ * the designer: the mock planner derives its matchers from THESE (rewording the
+ * designer used to silently break every mock gate — teardown 2026-10-31). */
+export const PLANNER_INSTRUCTIONS = {
+  imagePrompts: (n: number) => `Produce exactly ${n} imagePrompts[] (one per page, coherent series).`,
+  pageOutline: (n: number) => `Also return pageOutline[] — EXACTLY ${n} entries {title, summary}, one per page in order (Outline Gate).`,
+} as const;
+
 /**
  * Planner plan contract. Legacy `{title, imagePrompt, copy}` keeps working:
  * `copy`, when present, is read as a single block (see normalizeBlocks).

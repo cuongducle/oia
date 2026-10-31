@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { runDesignerAgent, detectLanguage, foldAscii, type DesignerAgentDeps } from "../src/index.js";
+import { PLANNER_INSTRUCTIONS } from "@oia/schema";
 import type { ImageProvider, LlmProvider, ImageGenInput } from "@oia/providers";
 import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@oia/schema";
 import { parseMarkers } from "@oia/protocol";
-import { FailingMockLlmProvider, FailingMockImageProvider } from "@oia/providers";
+import { FailingMockLlmProvider, FailingMockImageProvider, MockLlmProvider } from "@oia/providers";
 
 const plan = JSON.stringify({ title: "Coffee milk tea poster 20% off", imagePrompt: "pastel milk tea poster", copy: "20% OFF" });
 
@@ -481,6 +482,32 @@ describe("C1 phase 2 — approvedOutline is the page-count contract (OC-2/OC-3)"
     const out = await run({ prompt: "deck", approvedOutline: approved }, { llm: llmReturning(mismatch), image: img.provider });
     expect(img.calls()).toBe(0);
     expect(out.find((e) => e.error)?.errorClass).toBe("plan_parse_failed");
+  });
+});
+
+describe("C1 teardown fix: a deck trimmed to ONE page still generates (regression)", () => {
+  it("1-row approvedOutline completes with exactly 1 image — was plan_parse_failed 0/1", async () => {
+    const img = countingImage();
+    // MockLlmProvider is instruction-aware — the real repro of the 0/1 failure
+    const out = await run(
+      { prompt: "deck", approvedOutline: [{ title: "Only page", summary: "the one page" }] },
+      { llm: new MockLlmProvider(), image: img.provider },
+    );
+    expect(img.calls()).toBe(1); // the bug: 0 calls + plan_parse_failed
+    expect(out.find((e) => e.error)).toBeUndefined();
+    const canvasIds = new Set(out.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas").map((m) => m.id)));
+    expect(canvasIds.size).toBe(1);
+  });
+
+  it("the planner prompt embeds the SHARED constants — the mock's matchers depend on them", async () => {
+    const systems: string[] = [];
+    const spy: LlmProvider = {
+      name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return gatePlan(2); },
+    };
+    await run({ prompt: "deck", pages: 2, outlineGate: true }, { llm: spy, image: countingImage().provider });
+    expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.imagePrompts(2));
+    expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.pageOutline(2));
   });
 });
 

@@ -1,4 +1,5 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
+import { PLANNER_INSTRUCTIONS } from "@oia/schema";
 
 /**
  * Mock planner: costs no tokens; generates the outline demos need.
@@ -22,14 +23,24 @@ const MOCK_CAPABILITIES: ProviderCapabilities = {
  * not UI copy; it is what every smoke/shot banner sample says. */
 export const MOCK_PROMO_COPY = "GIẢM GIÁ 20%";
 
+/** Prompt-aware (C1): matchers are DERIVED from the shared PLANNER_INSTRUCTIONS
+ * constants — rewording the designer's prompt automatically rewords the mock's
+ * matcher. Prose-coupled regexes broke silently before (teardown 2026-10-31). */
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function instructedCount(system: string, template: (n: number) => string): number | null {
+  const src = escapeRegExp(template(1)).replace("1", "(\\d+)"); // the count is the only variable
+  const m = new RegExp(src).exec(system);
+  return m ? Number(m[1]) : null;
+}
+
 export class MockLlmProvider implements LlmProvider {
   readonly name = "mock";
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
   async chat(messages: LlmMessage[], _opts?: LlmChatOpts): Promise<string> {
     const user = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
     const system = [...messages].reverse().find((m) => m.role === "system")?.content ?? "";
-    const pageOutlineN = /EXACTLY (\d+) entries \{title, summary\}/.exec(system)?.[1];
-    const imagePromptsN = /exactly (\d+) imagePrompts/.exec(system)?.[1];
+    const pageOutlineN = instructedCount(system, PLANNER_INSTRUCTIONS.pageOutline);
+    const imagePromptsN = instructedCount(system, PLANNER_INSTRUCTIONS.imagePrompts);
     return JSON.stringify({
       title: user.slice(0, 60) || "Untitled",
       plan: ["layout", "imagery", "typography"],

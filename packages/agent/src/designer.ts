@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan } from "@oia/schema";
-import { parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION } from "@oia/schema";
+import { parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION, PLANNER_INSTRUCTIONS } from "@oia/schema";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -19,7 +19,8 @@ export interface DesignerAgentInput {
   brandId?: number;
   /** BR-CTRL: composer controls — attach reference images ("Add to chat" inpainting). */
   referenceImages?: string[];
-  /** Auto pages: page count (Auto lets the planner decide; a fixed N is 1..9). */
+  /** Page count: a fixed N is 1..9. "Auto" generates ONE page today (the composer's
+   *  default) — there is no planner-decided count yet (stale comment fixed 2026-10-31). */
   pages?: number;
   /** Outline mode: emit the outline (title + bullets) BEFORE generating. */
   outlineMode?: boolean;
@@ -198,9 +199,9 @@ export async function* runDesignerAgent(
             `omit blocks when the text must stay baked into the artwork. ` +
             `Coherence rule: never emit a block whose text duplicates what the imagePrompt asks the model to render.` +
             (input.skill ? `\nSkill structure hint: ${input.skill}.` : "")
-            + (pagesWanted > 1 ? `\nProduce exactly ${pagesWanted} imagePrompts[] (one per page, coherent series).` : "")
+            + ((pagesWanted > 1 || approvedPages >= 1) ? `\n${PLANNER_INSTRUCTIONS.imagePrompts(pagesWanted)}` : "")
             + (input.outlineMode ? `\nAlso return outline[] — 3-6 short bullets planning the content (Outline Mode).` : "")
-            + (input.outlineGate && pagesWanted > 1 ? `\nAlso return pageOutline[] — EXACTLY ${pagesWanted} entries {title, summary}, one per page in order (Outline Gate).` : "")
+            + (input.outlineGate && pagesWanted > 1 ? `\n${PLANNER_INSTRUCTIONS.pageOutline(pagesWanted)}` : "")
             + (input.approvedOutline?.length ? `\nThe user APPROVED this page outline — implement each page faithfully; do NOT merge, add, drop or reorder pages:\n${input.approvedOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n")}` : "")
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
