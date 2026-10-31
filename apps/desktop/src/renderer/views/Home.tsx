@@ -241,10 +241,15 @@ export function Home({ resumeSession, onOpenProject }: HomeProps) {
       // SAFETY: TS control flow only sees the `= null` above; the chat-event closure
       // assigns the outline DURING the awaited call. The optional-chain guards null.
       const outline = pendingOutlineRef.current as PlanPage[] | null;
-      if (res.outcome === "outline" && outline?.length) {
-        // C1: show the card; phase 2 resumes from this exact request + the edited rows
-        const { outlineGate: _drop, pages: _drop2, retryOf: _r, ...base } = req;
-        setOutlineDeck({ rows: outline, base });
+      if (res.outcome === "outline") {
+        if (outline?.length) {
+          // C1: show the card; phase 2 resumes from this exact request + the edited rows
+          const { outlineGate: _drop, pages: _drop2, retryOf: _r, ...base } = req;
+          setOutlineDeck({ rows: outline, base });
+        } else {
+          // outcome says outline but the payload never arrived — never a silent dead end
+          setError("The outline could not be loaded. Please try your request again.");
+        }
       }
     } catch (e) {
       setChatRunError(e);

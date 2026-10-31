@@ -750,6 +750,73 @@ async function shot(): Promise<void> {
   }
   console.log("[shot] C1 outline gate OK (default-on + cost label + 2-row card + no burn while reviewing + deck after approval)");
 
+  // ---- C1 escape hatch: switch OFF multi-page runs go STRAIGHT through (no card) ----
+  console.log("[shot] C1-off: 3 pages with the gate disabled…");
+  const offSetup = await win.webContents.executeJavaScript(`(async () => {
+    const sw = document.querySelector('[role=switch][aria-label="Review outline before generating"]');
+    if (!sw) return "no-switch";
+    if (sw.getAttribute("aria-checked") !== "true") return "unexpected-state";
+    sw.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const sel = document.querySelector("#advanced-settings select");
+    if (!sel) return "no-select";
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setter.call(sel, "3");
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 100));
+    const cost = document.querySelector('[data-testid="deck-cost"]')?.textContent ?? null;
+    const ta = document.querySelector('[data-testid="design-idea"]');
+    const tset = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    tset.call(ta, "three page direct deck no review");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    const btn = document.querySelector('[data-testid="create-btn"]');
+    if (!btn || btn.disabled) return "create-disabled";
+    btn.click();
+    return { cost, off: sw.getAttribute("aria-checked") };
+  })()`, true);
+  console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "· 3 pages ≈ 3 images") {
+    console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
+    app.exit(18);
+    return;
+  }
+  // two-phase poll: the previous deck's canvas must UNMOUNT first (submit clears it),
+  // or we would photograph the stale canvas and call the new run done
+  let goneSeen = false;
+  for (let i = 0; i < 30; i++) {
+    goneSeen = await win.webContents.executeJavaScript(`!document.querySelector(".result canvas")`, true);
+    if (goneSeen) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  if (!goneSeen) {
+    console.error("DESKTOP_SHOT C1 FAILED — off-branch: previous result never unmounted");
+    app.exit(18);
+    return;
+  }
+  let directReady = false;
+  for (let i = 0; i < 60; i++) {
+    directReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector(".result canvas")) && Boolean(document.querySelector(".genSummary"))`,
+      true,
+    );
+    if (directReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  const offVerify = await win.webContents.executeJavaScript(`(() => {
+    const card = Boolean(document.querySelector('[data-testid="outline-card"]'));
+    const canvas = Boolean(document.querySelector(".result canvas"));
+    const err = document.querySelector('[role=alert]')?.textContent ?? "";
+    return { noCard: !card, canvas, err };
+  })()`, true);
+  console.log("[shot] C1-off verify:", JSON.stringify(offVerify));
+  if (!offVerify || offVerify.noCard !== true || offVerify.canvas !== true || offVerify.err) {
+    console.error("DESKTOP_SHOT C1 FAILED — gate off must skip the card and generate directly");
+    app.exit(18);
+    return;
+  }
+  console.log("[shot] C1 gate-off OK (direct 3-page run, no outline card)");
+
   // ---- D2 remainder: drive the EDITOR port with eyes -------------------------
   console.log("[shot] opening the editor…");
   const clicked = await win.webContents.executeJavaScript(`(() => {
