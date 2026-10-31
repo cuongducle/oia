@@ -74,7 +74,7 @@ Chi phí: vừa (AI dock + variant storage + apply flow). Rủi ro: partial-edit
 
 ### Nhóm B — Đưa ảnh cũ vào vòng lặp
 
-**B1. "Deconstruct" khi import ảnh** (học P5 nhưng không overclaim) — **Q4 ĐÃ CHỐT (owner, 2026-10-31): AI-first như đối thủ + lane miễn phí làm degradation**
+**B1. "Deconstruct" khi import ảnh** (học P5 nhưng không overclaim) — **Q4 ĐÃ CHỐT (owner, 2026-10-31): AI-first như đối thủ + lane miễn phí làm degradation** — **GHI ĐÈ TIẾP (owner, 2026-10-31, sau teardown C3): "làm giống họ thôi không cần làm khác" — BỎ lane "Đọc thô 0 phí" + BỎ vai trò bbox dự phòng của tesseract. Spike vị trí thu hẹp còn "model trả bbox dùng được không" (không còn phương án B). Tool OCR tesseract sẵn có ở Tools GIỮ NGUYÊN như tool rời — không dây vào B1, không tái định vị.**
 
 Paste/upload banner cũ (làm từ Canva/ChatGPT) → hồi sinh thành bản chỉnh sửa được. KHÔNG hứa tách từng object như đối thủ quảng cáo — chỉ trích chữ + làm sạch, phần còn lại là ảnh phẳng (trung thực).
 
@@ -148,7 +148,7 @@ Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + te
 * ~~Q1: A1 — variant lưu ở đâu?~~ **ĐÃ CHỐT (2026-10-31):** khay variant trong AI dock gắn với conversation, asset persist theo G5, không auto-cleanup, "Not now" thay cho Discard; hành động khác biệt **Replace selected layer**; "Open in editor" làm hành động phụ. Chi tiết trong mục A1.
 * ~~Q2: C1 — outline gate mặc định bật khi nào?~~ **ĐÃ CHỐT (2026-10-31, 2 vòng):** mặc định BẬT cho mọi generation nhiều trang (≥ 2 trang) + **switch tắt** nhớ lựa chọn (tắt = AI tự duyệt, pipeline vẫn dùng outline nội bộ); nhãn chi phí "N trang ≈ N ảnh" là luật chung; deck = N job metered-once con theo trang; checkpoint D10 theo dõi click-through mù. Chi tiết trong mục C1.
 * ~~Q3: C3 — spec overlay lấy chuẩn nào?~~ **ĐÃ CHỐT (2026-10-31):** preset trung thực + safe-zone guides. Không có spec sticker công khai — canvas 9:16 OBS + guides vùng nền tảng che là feature chính; chỉ preset ảnh bìa (Shopee 500×500, TikTok 1080×1920) là spec chính thức. Cấm UI copy "kích thước platform yêu cầu". Chi tiết trong mục C3.
-* ~~Q4: B1 — OCR local hay qua model?~~ **ĐÃ CHỐT (2026-10-31):** AI-first như đối thủ — vision đọc chữ (1 lượt) + inpaint làm sạch (1 ảnh), mọi bước hiện giá tường minh; tesseract eng+vie đã ship tái định vị thành lane "Đọc thô 0 phí" (G7 degradation) + nguồn bbox dự phòng. Spike vị trí (model bbox vs tesseract) khi implement. Chi tiết trong mục B1.
+* ~~Q4: B1 — OCR local hay qua model?~~ **ĐÃ CHỐT (2026-10-31):** AI-first như đối thủ — vision đọc chữ (1 lượt) + inpaint làm sạch (1 ảnh), mọi bước hiện giá tường minh. **Ghi đè sau cùng (owner, 2026-10-31): bỏ hoàn toàn tesseract khỏi B1 — làm giống đối thủ, không thêm làn free/bbox dự phòng.** Chi tiết trong mục B1.
 * ~~Q5: sau khi chốt nhập vào đâu?~~ **ĐÃ CHỐT (2026-10-31):** doc này là nhà duy nhất của các quyết định + đăng SITEMAP; KHÔNG rải vào gap table design-product-ui-2026 (sai độ cao — đó là nghiên cứu cấu trúc UI); khi v1.1 triển khai, mỗi feature P0 tốt nghiệp thành design doc riêng theo khuôn Goals/Non-Goals/CUJ/TP.
 
 ## 8. Nguồn
