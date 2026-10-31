@@ -713,33 +713,42 @@ async function shot(): Promise<void> {
   // The regression this pins: the pre-A1 code auto-merged the result onto the page.
   // If that path ever comes back, canvasUntouched fails here (variant-preview-apply VA-3).
   console.log("[shot] A1: running an editor AI edit (mock pair)…");
-  const submitted = await win.webContents.executeJavaScript(`(() => {
+  const sessionsBefore = await win.webContents.executeJavaScript(`window.oia.listSessions().then((s) => s.length)`, true);
+  const submitEdit = (text: string) => win.webContents.executeJavaScript(`(() => {
     const c = (window).__oiaCanvas;
     if (!c) return "no-canvas";
-    (window).__oiaShotBefore = JSON.stringify(c.toObject().objects.map((o) => o.src ?? null));
+    if (!window.__oiaShotBefore) (window).__oiaShotBefore = JSON.stringify(c.toObject().objects.map((o) => o.src ?? null));
     const ta = document.querySelector('[aria-label="AI edit request"]');
     if (!ta) return "no-composer";
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-    setter.call(ta, "make the background pastel");
+    setter.call(ta, ${JSON.stringify(text)});
     ta.dispatchEvent(new Event("input", { bubbles: true }));
     const btn = document.querySelector('.aiComposerControls .generateBtn[aria-label="Send edit request"]');
     if (!btn || btn.disabled) return "send-missing";
     btn.click();
     return "submitted";
   })()`, true);
+  const waitCards = async (n: number) => {
+    for (let i = 0; i < 60; i++) {
+      const count = await win.webContents.executeJavaScript(
+        `document.querySelectorAll('[data-testid="variant-card"]').length`,
+        true,
+      );
+      if (count === n) return true;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return false;
+  };
+  const submitted = await submitEdit("make the background pastel");
   if (submitted !== "submitted") {
     console.error(`DESKTOP_SHOT A1 FAILED — could not submit edit (${submitted})`);
     app.exit(17);
     return;
   }
-  let variantReady = false;
-  for (let i = 0; i < 60; i++) {
-    variantReady = await win.webContents.executeJavaScript(
-      `Boolean(document.querySelector('[data-testid="variant-card"]'))`,
-      true,
-    );
-    if (variantReady) break;
-    await new Promise((r) => setTimeout(r, 250));
+  if (!(await waitCards(1))) {
+    console.error("DESKTOP_SHOT A1 FAILED — first variant card never arrived");
+    app.exit(17);
+    return;
   }
   await new Promise((r) => setTimeout(r, 600)); // let the job settle (busy state clears)
   const a1Verify = await win.webContents.executeJavaScript(`(() => {
@@ -761,11 +770,10 @@ async function shot(): Promise<void> {
     app.exit(17);
     return;
   }
-  // select the artwork image → Replace must run the apply path (VA-4). NOTE: the
-  // mock provider returns ONE fixed placeholder PNG — sha256 dedupe gives the swap-in
-  // asset the SAME url, so "exactly one src changed" is pinned by the unit tests
-  // (provenance.test.ts, controlled data); here we pin the WIRING: the apply path
-  // runs (undo becomes enabled on a fresh editor), object count is kept, no error.
+  // select the artwork image → Replace must swap EXACTLY ONE src (VA-4). The mock
+  // placeholder is deterministic per prompt, so the edit's artwork is a DIFFERENT
+  // asset than the Home generation the canvas came from — the flagship behavior is
+  // proven e2e here, not just in unit tests.
   const selected = await win.webContents.executeJavaScript(`(async () => {
     const c = (window).__oiaCanvas;
     const img = c.getObjects().find((o) => o.src && o.name !== "clip");
@@ -794,26 +802,53 @@ async function shot(): Promise<void> {
     return { countKept: objs.length === before.length, changedSrcs: changed, undoEnabledAfter: undo ? !undo.disabled : null, err };
   })()`, true);
   console.log("[shot] A1 swap:", JSON.stringify(swapVerify));
-  if (!swapVerify || swapVerify.countKept !== true || swapVerify.changedSrcs > 1 || swapVerify.undoEnabledAfter !== true || swapVerify.err) {
-    console.error("DESKTOP_SHOT A1 SWAP FAILED — apply path must run (undo on), keep count, change ≤ 1 src, no error");
+  if (!swapVerify || swapVerify.countKept !== true || swapVerify.changedSrcs !== 1 || swapVerify.undoEnabledAfter !== true || swapVerify.err) {
+    console.error("DESKTOP_SHOT A1 SWAP FAILED — must change EXACTLY one src, keep count, flip undo on, no error");
     app.exit(17);
     return;
   }
-  // "Not now" hides the card (VA-7) — the record stays in the session either way
-  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="variant-dismiss"]').click()`, true);
+  // VA-1 pinning, proven e2e: a second edit in the same dock must join the SAME
+  // conversation (sessions grow by 1 across BOTH edits) and add a second card.
+  const second = await submitEdit("make it warmer and bolder");
+  if (second !== "submitted") {
+    console.error(`DESKTOP_SHOT A1 FAILED — second edit could not be submitted (${second})`);
+    app.exit(17);
+    return;
+  }
+  if (!(await waitCards(2))) {
+    console.error("DESKTOP_SHOT A1 FAILED — second variant card never arrived");
+    app.exit(17);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  const sessionsAfter = await win.webContents.executeJavaScript(`window.oia.listSessions().then((s) => s.length)`, true);
+  if (sessionsAfter !== sessionsBefore + 1) {
+    console.error(`DESKTOP_SHOT A1 FAILED — session pinning broken (before=${sessionsBefore} after=${sessionsAfter} — expected +1)`);
+    app.exit(17);
+    return;
+  }
+  // snap WITH the tray visible — the artifact must show the feature it certifies
+  await snap(win, "desktop-editor.png");
+  // "Not now" hides every card (VA-7) — the record stays in the session either way
+  await win.webContents.executeJavaScript(`(async () => {
+    for (let i = 0; i < 10; i++) {
+      const b = document.querySelector('[data-testid="variant-dismiss"]');
+      if (!b) break;
+      b.click();
+      await new Promise((r) => setTimeout(r, 150)); // let React unmount the card before re-querying
+    }
+  })()`, true);
   await new Promise((r) => setTimeout(r, 300));
   const dismissed = await win.webContents.executeJavaScript(
     `!document.querySelector('[data-testid="variant-card"]')`,
     true,
   );
   if (dismissed !== true) {
-    console.error("DESKTOP_SHOT A1 FAILED — Not now did not hide the card");
+    console.error("DESKTOP_SHOT A1 FAILED — Not now did not hide the cards");
     app.exit(17);
     return;
   }
-  console.log("[shot] A1 preview-apply OK (1 deduped card + untouched canvas + apply path + dismiss)");
-
-  await snap(win, "desktop-editor.png");
+  console.log("[shot] A1 preview-apply OK (deduped cards + untouched canvas + exact-one-src swap + session pinning + dismiss)");
 
   // ---- Workspace view: projects list + recent conversations over IPC -------------
   console.log("[shot] opening Workspace…");
