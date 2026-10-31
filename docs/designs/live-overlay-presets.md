@@ -82,13 +82,25 @@ Default pref guides = **`"off"`** — seller chủ động bật (guides là tr�
 - **D14:** `category` optional trên Template — không bump OIA_SCHEMA_VERSION.
 - **UI copy không overclaim (design-direction):** LV-10 — cấm "required/platform spec" cho overlay; 2 cover preset được nói "official" vì đúng.
 
-## Gates (chạy khi implement xong)
+## Gates (đã chạy 2026-10-31)
 
-1. ✅ **Unit `livestream-presets`/`live-guides`** (desktop test): mọi scene parse qua `sceneSchema`; overlay clip fill transparent; cover đúng 500×500 & 1080×1920; `guideRects` nằm trong khổ, không âm, không đảo; `isNineSixteen` đúng biên (5% trên/dưới); pref round-trip + garbage storage + throwing storage (pattern OC-6).
-2. ✅ **Gate alpha PNG (bắt buộc):** render scene overlay template qua đúng lane export (fabric toDataURL PNG, cùng code path Editor) → decode PNG → pixel góc alpha = 0. Đây là gate chống "transparent mất im lặng" — họ bug OCR chết thầm lặng.
-3. ✅ **Gate guides-ngoài-file:** export với guides đang BẬT → bytes PNG identical với guides TẮT (cùng scene) — pin bất biến "không bao giờ xuất ra file" bằng evidence, không phải bằng lời hứa.
-4. ✅ **Shot (exit code mới):** Workspace New menu hiện 4 mục → tạo overlay project → Editor vẽ guides (div hiện diện + computed style hatch + vị trí đúng theo zoom) → aspect 3:4 → guides disabled + hint → áp template "Flash sale price" → Textbox giá tồn tại trong scene → hint alpha hiện trong export dialog.
-5. ✅ `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh.
+1. ✅ **Unit `livestream-presets`/`live-guides`** (desktop test, 20 test mới trong tổng 137): mọi scene parse qua `sceneCanvasSchema`; overlay clip fill transparent; cover đúng 500×500 & 1080×1920; chỉ 2 cover được gắn official (LV-10 pin); template không có Image layer; **mọi object template nằm trong band an toàn TikTok (130…1440)** — template mới không bao giờ rơi vào vùng che mặc định; `guideRects` nằm trong khổ + chống fraction adversarial; `isNineSixteen` đúng biên 5% (hằng số dùng chung); pref round-trip + garbage + throwing storage (cả read lẫn write).
+2. ✅ **Gate alpha PNG (exit 19, shot):** overlay project thật → fabric `toDataURL` PNG trên đúng canvas đang sống → decode → **4 pixel góc alpha = 0** — trong suốt sống sót lane render thật (chống họ bug "OCR chết thầm lặng").
+3. ✅ **Gate guides-ngoài-file:** PNG bytes **identical** giữa guides BẬT và TẮT trên cùng scene — pin "không bao giờ xuất ra file" bằng evidence; `zonesOff === 0` assert guides tắt thật sau chu kỳ (xem phát hiện 2 dưới).
+4. ✅ **Shot (exit 19) 3 lần xanh liên tiếp:** Workspace New menu 4 mục → overlay project (`canvasWrap[data-transparent]`) → zones + badge đúng nền tảng → template "Flash sale price" (Textbox FLASH SALE + clip transparent) → áp template 3:4 → **toggle guides disabled + hint đúng chữ** (LV-6 từ chối trung thực). Ảnh `desktop-live-overlay.png` vision-verified: band hatch đỉnh/đáy/phải + trái nét đứt, badge "TikTok safe zones · community-measured", tấm giá nằm HẲN trong vùng an toàn, checkerboard đúng.
+5. ✅ `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh (8/16/15 task); DESKTOP_SMOKE OK events=9; DESKTOP_CRASH_SMOKE OK before=5 recovered=5; desktop-audit OK (không advisory mới).
+
+**Phát hiện khi làm (3):**
+
+1. **Fraction phải làm tròn nguyên pixel** — test chính bắt 0.0677×1920 = 129,98 thay vì 130: `Math.round` trong guideRects. Kèm: `readGuidePref` thiếu guard storage throw (write có, read không) — thêm cho đối xứng ("pref là cosmetic, không bao giờ chặn edit").
+2. **Kịch bản shot bug node-cũ:** click thứ 2 vào nút guides dùng node ref cũ — React đã thay node sau click 1, click mất im lặng (vision trên artifact phát hiện badge Shopee lúc snapshot dù kịch bản tin đã off). Sửa: re-query nút mỗi click + click-đến-khi-off (chu kỳ 3 trạng thái cần tối đa 3 click). Bài học lặp họ "stale ref": gate phải assert TRẠNG THÁI CUỐI, không tin rằng lệnh đã chạy.
+3. **Gate VN-scan cần ngoại lệ content-data:** seller copy tiếng Việt trong template là content-level (D8 cho phép) nhưng gate quét mọi file .ts renderer — thêm allowlist tường minh `VN_CONTENT_DATA_FILES` + assert entry tồn tại (exemption chết = fail to). Không nới lỏng: file mới chứa dấu Việt vẫn fail như cũ.
+
+## Hậu kiểm self-review vòng 1 (2026-10-31, chủ động — chưa có lệnh té code của owner)
+
+1. **Escape đóng menu New** — backdrop click có, Escape thiếu (chuẩn accessibility); listener theo state menu.
+2. **Artifact phải thể hiện feature nó chứng nhận** (quy tắc A1 tray) — snap live-overlay giờ chụp guides ĐANG bật, tắt lại trước refusal check để đo clean slate.
+3. **Đã xem xét, giữ nguyên:** JPG flatten không nói màu nền (hint chỉ nói "flattens" — không overclaim hai chiều); text template đo độ rộng an toàn trong pill/box (13 ký tự × ~33px < 640px) — nếu D10 thấy tràn thì chỉnh data, không đổi engine; guides re-position theo zoom qua re-render React (đúng theo cấu trúc; không assert riêng trong shot — rủi ro thấp ghi nhận).
 
 ## Nguồn safe-zone (researched 2026-10-31)
 
