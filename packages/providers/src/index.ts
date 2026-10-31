@@ -27,10 +27,11 @@ export {
   CODEX_IMAGE_DEFAULT_MODEL,
   CODEX_REASONING_EFFORT,
 } from "./codex/bridge.js";
-export { CliRuntime, createScratchDir, removeScratchDir, writeTranscript, asciiUuid } from "./cli/runtime.js";
+export { CliRuntime, createScratchDir, removeScratchDir, writeTranscript, asciiUuid, killTree } from "./cli/runtime.js";
 export {
   RuntimeProvisioner,
   resolveCodexBin,
+  envValue,
   codexPackageAsset,
   extractAuthUrl,
   parseSum,

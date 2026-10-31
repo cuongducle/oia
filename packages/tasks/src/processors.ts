@@ -58,7 +58,7 @@ export function makeRemoveBackground(ctx: ProcCtx) {
     const src = await ctx.store.read(fileUrl.replace(/^\/api\/files\//, "")).catch(() => null);
     if (!src) throw new Error("fileUrl is invalid or has not been uploaded");
     const out = await new Promise<Uint8Array>((resolve, reject) => {
-      const p = spawn("rembg", ["i"], {});
+      const p = spawn("rembg", ["i"], { windowsHide: true });
       const chunks: Buffer[] = [];
       p.stdout.on("data", (c) => chunks.push(c));
       p.stderr.on("data", (c) => process.stderr.write(c));
