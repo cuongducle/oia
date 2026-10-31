@@ -24,3 +24,12 @@ export function isNineSixteen(w: number, h: number): boolean {
   if (w <= 0 || h <= 0) return false;
   return Math.abs(w / h - NINE_SIXTEEN) / NINE_SIXTEEN <= ASPECT_TOLERANCE;
 }
+
+export type SceneShape = "square" | "portrait" | "landscape" | "916";
+
+/** Projects filter buckets (UI v1.1 R2). 9:16 wins over portrait; near-square counts as square. */
+export function sceneShape(w: number, h: number): SceneShape {
+  if (isNineSixteen(w, h)) return "916";
+  if (Math.abs(w / h - 1) <= ASPECT_TOLERANCE) return "square";
+  return h > w ? "portrait" : "landscape";
+}

@@ -6,11 +6,13 @@ import { Tools } from "./views/Tools.js";
 import { BrandKit } from "./views/BrandKit.js";
 import { Settings } from "./views/Settings.js";
 import { Sidebar, type SectionName } from "./components/Sidebar.js";
+import { CreateSheet } from "./components/CreateSheet.js";
 
 /**
  * Renderer shell — UI v1.1 R1 (docs/designs/ui-v11-redesign.md): a left sidebar
  * (New design, sections, recent projects, runtime + usage status) and the active
- * view on a raised content sheet. The Editor stays a fullscreen view of its own.
+ * view on a raised content sheet. Every "New" (sidebar, ⌘N, Projects) opens the
+ * Create sheet (R2, UX-2). The Editor stays a fullscreen view of its own.
  * Each view owns its bridge subscriptions; switching views remounts them (keyed),
  * so streams never leak across views. For agents now lives under Settings.
  *
@@ -19,8 +21,8 @@ import { Sidebar, type SectionName } from "./components/Sidebar.js";
  */
 
 type View =
-  | { name: "home"; resumeSession?: number | null; focusComposer?: number }
-  | { name: "workspace" }
+  | { name: "home"; resumeSession?: number | null; focusComposer?: number; prompt?: string }
+  | { name: "workspace"; deconFile?: File }
   | { name: "tools" }
   | { name: "brandkit" }
   | { name: "settings" }
@@ -51,10 +53,11 @@ export default function App() {
   const [view, setView] = useState<View>({ name: "home" });
   // bumps when runtime settings change, so the sidebar status card re-reads
   const [statusRev, setStatusRev] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const openProject = (id: string) => setView({ name: "editor", projectId: id });
+  const openProject = (id: string) => { setCreateOpen(false); setView({ name: "editor", projectId: id }); };
   const openSession = (id: number) => setView({ name: "home", resumeSession: id });
-  const newDesign = useCallback(() => setView({ name: "home", focusComposer: Date.now() }), []);
+  const newDesign = useCallback(() => setCreateOpen(true), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -80,7 +83,7 @@ export default function App() {
   let body: ReactNode;
   switch (view.name) {
     case "workspace":
-      body = <Workspace key="ws" onOpenProject={openProject} onOpenSession={openSession} />;
+      body = <Workspace key={`ws-${view.deconFile?.name ?? ""}`} onOpenProject={openProject} onOpenSession={openSession} onNew={newDesign} initialDeconFile={view.deconFile} />;
       break;
     case "tools":
       body = <Tools key="tools" onOpenProject={openProject} />;
@@ -97,6 +100,7 @@ export default function App() {
           key={`home-${view.resumeSession ?? "new"}-${view.focusComposer ?? 0}`}
           resumeSession={view.resumeSession ?? null}
           autoFocus={Boolean(view.focusComposer)}
+          initialPrompt={view.prompt}
           onOpenProject={openProject}
           onOpenSettings={() => setView({ name: "settings" })}
         />
@@ -109,6 +113,14 @@ export default function App() {
         <Sidebar key={statusRev} current={view.name} onNavigate={navigate} onNewDesign={newDesign} onOpenProject={openProject} />
         {body}
       </div>
+      {createOpen && (
+        <CreateSheet
+          onClose={() => setCreateOpen(false)}
+          onDescribe={(prompt) => { setCreateOpen(false); setView({ name: "home", focusComposer: Date.now(), prompt }); }}
+          onOpenProject={openProject}
+          onDeconstruct={(file) => { setCreateOpen(false); setView({ name: "workspace", deconFile: file }); }}
+        />
+      )}
     </ErrorBoundary>
   );
 }

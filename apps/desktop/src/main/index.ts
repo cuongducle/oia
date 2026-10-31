@@ -1083,11 +1083,10 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   await new Promise((r) => setTimeout(r, 1200));
-  const wsVerify = await win.webContents.executeJavaScript(`(() => {
+  const wsVerify = await win.webContents.executeJavaScript(`(async () => {
     const cards = document.querySelectorAll(".projectGrid article").length;
     const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
     const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
-    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box —
     // the fabric wrapper's inline px sizes used to overflow and clip half the artwork.
@@ -1100,7 +1099,20 @@ async function shot(): Promise<void> {
                why: Math.round(r.width) + "x" + Math.round(r.height) + " in " + Math.round(box.width) + "x" + Math.round(box.height) };
     });
     const fitOk = fits.length > 0 && fits.every((f) => f.ok);
-    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && fitOk && !err, cards, preview, samples, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
+    // R2: the Samples filter shows exactly the samples; AI history holds the conversations
+    const chip = (t) => [...document.querySelectorAll(".filterChip")].find((b) => b.textContent === t);
+    chip("Samples")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const samplesOnly = document.querySelectorAll(".projectGrid article").length === samples
+      && document.querySelectorAll(".projectGrid article:not([data-sample])").length === 0;
+    chip("All")?.click();
+    const tab = (t) => [...document.querySelectorAll(".segmented button")].find((b) => b.textContent === t);
+    tab("AI history")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
+    tab("Projects")?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && samplesOnly && fitOk && !err, cards, preview, samples, samplesOnly, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
   })()`, true);
   console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
   if (!wsVerify || !wsVerify.ok) {
@@ -1115,20 +1127,34 @@ async function shot(): Promise<void> {
   // fabric toDataURL lane; guides (DOM layer) never leak into rendered bytes;
   // the guide toggle refuses a non-9:16 artboard instead of lying.
   console.log("[shot] C3: creating a livestream overlay project…");
-  const liveCreated = await win.webContents.executeJavaScript(`(async () => {
-    const btn = document.querySelector(".workspaceActions .primaryBtn");
+  // R2: Projects › New opens the Create sheet; the C3 artboards are its Livestream row
+  const sheetOpen = await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[data-testid="projects-new"]');
     if (!btn) return "no-new-btn";
     btn.click();
-    await new Promise((r) => setTimeout(r, 200));
-    const items = [...document.querySelectorAll(".newMenu .newMenuItem")];
-    if (items.length !== 4) return "menu-items-" + items.length;
-    const overlay = items.find((b) => b.textContent.includes("Livestream overlay"));
+    await new Promise((r) => setTimeout(r, 300));
+    if (!document.querySelector('[data-testid="create-sheet"]')) return "no-sheet";
+    const rows = [...document.querySelectorAll(".createSizeRow")];
+    const live = rows.find((r) => r.querySelector(".createSizeGroup")?.textContent === "Livestream");
+    const liveItems = live ? live.querySelectorAll(".createSize").length : 0;
+    const stars = document.querySelectorAll(".createSheet .officialStar").length; // LV-10: only the two covers
+    return liveItems === 3 && stars === 2 ? "open" : "live-" + liveItems + "-stars-" + stars;
+  })()`, true);
+  if (sheetOpen !== "open") {
+    console.error(`DESKTOP_SHOT R2 FAILED — create sheet (${sheetOpen})`);
+    app.exit(22);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 800)); // scene previews in the template lane mount lazily
+  await snap(win, "desktop-create.png");
+  const liveCreated = await win.webContents.executeJavaScript(`(() => {
+    const overlay = [...document.querySelectorAll(".createSize")].find((b) => b.textContent.includes("Livestream overlay"));
     if (!overlay) return "no-overlay-item";
     overlay.click();
     return "clicked";
   })()`, true);
   if (liveCreated !== "clicked") {
-    console.error(`DESKTOP_SHOT C3 FAILED — new menu (${liveCreated})`);
+    console.error(`DESKTOP_SHOT C3 FAILED — create sheet item (${liveCreated})`);
     app.exit(19);
     return;
   }
@@ -1275,7 +1301,9 @@ async function shot(): Promise<void> {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
     pills.find((p) => p.textContent.trim() === "Projects")?.click();
     await new Promise((r) => setTimeout(r, 600));
-    const input = document.querySelector('input[aria-label="New project from an old design"]');
+    document.querySelector('[data-testid="projects-new"]')?.click(); // R2: images come in through the Create sheet
+    await new Promise((r) => setTimeout(r, 300));
+    const input = document.querySelector('input[aria-label="Bring an image"]');
     if (!input) return "no-input";
     // real PNG bytes (the OCR fixture) — a garbage blob would fail the preview Image load
     const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
@@ -1284,6 +1312,11 @@ async function shot(): Promise<void> {
     dt.items.add(file);
     input.files = dt.files;
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const editable = document.querySelector('[data-testid="create-image-editable"]');
+    if (!editable || !document.querySelector('[data-testid="create-image-background"]')) return "no-image-choices";
+    if (/image \+/.test(editable.textContent)) return "price-shown-in-trial"; // mock: nothing is billed
+    editable.click();
     return "picked";
   })()`, true);
   if (deconStarted !== "picked") {

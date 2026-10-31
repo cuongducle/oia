@@ -69,12 +69,14 @@ export interface HomeProps {
   onOpenProject: (id: string) => void;
   /** Focus the composer on mount (New design / ⌘N). */
   autoFocus?: boolean;
+  /** Prefill from the Create sheet's "Describe it" lane. */
+  initialPrompt?: string;
   /** The Trial chip and runtime problems route here (UI v1.1 R1: infra lives in Settings). */
   onOpenSettings?: () => void;
 }
 
-export function Home({ resumeSession, onOpenProject, autoFocus = false, onOpenSettings }: HomeProps) {
-  const [prompt, setPrompt] = useState("");
+export function Home({ resumeSession, onOpenProject, autoFocus = false, initialPrompt = "", onOpenSettings }: HomeProps) {
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<{ content: string; done: boolean }[]>([]);
