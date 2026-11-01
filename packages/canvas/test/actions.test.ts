@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { TEXT_TOOLBAR_ACTIONS, applyLayerAction, planExport } from "../src/index.js";
+import { describe, expect, it } from "vitest";
+import { TEXT_TOOLBAR_ACTIONS, planExport } from "../src/index.js";
 
 describe("BR-ED4 Text toolbar (16 actions)", () => {
 it("covers style (B/I/U/S), align, size, 4 layer orders, spacing, duplicate, color, font", () => {
@@ -8,15 +8,6 @@ it("covers style (B/I/U/S), align, size, 4 layer orders, spacing, duplicate, col
     expect(a).toContain("charSpacing");
     expect(a.filter((x) => x.startsWith("layer"))).toHaveLength(4);
     expect(a).toHaveLength(16);
-  });
-it("applyLayerAction maps to the right fabric call", () => {
-    const obj = {
-      bringToFront: vi.fn(), bringForward: vi.fn(), sendBackwards: vi.fn(), sendToBack: vi.fn(),
-    };
-    applyLayerAction(obj, "layerFront"); expect(obj.bringToFront).toHaveBeenCalledTimes(1);
-    applyLayerAction(obj, "layerForward"); expect(obj.bringForward).toHaveBeenCalledTimes(1);
-    applyLayerAction(obj, "layerBackward"); expect(obj.sendBackwards).toHaveBeenCalledTimes(1);
-    applyLayerAction(obj, "layerBack"); expect(obj.sendToBack).toHaveBeenCalledTimes(1);
   });
 });
 

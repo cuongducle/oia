@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-10-31
 **Tác giả:** TienNV
-**Trạng thái:** DRAFT — chờ owner duyệt (các câu hỏi ở mục cuối). Chưa có dòng code nào.
+**Trạng thái:** DRAFT — chờ owner duyệt (các câu hỏi ở mục cuối). R1–R6 đã có code trên nhánh `tien/ui-v11` theo khuyến nghị ở Q1–Q9; owner trả lời khác thì sửa theo — xem "Trạng thái triển khai".
 **Nguồn cha:**
 - [`../reference/design-product-ui-2026.md`](../reference/design-product-ui-2026.md) — chẩn đoán UI, 7 luật "sản phẩm thiết kế", gap table P0–P2 (option C presentation pass đã ship; phần còn lại owner xếp sau đóng gói).
 - [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) — A1/C1/C3/B1 đã ship (v0.2.0); A2/A3/E1/D1/C2 là candidate.
@@ -263,6 +263,25 @@ Map từ event sẵn có (`ChatEvent` status / task progress) — không đổi 
 | R6 | Home: chip size nền tảng, Brand pill, outline thành bước 2, Recent designs | shot: chip đặt đúng ratio; test: Brand pill gửi `brandKitId` (đã có trên `ChatRequest`) |
 
 R1–R3 không đụng canvas → rủi ro thấp, có thể làm song song với T6 (Windows thật). R4–R5 là phần lớn nhất (Fabric event + undo/redo).
+
+## Trạng thái triển khai (nhánh `tien/ui-v11`, 2026-10-31)
+
+Làm theo khuyến nghị của Q1–Q9 khi owner chưa trả lời; mọi lệch so với doc ghi ở đây.
+
+| Slice | Commit | Đã làm | Chưa làm (để slice sau) |
+|---|---|---|---|
+| R1 | `f34f086` | Token v2, sidebar (New, mục, Recent, thẻ trạng thái + usage), trang Settings (Generation · For agents · Data) | Tab About; nút Create disable khi hết budget (`quota_exceeded` vẫn map như cũ) |
+| R3 | `0ada5a7` | `RunSteps` (Planning › Painting › Composing) ở Home + tab AI của Editor; `CostHint` cạnh Create | RunSteps cho B1 và Tool AI; trạng thái `failed`/`cancelled` trong RunSteps (lỗi vẫn hiện bằng notice) |
+| R6 | `0ada5a7` | Chip use case trên composer, pill khổ+độ phân giải, Brand pill (`brandKitId`), "More" thay Advanced, outline C1 = "Step 2 of 2" full width | `Skills ▾`; menu khổ nhóm theo nền tảng; "Recent designs" trên Home (đang ở sidebar) |
+| R2 | `6102ee6` | Create sheet 4 làn mở từ sidebar / ⌘N / Projects; Projects: tìm, lọc khổ + Samples, tab AI history; "Use as background" giữ kích thước thật của ảnh (trước đây kéo giãn về 1360×2048) | "+ New page from…" trong Editor; view Templates riêng |
+| R4–R5 | `216d7f7` | Layers (chọn, ẩn, khoá, kéo đổi thứ tự, dấu "You"); rail "Page"; tab Design (vị trí, opacity, fill, text, ảnh: Replace / Edit with AI); toolbar theo selection; "Saved HH:MM"; Share ▾ | Chip `@ layer` thật trong ô nhập (đang chèn text `@(selected …)` như cũ); Crop / Remove background trong tab Design; Guides ▾ (vẫn nút xoay vòng, LV-6 giữ nguyên); Align/Group cho nhiều object |
+
+Lỗi tìm thấy khi làm (đã sửa, có test hồi quy):
+- Nút thứ tự layer trên thanh text cũ gọi `obj.bringToFront()`; fabric 7 không còn hàm này nên mọi lần bấm đều ném lỗi. Test cũ mock đúng API đã mất nên vẫn xanh.
+- "Send to back" sẽ đưa layer xuống dưới `clip` (layer biến mất); nay đáy là ngay trên clip.
+- Khoá layer không qua được save / undo / đổi trang vì Fabric không serialize `selectable`/`evented`; `locked` nay là custom property như `origin`.
+
+Gate quan sát được, chưa sửa: hai lần (trong khoảng 12 lần chạy `shot` liên tiếp) C1 fail ở bước poll — một lần "outline card never appeared", một lần "previous result never unmounted". Lần chạy lại ngay sau đều xanh. Bước poll 200 ms có thể lỡ khoảng unmount khi mock chạy quá nhanh; cần một tín hiệu bền hơn (vd. jobId mới) thay vì quan sát DOM. Ngoài ra `capturePage` trên macOS trả khung hình cũ khi cửa sổ bị che, nên ảnh `out/*.png` của Editor không đáng tin; gate R4/R5 kiểm bằng DOM + hình học thay vì pixel.
 
 ## Hệ thị giác v2 (để đạt chất lượng phát hành)
 

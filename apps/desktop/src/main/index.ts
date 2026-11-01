@@ -557,7 +557,7 @@ async function shot(): Promise<void> {
   // present AND the bar's computed padding equals the shared constant exactly.
   if (process.platform === "darwin") {
     const chrome = await win.webContents.executeJavaScript(`(() => {
-      const bar = document.querySelector(".viewNav");
+      const bar = document.querySelector(".sidebarHead");
       return {
         marker: document.documentElement.dataset.platform ?? null,
         pad: bar ? getComputedStyle(bar).paddingLeft : null,
@@ -651,6 +651,32 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
+  // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
+  const r6 = await win.webContents.executeJavaScript(`(async () => {
+    const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
+    const aspect = () => document.querySelector('select[aria-label="Aspect ratio"]')?.value ?? null;
+    const live = chip("Livestream"), deck = chip("Deck");
+    if (!live || !deck) return "no-chips";
+    live.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const liveAspect = aspect();
+    deck.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const deckAspect = aspect();
+    const deckPages = document.querySelector(".advancedToggle")?.textContent ?? null;
+    const prompt = document.querySelector('[data-testid="design-idea"]')?.value ?? "";
+    const sel = document.querySelector('select[aria-label="Aspect ratio"]');
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, "auto"); // C1 below runs at the default ratio
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    return { liveAspect, deckAspect, deckPages, prompt };
+  })()`, true);
+  console.log("[shot] R6 chips:", JSON.stringify(r6));
+  if (!r6 || r6.liveAspect !== "9:16" || r6.deckAspect !== "16:9" || r6.deckPages !== "3 pages" || !r6.prompt) {
+    console.error("DESKTOP_SHOT R6 FAILED — a use-case chip did not set its ratio/pages");
+    app.exit(21);
+    return;
+  }
+
   // ---- C1 outline gate: a 2-page deck stops for review BEFORE any image burns ----
   console.log("[shot] C1: running a gated 2-page deck (mock pair)…");
   const c1Setup = await win.webContents.executeJavaScript(`(async () => {
@@ -670,7 +696,7 @@ async function shot(): Promise<void> {
     return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
-  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "· 2 pages ≈ 2 images") {
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images") {
     console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
     app.exit(18);
     return;
@@ -701,7 +727,12 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   if (!outlineShown) {
-    console.error("DESKTOP_SHOT C1 FAILED — outline card never appeared");
+    const why = await win.webContents.executeJavaScript(`({
+      alerts: [...document.querySelectorAll('[role=alert],[role=status]')].map((n) => n.textContent.slice(0, 120)),
+      pages: document.querySelector("#advanced-settings select")?.value ?? null,
+      prompt: document.querySelector('[data-testid="design-idea"]')?.value ?? null,
+    })`, true).catch(() => null);
+    console.error(`DESKTOP_SHOT C1 FAILED — outline card never appeared (${JSON.stringify(why)})`);
     app.exit(18);
     return;
   }
@@ -775,7 +806,7 @@ async function shot(): Promise<void> {
     return { cost, off: sw.getAttribute("aria-checked") };
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
-  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "· 3 pages ≈ 3 images") {
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images") {
     console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;
@@ -856,7 +887,7 @@ async function shot(): Promise<void> {
     for (let i = 0; i < data.length; i += 16) {
       if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
     }
-    return { ok: rail === 7 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
+    return { ok: rail === 8 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
   })()`, true);
   console.log("[shot] editor verify:", JSON.stringify(edVerify));
   if (!edVerify || !edVerify.ok) {
@@ -1042,7 +1073,7 @@ async function shot(): Promise<void> {
   await new Promise((r) => setTimeout(r, 800));
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    const ws = pills.find((p) => p.textContent.trim() === "Workspace");
+    const ws = pills.find((p) => p.textContent.trim() === "Projects");
     if (!ws) return false;
     ws.click();
     return true;
@@ -1057,11 +1088,10 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   await new Promise((r) => setTimeout(r, 1200));
-  const wsVerify = await win.webContents.executeJavaScript(`(() => {
+  const wsVerify = await win.webContents.executeJavaScript(`(async () => {
     const cards = document.querySelectorAll(".projectGrid article").length;
     const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
     const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
-    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box —
     // the fabric wrapper's inline px sizes used to overflow and clip half the artwork.
@@ -1074,7 +1104,20 @@ async function shot(): Promise<void> {
                why: Math.round(r.width) + "x" + Math.round(r.height) + " in " + Math.round(box.width) + "x" + Math.round(box.height) };
     });
     const fitOk = fits.length > 0 && fits.every((f) => f.ok);
-    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && fitOk && !err, cards, preview, samples, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
+    // R2: the Samples filter shows exactly the samples; AI history holds the conversations
+    const chip = (t) => [...document.querySelectorAll(".filterChip")].find((b) => b.textContent === t);
+    chip("Samples")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const samplesOnly = document.querySelectorAll(".projectGrid article").length === samples
+      && document.querySelectorAll(".projectGrid article:not([data-sample])").length === 0;
+    chip("All")?.click();
+    const tab = (t) => [...document.querySelectorAll(".segmented button")].find((b) => b.textContent === t);
+    tab("AI history")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
+    tab("Projects")?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && samplesOnly && fitOk && !err, cards, preview, samples, samplesOnly, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
   })()`, true);
   console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
   if (!wsVerify || !wsVerify.ok) {
@@ -1089,20 +1132,34 @@ async function shot(): Promise<void> {
   // fabric toDataURL lane; guides (DOM layer) never leak into rendered bytes;
   // the guide toggle refuses a non-9:16 artboard instead of lying.
   console.log("[shot] C3: creating a livestream overlay project…");
-  const liveCreated = await win.webContents.executeJavaScript(`(async () => {
-    const btn = document.querySelector(".workspaceActions .primaryBtn");
+  // R2: Projects › New opens the Create sheet; the C3 artboards are its Livestream row
+  const sheetOpen = await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[data-testid="projects-new"]');
     if (!btn) return "no-new-btn";
     btn.click();
-    await new Promise((r) => setTimeout(r, 200));
-    const items = [...document.querySelectorAll(".newMenu .newMenuItem")];
-    if (items.length !== 4) return "menu-items-" + items.length;
-    const overlay = items.find((b) => b.textContent.includes("Livestream overlay"));
+    await new Promise((r) => setTimeout(r, 300));
+    if (!document.querySelector('[data-testid="create-sheet"]')) return "no-sheet";
+    const rows = [...document.querySelectorAll(".createSizeRow")];
+    const live = rows.find((r) => r.querySelector(".createSizeGroup")?.textContent === "Livestream");
+    const liveItems = live ? live.querySelectorAll(".createSize").length : 0;
+    const stars = document.querySelectorAll(".createSheet .officialStar").length; // LV-10: only the two covers
+    return liveItems === 3 && stars === 2 ? "open" : "live-" + liveItems + "-stars-" + stars;
+  })()`, true);
+  if (sheetOpen !== "open") {
+    console.error(`DESKTOP_SHOT R2 FAILED — create sheet (${sheetOpen})`);
+    app.exit(22);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 800)); // scene previews in the template lane mount lazily
+  await snap(win, "desktop-create.png");
+  const liveCreated = await win.webContents.executeJavaScript(`(() => {
+    const overlay = [...document.querySelectorAll(".createSize")].find((b) => b.textContent.includes("Livestream overlay"));
     if (!overlay) return "no-overlay-item";
     overlay.click();
     return "clicked";
   })()`, true);
   if (liveCreated !== "clicked") {
-    console.error(`DESKTOP_SHOT C3 FAILED — new menu (${liveCreated})`);
+    console.error(`DESKTOP_SHOT C3 FAILED — create sheet item (${liveCreated})`);
     app.exit(19);
     return;
   }
@@ -1247,9 +1304,11 @@ async function shot(): Promise<void> {
   console.log("[shot] B1: deconstructing a fixture banner…");
   const deconStarted = await win.webContents.executeJavaScript(`(async () => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Workspace")?.click();
+    pills.find((p) => p.textContent.trim() === "Projects")?.click();
     await new Promise((r) => setTimeout(r, 600));
-    const input = document.querySelector('input[aria-label="New project from an old design"]');
+    document.querySelector('[data-testid="projects-new"]')?.click(); // R2: images come in through the Create sheet
+    await new Promise((r) => setTimeout(r, 300));
+    const input = document.querySelector('input[aria-label="Bring an image"]');
     if (!input) return "no-input";
     // real PNG bytes (the OCR fixture) — a garbage blob would fail the preview Image load
     const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
@@ -1258,6 +1317,11 @@ async function shot(): Promise<void> {
     dt.items.add(file);
     input.files = dt.files;
     input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const editable = document.querySelector('[data-testid="create-image-editable"]');
+    if (!editable || !document.querySelector('[data-testid="create-image-background"]')) return "no-image-choices";
+    if (/image \+/.test(editable.textContent)) return "price-shown-in-trial"; // mock: nothing is billed
+    editable.click();
     return "picked";
   })()`, true);
   if (deconStarted !== "picked") {
@@ -1333,6 +1397,66 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-deconstruct.png");
   console.log("[shot] B1 OK (mock pair: read → inpaint → editable text layers)");
+
+  // ---- UI v1.1 R4/R5: Layers mirror the Fabric stack; selection drives toolbar + Design tab ----
+  const r45 = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no canvas" };
+    [...document.querySelectorAll(".railBtn")].find((b) => b.getAttribute("aria-label") === "Layers")?.click();
+    await wait(200);
+    const stack = c.getObjects().map((o, i) => (o.name === "clip" ? -1 : i)).filter((i) => i >= 0).reverse();
+    const rows = [...document.querySelectorAll('[data-testid="layers-panel"] .layerRow')].map((r) => Number(r.dataset.layerIndex));
+    const orderOk = rows.length === stack.length && rows.every((v, i) => v === stack[i]);
+
+    const tb = c.getObjects().find((o) => o.type === "textbox");
+    c.setActiveObject(tb); c.requestRenderAll();
+    await wait(150);
+    const ctxKind = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    // the toolbar floats inside the canvas area, above (or just below) the selected layer
+    const tbRect = document.querySelector('[data-testid="ctx-toolbar"]')?.getBoundingClientRect();
+    const area = document.querySelector(".canvasArea").getBoundingClientRect();
+    const wrap = document.querySelector(".canvasWrap").getBoundingClientRect();
+    const sel = tb.getBoundingRect();
+    const selTop = wrap.top + sel.top * c.viewportTransform[3];
+    const ctxPlaced = Boolean(tbRect) && tbRect.width > 120 && tbRect.left >= area.left && tbRect.right <= area.right
+      && (tbRect.bottom <= selTop + 2 || tbRect.top >= selTop);
+    const rowSelected = Boolean(document.querySelector('[data-testid="layers-panel"] .layerRow.selected'));
+    document.querySelector('[data-testid="tab-design"]')?.click();
+    await wait(150);
+    const x = document.querySelector('[data-testid="inspector"] input[aria-label="X"]');
+    const hasSize = Boolean(document.querySelector('[data-testid="inspector"] input[aria-label="Size"]'));
+    if (!x) return { ok: false, why: "no X field", orderOk, ctxKind };
+    x.focus(); await wait(30);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(x, "123");
+    x.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(30);
+    x.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); // React onBlur; blur() is a no-op in an unfocused window
+    await wait(150);
+    const leftAfter = Math.round(tb.left);
+    const undoEnabled = !document.querySelector('.edTop [title="Undo"]').disabled;
+
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    c.setActiveObject(img); c.requestRenderAll();
+    await wait(150);
+    const imgCtx = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    document.querySelector('[data-testid="ctx-edit-ai"]')?.click();
+    await wait(150);
+    const aiTab = document.querySelector('[data-testid="tab-ai"]')?.getAttribute("aria-selected");
+    const prompt = document.querySelector('textarea[aria-label="AI edit request"]')?.value ?? "";
+    c.setActiveObject(tb); c.requestRenderAll(); // leave a text layer selected for the capture
+    const ok = orderOk && ctxKind === "text" && ctxPlaced && rowSelected && hasSize && leftAfter === 123 && undoEnabled
+      && imgCtx === "image" && aiTab === "true" && prompt.includes("@(selected");
+    return { ok, rows: rows.length, orderOk, ctxKind, ctxPlaced, rowSelected, hasSize, leftAfter, undoEnabled, imgCtx, aiTab, prompt: prompt.slice(0, 60) };
+  })()`, true);
+  console.log("[shot] R4/R5 verify:", JSON.stringify(r45));
+  if (!r45 || !r45.ok) {
+    console.error("DESKTOP_SHOT R4/R5 FAILED — layers order, toolbar, inspector commit or Edit with AI");
+    app.exit(23);
+    return;
+  }
+  await snap(win, "desktop-layers.png");
+  await win.webContents.executeJavaScript(`(() => { const c = (window).__oiaCanvas; c?.discardActiveObject(); c?.requestRenderAll(); })()`, true);
   // leave the editor for the Tools scenario
   await win.webContents.executeJavaScript(`(() => {
     document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
@@ -1449,7 +1573,7 @@ async function shot(): Promise<void> {
   console.log("[shot] opening Brand kit…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Brand kit")?.click();
+    pills.find((p) => p.textContent.trim() === "Brand kits")?.click();
     return true;
   })()`, true);
   let kitReady = false;
@@ -1480,7 +1604,13 @@ async function shot(): Promise<void> {
   console.log("[shot] opening For agents…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "For agents")?.click();
+    pills.find((p) => p.textContent.trim() === "Settings")?.click();
+    return true;
+  })()`, true);
+  // UI v1.1 R1: For agents is a Settings section now
+  for (let i = 0; i < 20 && !(await win.webContents.executeJavaScript(`Boolean(document.querySelector(".settingsTab"))`, true)); i++) await new Promise((r) => setTimeout(r, 150));
+  await win.webContents.executeJavaScript(`(() => {
+    [...document.querySelectorAll(".settingsTab")].find((t) => t.textContent.trim() === "For agents")?.click();
     return true;
   })()`, true);
   let agentsReady = false;
@@ -1499,8 +1629,12 @@ async function shot(): Promise<void> {
     const emptyKeys = Boolean(document.querySelector(".emptyState"));
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     const portStr = baseUrl.slice("http://127.0.0.1:".length, baseUrl.length - "/api".length);
-    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && !err;
-    return { ok, form, baseUrl, keysTable, emptyKeys, err };
+    // UI v1.1 R1: For agents lives inside Settings, and the sidebar status card replaces
+    // the runtime panel that used to sit on the Home hero
+    const inSettings = Boolean(document.querySelector(".settingsView .agentsView"));
+    const statusCard = Boolean(document.querySelector(".appSidebar .statusCard"));
+    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && inSettings && statusCard && !err;
+    return { ok, form, baseUrl, keysTable, emptyKeys, inSettings, statusCard, err };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] agents verify:", JSON.stringify(agentsVerify));
   if (!agentsVerify || !agentsVerify.ok) {

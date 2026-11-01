@@ -37,7 +37,8 @@ describe("every direct fabric consumer goes through the v6 origin compat", () =>
     const offenders: string[] = [];
     let fabricConsumers = 0;
     for (const file of files) {
-      const src = readFileSync(file, "utf8");
+      // `import type` is erased at compile time — it cannot load fabric, so it cannot skip the compat
+      const src = readFileSync(file, "utf8").replace(/^import type [^;]*from\s+["']fabric["'];?$/gm, "");
       if (!/["']fabric["']/.test(src)) continue; // not a fabric consumer
       if (/from\s+["']fabric["']/.test(src) === false && /import\(\s*["']fabric["']\s*\)/.test(src) === false && !src.includes('import * as fabric from "fabric"')) continue;
       if (!FABRIC_IMPORT.test(src)) continue;

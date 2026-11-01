@@ -133,8 +133,7 @@ export function ForAgents() {
   const baseUrl = port ? `http://127.0.0.1:${port}/api` : "";
 
   return (
-    <main className="studioPage agentsView" data-testid="agents-view">
-      <div className="studioTopline"><span>For agents</span><span className="privateNote">Bring Oia into your automation workflow</span></div>
+    <section className="agentsView" data-testid="agents-view">
       <header className="sectionHeading">
         <div>
           <h1>For Agents</h1>
@@ -243,6 +242,6 @@ export function ForAgents() {
           <div className="emptyState">No runs yet. Generations started by skills or the Toolbox will appear here.</div>
         )}
       </section>
-    </main>
+    </section>
   );
 }

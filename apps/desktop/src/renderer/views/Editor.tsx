@@ -4,8 +4,8 @@ import type { SceneCanvas, ChatEvent, Template } from "@oia/schema";
 import {
   SIZE_PRESETS, SHAPES, TEXT_PRESET_SPECS, planExport, resizeWithLock,
   addPage, removePage as removePageModel, duplicatePage, blankScene, applySizeToAllPages,
-  stampUser, variantArtworkObject, replaceObjectSrc, normalizeImageScales,
-  type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage,
+  stampUser, variantArtworkObject, replaceObjectSrc, normalizeImageScales, applyLocks,
+  type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage, type LayerObject,
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
@@ -15,6 +15,11 @@ import { ASPECT_TOLERANCE, isNineSixteen } from "../lib/scene-dims.js";
 import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
+import { RunSteps } from "../components/RunSteps.js";
+import { LayersPanel } from "../components/LayersPanel.js";
+import { Inspector } from "../components/Inspector.js";
+import { ContextToolbar } from "../components/ContextToolbar.js";
+import { stepsFromTimeline } from "../lib/run-steps.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -33,7 +38,8 @@ import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../.
 
 const STOP_LABEL = "Stop";
 
-type Panel = "templates" | "assets" | "text" | "shapes" | "tables" | "draw" | "settings";
+type Panel = "templates" | "assets" | "text" | "shapes" | "tables" | "draw" | "layers" | "page";
+const RAIL: Panel[] = ["templates", "assets", "text", "shapes", "tables", "draw", "layers", "page"];
 
 export interface EditorProps {
   projectId: string | null;
@@ -76,9 +82,20 @@ function hasSrc(o: fabricNS.Object | undefined): boolean {
   return typeof (o as { src?: unknown } | undefined)?.src === "string";
 }
 
+/** Fabric never serializes selectable/evented — re-derive locks after every load (R4). */
+function relock(c: fabricNS.Canvas): void {
+  // SAFETY: LayerObject is a structural subset of FabricObject.
+  applyLocks(c.getObjects() as unknown as LayerObject[]);
+}
+
 export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: EditorProps) {
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const fabricRef = useRef<fabricNS.Canvas | null>(null);
+  const [canvas, setCanvas] = useState<fabricNS.Canvas | null>(null); // panels subscribe to it (R4/R5)
+  const [rightTab, setRightTab] = useState<"design" | "ai">("ai");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [variantsSeen, setVariantsSeen] = useState(0); // the AI tab badge counts variants that landed while Design was open
   const [panel, setPanel] = useState<Panel | null>(null);
   const canvasAreaRef = useRef<HTMLElement>(null);
   const aiFileRef = useRef<HTMLInputElement>(null);
@@ -111,7 +128,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
   useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiTimeline, setAiTimeline] = useState<{ content: string; type: string }[]>([]);
+  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean }[]>([]);
   const aiJobRef = useRef<string | null>(null);
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
@@ -185,6 +202,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       const size = sceneSize(list[idx].canvas);
       sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height);
       normalizeImageScales(c); // paint fills the declared box (mock plates, mismatched uploads)
+      relock(c);
       c.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       undoStack.current = [JSON.stringify(c.toObject())]; redoStack.current = [];
       setCanUndo(false); setCanRedo(false); setSelectedText(false); setSelectedImg(false); fitView();
@@ -229,7 +247,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         const p = presentErrorEn(ev.errorClass);
         setAiError({ message: p.message, actionLabel: p.actionLabel });
       }
-      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, type: tm.type })));
+      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {
@@ -264,6 +282,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       owned = editor;
       if (cancelled) { void editor.dispose(); return; }
       fabricRef.current = editor;
+      setCanvas(editor);
 
       let initialName = "Untitled project";
       let initialPages: EditorPage[] | null = null;
@@ -293,6 +312,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       if (!initialPages?.length) setPages([{ id: "page_1", canvas: (first ?? editor.toObject()) as SceneCanvas }]);
       await document.fonts.ready;
       normalizeImageScales(editor);
+      relock(editor);
       editor.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       const el = canvasAreaRef.current;
       const initialZoom = fitArtboard(sceneDimensions.current.width, sceneDimensions.current.height, el?.clientWidth || 700, el?.clientHeight || 700);
@@ -320,7 +340,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     return () => {
       cancelled = true;
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      if (fabricRef.current === owned) fabricRef.current = null;
+      if (fabricRef.current === owned) { fabricRef.current = null; setCanvas(null); }
       void owned?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -381,6 +401,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         const id = state.projectId ?? saved.id;
         currentState.current.projectId = id; setProjectId(id);
         setSaveState("saved");
+        setSavedAt(new Date());
         if (currentState.current.activePage === state.activePage) captureThumb(state.activePage);
         return id as string;
       } catch (e) {
@@ -398,7 +419,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     redoStack.current.push(undoStack.current.pop()!);
     const prev = undoStack.current.at(-1)!;
     restoring.current = true;
-    try { await c.loadFromJSON(JSON.parse(prev)); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
+    try { await c.loadFromJSON(JSON.parse(prev)); relock(c); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
     setSelectedText(false); setSelectedImg(false); // the reloaded page clears selection — state must not lie
     setCanUndo(undoStack.current.length >= 2); setCanRedo(true);
     scheduleSave();
@@ -408,7 +429,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const next = redoStack.current.pop()!;
     undoStack.current.push(next);
     restoring.current = true;
-    try { await c.loadFromJSON(JSON.parse(next)); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
+    try { await c.loadFromJSON(JSON.parse(next)); relock(c); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
     setSelectedText(false); setSelectedImg(false);
     setCanUndo(true); setCanRedo(redoStack.current.length > 0);
     scheduleSave();
@@ -587,6 +608,36 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const label = obj.type === "textbox" ? `"${(obj.text ?? "").slice(0, 40)}"` : obj.src ? `[${obj.src.slice(-40)}]` : obj.type ?? "layer";
     setAiPrompt((p) => `${p}@(selected ${obj.type}: ${label}) `);
   }
+  /** R5 "Edit with AI": the AI tab opens with the selection already named in the prompt (A3 step one). */
+  function editSelectionWithAi() {
+    setAiOpen(true);
+    setRightTab("ai");
+    mentionSelection();
+  }
+  /** R5 Replace image: new pixels, same box on the page; the swapped layer becomes the user's (TP.10). */
+  async function replaceSelectedImage(file: File) {
+    const c = fabricRef.current;
+    const obj = c?.getActiveObject() as (fabricNS.FabricImage & { src?: string }) | undefined;
+    if (!c || !obj || typeof obj.src !== "string") return;
+    try {
+      const up = await oia().uploadAsset(file.name, new Uint8Array(await file.arrayBuffer()));
+      const boxW = (obj.width ?? 0) * (obj.scaleX ?? 1), boxH = (obj.height ?? 0) * (obj.scaleY ?? 1);
+      await obj.setSrc(toDisplayUrl(up.url), { crossOrigin: "anonymous" });
+      obj.set({ scaleX: boxW / Math.max(1, obj.width ?? 1), scaleY: boxH / Math.max(1, obj.height ?? 1) });
+      stampUser(obj as unknown as import("@oia/schema").FabricObject);
+      obj.setCoords();
+      c.requestRenderAll();
+      c.fire("object:modified", { target: obj });
+      setAssets((a) => (a.includes(up.url) ? a : [...a, up.url]));
+    } catch (e) {
+      setNotice(bridgeErrorMessage(e, "The image could not be replaced. Please try again."));
+    }
+  }
+  async function duplicateSelection() {
+    const { duplicateSelected } = await import("@oia/canvas");
+    callCanvas((c) => duplicateSelected(c));
+  }
+
   async function runAiEdit() {
     if (aiBusy || !aiPrompt.trim()) return;
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
@@ -753,7 +804,12 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     }
   }
 
-  const toolLabels: Record<Panel, string> = { templates: "Templates", assets: "Uploads", text: "Text", shapes: "Shapes", tables: "Tables", draw: "Draw", settings: "Settings" };
+  useEffect(() => {
+    if (rightTab === "ai") setVariantsSeen(variants.filter((v) => !hiddenVariants.has(v.id)).length);
+  }, [rightTab, variants, hiddenVariants]);
+
+  const toolLabels: Record<Panel, string> = { templates: "Templates", assets: "Uploads", text: "Text", shapes: "Shapes", tables: "Tables", draw: "Draw", layers: "Layers", page: "Page" };
+  const newVariants = variants.filter((v) => !hiddenVariants.has(v.id)).length - variantsSeen;
   const shapeLabels: Record<ShapeKind, string> = useMemo(() => ({
     circle: "◯", rectRounded: "▢", rect: "□", triangleUp: "△", triangleDown: "▽",
     diamond: "◇", line: "—", lineDotted: "┄", arrowRight: "→",
@@ -769,39 +825,33 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         <button className="iconBtn" onClick={undo} disabled={!canUndo} title="Undo" aria-label="Undo"><I d={icons.undo} /></button>
         <button className="iconBtn" onClick={redoOp} disabled={!canRedo} title="Redo" aria-label="Redo"><I d={icons.redo} /></button>
         <span className="saveStatus">
-          <I d={icons.cloud} size={12} /> {saveState === "saving" ? "Saving…" : saveState === "dirty" ? "Unsaved changes" : "Saved"}
+          <I d={icons.cloud} size={12} /> {saveState === "saving" ? "Saving…" : saveState === "dirty" ? "Unsaved changes" : savedAt ? `Saved ${savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Saved"}
         </span>
         <span className="spacer" />
-        <button className="iconBtn" aria-label="Toggle AI assistant" title="AI assistant" onClick={() => setAiOpen(!aiOpen)} aria-pressed={aiOpen}><I d={icons.spark} /></button>
-        <button className="iconBtn" title="Publish template" onClick={publishTemplate} aria-label="Publish template"><I d={icons.globe} size={16} /></button>
+        <button className="iconBtn labeledIcon" aria-label="Toggle side panel" title="Design and AI panel" onClick={() => setAiOpen(!aiOpen)} aria-pressed={aiOpen}><I d={icons.spark} size={15} /><span>Panel</span></button>
+        <div className="shareWrap">
+          <button className="secondaryBtn" aria-haspopup="menu" aria-expanded={shareOpen} onClick={() => setShareOpen((v) => !v)}>Share ▾</button>
+          {shareOpen && (
+            <>
+              <button className="menuScrim" aria-label="Close menu" tabIndex={-1} onClick={() => setShareOpen(false)} />
+              <div className="shareMenu" role="menu">
+                <button role="menuitem" onClick={() => { setShareOpen(false); void publishTemplate(); }}>
+                  <strong>Publish as template</strong><span>Adds this page to your template library</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
         <button className="primaryBtn" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => setExportOpen(true)}>
           <I d={icons.download} size={14} /> Export
         </button>
       </div>
 
       {notice && <div className="notice" role="status" style={{ margin: 0, borderRadius: 0, display: "flex", justifyContent: "space-between", padding: "6px 16px" }}>{notice}<button className="iconBtn" aria-label="Dismiss notice" onClick={() => setNotice("")}><I d={icons.x} size={13} /></button></div>}
-      {/* Text toolbar (BR-ED4) — shown only when a Textbox is selected */}
-      {selectedText && (
-        <div className="textToolbar">
-          <input type="color" defaultValue="#18181b" onChange={(e) => patchText({ fill: e.target.value })} title="Text color" aria-label="Text color" />
-          <button onClick={() => patchText({ bold: true })}><b>B</b></button>
-          <button onClick={() => patchText({ italic: true })}><i>I</i></button>
-          <button onClick={() => patchText({ underline: true })}><u>U</u></button>
-          <button onClick={() => patchText({ strike: true })}><s>S</s></button>
-          <button aria-label="Align left" onClick={() => patchText({ align: "left" })}>⬅</button>
-          <button aria-label="Align center" onClick={() => patchText({ align: "center" })}>↔</button>
-          <button aria-label="Align right" onClick={() => patchText({ align: "right" })}>➡</button>
-          <input type="number" placeholder="size" min={8} max={400} aria-label="Font size"
-            onChange={(e) => patchText({ fontSize: Number(e.target.value) })} style={{ width: 64 }} />
-          <button onClick={() => patchText({ charSpacing: 200 })} title="Letter spacing">AB</button>
-          <AsyncLayerBtns />
-        </div>
-      )}
-
       <div className="edBody">
         {/* Left rail */}
         <nav className="rail" aria-label="Editor tools">
-          {(["templates", "assets", "text", "shapes", "tables", "draw", "settings"] as Panel[]).map((p) => (
+          {RAIL.map((p) => (
             <button key={p} className={panel === p ? "railBtn active" : "railBtn"} onClick={() => setPanel(panel === p ? null : p)} aria-pressed={panel === p} aria-label={toolLabels[p]}>
               <PanelIcon p={p} />
               <span>{toolLabels[p]}</span>
@@ -835,9 +885,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               </div>
             </>
           )}
-          {panel === "settings" && (
+          {panel === "layers" && <LayersPanel canvas={canvas} />}
+          {panel === "page" && (
             <>
-              <h4>Settings</h4>
+              <h4>Page</h4>
               <p className="hintP">Marketplace sizes follow each seller center's current guide</p>
               <label>Background color</label>
               <input type="color" defaultValue="#ffffff" aria-label="Background color" onChange={(e) => callCanvas((c) => { c.backgroundColor = e.target.value; c.requestRenderAll(); })} />
@@ -922,70 +973,88 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         {/* AI dock — its own column; never overlaps the document */}
         {aiOpen && (
           <aside className="aiPanelFloating" data-testid="ai-dock">
-            <div className="aiPanelHeader"><I d={icons.spark} size={16} /><strong>AI assistant</strong>
-              <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); setVariants([]); setHiddenVariants(new Set()); setAiSessionId(null); aiPromptByJobRef.current.clear(); }}><I d={icons.plus} size={16} /></button>
-              <button className="iconBtn" aria-label="Conversation history" onClick={loadChats}><I d={icons.history} size={16} /></button>
-              <button className="iconBtn" aria-label="Close AI assistant" onClick={() => setAiOpen(false)}><I d={icons.x} size={16} /></button>
-            </div>
-            {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit.</p>{["Try a softer color palette", "Make the headline stand out"].map((s) => <button key={s} className="aiSuggestion" onClick={() => setAiPrompt(s)}>{s}</button>)}</div>}
-            {historyOpen && (
-              <div style={{ maxHeight: 140, overflowY: "auto", borderBottom: "1px solid var(--line)", marginBottom: 8 }}>
-                {chats.map((c) => (
-                  <div key={c.id} className="presetBtn small" style={{ cursor: "pointer" }} onClick={() => void resumeConversationInDock(c.id)}>{c.name}</div>
-                ))}
-                {chats.length === 0 && <p className="hintP">No conversations yet.</p>}
+            <div className="aiPanelHeader">
+              <div className="panelTabs" role="tablist" aria-label="Side panel">
+                <button role="tab" aria-selected={rightTab === "design"} className={rightTab === "design" ? "active" : ""} data-testid="tab-design" onClick={() => setRightTab("design")}>Design</button>
+                <button role="tab" aria-selected={rightTab === "ai"} className={rightTab === "ai" ? "active" : ""} data-testid="tab-ai" onClick={() => setRightTab("ai")}>
+                  AI{rightTab === "design" && newVariants > 0 && <span className="tabBadge" aria-label={`${newVariants} new variants`}>{newVariants}</span>}
+                </button>
               </div>
-            )}
-            <div className="timeline" style={{ margin: 0 }}>
-              {aiTimeline.map((tm) => <div key={tm.content + tm.type} className={`t ${tm.type}`}>{tm.content}</div>)}
+              <span className="spacer" />
+              {rightTab === "ai" && <button className="iconBtn" aria-label="New conversation" onClick={() => { setAiTimeline([]); setAiNarrative(""); setAiPrompt(""); setVariants([]); setHiddenVariants(new Set()); setAiSessionId(null); aiPromptByJobRef.current.clear(); }}><I d={icons.plus} size={16} /></button>
+              }{rightTab === "ai" && <button className="iconBtn" aria-label="Conversation history" onClick={loadChats}><I d={icons.history} size={16} /></button>}
+              <button className="iconBtn" aria-label="Close side panel" onClick={() => setAiOpen(false)}><I d={icons.x} size={16} /></button>
             </div>
-            {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
-            {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
-            {/* A1 preview-apply — newest first; "Not now" only hides (VA-7), the
-                session record keeps every canvas (G5). */}
-            {variants.some((v) => !hiddenVariants.has(v.id)) && (
-              <div className="variantTray" data-testid="variant-tray" aria-label="Variants">
-                {[...variants].reverse().filter((v) => !hiddenVariants.has(v.id)).map((v) => {
-                  const artwork = variantArtworkObject(v.canvas);
-                  const canReplace = Boolean(artwork) && selectedImg;
-                  const why = !artwork ? "This variant has no artwork image" : !selectedImg ? "Select an image layer on the canvas first" : "";
-                  return (
-                    <div key={v.id} className="variantCard" data-testid="variant-card" aria-label={`Variant: ${v.prompt.slice(0, 60) || "untitled edit"}`}>
-                      <div className="variantThumb">
-                        {v.thumbnail ? <img src={toDisplayUrl(v.thumbnail)} alt="" /> : <ScenePreview scene={v.canvas} label="Variant" />}
-                      </div>
-                      <div className="variantMeta">
-                        <span className="variantPrompt">{v.prompt.slice(0, 90) || "Variant"}</span>
-                        <div className="variantActions">
-                          <button className="primaryBtn small" data-testid="variant-replace" disabled={!canReplace} title={why || "Replace the selected image layer with this variant"} onClick={() => void applyVariantToSelection(v)}>Replace selected layer</button>
-                          <button data-testid="variant-open" onClick={() => void openVariantProject(v)}>Open in editor</button>
-                          <button data-testid="variant-dismiss" onClick={() => setHiddenVariants((h) => { const n = new Set(h); n.add(v.id); return n; })}>Not now</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="aiComposer">
-              {aiRefs.length > 0 && (
-                <div className="attachmentList" style={{ paddingTop: 0, paddingBottom: 8 }}>
-                  {aiRefs.map((u, i) => (
-                    <div key={u} className="attachment">
-                      <img src={toDisplayUrl(u)} alt={`Reference ${i + 1}`} />
-                      <button className="iconBtn" aria-label={`Remove reference image ${i + 1}`} onClick={() => setAiRefs((r) => r.filter((x) => x !== u))}><I d={icons.x} size={11} /></button>
-                    </div>
+            {rightTab === "design" ? (
+              <Inspector
+                canvas={canvas}
+                page={{ w: customW, h: customH }}
+                onOpenPage={() => setPanel("page")}
+                onEditWithAi={editSelectionWithAi}
+                onReplaceImage={(f) => void replaceSelectedImage(f)}
+              />
+            ) : (
+              <>
+              {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit.</p>{["Try a softer color palette", "Make the headline stand out"].map((s) => <button key={s} className="aiSuggestion" onClick={() => setAiPrompt(s)}>{s}</button>)}</div>}
+              {historyOpen && (
+                <div style={{ maxHeight: 140, overflowY: "auto", borderBottom: "1px solid var(--line)", marginBottom: 8 }}>
+                  {chats.map((c) => (
+                    <div key={c.id} className="presetBtn small" style={{ cursor: "pointer" }} onClick={() => void resumeConversationInDock(c.id)}>{c.name}</div>
                   ))}
+                  {chats.length === 0 && <p className="hintP">No conversations yet.</p>}
                 </div>
               )}
-              <textarea aria-label="AI edit request" value={aiPrompt} rows={3} placeholder="Describe the changes you have in mind…" onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void runAiEdit(); } }} />
-              <div className="aiComposerControls">
-                <button className="iconBtn" title="Attach a reference image" aria-label="Attach a reference image" disabled={aiUploading || !refCapable} onClick={() => aiFileRef.current?.click()}><I d={icons.paperclip} size={16} /></button>
-                <input ref={aiFileRef} aria-label="AI reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachAiRef(e.target.files[0]); e.target.value = ""; }} />
-                <button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{!imageMock && !aiBusy && <span className="hintP" data-testid="cost-hint" style={{ fontSize: 10, margin: 0 }} title="Each edit generates one image with your provider">≈ 1 image</span>}{aiBusy
-                ? <button className="generateBtn" style={{ background: "#dc2626" }} onClick={stopAiEdit} aria-label={STOP_LABEL} title={STOP_LABEL}><span style={{ width: 12, height: 12, background: "#fff", display: "inline-block" }} /></button>
-                : <button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy ? "Editing" : "Send edit request"}><I d={icons.up} /></button>}</div>
-            </div>
+              {aiTimeline.length > 0 && <RunSteps steps={stepsFromTimeline(aiTimeline)} />}
+              {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
+              {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
+              {/* A1 preview-apply — newest first; "Not now" only hides (VA-7), the
+                  session record keeps every canvas (G5). */}
+              {variants.some((v) => !hiddenVariants.has(v.id)) && (
+                <div className="variantTray" data-testid="variant-tray" aria-label="Variants">
+                  {[...variants].reverse().filter((v) => !hiddenVariants.has(v.id)).map((v) => {
+                    const artwork = variantArtworkObject(v.canvas);
+                    const canReplace = Boolean(artwork) && selectedImg;
+                    const why = !artwork ? "This variant has no artwork image" : !selectedImg ? "Select an image layer on the canvas first" : "";
+                    return (
+                      <div key={v.id} className="variantCard" data-testid="variant-card" aria-label={`Variant: ${v.prompt.slice(0, 60) || "untitled edit"}`}>
+                        <div className="variantThumb">
+                          {v.thumbnail ? <img src={toDisplayUrl(v.thumbnail)} alt="" /> : <ScenePreview scene={v.canvas} label="Variant" />}
+                        </div>
+                        <div className="variantMeta">
+                          <span className="variantPrompt">{v.prompt.slice(0, 90) || "Variant"}</span>
+                          <div className="variantActions">
+                            <button className="primaryBtn small" data-testid="variant-replace" disabled={!canReplace} title={why || "Replace the selected image layer with this variant"} onClick={() => void applyVariantToSelection(v)}>Replace selected layer</button>
+                            <button data-testid="variant-open" onClick={() => void openVariantProject(v)}>Open in editor</button>
+                            <button data-testid="variant-dismiss" onClick={() => setHiddenVariants((h) => { const n = new Set(h); n.add(v.id); return n; })}>Not now</button>
+                          </div>
+                          {artwork && !selectedImg && <span className="variantWhy">Select an image layer to replace it</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="aiComposer">
+                {aiRefs.length > 0 && (
+                  <div className="attachmentList" style={{ paddingTop: 0, paddingBottom: 8 }}>
+                    {aiRefs.map((u, i) => (
+                      <div key={u} className="attachment">
+                        <img src={toDisplayUrl(u)} alt={`Reference ${i + 1}`} />
+                        <button className="iconBtn" aria-label={`Remove reference image ${i + 1}`} onClick={() => setAiRefs((r) => r.filter((x) => x !== u))}><I d={icons.x} size={11} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <textarea aria-label="AI edit request" value={aiPrompt} rows={3} placeholder="Describe the changes you have in mind…" onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void runAiEdit(); } }} />
+                <div className="aiComposerControls">
+                  <button className="iconBtn" title="Attach a reference image" aria-label="Attach a reference image" disabled={aiUploading || !refCapable} onClick={() => aiFileRef.current?.click()}><I d={icons.paperclip} size={16} /></button>
+                  <input ref={aiFileRef} aria-label="AI reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachAiRef(e.target.files[0]); e.target.value = ""; }} />
+                  <button className="iconBtn" title="Use selected layer" aria-label="Mention selected layer" onClick={mentionSelection}>@</button><span className="hintP" style={{ fontSize: 10, margin: 0 }}>Layer by layer</span>{!imageMock && !aiBusy && <span className="hintP" data-testid="cost-hint" style={{ fontSize: 10, margin: 0 }} title="Each edit generates one image with your provider">≈ 1 image</span>}{aiBusy
+                  ? <button className="generateBtn" style={{ background: "#dc2626" }} onClick={stopAiEdit} aria-label={STOP_LABEL} title={STOP_LABEL}><span style={{ width: 12, height: 12, background: "#fff", display: "inline-block" }} /></button>
+                  : <button className="generateBtn" disabled={aiBusy || !aiPrompt.trim()} onClick={runAiEdit} aria-label={aiBusy ? "Editing" : "Send edit request"}><I d={icons.up} /></button>}</div>
+              </div>
+              </>
+            )}
           </aside>
         )}
         {/* Canvas */}
@@ -995,6 +1064,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
               <div className="canvasWrap" data-transparent={activeClipFill === "transparent" ? "true" : undefined}>
                 <canvas ref={canvasElRef} width={500} height={750} />
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1097,36 +1167,10 @@ function PanelIcon({ p }: { p: Panel }) {
     shapes: "M7 3l7 4v8l-7 4-7-4V7zM17 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8z",
     tables: "M3 5h18v14H3zM3 10h18M9 5v14M15 5v14",
     draw: "M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5zM2 2l7.6 7.6",
-    settings: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
+    layers: "M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5",
+    page: "M6 2h9l5 5v15H6zM15 2v5h5",
   };
   return <I d={d[p]} size={21} />;
-}
-
-function AsyncLayerBtns() {
-  return (
-    <span>
-      <button title="Bring to front" aria-label="Bring to front" onClick={() => runLayer("layerFront")}><I d={icons.chevronsUp} size={14} /></button>
-      <button title="Bring forward" aria-label="Bring forward" onClick={() => runLayer("layerForward")}><I d={icons.chevronUp} size={14} /></button>
-      <button title="Send backward" aria-label="Send backward" onClick={() => runLayer("layerBackward")}><I d={icons.chevronDown} size={14} /></button>
-      <button title="Send to back" aria-label="Send to back" onClick={() => runLayer("layerBack")}><I d={icons.chevronsDown} size={14} /></button>
-      <button title="Duplicate" aria-label="Duplicate selection" onClick={runDup}><I d={icons.copy} size={14} /></button>
-    </span>
-  );
-  async function runLayer(a: "layerFront" | "layerForward" | "layerBackward" | "layerBack") {
-    const c = (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas;
-    if (!c) return;
-    const obj = c.getActiveObject();
-    if (!obj) return;
-    const { applyLayerAction } = await import("@oia/canvas");
-    applyLayerAction(obj as unknown as Parameters<typeof applyLayerAction>[0], a);
-    c.requestRenderAll();
-  }
-  async function runDup() {
-    const c = (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas;
-    if (!c) return;
-    const { duplicateSelected } = await import("@oia/canvas");
-    duplicateSelected(c);
-  }
 }
 
 /** pptxgenjs resolves differently under Vite ESM — accept both module shapes. */

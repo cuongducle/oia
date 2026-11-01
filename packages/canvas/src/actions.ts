@@ -11,22 +11,8 @@ export const TEXT_TOOLBAR_ACTIONS = [
 ] as const;
 export type TextToolbarAction = (typeof TEXT_TOOLBAR_ACTIONS)[number];
 
-export type LayerAction = Extract<
-  TextToolbarAction, "layerFront" | "layerForward" | "layerBackward" | "layerBack"
->;
-
-/** Map action → fabric object operation. */
-export function applyLayerAction(
-  obj: { bringToFront(): void; bringForward(): void; sendBackwards(): void; sendToBack(): void },
-  action: LayerAction,
-): void {
-  switch (action) {
-    case "layerFront": obj.bringToFront(); break;
-    case "layerForward": obj.bringForward(); break;
-    case "layerBackward": obj.sendBackwards(); break;
-    case "layerBack": obj.sendToBack(); break;
-  }
-}
+// The four layer orders live in layers.ts (applyLayerAction): they act on the
+// canvas stack, because fabric 7 removed the per-object bringToFront family.
 
 /** BR-ED5: export matrix (JPG/PNG + ALL/Current scope; chat adds ZIP(jpg)/PDF/PPTX). */
 export const EXPORT_FORMATS = ["jpg", "png", "pdf", "pptx", "zip"] as const;
