@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BrandKit, CanvasMsgMeta, Template, SceneCanvas } from "@oia/schema";
+import type { BrandKit, CanvasMsgMeta, Project, Template, SceneCanvas } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
@@ -7,13 +7,15 @@ import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
 import { RunSteps, CostHint } from "../components/RunSteps.js";
 import { costHintText, stepsFromTimeline } from "../lib/run-steps.js";
+import { SIZE_GROUPS, sizeDims } from "../lib/composer-sizes.js";
+import { QUICK_TOOLS } from "../lib/tools-registry.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia } from "../lib/bridge.js";
 import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
 import {
-  addPage, editPage, movePage, outlineCostLabel, outlineRowsValid, readOutlineGatePref, removePage, writeOutlineGatePref,
+  addPage, editPage, movePage, outlineCostLabel, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
   type OutlineRow,
 } from "../lib/outline-card.js";
 import type { PlanPage } from "@oia/schema";
@@ -48,6 +50,9 @@ const USE_CASES: { name: string; prompt: string; aspect: string; pages?: string 
 const ASPECTS: Record<string, [number, number] | null> = {
   auto: null, "1:1": [1024, 1024], "4:5": [1024, 1280], "3:4": [1024, 1365], "2:3": [1024, 1536], "9:16": [1080, 1920], "16:9": [1920, 1080],
 };
+/** UI v1.1 R6 — Skills ▾ quick calls into the tool library (Q8: call existing
+ *  tools from the composer; the Tools page stays the full library). */
+const COMPOSER_SKILLS = ["ai-image-editor", "image-resizer", "xhs-creator"];
 
 /** Minimal inline icon set (no lucide dependency in the desktop renderer). */
 const Icon = {
@@ -73,9 +78,13 @@ export interface HomeProps {
   initialPrompt?: string;
   /** The Trial chip and runtime problems route here (UI v1.1 R1: infra lives in Settings). */
   onOpenSettings?: () => void;
+  /** Skills ▾ hands a tool slug to the Tools view (R6); empty → the full library. */
+  onOpenTools?: (slug?: string) => void;
+  /** "See all" under Recent designs → Projects (R6). */
+  onOpenProjects?: () => void;
 }
 
-export function Home({ resumeSession, onOpenProject, autoFocus = false, initialPrompt = "", onOpenSettings }: HomeProps) {
+export function Home({ resumeSession, onOpenProject, autoFocus = false, initialPrompt = "", onOpenSettings, onOpenTools, onOpenProjects }: HomeProps) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -108,6 +117,8 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [useCase, setUseCase] = useState<string | null>(null);
   const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
   const [brandKitId, setBrandKitId] = useState(""); // "" → the kit marked "Apply to new projects" (services/chat.ts)
+  const [recent, setRecent] = useState<Project[]>([]); // R6 — Recent designs row (DNA #3: recent before inspiration)
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
@@ -135,6 +146,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     refreshProviderStatus();
     void oia().listTemplates().then(setCommunity).catch(() => {}); // degradation lane: gallery works without a provider
     void oia().listBrandKits().then(setBrandKits).catch(() => {});
+    void oia().listProjects().then((p) => setRecent(p.slice(0, 4))).catch(() => {});
     if (sessionId) {
       void oia().getSession(sessionId).then((s) => {
         if (!s) return;
@@ -234,7 +246,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     setNarrative("");
     setCanvasMeta(null);
     pendingOutlineRef.current = null;
-    const [w, h] = ASPECTS[aspect] ?? [1360, 2048] as [number, number];
+    const [w, h] = sizeDims(aspect, ASPECTS) ?? ([1360, 2048] as [number, number]);
     const scale = resolution === "1k" ? 0.75 : 1;
     const pagesN = pages === "auto" ? null : Number(pages);
     const req: ChatRequest = {
@@ -253,10 +265,12 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     try {
       const res = await oia().chatRun(req);
       setSessionId(res.sessionId);
-      // SAFETY: TS control flow only sees the `= null` above; the chat-event closure
-      // assigns the outline DURING the awaited call. The optional-chain guards null.
-      const outline = pendingOutlineRef.current as PlanPage[] | null;
       if (res.outcome === "outline") {
+        // SAFETY: TS control flow only sees the `= null` in submit; the chat-event
+        // closure assigns the outline DURING the awaited call. Grace-wait ONLY on
+        // this outcome — the reply (invoke) can beat the outline event (send)
+        // across IPC channels; every other outcome must resolve immediately.
+        const outline = (pendingOutlineRef.current as PlanPage[] | null) ?? (await waitForOutline(() => pendingOutlineRef.current));
         if (outline?.length) {
           // C1: show the card; phase 2 resumes from this exact request + the edited rows
           const { outlineGate: _drop, pages: _drop2, retryOf: _r, ...base } = req;
@@ -391,9 +405,38 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
             {uploading ? <span className="spin" aria-label="Uploading">◌</span> : Icon.paperclip}
           </button>
           <input ref={fileInputRef} aria-label="Reference image file" type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files?.[0]) void attachFile(e.target.files[0]); e.target.value = ""; }} />
+          <div className="shareWrap skillsWrap">
+            <button className="iconBtn labeledIcon" aria-haspopup="menu" aria-expanded={skillsOpen} aria-label="Quick skills" title="Run a quick tool without leaving your flow" onClick={() => setSkillsOpen((v) => !v)}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l1.9 5.7L20 9.6l-5 3.6 1.7 6L12 15.7l-4.7 3.5 1.7-6-5-3.6 6.1-1.9L12 2z" /></svg>
+              <span>Skills</span>
+            </button>
+            {skillsOpen && (
+              <>
+                <button className="menuScrim" aria-label="Close menu" tabIndex={-1} onClick={() => setSkillsOpen(false)} />
+                <div className="shareMenu skillsMenu" role="menu">
+                  {QUICK_TOOLS.filter((t) => COMPOSER_SKILLS.includes(t.slug) && t.implemented).map((t) => (
+                    <button key={t.slug} role="menuitem" onClick={() => { setSkillsOpen(false); onOpenTools?.(t.slug); }}>
+                      <strong>{t.name}</strong><span>{t.desc}</span>
+                    </button>
+                  ))}
+                  <button role="menuitem" onClick={() => { setSkillsOpen(false); onOpenTools?.(); }}>
+                    <strong>All tools</strong><span>Converters, charts, creative AI — the full library</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <span className="pillGroup">
             <select aria-label="Aspect ratio" value={aspect} onChange={(e) => { setAspect(e.target.value); setUseCase(null); }}>
-              {Object.keys(ASPECTS).map((a) => <option key={a} value={a}>{a === "auto" ? "Auto ratio" : a}</option>)}
+              <option value="auto">Auto ratio</option>
+              <optgroup label="Ratios">
+                {Object.keys(ASPECTS).filter((a) => a !== "auto").map((a) => <option key={a} value={a}>{a}</option>)}
+              </optgroup>
+              {SIZE_GROUPS.map((g) => (
+                <optgroup key={g.name} label={g.name}>
+                  {g.items.map((a) => <option key={a.id} value={a.id}>{a.label}{a.official ? " ★" : ""}</option>)}
+                </optgroup>
+              ))}
             </select>
             <span className="pillGroupSep" aria-hidden="true" />
             <select aria-label="Resolution" value={resolution} onChange={(e) => setResolution(e.target.value)}>
@@ -540,7 +583,27 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         />
       )}
 
-      <section aria-labelledby="gallery-title">
+      {recent.length > 0 && (
+        <section aria-labelledby="recent-title" data-testid="recent-designs" style={{ marginTop: 40 }}>
+          <div className="sectionHeading">
+            <h2 id="recent-title">Recent designs</h2>
+            <button className="ghostBtn" data-testid="recent-see-all" onClick={() => onOpenProjects?.()}>See all →</button>
+          </div>
+          <div className="galleryGrid">
+            {recent.map((p) => (
+              <button key={p.id} className="galleryCard" onClick={() => onOpenProject(p.id)} aria-label={`Open ${p.name}`} title={p.name}>
+                <div className="galleryThumb">{p.pages[0] && <ScenePreview scene={p.pages[0].canvas} label={p.name} />}</div>
+                <div className="galleryMeta">
+                  <strong>{p.name}</strong>
+                  <span>{p.updatedAt ? timeAgo(p.updatedAt) : "Recent"}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="gallery-title" style={{ marginTop: 40 }}>
         <div className="sectionHeading">
           <h2 id="gallery-title">A little inspiration to get you going.</h2>
           <div className="tabs" aria-label="Collections">
@@ -578,4 +641,12 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       )}
     </main>
   );
+}
+
+function timeAgo(ts: number) {
+  const m = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h} hr ago` : `${Math.floor(h / 24)} days ago`;
 }

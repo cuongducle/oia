@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RuntimeSnapshot } from "../src/shared/bridge.js";
 import { runtimeStatusLine } from "../src/renderer/lib/runtime-status.js";
 import { costHintText, stepsFromTimeline } from "../src/renderer/lib/run-steps.js";
+import { SIZE_GROUPS, sizeDims } from "../src/renderer/lib/composer-sizes.js";
 
 /**
  * UI v1.1 R1 — the sidebar status card replaces the runtime panel that used to sit
@@ -65,5 +66,36 @@ describe("costHintText", () => {
     expect(costHintText({ images: 1, isMock: false })).toBe("≈ 1 image");
     expect(costHintText({ images: 1, reads: 1, isMock: false })).toBe("≈ 1 image + 1 read");
     expect(costHintText({ images: 1, pages: 1, isMock: true })).toBeNull();
+  });
+});
+
+/** UI v1.1 R6 (completing) — the composer size pill groups platform presets the
+ *  Create-sheet way; the same key must resolve to the same pixels everywhere. */
+describe("composer size resolution", () => {
+  const ratios: Record<string, [number, number] | null> = {
+    auto: null, "1:1": [1024, 1024], "9:16": [1080, 1920], "16:9": [1920, 1080],
+  };
+
+  it("auto and plain ratios keep their old meaning", () => {
+    expect(sizeDims("auto", ratios)).toBeNull();
+    expect(sizeDims("1:1", ratios)).toEqual([1024, 1024]);
+  });
+
+  it("a platform preset resolves to the Create sheet's exact pixels", () => {
+    expect(sizeDims("shopee-1x1", ratios)).toEqual([1024, 1024]); // SIZE_PRESETS["Shopee Product (1:1)"]
+    expect(sizeDims("lazada-1x1", ratios)).toEqual([800, 800]); // Lazada's own spec, not a generic square
+    expect(sizeDims("tiktok-916", ratios)).toEqual([1080, 1920]);
+  });
+
+  it("an unknown key falls to null so submit can use the provider default — never a silent wrong size", () => {
+    expect(sizeDims("nope", ratios)).toBeNull();
+  });
+
+  it("every size group the Create sheet offers is offered in the composer menu", () => {
+    expect(SIZE_GROUPS.map((g) => g.name)).toEqual(["Marketplace", "Social", "Livestream", "Other"]);
+    const ids = SIZE_GROUPS.flatMap((g) => g.items.map((a) => a.id));
+    expect(new Set(ids).size).toBe(ids.length); // ids are the select values — duplicates would corrupt the pill
+    expect(SIZE_GROUPS.flatMap((g) => g.items).filter((a) => a.official).map((a) => a.label))
+      .toEqual(["Shopee live cover", "TikTok live cover"]); // LV-10: only the two covers are official
   });
 });
