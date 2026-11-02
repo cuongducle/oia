@@ -52,7 +52,7 @@ const ASPECTS: Record<string, [number, number] | null> = {
 };
 /** UI v1.1 R6 — Skills ▾ quick calls into the tool library (Q8: call existing
  *  tools from the composer; the Tools page stays the full library). */
-const COMPOSER_SKILLS = ["ai-image-editor", "image-resizer", "xhs-creator"];
+const COMPOSER_SKILLS = ["youtube-banner-maker", "image-resizer", "xhs-creator"];
 
 /** Minimal inline icon set (no lucide dependency in the desktop renderer). */
 const Icon = {

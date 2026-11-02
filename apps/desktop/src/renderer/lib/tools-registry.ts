@@ -5,7 +5,7 @@
  * kind picks the ToolRunner UI; implemented = really works, landing = descriptive page.
  */
 export type ToolKind = "convert-image" | "image-to-pdf" | "resize" | "chart-bar" | "chart-pie"
-  | "heic-to-png" | "heic-to-pdf" | "pdf-to-jpg" | "ocr-editor" | "ai-generate" | "ai-edit" | "venn" | "landing";
+  | "heic-to-png" | "heic-to-pdf" | "pdf-to-jpg" | "ai-generate" | "ai-edit" | "venn" | "landing";
 
 export interface QuickTool {
   slug: string;
@@ -27,7 +27,6 @@ export const QUICK_TOOLS: QuickTool[] = [
   { slug: "xhs-creator", name: "XHS Creator", desc: "Generate Xiaohongshu vertical carousel image sets from per-page copy descriptions", category: "Image Generator", kind: "ai-generate", implemented: true },
   // Image Editor
   { slug: "image-resizer", name: "Image Resizer", desc: "Resize images and compress for perfect sizing", category: "Image Editor", kind: "resize", implemented: true },
-  { slug: "ai-image-editor", name: "AI Image Editor", desc: "Extract text from image to make it editable", category: "Image Editor", kind: "ocr-editor", implemented: true },
   // Creative AI
   { slug: "youtube-banner-maker", name: "YouTube Banner Maker", desc: "Create unique YouTube banners instantly", category: "Creative AI", kind: "ai-generate", implemented: true },
   { slug: "ai-hairstyle", name: "AI Hairstyle", desc: "Try new haircuts instantly", category: "Creative AI", kind: "ai-edit", implemented: true },

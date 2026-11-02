@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
-import { runOcrScenario, fixturePngB64 } from "./shotOcr.js";
+import { fixturePngB64 } from "./shotFixture.js";
 
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
@@ -1721,20 +1721,6 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-agents.png");
-
-  // Opt-in (OIA_SHOT_OCR=1), LAST so the default outputs stay untouched: real
-  // network OCR through the CSP allowances — see shotOcr.ts for why this gate exists.
-  if (process.env.OIA_SHOT_OCR === "1") {
-    console.log("[shot] OCR scenario (network, first run downloads recognizer data)…");
-    const ocr = await runOcrScenario(win);
-    console.log("[shot] OCR verify:", JSON.stringify(ocr.detail));
-    if (!ocr.ok) {
-      console.error("DESKTOP_SHOT OCR VERIFY FAILED");
-      app.exit(14);
-      return;
-    }
-    await snap(win, "desktop-ocr.png");
-  }
 
   const image = await win.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");
