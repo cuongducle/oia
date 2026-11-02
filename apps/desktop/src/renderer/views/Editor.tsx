@@ -21,6 +21,7 @@ import { Inspector } from "../components/Inspector.js";
 import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
 import { deconstructScene } from "../lib/deconstruct-scene.js";
+import { pollTask } from "../lib/poll-task.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -627,9 +628,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [textEditBusy, setTextEditBusy] = useState(false);
   const textEditTaskRef = useRef<string | null>(null);
   const textEditRunRef = useRef(0);
+  const textEditStoppedRef = useRef(false);
   async function cancelTextEdit() {
     const id = textEditTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
+    textEditStoppedRef.current = true; // B1 teardown: the poll keeps watching — a late success still applies
     setTextEditAsk(false);
   }
   async function runMakeTextEditable() {
@@ -637,6 +640,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     if (!c || textEditBusy) return;
     const myRun = ++textEditRunRef.current;
     const size = sceneDimensions.current;
+    textEditStoppedRef.current = false;
     setTextEditBusy(true); setNotice("");
     try {
       // export the page as-is — the model reads exactly what the seller sees
@@ -645,14 +649,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       const up = await oia().uploadAsset("page.png", bytes);
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
       textEditTaskRef.current = started.taskId;
-      let final = started.progress === "processing" ? null : started;
-      for (let i = 0; i < 150 && !final; i++) { // 2s×150 = 5 min cap, then an honest error
-        await new Promise((r) => setTimeout(r, 2000));
-        const t = await oia().getTask(started.taskId);
-        if (!t) throw new Error("task vanished");
-        if (t.progress !== "processing") final = t;
-      }
-      if (!final) throw new Error("timed out after 5 minutes");
+      const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
         throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "the page was not changed"));
       }
@@ -660,7 +657,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       await replaceCurrentScene(deconstructScene({ imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }));
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
       setTextEditAsk(false);
-      setNotice(`Text is editable — ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
+      // honest notice: a Stop does not refund the read — if it finished anyway, say so (B7)
+      setNotice(textEditStoppedRef.current
+        ? `It finished after you stopped — the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
+        : `Text is editable — ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
     } catch (e) {
       if (textEditRunRef.current === myRun) {
         setTextEditAsk(false);

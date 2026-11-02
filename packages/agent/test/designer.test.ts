@@ -201,6 +201,16 @@ describe("BR-CTRL composer controls", () => {
     const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
     expect(canvas?.canvas.objects.filter((o) => o.type === "Textbox")).toEqual([]); // half-complying planner ≠ doubled text
     expect(canvas?.canvas.objects.some((o) => o.name === "artwork")).toBe(true);
+    // B7: dropped blocks are ANNOUNCED, never silent — the seller learns copy may be missing
+    const warn = evs.find((e) => e.content.includes("were not drawn"));
+    expect(warn?.content).toContain("2 planned text blocks");
+    expect(warn?.content).toContain("ask for a repaint");
+  });
+  it("D16 poster mode, planner obeys (no blocks): zero warning noise", async () => {
+    const planNoBlocks = JSON.stringify({ title: "Milk tea flash sale", imagePrompt: "banner with 'FLASH SALE' baked" });
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner" }, { llm: stubLlmReturning(planNoBlocks), image })) evs.push(ev);
+    expect(evs.some((e) => e.content.includes("were not drawn"))).toBe(false);
   });
   it("D16 clean-plate mode: blocks still land as editable overlays", async () => {
     const planWithBlocks = JSON.stringify({

@@ -4,6 +4,7 @@ import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { deconstructScene } from "../lib/deconstruct-scene.js";
+import { pollTask } from "../lib/poll-task.js";
 import { sceneDims, sceneShape, type SceneShape } from "../lib/scene-dims.js";
 import type { DeconstructText } from "@oia/schema";
 
@@ -97,14 +98,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
       const up = await oia().uploadAsset(pick.file.name, new Uint8Array(await pick.file.arrayBuffer()));
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
       deconTaskRef.current = started.taskId;
-      let final = started.progress === "processing" ? null : started;
-      for (let i = 0; i < 150 && !final; i++) { // 2s×150 = 5 min cap, then an honest error
-        await new Promise((r) => setTimeout(r, 2000));
-        const t = await oia().getTask(started.taskId);
-        if (!t) throw new Error("task vanished");
-        if (t.progress !== "processing") final = t;
-      }
-      if (!final) throw new Error("timed out after 5 minutes");
+      const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
         throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "deconstruct was cancelled — nothing was imported"));
       }

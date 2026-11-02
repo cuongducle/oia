@@ -296,15 +296,22 @@ export async function* runDesignerAgent(
         jobId: input.jobId, // A9: one correlation id across events, records, and CLI transcripts
       });
       const canvasId = uuid32();
+      // D16: in poster mode the copy is baked into the artwork — overlay blocks
+      // would DOUBLE the text. The planner is told not to emit them; this guard
+      // holds even when it half-complies (bakes the copy AND returns blocks).
+      // A half-complying planner can also LOSE copy it never baked — that must
+      // never be silent (B7 spirit, same bar as format_drift): warn per page.
+      if (pi === 0 && mode !== "clean-plate" && blocks.length > 0) {
+        yield ev(`Note: ${blocks.length} planned text block${blocks.length === 1 ? "" : "s"} were not drawn — in Text-in-image mode the copy is rendered into the artwork. If any copy is missing from the image, ask for a repaint.`, {
+          renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null },
+        });
+      }
       const scene = buildScene({
         artworkUrl: img.url,
         artworkW: img.width,
         artworkH: img.height,
         width, height,
         // blocks land on the first page only — per-page blocks wait for a real ask.
-        // D16: in poster mode the copy is baked into the artwork — overlay blocks
-        // would DOUBLE the text. The planner is told not to emit them; this guard
-        // holds even when it half-complies (bakes the copy AND returns blocks).
         blocks: pi === 0 && mode === "clean-plate" ? blocks : [],
       });
       const canvasMeta = { id: canvasId, type: "canvas" as const, thumbnail: img.url, canvas: scene };
