@@ -28,9 +28,9 @@ Everything runs on your machine. Bring your own supported provider. Keep your pr
 ## What editable actually means
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor with a generated milk-tea flash-sale banner: the FLASH SALE headline is selected as a native text object, Layers panel open, Design inspector showing position and text properties.">
+  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor after one “Make text editable” click: FLASH SALE and 20% OFF TODAY are editable text layers over the cleaned artwork, Layers panel open, selection toolbar active.">
   <br>
-  <sub>Actual editor, real Codex generation. The selected headline is a text object—not lettering baked into the photograph.</sub>
+  <sub>Actual editor, real Codex generation. Text is rendered into the artwork by the image model — one click rebuilds it as editable layers.</sub>
 </p>
 
 **The image and the design are different things.** An Oia document contains separate canvas objects:
@@ -44,7 +44,7 @@ Everything runs on your machine. Bring your own supported provider. Keep your pr
 
 Move a native headline without moving the photograph. Fix its wording without calling an image model. Duplicate a page and adapt the copy for another placement. Undo changes and let autosave preserve the project.
 
-> **Layers, not magic image decomposition.** Oia does not turn every object or letter inside a generated image into an editable layer. Generated scenes currently contain an artwork image and, when supplied by the planner, a separate copy textbox on the first page. Bundled templates include more deliberately composed text and shape objects. Text already embedded in the artwork remains pixels.
+> **Text in the image, by default (D16).** Generations render the copy into the artwork with the image model's typography (best-looking results). Two paths keep text editable: flip **“Editable text right away”** in the composer before generating (clean-plate artwork + native text layers), or — on any baked design — select the artwork and click **“Make text editable”** (reads the text with your provider, ≈ 1 image + 1 read, rebuilds each line as a layer). Text already embedded in an imported image is pixels until you run the same command.
 
 ## A studio around your image model
 

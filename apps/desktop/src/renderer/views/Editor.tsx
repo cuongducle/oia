@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, Component } from "react";
 import type * as fabricNS from "fabric";
-import type { SceneCanvas, ChatEvent, Template } from "@oia/schema";
+import type { SceneCanvas, ChatEvent, Template, DeconstructText } from "@oia/schema";
 import {
   SIZE_PRESETS, SHAPES, TEXT_PRESET_SPECS, planExport, resizeWithLock,
   addPage, removePage as removePageModel, duplicatePage, blankScene, applySizeToAllPages,
@@ -20,6 +20,7 @@ import { LayersPanel } from "../components/LayersPanel.js";
 import { Inspector } from "../components/Inspector.js";
 import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
+import { deconstructScene } from "../lib/deconstruct-scene.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -614,6 +615,58 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setRightTab("ai");
     mentionSelection();
   }
+  /** D16 poster-mode edit path: the copy is baked into the artwork — deconstruct
+   *  THIS page (≈ 1 image + 1 read) into a clean plate + native text layers.
+   *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
+   *  scene through replaceCurrentScene so undo/history/save all behave. */
+  const [textEditAsk, setTextEditAsk] = useState(false);
+  const [textEditBusy, setTextEditBusy] = useState(false);
+  const textEditTaskRef = useRef<string | null>(null);
+  const textEditRunRef = useRef(0);
+  async function cancelTextEdit() {
+    const id = textEditTaskRef.current;
+    if (id) await oia().cancelTask(id).catch(() => {});
+    setTextEditAsk(false);
+  }
+  async function runMakeTextEditable() {
+    const c = fabricRef.current;
+    if (!c || textEditBusy) return;
+    const myRun = ++textEditRunRef.current;
+    const size = sceneDimensions.current;
+    setTextEditBusy(true); setNotice("");
+    try {
+      // export the page as-is — the model reads exactly what the seller sees
+      const dataUrl = c.toDataURL({ format: "png", multiplier: 1, enableRetinaScaling: false });
+      const bytes = Uint8Array.from(atob(dataUrl.split(",")[1] ?? ""), (ch) => ch.charCodeAt(0));
+      const up = await oia().uploadAsset("page.png", bytes);
+      const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
+      textEditTaskRef.current = started.taskId;
+      let final = started.progress === "processing" ? null : started;
+      for (let i = 0; i < 150 && !final; i++) { // 2s×150 = 5 min cap, then an honest error
+        await new Promise((r) => setTimeout(r, 2000));
+        const t = await oia().getTask(started.taskId);
+        if (!t) throw new Error("task vanished");
+        if (t.progress !== "processing") final = t;
+      }
+      if (!final) throw new Error("timed out after 5 minutes");
+      if (final.progress !== "succeeded" || !final.taskResult?.download) {
+        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "the page was not changed"));
+      }
+      const texts = (final.taskResult.texts ?? []) as DeconstructText[];
+      await replaceCurrentScene(deconstructScene({ imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }));
+      if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
+      setTextEditAsk(false);
+      setNotice(`Text is editable — ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
+    } catch (e) {
+      if (textEditRunRef.current === myRun) {
+        setTextEditAsk(false);
+        setNotice(bridgeErrorMessage(e, "The text could not be made editable. Please try again."));
+      }
+    } finally {
+      textEditTaskRef.current = null;
+      if (textEditRunRef.current === myRun) setTextEditBusy(false);
+    }
+  }
   /** R5 Replace image: new pixels, same box on the page; the swapped layer becomes the user's (TP.10). */
   async function replaceSelectedImage(file: File) {
     const c = fabricRef.current;
@@ -1064,7 +1117,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
               <div className="canvasWrap" data-transparent={activeClipFill === "transparent" ? "true" : undefined}>
                 <canvas ref={canvasElRef} width={500} height={750} />
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} />
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditAsk(true)} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1128,6 +1181,18 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       </div>
 
       {/* Export dialog (BR-ED5) */}
+      {textEditAsk && (
+        <Dialog onClose={() => { if (!textEditBusy) setTextEditAsk(false); }} label="Make text editable">
+          <h3>Make this text editable?</h3>
+          <p>Oia reads the text on this page, cleans it off the artwork, and rebuilds each line as an editable text layer. Everything else stays in place.</p>
+          {!imageMock && <p className="hintP" data-testid="text-edit-cost">≈ 1 image + 1 read</p>}
+          {textEditBusy && <p className="hintP">Reading the text…</p>}
+          <div className="dialogActions">
+            <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditBusy ? "Stop" : "Cancel"}</button>
+            <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditBusy} onClick={() => void runMakeTextEditable()}>Make text editable</button>
+          </div>
+        </Dialog>
+      )}
       {exportOpen && (
         <Dialog onClose={() => setExportOpen(false)} labelledBy="export-title">
           <div className="sectionHeading"><h3 id="export-title" style={{ margin: 0 }}>Export design</h3><button autoFocus className="iconBtn" aria-label="Close export" onClick={() => setExportOpen(false)}><I d={icons.x} size={18} /></button></div>

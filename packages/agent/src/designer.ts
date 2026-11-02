@@ -206,7 +206,8 @@ export async function* runDesignerAgent(
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
               ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].`
-              : ""),
+              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top.`
+            ),
         },
         { role: "user", content: input.prompt },
       ],
@@ -300,8 +301,11 @@ export async function* runDesignerAgent(
         artworkW: img.width,
         artworkH: img.height,
         width, height,
-        // blocks land on the first page only — per-page blocks wait for a real ask
-        blocks: pi === 0 ? blocks : [],
+        // blocks land on the first page only — per-page blocks wait for a real ask.
+        // D16: in poster mode the copy is baked into the artwork — overlay blocks
+        // would DOUBLE the text. The planner is told not to emit them; this guard
+        // holds even when it half-complies (bakes the copy AND returns blocks).
+        blocks: pi === 0 && mode === "clean-plate" ? blocks : [],
       });
       const canvasMeta = { id: canvasId, type: "canvas" as const, thumbnail: img.url, canvas: scene };
       pages.push({ canvasId, canvasMeta });
