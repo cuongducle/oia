@@ -37,6 +37,12 @@ Any static host — pick one:
    keep jsDelivr/cdnjs — page is static-first either way; if CDNs fail, the
    page degrades gracefully to the fully-visible no-motion version.
 
+## Notes (2026-11-02, P2 hygiene)
+- qa-shots/ removed from the deploy (25MB of dev artifacts); og:image = assets/og-hero.png. Regenerate captures locally when needed — never ship them.
+- The ticker ships ONE half in HTML; main.js clones it for the seamless loop (no-JS = static row, animation is .js-gated).
+- FAQ JSON-LD is DERIVED from the visible DOM (script in each page) — one source, zero drift.
+- styles.css has exactly one @media(max-width:960px) block; keep it that way.
+
 ## Engineering notes
 - `html.js` class is added only when GSAP loads — no-JS/CDN-fail users get a
   complete static page (all reveals/curtains default visible; gating lives in
