@@ -49,9 +49,9 @@ export const filesUploadSchema = z
   })
   .superRefine((v, ctx) => {
     const ext = v.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!IMAGE_EXTS.has(ext)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "unsupported image type" });
-    if (v.bytes.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "empty file" });
-    if (v.bytes.length > MAX_UPLOAD_BYTES) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "file too large" });
+    if (!IMAGE_EXTS.has(ext)) ctx.addIssue({ code: "custom", message: "unsupported image type" });
+    if (v.bytes.length === 0) ctx.addIssue({ code: "custom", message: "empty file" });
+    if (v.bytes.length > MAX_UPLOAD_BYTES) ctx.addIssue({ code: "custom", message: "file too large" });
   });
 
 /** Renderer export → native save dialog. Extension is derived from the plan, not trusted from input. */
@@ -70,7 +70,7 @@ export const exportSaveSchema = z.object({
  * home, same contract the loopback and skills speak). */
 export const taskSubmitSchema = z.object({
   type: taskTypeSchema,
-  params: z.record(z.unknown()).default({}),
+  params: z.record(z.string(), z.unknown()).default({}),
 });
 export const taskGetSchema = z.object({ taskId: z.string().min(1) });
 export const taskCancelSchema = z.object({ taskId: z.string().min(1) });

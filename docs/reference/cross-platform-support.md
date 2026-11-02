@@ -22,6 +22,18 @@ shell.
   codex lives in `provision.ts`: `codex.cmd` / `codex.exe` / `codex.bat`, then
   the managed install (`<userData>/codex/current/bin/codex.exe`). Never
   `spawn("codex")` and hope.
+- **Every spawn from the app sets `windowsHide: true`.** A GUI app spawning a
+  console binary (codex.exe, the cmd.exe behind a `.cmd` shim, rembg.exe, taskkill)
+  flashes a black console window on every call otherwise. tree-kill's own
+  `exec("taskkill …")` cannot take that option, so `killTree()` in `runtime.ts`
+  spawns taskkill itself on Windows.
+- **Decode child output per stream, not per chunk.** `chunk.toString()` splits a
+  multi-byte UTF-8 character that straddles a pipe chunk into two U+FFFD — Vietnamese
+  copy in stdout/stderr came back corrupted. `setEncoding("utf8")` on the stream
+  (gate: `cli-windows.test.ts`, 600 KB of "ễ").
+- **Windows names the variable `Path`.** `process.env` hides that, but any copy
+  (`{ ...process.env }`, an env object sent over RPC) is a plain object where
+  `env.PATH` is undefined. Read it through `envValue(env, "PATH")`.
 - **Windows paths parse in three shapes.** `parseImagePathHint`
   (`providers/src/codex/bridge.ts`) accepts POSIX `/…`, `C:\…`, and `C:/…`. A
   single-style regex silently falls through to the "newest file" mtime scan,

@@ -96,6 +96,20 @@ export function asciiUuid(): string {
   return randomUUID();
 }
 
+/**
+ * Kill a process and all its descendants. Windows runs `taskkill /T /F` itself
+ * (what tree-kill does) but with windowsHide — tree-kill's exec() flashes a console
+ * window from a GUI app on every cancel. POSIX keeps tree-kill (process groups).
+ */
+export function killTree(pid: number): void {
+  if (process.platform === "win32") {
+    const tk = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+    tk.on("error", () => {}); // the root already exited — nothing left to kill
+    return;
+  }
+  kill(pid, "SIGKILL");
+}
+
 export class CliRuntime {
   /**
    * Spawn `bin args` with stdin prompt support, timeout and abort ⇒ process-tree kill.
@@ -114,7 +128,14 @@ export class CliRuntime {
         cwd: opts.cwd,
         env: opts.env ?? process.env,
         detached,
+        // a GUI app spawning a console binary (codex.exe, the cmd.exe behind a .cmd shim)
+        // flashes a console window on every call unless it is hidden
+        windowsHide: true,
       });
+      // decode per stream, not per chunk: a chunk boundary can split a multi-byte UTF-8
+      // character, and Vietnamese copy is exactly where that happens
+      child.stdout?.setEncoding("utf8");
+      child.stderr?.setEncoding("utf8");
       let stdout = "";
       let stderr = "";
       let stderrTailBuf = ""; // buffered partial line for onStderrLine (flushed in finish)
@@ -145,22 +166,22 @@ export class CliRuntime {
 
       const timer = setTimeout(() => {
         timedOut = true;
-        if (child.pid) kill(child.pid, "SIGKILL");
+        if (child.pid) killTree(child.pid);
       }, opts.timeoutMs);
 
       const onAbort = () => {
         aborted = true;
-        if (child.pid) kill(child.pid, "SIGKILL");
+        if (child.pid) killTree(child.pid);
       };
       opts.signal?.addEventListener("abort", onAbort, { once: true });
 
       // NOTE: stdout grows unboundedly in memory; a runaway binary could balloon it.
       // Codex exec output is small (events + prose) — accepted risk, documented here.
-      child.stdout?.on("data", (d: Buffer) => (stdout += d.toString()));
-      child.stderr?.on("data", (d: Buffer) => {
-        stderr += d.toString();
+      child.stdout?.on("data", (d: string) => (stdout += d));
+      child.stderr?.on("data", (d: string) => {
+        stderr += d;
         if (!opts.onStderrLine) return;
-        stderrTailBuf += d.toString();
+        stderrTailBuf += d;
         const lines = stderrTailBuf.split("\n");
         stderrTailBuf = lines.pop() ?? ""; // keep the partial tail until its \n arrives
         for (const line of lines) if (line.trim()) opts.onStderrLine(line);

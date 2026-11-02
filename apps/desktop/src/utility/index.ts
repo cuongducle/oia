@@ -4,6 +4,7 @@ import {
   cancelJob,
   jobControllers,
   providerStatusSnapshot,
+  collectAssetGarbage,
   type ServiceContext,
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
@@ -90,6 +91,18 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   // First run: curated sample projects (marker file makes this a no-op from boot 2 on)
   const seeded = await seedSampleProjects({ dataDir, projects: ctx.projects });
   if (seeded) log(`seeded ${seeded} sample projects`);
+  void sweepAssets(ctx); // T11: off the boot path — a slow disk must not delay the window
+}
+
+/** T11 — drop uploads nothing references any more. Best-effort: a GC failure is
+ *  logged and never surfaces as a user-facing error (worst case: a file stays). */
+async function sweepAssets(c: ServiceContext): Promise<void> {
+  try {
+    const r = await collectAssetGarbage(c);
+    if (r.removed.length) log(`asset gc: removed ${r.removed.length} of ${r.scanned} uploads (${r.young} unreferenced but within grace)`);
+  } catch (err) {
+    log(`asset gc failed (nothing removed after the error): ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 function post(message: UtilityResponse | UtilityEvent): void {
@@ -155,8 +168,12 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       return requireCtx().projects.recent(50);
     case "projects.save":
       return requireCtx().projects.saveScene(req.id, req.patch);
-    case "projects.remove":
-      return requireCtx().projects.remove(req.id);
+    case "projects.remove": {
+      const c = requireCtx();
+      const removed = await c.projects.remove(req.id);
+      if (removed) void sweepAssets(c);
+      return removed;
+    }
 
     case "templates.list":
       return requireCtx().templates.list({ page: 1, pageSize: 100 }).items;

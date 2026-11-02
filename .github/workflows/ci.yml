@@ -118,3 +118,39 @@ jobs:
           path: |
             apps/desktop/dist/*.dmg
             apps/desktop/dist/checksums.txt
+
+  # T8 — Windows installer (x64 NSIS, unsigned per the no-signing budget plan).
+  # Same trigger and codex cache discipline as desktop-dist-mac; built on a real
+  # Windows runner (NSIS + exe resource editing need Windows, not wine).
+  desktop-dist-windows:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: codex pin
+        id: pin
+        shell: bash
+        run: echo "tag=$(node -p "require('./apps/desktop/resources/codex-pin.json').tag")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: apps/desktop/resources/codex
+          key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-x64
+      - run: pnpm --filter @oia/desktop dist:win
+      # the packaged app must carry the bundled pair where main/runtime.ts looks for it
+      - name: bundled codex present
+        shell: bash
+        run: test -f apps/desktop/dist/win-unpacked/resources/codex/current/bin/codex.exe
+      - name: sha256
+        shell: bash
+        run: sha256sum apps/desktop/dist/*.exe > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oia-windows-x64
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/checksums.txt

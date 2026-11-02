@@ -3,3 +3,4 @@ export * from "./quota.js";
 export * from "./cancel.js";
 export * from "./meteredGuard.js";
 export * from "./chat.js";
+export * from "./assetGc.js";

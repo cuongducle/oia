@@ -6,6 +6,7 @@ export * from "./brandkits.js";
 export * from "./processors.js";
 export * from "./apikeys.js";
 export * from "./storage.js";
+export * from "./assetGc.js";
 export * from "./atomic.js";
 export * from "./persistenceHealth.js";
 export * from "./migrate.js";
