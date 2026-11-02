@@ -9,9 +9,10 @@ The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
   `≈ 1 image` cost hint); telemetry chip = RunSteps (planning › painting › composing)
 - Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
 - `#bring` section = deconstruct (B1): old design → editable text layers
-- Templates section carries the livestream-overlay frame (C3, safe zones)
-- Editor/overlay/deconstruct frames are real screenshots from `apps/desktop`
-  (`pnpm --filter @oia/desktop shot`, downscaled to 1600w WebP)
+- Editor/deconstruct frames are real screenshots from `apps/desktop`
+  (`pnpm --filter @oia/desktop shot`, downscaled to 1600w WebP); the livestream
+  overlay frame was removed 2026-11-02 (owner: reads as wireframe — the C3 story
+  stays as text in the ticker + workflow step 04)
 
 ## Run locally
 ```bash
