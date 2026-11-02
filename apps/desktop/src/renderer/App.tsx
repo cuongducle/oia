@@ -23,7 +23,7 @@ import { CreateSheet } from "./components/CreateSheet.js";
 type View =
   | { name: "home"; resumeSession?: number | null; focusComposer?: number; prompt?: string }
   | { name: "workspace"; deconFile?: File }
-  | { name: "tools" }
+  | { name: "tools"; tool?: string }
   | { name: "brandkit" }
   | { name: "settings" }
   | { name: "editor"; projectId: string | null };
@@ -86,7 +86,7 @@ export default function App() {
       body = <Workspace key={`ws-${view.deconFile?.name ?? ""}`} onOpenProject={openProject} onOpenSession={openSession} onNew={newDesign} initialDeconFile={view.deconFile} />;
       break;
     case "tools":
-      body = <Tools key="tools" onOpenProject={openProject} />;
+      body = <Tools key={`tools-${view.tool ?? ""}`} initialTool={view.tool ?? null} onOpenProject={openProject} />;
       break;
     case "brandkit":
       body = <BrandKit key="brandkit" onDesignWithKit={() => setView({ name: "home" })} />;
@@ -103,6 +103,8 @@ export default function App() {
           initialPrompt={view.prompt}
           onOpenProject={openProject}
           onOpenSettings={() => setView({ name: "settings" })}
+          onOpenTools={(slug) => setView(slug ? { name: "tools", tool: slug } : { name: "tools" })}
+          onOpenProjects={() => setView({ name: "workspace" })}
         />
       );
   }

@@ -69,3 +69,20 @@ export function writeOutlineGatePref(on: boolean, storage: Pick<Storage, "setIte
     /* private mode / disabled storage: the toggle works for this session, just not remembered */
   }
 }
+
+/** The chatRun reply (invoke) and the outline event (webContents.send) cross
+ *  IPC channels that Electron does not order between, so the renderer can hold
+ *  the "outline" outcome before the event lands. Grace-poll the ref; null after
+ *  the window is a REAL miss and the caller must surface the error. */
+export async function waitForOutline(
+  get: () => PlanPage[] | null | undefined,
+  ms = 2000,
+  pollMs = 50,
+): Promise<PlanPage[] | null> {
+  for (const t0 = Date.now(); Date.now() - t0 < ms; await new Promise((r) => setTimeout(r, pollMs))) {
+    const hit = get();
+    if (hit?.length) return hit;
+  }
+  const last = get();
+  return last?.length ? last : null;
+}

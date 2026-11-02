@@ -10,27 +10,27 @@ function cspOf(html: string): string {
   return html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/)?.[1] ?? "";
 }
 
-/** Step 7 CSP pin — the renderer policy is load-bearing for the tools lane:
- *  tesseract.js spawns a blob: worker, importScripts's its script, instantiates
- *  a wasm core and fetches core+lang data from cdn.jsdelivr.net, and the tool
- *  previews via blob: images. A regression here breaks OCR silently (friendly
- *  error, no console in prod). Pin the SOURCE, and when a build exists require
- *  the BUILT page to carry the identical policy — pinning only src/ would stay
- *  green if the bundler ever dropped the meta. */
+/** Step 7 CSP pin (revised by D15 — OCR tool + tesseract removed): the renderer
+ *  must stay FULLY OFFLINE. What still claims an extra token: pdf.js loads its
+ *  worker from a bundled 'self' asset and instantiates wasm decoders
+ *  (openjpeg.wasm / jbig2.wasm ship in pdfjs-dist 6) — hence 'wasm-unsafe-eval';
+ *  tool previews are blob:/data: images. The jsdelivr allowance existed only
+ *  for tesseract.js; it left with the OCR tool (D15). Pin the SOURCE, and when
+ *  a build exists require the BUILT page to carry the identical policy —
+ *  pinning only src/ would stay green if the bundler ever dropped the meta. */
 describe("renderer CSP pin", () => {
   const csp = cspOf(srcHtml);
 
   it("declares the directives the tools lane needs", () => {
-    expect(csp).toMatch(/worker-src[^;]*blob:/);
-    expect(csp).toMatch(/script-src[^;]*'wasm-unsafe-eval'/);
-    expect(csp).toMatch(/script-src[^;]*cdn\.jsdelivr\.net/);
-    expect(csp).toMatch(/connect-src[^;]*cdn\.jsdelivr\.net/);
+    expect(csp).toMatch(/worker-src[^;]*'self'/);
+    expect(csp).not.toMatch(/worker-src[^;]*blob:/); // tesseract's blob worker is gone (D15)
+    expect(csp).toMatch(/script-src[^;]*'wasm-unsafe-eval'/); // pdf.js openjpeg/jbig2 wasm
     expect(csp).toMatch(/img-src[^;]*oia:[^;]*blob:/);
   });
-  it("stays closed by default — no wildcards, jsdelivr is the ONLY network origin", () => {
+  it("stays fully offline — no wildcards, no network origins", () => {
     expect(csp).not.toMatch(/\*/);
-    const origins = [...new Set([...csp.matchAll(/https:\/\/[^;"'\s]+/g)].map((m) => m[0]))];
-    expect(origins).toEqual(["https://cdn.jsdelivr.net"]);
+    const origins = [...new Set([...csp.matchAll(/https?:\/\/[^;"'\s]+/g)].map((m) => m[0]))];
+    expect(origins).toEqual([]); // jsdelivr existed only for the OCR tool (D15 removed it)
   });
   it("the BUILT page carries the identical policy (when a build is present)", () => {
     const built = path.resolve(here, "../../out/renderer/index.html");

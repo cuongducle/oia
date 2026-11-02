@@ -10,7 +10,7 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
  * desktop bridge: the four fetch lanes become IPC (uploadAsset / submitTask+poll /
  * createProject), browser download anchors become the native save dialog
  * (saveExport), and editor links become onOpenProject handoffs. Conversion logic
- * (canvas, jsPDF, heic2any, pdf.js, tesseract) is unchanged — it already ran
+ * (canvas, jsPDF, heic2any, pdf.js) is unchanged — it already ran
  * client-side on the web.
  */
 
@@ -230,57 +230,6 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     } catch { setError("The PDF could not be rendered. Please try another file."); } finally { setBusy(false); }
   }
 
-  async function runOcrEditor() {
-    const file = fileRef.current?.files?.[0]; if (!file) return;
-    setBusy(true); setError("");
-    try {
-      // tesseract.js v7: the one-shot recognize() helper never passes output
-      // options, so word-level data (blocks) stays OFF — the port from web read
-      // res.data.words and got undefined. Use a worker and request blocks.
-      const Tesseract = (await import("tesseract.js")).default;
-      const worker = await Tesseract.createWorker("eng+vie");
-      let words: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }[];
-      try {
-        // SAFETY: tesseract's own .d.ts ships no blocks→words depth types; the
-        // flatten below only reads fields the v7 worker actually returns (verified
-        // against a real recognize in the OIA_SHOT_OCR gate — wordCount=2).
-        const res = (await worker.recognize(file, {}, { blocks: true })) as unknown as {
-          data: { blocks: { paragraphs: { lines: { words: typeof words }[] }[] }[] | null };
-        };
-        words = res.data.blocks?.flatMap((b) => b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words))) ?? [];
-      } finally {
-        await worker.terminate();
-      }
-      const data = { words }; // the scene mapping below reads .words
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const up = await oia().uploadAsset(file.name, bytes);
-      const objUrl = URL.createObjectURL(file);
-      try {
-        const img = new Image();
-        await new Promise((r, j) => { img.onload = r; img.onerror = j; img.src = objUrl; });
-        const W = 1360, H = Math.round((img.naturalHeight / img.naturalWidth) * W) || 2048;
-        const scale = W / img.naturalWidth;
-        const scene = {
-          version: SCENE_VERSION,
-          objects: [
-            { type: "Rect", name: "clip", left: 0, top: 0, width: W, height: H, fill: "white", selectable: false, visible: true },
-            { type: "Image", left: 0, top: 0, width: W, height: H, src: up.url, crossOrigin: "anonymous", selectable: true, visible: true },
-            ...data.words.slice(0, 80).map((word: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }) => ({
-              type: "Textbox", text: word.text, left: Math.round(word.bbox.x0 * scale), top: Math.round(word.bbox.y0 * scale),
-              width: Math.max(60, Math.round((word.bbox.x1 - word.bbox.x0) * scale)), height: 40,
-              fontFamily: "Inter", fontSize: Math.max(14, Math.round((word.bbox.y1 - word.bbox.y0) * scale)),
-              fill: "#111827", editable: true, selectable: true, visible: true,
-            })),
-          ],
-        };
-        const p = await oia().createProject({ name: file.name + " (editable)", scene });
-        onOpenProject(p.id);
-      } finally {
-        URL.revokeObjectURL(objUrl);
-      }
-    } catch (e) { setError("The text could not be recognized — " + String(e).slice(0, 160)); } finally { setBusy(false); }
-  }
-
   /** ONE busy/error owner for both AI tools — param building (upload included)
    *  happens inside, so failure paths cannot double-manage state. */
   async function runAiTask(type: "generate-poster" | "image-edit", buildParams: () => Promise<Record<string, unknown>>) {
@@ -410,15 +359,6 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
           <input ref={fileRef} type="file" accept="application/pdf" />
           <button className="primaryBtn" disabled={busy} onClick={runPdfToJpg}>
             {busy ? "Rendering…" : "PDF to JPG (up to 10 pages, ZIP)"}
-          </button>
-        </>
-      )}
-
-      {kind === "ocr-editor" && (
-        <>
-          <input ref={fileRef} type="file" accept="image/*" />
-          <button className="primaryBtn" disabled={busy} onClick={runOcrEditor}>
-            {busy ? "Recognizing text…" : "Extract text & open editor"}
           </button>
         </>
       )}

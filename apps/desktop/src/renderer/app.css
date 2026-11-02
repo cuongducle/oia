@@ -701,6 +701,9 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .shareWrap .secondaryBtn { font-size: 12.5px; padding: 7px 14px; }
 .menuScrim { position: fixed; inset: 0; background: transparent; border: 0; padding: 0; z-index: 39; cursor: default; }
 .shareMenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 240px; background: var(--card); border-radius: 14px; box-shadow: var(--float-shadow); padding: 6px; }
+/* R6 — Skills ▾ in the composer shares the Share-menu visuals, anchored left so it
+   cannot overflow the composer's right edge onto the Create button. */
+.skillsMenu { right: auto; left: 0; min-width: 260px; }
 .shareMenu button { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: none; background: none; border-radius: 9px; padding: 9px 11px; }
 .shareMenu button:hover { background: var(--soft); }
 .shareMenu strong { font-size: 13px; font-weight: 500; color: var(--ink); }

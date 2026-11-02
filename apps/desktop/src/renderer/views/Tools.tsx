@@ -14,8 +14,8 @@ const CATEGORY_TITLES: Record<QuickTool["category"], string> = {
   "Image Generator": "Images & charts",
 };
 
-export function Tools({ onOpenProject }: { onOpenProject: (id: string) => void }) {
-  const [selected, setSelected] = useState<string | null>(null);
+export function Tools({ onOpenProject, initialTool = null }: { onOpenProject: (id: string) => void; initialTool?: string | null }) {
+  const [selected, setSelected] = useState<string | null>(initialTool);
   const tool = useMemo(() => QUICK_TOOLS.find((t) => t.slug === selected), [selected]);
 
   if (tool) {

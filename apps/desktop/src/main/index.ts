@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
-import { runOcrScenario, fixturePngB64 } from "./shotOcr.js";
+import { fixturePngB64 } from "./shotFixture.js";
+
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
@@ -534,7 +535,9 @@ async function realSmoke(): Promise<void> {
  * Exit codes: 2 bridge missing · 3 home verify · 4/5 editor · 6 autosave · 7/8 workspace
  * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate
  * · 17 A1 variant gate (preview-apply — docs/designs/variant-preview-apply.md)
- * · 18 C1 outline gate (docs/designs/outline-gate.md).
+ * · 18 C1 outline gate (docs/designs/outline-gate.md)
+ * · 22 R6 composer (platform size menu + Skills ▾ + Recent designs — ui-v11)
+ * · 23 R6 Skills click-through (a menu item opens THAT tool in the Tools view).
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
@@ -674,6 +677,41 @@ async function shot(): Promise<void> {
   if (!r6 || r6.liveAspect !== "9:16" || r6.deckAspect !== "16:9" || r6.deckPages !== "3 pages" || !r6.prompt) {
     console.error("DESKTOP_SHOT R6 FAILED — a use-case chip did not set its ratio/pages");
     app.exit(21);
+    return;
+  }
+
+  // ---- UI v1.1 R6 (completing): platform-grouped size pill, Skills ▾, Recent designs ----
+  const r6c = await win.webContents.executeJavaScript(`(async () => {
+    const sel = document.querySelector('select[aria-label="Aspect ratio"]');
+    const groups = [...sel.querySelectorAll("optgroup")].map((g) => g.getAttribute("label"));
+    const shopee = [...sel.options].find((o) => o.value === "shopee-1x1");
+    const coversStarred = [...sel.options].filter((o) => o.value.endsWith("-live-cover")).every((o) => o.textContent.includes("★"));
+    const set = (v) => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, v); sel.dispatchEvent(new Event("change", { bubbles: true })); };
+    set("shopee-1x1");
+    await new Promise((r) => setTimeout(r, 100));
+    const shopeeSelected = sel.value === "shopee-1x1";
+    set("auto"); // C1 below runs at the default ratio
+    const skillsBtn = document.querySelector('.skillsWrap [aria-haspopup="menu"]');
+    skillsBtn?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const skillItems = [...document.querySelectorAll(".skillsMenu [role=menuitem]")].map((b) => b.querySelector("strong")?.textContent ?? "");
+    document.querySelector(".menuScrim")?.click();
+    await new Promise((r) => setTimeout(r, 80));
+    const menuClosed = !document.querySelector(".skillsMenu");
+    const recent = document.querySelector('[data-testid="recent-designs"]');
+    const recentCards = recent ? recent.querySelectorAll(".galleryCard").length : 0;
+    const seeAll = Boolean(document.querySelector('[data-testid="recent-see-all"]'));
+    return { groups, shopee: shopee?.textContent ?? null, coversStarred, shopeeSelected, skillItems, menuClosed, recentCards, seeAll };
+  })()`, true);
+  console.log("[shot] R6 composer:", JSON.stringify(r6c));
+  if (
+    !r6c || !r6c.groups.includes("Marketplace") || !r6c.groups.includes("Livestream") ||
+    !r6c.shopee?.includes("Shopee 1:1") || !r6c.coversStarred || !r6c.shopeeSelected ||
+    r6c.skillItems.length < 3 || !r6c.skillItems.includes("All tools") || !r6c.menuClosed ||
+    r6c.recentCards < 1 || !r6c.seeAll
+  ) {
+    console.error("DESKTOP_SHOT R6 COMPOSER FAILED — size menu not platform-grouped, Skills menu missing, or Recent designs row absent");
+    app.exit(22);
     return;
   }
 
@@ -1310,7 +1348,7 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
     const input = document.querySelector('input[aria-label="Bring an image"]');
     if (!input) return "no-input";
-    // real PNG bytes (the OCR fixture) — a garbage blob would fail the preview Image load
+    // real PNG bytes (the shared shot fixture) — a garbage blob would fail the preview Image load
     const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
     const file = new File([bytes], "old-banner.png", { type: "image/png" });
     const dt = new DataTransfer();
@@ -1465,12 +1503,31 @@ async function shot(): Promise<void> {
   await new Promise((r) => setTimeout(r, 800));
 
   // ---- reorg 4c: Tools view — grid + one real runner ----------------------------
-  console.log("[shot] opening Tools…");
-  await win.webContents.executeJavaScript(`(() => {
-    const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Tools")?.click();
-    return true;
+  // Entered via the R6 Skills ▾ click-through (Home → Skills → item): the menu item
+  // must land on THAT tool, not just the library — then back out to the grid for the
+  // list gate below.
+  console.log("[shot] opening Tools via the composer Skills menu…");
+  const skillNav = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('.viewNav .navPill')?.click(); // Home is the first nav pill
+    await new Promise((r) => setTimeout(r, 400));
+    document.querySelector('.skillsWrap [aria-haspopup="menu"]')?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const first = [...document.querySelectorAll(".skillsMenu [role=menuitem]")].find((b) => !b.textContent.includes("All tools"));
+    const label = first?.querySelector("strong")?.textContent ?? null;
+    first?.click();
+    await new Promise((r) => setTimeout(r, 500));
+    const h1 = document.querySelector('[data-testid="tools-view"] h1')?.textContent ?? null;
+    const back = document.querySelector('[data-testid="tools-view"] .ghostBtn');
+    back?.click(); // "← All tools" — return to the grid for the list gate
+    await new Promise((r) => setTimeout(r, 400));
+    return { label, openedTool: label && h1 === label, gridBack: Boolean(document.querySelector(".toolGrid")) };
   })()`, true);
+  console.log("[shot] R6 skills nav:", JSON.stringify(skillNav));
+  if (!skillNav || !skillNav.openedTool || !skillNav.gridBack) {
+    console.error("DESKTOP_SHOT R6 SKILLS NAV FAILED — a Skills item did not open its tool");
+    app.exit(23);
+    return;
+  }
   let toolsReady = false;
   for (let i = 0; i < 24; i++) {
     toolsReady = await win.webContents.executeJavaScript(
@@ -1664,20 +1721,6 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-agents.png");
-
-  // Opt-in (OIA_SHOT_OCR=1), LAST so the default outputs stay untouched: real
-  // network OCR through the CSP allowances — see shotOcr.ts for why this gate exists.
-  if (process.env.OIA_SHOT_OCR === "1") {
-    console.log("[shot] OCR scenario (network, first run downloads recognizer data)…");
-    const ocr = await runOcrScenario(win);
-    console.log("[shot] OCR verify:", JSON.stringify(ocr.detail));
-    if (!ocr.ok) {
-      console.error("DESKTOP_SHOT OCR VERIFY FAILED");
-      app.exit(14);
-      return;
-    }
-    await snap(win, "desktop-ocr.png");
-  }
 
   const image = await win.capturePage();
   const { writeFile, mkdir } = await import("node:fs/promises");

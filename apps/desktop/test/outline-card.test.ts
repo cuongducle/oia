@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { PlanPage } from "@oia/schema";
 import {
   addPage, editPage, movePage, outlineCostLabel, outlineRowsValid,
-  readOutlineGatePref, removePage, writeOutlineGatePref,
+  readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
   OUTLINE_GATE_DEFAULT, OUTLINE_MAX_PAGES, OUTLINE_STORAGE_KEY, type OutlineRow,
 } from "../src/renderer/lib/outline-card.js";
 
@@ -75,5 +76,33 @@ describe("the gate preference (OC-6)", () => {
 
   it("write survives a throwing storage (private mode) without crashing", () => {
     expect(() => writeOutlineGatePref(true, { setItem: () => { throw new Error("denied"); } })).not.toThrow();
+  });
+});
+
+/** Regression (ui-v11): the chatRun reply and the outline event cross unordered
+ *  IPC channels — the renderer can hold outcome "outline" before the event lands
+ *  (shot flake "outline card never appeared"). The grace-poll must recover the
+ *  late payload and still return null for a REAL miss. */
+describe("waitForOutline — IPC reorder grace window", () => {
+  const rows = [{ title: "Cover", summary: "s" }, { title: "Price", summary: "s" }] as PlanPage[];
+
+  it("recovers the outline when the event lands after the reply (the reorder)", async () => {
+    let held: PlanPage[] | null = null;
+    const t = setTimeout(() => { held = rows; }, 120, undefined); // event arrives late
+    const got = await waitForOutline(() => held, 2000, 20);
+    clearTimeout(t);
+    expect(got).toBe(rows);
+  });
+
+  it("returns null after the window when no event ever arrives — a real miss stays an error", async () => {
+    const t0 = Date.now();
+    const got = await waitForOutline(() => null, 150, 20);
+    expect(got).toBeNull();
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(140); // it waited, not failed fast
+  });
+
+  it("an empty array is not an outline ([]) — only a non-empty payload counts", async () => {
+    const got = await waitForOutline(() => [] as PlanPage[], 100, 20);
+    expect(got).toBeNull();
   });
 });

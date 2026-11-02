@@ -8,7 +8,7 @@
 ## Quyết định ghi đè (owner, 2026-10-31, sau teardown C3)
 
 Q4 gốc (2026-10-31): AI-first + lane "Đọc thô 0 phí" tesseract + tesseract làm bbox dự phòng.
-**Owner ghi đè: "làm giống họ thôi không cần làm khác" — BỎ cả hai phần tesseract.** B1 = đúng approach đối thủ tham chiếu: vision model đọc chữ (nội dung + vị trí, 1 lượt) → inpaint làm sạch vùng chữ (1 ảnh) → text layers đặt trên nền sạch. Khác biệt duy nhất giữ lại từ Q4 gốc: **hiện giá trước khi chạy** (đối thủ tự trừ credit; Oia đốt quota ChatGPT vô hình của seller nên phải nói trước). Tool OCR tesseract sẵn có ở Tools GIỮ NGUYÊN như tool rời — không dây vào B1.
+**Owner ghi đè: "làm giống họ thôi không cần làm khác" — BỎ cả hai phần tesseract.** B1 = đúng approach đối thủ tham chiếu: vision model đọc chữ (nội dung + vị trí, 1 lượt) → inpaint làm sạch vùng chữ (1 ảnh) → text layers đặt trên nền sạch. Khác biệt duy nhất giữ lại từ Q4 gốc: **hiện giá trước khi chạy** (đối thủ tự trừ credit; Oia đốt quota ChatGPT vô hình của seller nên phải nói trước). Tool OCR tesseract sẵn có ở Tools GIỮ NGUYÊN như tool rời — không dây vào B1. *(Cập nhật 2026-11-01, D15 ở desktop-only-reorg.md: owner chốt bỏ nốt tool OCR rời + tesseract.js khỏi sản phẩm — renderer thành fully offline.)*
 
 Spike vị trí vì thế thu hẹp còn một câu: **model trả bbox dùng được không?** — trả lời bằng MỘT lần chạy thật trên máy owner (nghi thức D12: chạm quota phải owner duyệt). Không còn phương án B.
 
