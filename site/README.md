@@ -46,3 +46,15 @@ Any static host — pick one:
 - Fonts: Anton / Archivo / JetBrains Mono via Google Fonts, `display=swap`.
 - Motion stack: GSAP+ScrollTrigger+Draggable, Lenis, SplitType, Three.js grain
   shader (recipe from the Hermes REA teardown in docs/designs/collage-references.md).
+
+## SEO surface (2026-11-02, SurgePix pattern, static-only)
+- `/prompts/` — curated prompt library (18 prompts, copy buttons, "tested"
+  chips only on prompts actually run against the live codex pair)
+- `/templates/` — bundled template gallery + livestream presets
+- `/use-cases/{flash-sale-banners,livestream-overlays,presentations}/` —
+  keyword pages, each with FAQPage JSON-LD + real assets only
+- Homepage: FAQ section + FAQPage JSON-LD; nav/footer cross-link everything
+- `pages.css` shared by content pages (no CDN, no motion — fast + crawlable)
+- sitemap.xml lists all 6 URLs
+No gallery/UGC (desktop-only, local data) — the prompt library + use-case
+pages are the honest equivalents.
