@@ -608,9 +608,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   }
   function mentionSelection() {
     const c = fabricRef.current; if (!c) return;
-    const obj = c.getActiveObject() as (fabricNS.Object & { text?: string; src?: string }) | undefined;
+    const obj = c.getActiveObject() as (fabricNS.Object & { text?: string; src?: string; name?: string }) | undefined;
     if (!obj) { setAiPrompt((p) => `${p}@(select a layer on the canvas first) `); return; }
-    const label = obj.type === "textbox" ? `"${(obj.text ?? "").slice(0, 40)}"` : obj.src ? `[${obj.src.slice(-40)}]` : obj.type ?? "layer";
+    const label = obj.type === "textbox" ? `"${(obj.text ?? "").slice(0, 40)}"` : obj.src ? `image: ${obj.name ?? "unnamed layer"}` : obj.type ?? "layer";
     setAiPrompt((p) => `${p}@(selected ${obj.type}: ${label}) `);
   }
   /** R5 "Edit with AI": the AI tab opens with the selection already named in the prompt (A3 step one). */
@@ -699,16 +699,36 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     if (aiBusy || !aiPrompt.trim()) return;
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
     try {
-      const scene = fabricRef.current?.toObject() as SceneCanvas | undefined;
-      // TP.11: capability-gated — never send refs to a provider that cannot use them;
-      // srcs are display-form on the canvas → canonical for the provider.
-      // Explicitly attached refs (paperclip) go first, then canvas images.
-      const canvasRefs = (scene?.objects ?? [])
-        .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
-        .filter((u): u is string => u !== null);
-      const refs = refCapable ? [...aiRefs, ...canvasRefs].slice(0, 4) : undefined;
+      const c = fabricRef.current;
+      const scene = c?.toObject() as SceneCanvas | undefined;
+      // A3-lite (selection-bound edit), hardened by the 2026-11-02 live experiment:
+      // sending the whole ref set made the image model repaint the FLATTEST reference
+      // (it invented sale text into a clean plate). The edit target must be the ONLY
+      // image the model can act on: selected image layer → that image alone; no image
+      // selection → the flattened page (what the seller sees) leads as before.
+      const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string }) | undefined;
+      const activeSrc = active && typeof active.src === "string" ? toCanonicalUrl(active.src) : null;
+      const hasText = (scene?.objects ?? []).some((o) => o.type === "Textbox");
+      let refs: string[] | undefined;
+      if (refCapable) {
+        if (activeSrc) {
+          refs = [activeSrc, ...aiRefs].slice(0, 4); // the target, plus anything explicitly attached
+        } else {
+          const canvasRefs = (scene?.objects ?? [])
+            .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
+            .filter((u): u is string => u !== null);
+          refs = [...aiRefs, ...canvasRefs].slice(0, 4);
+        }
+      }
+      // Target + size lock ride in the prompt (the planner carries intent into imagePrompt):
+      // the dimension clause kills the ratio-mismatch warnings seen on live runs. When the
+      // page overlays its own text layers, the repaint must stay lettering-free (the copy
+      // is re-added as layers — a plate that grows text doubles it after apply).
+      const target = activeSrc ? ` — edit Image 1 (the ${active?.name ?? "selected image"} layer)` : "";
+      const noText = activeSrc && hasText ? " Do not add any text or lettering — copy is added as separate layers." : "";
+      const prompt = `${aiPrompt}${target} — return the result at the exact same dimensions as Image 1.${noText}`;
       // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
-      const res = await oia().chatRun({ prompt: aiPrompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}) });
+      const res = await oia().chatRun({ prompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}) });
       setAiSessionId(res.sessionId);
       // events stream in through the onChatEvent subscription; wait for the job to settle
       await res;
