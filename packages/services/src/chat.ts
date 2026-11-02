@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
 import { nextMsgId, planPageSchema, type ChatEvent, type PlannerPlan } from "@oia/schema";
-import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
+import { migrateSrc, migrateScene, resolveReferenceImages, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
 import { isMeteredBusy, meteredBusy } from "./meteredGuard.js";
@@ -152,6 +152,9 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       }
     }
 
+    // store addresses → bytes BEFORE any metered turn: a missing upload fails for free
+    const referenceImages = await resolveReferenceImages(req.referenceImages, ctx.files);
+
     // A5: a cached plan skips the planner stage entirely
     const reusePlan = typeof req.retryOf === "string" ? sessionPlans().get(session.id) : undefined;
 
@@ -159,7 +162,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       {
         prompt: req.prompt, jobId, width: req.width, height: req.height,
         brandGuidance: kit?.guidance, brandId: kit ? 1 : 0,
-        referenceImages: req.referenceImages,
+        referenceImages,
         pages: req.pages,
         outlineMode: req.outlineMode,
         outlineGate: req.outlineGate,
@@ -189,6 +192,8 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       terminalCancelled();
       outcome = "cancelled";
     } else {
+      // the UI shows only the class ("unknown"): this line is the one record of what broke
+      console.error(`[chat] job ${jobId} failed:`, err instanceof Error ? (err.stack ?? err.message) : err);
       send({
         msgId: nextMsgId(), content: "", status: 1, jobId,
         error: err instanceof Error ? err.message : "agent failed",

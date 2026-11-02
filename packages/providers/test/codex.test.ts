@@ -289,22 +289,55 @@ describe("INTEGRATION codex (real CLI, real ChatGPT login)", () => {
 });
 
 describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
-  it("B1: a RELATIVE file path ref resolves absolute — never an unwritten temp file", async () => {
+  it("B1: a RELATIVE file path ref is read from the cwd — never an unwritten temp file", async () => {
     const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
-    const { writeFileSync, mkdirSync } = await import("node:fs");
-    const dir = await createScratchDir("b1-test");
+    const { materializeReference } = await import("../src/image/codex.js");
+    const src = await createScratchDir("b1-src");
+    const refDir = await createScratchDir("b1-refs");
     try {
-      const rel = path.join(dir, "my-product.png"); // absolute; simulate relative via cwd trick
-      writeFileSync(rel, PNG_1PX);
-      const { execSync } = await import("node:child_process");
-      // resolve from cwd: pass a path relative to cwd
-      const relFromCwd = path.relative(process.cwd(), rel);
-      const out = execSync(
-        `node -e "const p=require('path');const fs=require('fs');if(!fs.existsSync(p.resolve(process.argv[1])))process.exit(2);console.log(p.resolve(process.argv[1]))" ${JSON.stringify(relFromCwd)}`,
-      ).toString().trim();
-      expect(out).toBe(path.resolve(rel)); // resolution works — materializeReference uses path.resolve the same way
+      const abs = path.join(src, "my-product.png");
+      writeFileSync(abs, PNG_1PX);
+      const out = await materializeReference(path.relative(process.cwd(), abs), refDir);
+      expect(readFileSync(out)).toEqual(PNG_1PX);
     } finally {
-      await removeScratchDir(dir);
+      await removeScratchDir(src);
+      await removeScratchDir(refDir);
+    }
+  });
+
+  it("a file: URL ref (packaged renderer artwork) is read via its path and copied out — never path.resolve'd", async () => {
+    const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
+    const { materializeReference } = await import("../src/image/codex.js");
+    const { pathToFileURL } = await import("node:url");
+    const src = await createScratchDir("fileurl-src");
+    const refDir = await createScratchDir("fileurl-refs");
+    try {
+      // non-ASCII dir + webp bytes: the copy must be ASCII-named (TP.9) and keep its real type
+      const dir = path.join(src, "Tiến", "app.asar.unpacked", "studio");
+      mkdirSync(dir, { recursive: true });
+      const webp = Buffer.concat([Buffer.from("RIFF\0\0\0\0WEBPVP8 ", "latin1"), Buffer.alloc(16, 1)]);
+      writeFileSync(path.join(dir, "cover.webp"), webp);
+      const out = await materializeReference(pathToFileURL(path.join(dir, "cover.webp")).href, refDir);
+      expect(path.dirname(out)).toBe(refDir);
+      expect(path.basename(out)).toMatch(/^[\x20-\x7e]+\.webp$/);
+      expect(readFileSync(out)).toEqual(webp);
+    } finally {
+      await removeScratchDir(src);
+      await removeScratchDir(refDir);
+    }
+  });
+
+  it("a data: URL ref keeps its real type and an empty source is refused", async () => {
+    const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
+    const { materializeReference } = await import("../src/image/codex.js");
+    const refDir = await createScratchDir("dataurl-refs");
+    try {
+      const jpg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+      const out = await materializeReference(`data:image/png;base64,${jpg.toString("base64")}`, refDir);
+      expect(out.endsWith(".jpg")).toBe(true); // the bytes decide, not the declared mime
+      await expect(materializeReference("data:image/png;base64,", refDir)).rejects.toThrow(/empty/);
+    } finally {
+      await removeScratchDir(refDir);
     }
   });
 

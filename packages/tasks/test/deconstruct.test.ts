@@ -77,7 +77,8 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     const result = await handler({ fileUrl }, tctx);
     expect(readPrompts[0]).toContain(DECONSTRUCT_READ_MARKER);
     expect(seen.calls).toHaveLength(1);
-    expect(seen.calls[0].refs).toEqual([fileUrl]);
+    // the upload's BYTES, never its /api/files address — no provider can open that (codex read it as a disk path)
+    expect(seen.calls[0].refs).toEqual([`data:image/png;base64,${Buffer.from(fakePng(900, 1200)).toString("base64")}`]);
     expect(seen.calls[0]).toMatchObject({ w: 900, h: 1200 }); // original size — boxes map 1:1
     expect(result.urls).toHaveLength(1);
     expect(result.texts?.[0]).toMatchObject({ text: "SALE 50" });

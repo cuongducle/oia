@@ -1,4 +1,5 @@
 import type { FileStore } from "./storage.js";
+import { resolveReferenceImage } from "./referenceImages.js";
 import { ProviderError } from "@oia/providers";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import type { TaskContext } from "./store.js";
@@ -117,7 +118,7 @@ export function makeDeconstruct(ctx: ProcCtx) {
       prompt: DECONSTRUCT_INPAINT_PROMPT,
       width: size.width,
       height: size.height,
-      referenceImages: [fileUrl],
+      referenceImages: [await resolveReferenceImage(fileUrl, ctx.store)],
       signal: tctx.signal,
     });
     const bytes = await fetchBytes(img.url, ctx.store);

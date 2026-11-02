@@ -240,3 +240,50 @@ describe("C1 teardown fix: the wire validates deck bounds at the boundary", () =
     expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 9 }).success).toBe(true);
   });
 });
+
+describe("reference images reach the provider as bytes, never as store addresses", () => {
+  /** Mock image provider that records the refs it was handed. */
+  function capturingImage(seen: string[][]): ImageProvider {
+    const inner = new MockImageProvider();
+    return {
+      name: inner.name,
+      capabilities: inner.capabilities,
+      generate: (i) => { seen.push(i.referenceImages ?? []); return inner.generate(i); },
+      isAvailable: () => inner.isAvailable(),
+    };
+  }
+
+  it("/api/files and oia://files refs arrive as data: URLs of the stored upload; other forms pass through", async () => {
+    const ctx = await freshCtx();
+    const seen: string[][] = [];
+    (ctx.chat as { image: unknown }).image = capturingImage(seen);
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    const up = await ctx.files.put(png, "png");
+    const dataUrl = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
+    const { outcome } = await runChat(
+      { prompt: "product shot", referenceImages: [up.url, up.url.replace("/api/files/", "oia://files/"), "https://example.test/a.png"] },
+      ctx, { sink: () => {} },
+    );
+    expect(outcome).toBe("completed");
+    expect(seen[0]).toEqual([dataUrl, dataUrl, "https://example.test/a.png"]);
+  });
+
+  it("a missing upload fails the job before any image is generated — and the cause is logged", async () => {
+    const ctx = await freshCtx();
+    const seen: string[][] = [];
+    (ctx.chat as { image: unknown }).image = capturingImage(seen);
+    const logged: unknown[][] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => { logged.push(a); };
+    try {
+      const { events, sink } = collector();
+      const { outcome } = await runChat({ prompt: "x", referenceImages: ["/api/files/uploads/gone.png"] }, ctx, { sink });
+      expect(outcome).toBe("failed");
+      expect(seen).toHaveLength(0);
+      expect(events.at(-1)?.errorClass).toBe("unknown");
+      expect(logged.some((a) => String(a[0]).startsWith("[chat] job ") && String(a[1]).length > 0)).toBe(true);
+    } finally {
+      console.error = orig;
+    }
+  });
+});
