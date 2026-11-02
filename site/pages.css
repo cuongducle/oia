@@ -52,4 +52,3 @@ body.page{font-size:15.5px}
 .pageFooter a{font-size:13px;color:var(--muted)}
 .pageFooter a:hover{color:var(--paper)}
 .ctaRow{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
-a.btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13px;letter-spacing:.03em;padding:10px 20px;border-radius:8px;transition:.15s}

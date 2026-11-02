@@ -18,10 +18,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../../pages.css">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Can I review the deck before images are generated?","acceptedAnswer":{"@type":"Answer","text":"Yes — multi-page requests stop at an outline card first: page titles and summaries you can rewrite before anything is painted. Outline edits cost zero images."}},
-{"@type":"Question","name":"Can I export to PowerPoint?","acceptedAnswer":{"@type":"Answer","text":"Yes — PPTX places each rendered page on a slide, and PDF preserves mixed page sizes. PPTX keeps artwork as images; canvas text layers are not converted into native PowerPoint text boxes."}}]}
+<script type="module">
+// FAQ schema derives from the VISIBLE FAQ — one source, zero drift (P2 fix).
+const qa = [...document.querySelectorAll('.faq details')].map(d => ({
+  "@type": "Question", name: d.querySelector('summary').textContent.trim(),
+  acceptedAnswer: { "@type": "Answer", text: d.querySelector('p').textContent.trim() }
+}));
+if (qa.length) {
+  const ld = document.createElement('script'); ld.type = 'application/ld+json';
+  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa });
+  document.head.appendChild(ld);
+}
 </script>
 </head>
 <body class="page">

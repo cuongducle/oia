@@ -18,10 +18,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../../pages.css">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"What size is a TikTok livestream overlay?","acceptedAnswer":{"@type":"Answer","text":"1080×1920 (9:16). Oia ships the preset with a transparent background and community-measured safe-zone guides so your price card never hides behind TikTok's buttons and comments."}},
-{"@type":"Question","name":"Do the overlays export with transparency?","acceptedAnswer":{"@type":"Answer","text":"Yes — export PNG with alpha at 1080×1920 and drop it straight into OBS or your streaming tool. The safe-zone guides stay in the editor and never reach the exported bytes."}}]}
+<script type="module">
+// FAQ schema derives from the VISIBLE FAQ — one source, zero drift (P2 fix).
+const qa = [...document.querySelectorAll('.faq details')].map(d => ({
+  "@type": "Question", name: d.querySelector('summary').textContent.trim(),
+  acceptedAnswer: { "@type": "Answer", text: d.querySelector('p').textContent.trim() }
+}));
+if (qa.length) {
+  const ld = document.createElement('script'); ld.type = 'application/ld+json';
+  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa });
+  document.head.appendChild(ld);
+}
 </script>
 </head>
 <body class="page">

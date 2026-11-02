@@ -18,11 +18,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../../pages.css">
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"How do I change the price on an AI banner?","acceptedAnswer":{"@type":"Answer","text":"Select the banner layer and ask: change '20% OFF TODAY' to '30% OFF TODAY' — keep everything else the same. Oia regenerates the artwork with the new number in the same style, shows a preview, and only replaces the layer when you apply."}},
-{"@type":"Question","name":"What sizes are supported?","acceptedAnswer":{"@type":"Answer","text":"Shopee 1:1 (1024), Lazada 1:1 (800), TikTok Shop 1:1 (1080), plus posters, 9:16 story sizes, presentations and A4."}},
-{"@type":"Question","name":"Does it cost anything?","acceptedAnswer":{"@type":"Answer","text":"The app is free and open source (MIT). Generations use your own provider — a ChatGPT plan via the bundled Codex CLI, or your OpenAI/fal API key. Every action shows its cost (≈ N images) before you run it."}}]}
+<script type="module">
+// FAQ schema derives from the VISIBLE FAQ — one source, zero drift (P2 fix).
+const qa = [...document.querySelectorAll('.faq details')].map(d => ({
+  "@type": "Question", name: d.querySelector('summary').textContent.trim(),
+  acceptedAnswer: { "@type": "Answer", text: d.querySelector('p').textContent.trim() }
+}));
+if (qa.length) {
+  const ld = document.createElement('script'); ld.type = 'application/ld+json';
+  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa });
+  document.head.appendChild(ld);
+}
 </script>
 </head>
 <body class="page">

@@ -24,6 +24,12 @@ const mobile = matchMedia('(max-width: 960px)').matches;
   addEventListener('resize',()=>renderer.setSize(innerWidth,innerHeight,false));
 })();
 
+/* ---- Ticker: clone the single HTML half for the seamless -50% loop ---- */
+(() => {
+  const track = document.querySelector('.ticker-track');
+  if (track) [...track.children].forEach((c) => track.appendChild(c.cloneNode(true))); // full second half — the -50% loop needs it
+})();
+
 /* ---- Lenis smooth scroll + ScrollTrigger ---- */
 if (window.Lenis && !reduced){
   const lenis = new Lenis({lerp:.1});
