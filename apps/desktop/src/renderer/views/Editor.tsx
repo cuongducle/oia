@@ -106,6 +106,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [projectName, setProjectName] = useState("Untitled project");
   const [hasScene, setHasScene] = useState(false);
   const [selectedText, setSelectedText] = useState(false);
+  const [hasTextLayer, setHasTextLayer] = useState(false); // poster-mode pages carry baked text — the edit path is regenerate (D16/SurgePix lane)
   const [zoom, setZoom] = useState(0.35);
   const [zoomText, setZoomText] = useState<string | null>(null); // null = not typing; mirrors the bar while editing
   const [exportOpen, setExportOpen] = useState(false);
@@ -195,6 +196,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     return { id: pages[activePage]?.id ?? `page_${activePage}`, canvas: scene };
   }, [pages, activePage]);
 
+  const syncHasText = (c: fabricNS.Canvas | null) => setHasTextLayer(Boolean(c?.getObjects().some((o) => o.type === "textbox")));
   const loadPage = useCallback(async (idx: number, list: EditorPage[]) => {
     const c = fabricRef.current; if (!c) return;
     restoring.current = true;
@@ -206,7 +208,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       relock(c);
       c.getObjects().forEach(o => { if ("fontFamily" in o && o.fontFamily === "Be Vietnam Pro") o.set("fontFamily" as never, fontStack() as never); });
       undoStack.current = [JSON.stringify(c.toObject())]; redoStack.current = [];
-      setCanUndo(false); setCanRedo(false); setSelectedText(false); setSelectedImg(false); fitView();
+      setCanUndo(false); setCanRedo(false); setSelectedText(false); setSelectedImg(false); syncHasText(c); fitView();
       c.requestRenderAll(); captureThumb(idx);
     } finally { restoring.current = false; }
     scheduleSave();
@@ -333,6 +335,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       editor.on("object:added", pushHistory);
       editor.on("object:removed", pushHistory);
       editor.on("object:modified", pushHistory);
+      editor.on("object:added", () => syncHasText(editor));
+      editor.on("object:removed", () => syncHasText(editor));
       editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
       editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
       editor.on("selection:cleared", () => { setSelectedText(false); setSelectedImg(false); });
@@ -1048,7 +1052,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               />
             ) : (
               <>
-              {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit.</p>{["Try a softer color palette", "Make the headline stand out"].map((s) => <button key={s} className="aiSuggestion" onClick={() => setAiPrompt(s)}>{s}</button>)}</div>}
+              {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>{hasTextLayer ? "Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit." : "The copy is baked into the artwork — ask for a repaint with your changes and the style stays."}</p>{(hasTextLayer
+                ? [{ label: "Try a softer color palette", prompt: "Try a softer color palette" }, { label: "Make the headline stand out", prompt: "Make the headline stand out" }]
+                : [{ label: "Change the text", prompt: "change the text: " }, { label: "New background, same drinks and text", prompt: "make the background " }]
+              ).map((s) => <button key={s.label} className="aiSuggestion" onClick={() => setAiPrompt(s.prompt)}>{s.label}</button>)}</div>}
               {historyOpen && (
                 <div style={{ maxHeight: 140, overflowY: "auto", borderBottom: "1px solid var(--line)", marginBottom: 8 }}>
                   {chats.map((c) => (
