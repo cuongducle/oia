@@ -180,3 +180,20 @@ describe("F4 sha256 identity + legacy full-md5 lane", () => {
     expect(other.key).not.toBe(legacyKey);
   });
 });
+
+describe("pathOf (P2 — local-path refs without base64 round-trips)", () => {
+  it("resolves a stored key to an absolute path whose bytes equal read()", async () => {
+    const s2 = new LocalFileStore(dir);
+    const { key } = await s2.put(new Uint8Array([1, 2, 3, 4]), "png");
+    const p = await s2.pathOf(key);
+    expect(p).toBeTruthy();
+    expect(path.isAbsolute(p!)).toBe(true);
+    const bytes = await import("node:fs/promises").then((fs) => fs.readFile(p!));
+    expect([...bytes]).toEqual([1, 2, 3, 4]);
+  });
+  it("missing keys and traversal attempts resolve to null — callers name the KEY in errors, never a leaked path", async () => {
+    const s2 = new LocalFileStore(dir);
+    expect(await s2.pathOf("uploads/20990101/nope.png")).toBeNull();
+    expect(await s2.pathOf("../../etc/passwd")).toBeNull();
+  });
+});
