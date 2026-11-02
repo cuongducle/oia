@@ -184,6 +184,37 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it blue", referenceImages: ["https://ref/1.png"] }, { llm: llmStub, image: imgSpy })) void _;
     expect(gotRefs).toEqual(["https://ref/1.png"]);
   });
+  it("D16 poster mode: the copy is baked by the model — planner blocks are NEVER placed as overlays (no doubled text)", async () => {
+    const planWithBlocks = JSON.stringify({
+      title: "Milk tea flash sale",
+      imagePrompt: "milk tea banner with bold condensed 'FLASH SALE' and '20% OFF TODAY' rendered large",
+      blocks: [
+        { role: "headline", text: "FLASH SALE" },
+        { role: "discount", text: "20% OFF" },
+      ],
+    });
+    let sysPrompt = "";
+    const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sysPrompt = m[0].content; return planWithBlocks; } };
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner" }, { llm: llmSpy, image })) evs.push(ev);
+    expect(sysPrompt).toContain("Poster mode"); // the planner was told to bake the copy
+    const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
+    expect(canvas?.canvas.objects.filter((o) => o.type === "Textbox")).toEqual([]); // half-complying planner ≠ doubled text
+    expect(canvas?.canvas.objects.some((o) => o.name === "artwork")).toBe(true);
+  });
+  it("D16 clean-plate mode: blocks still land as editable overlays", async () => {
+    const planWithBlocks = JSON.stringify({
+      title: "Milk tea flash sale",
+      imagePrompt: "text-free milk tea banner",
+      blocks: [{ role: "discount", text: "20% OFF" }],
+    });
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner", mode: "clean-plate" }, { llm: stubLlmReturning(planWithBlocks), image })) evs.push(ev);
+    const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
+    const boxes = canvas?.canvas.objects.filter((o) => o.type === "Textbox") ?? [];
+    expect(boxes.length).toBe(1);
+    expect(boxes[0]).toMatchObject({ name: "block:discount" });
+  });
   it("narrative counts refs with correct pluralization — '1 reference image' / '2 reference images' (live grammar fix)", async () => {
     const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate() { return { url: "https://x/y.png", provider: "s", model: "m" }; } };
     const llmStub: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { return planSpy; } };
@@ -249,17 +280,17 @@ describe("STAGE-0 TP.1: blocks → named editable textboxes placed in copy zones
     expect(box.fontFamily).toBe("Be Vietnam Pro");
   });
 
-  it("legacy copy plan still yields one editable textbox (backward compat)", async () => {
+  it("legacy copy plan still yields one editable textbox (backward compat — clean-plate; D16: poster bakes, blocks never overlay)", async () => {
     const out: ChatEvent[] = [];
-    for await (const ev of runDesignerAgent({ prompt: "poster" }, { llm, image })) out.push(ev);
+    for await (const ev of runDesignerAgent({ prompt: "poster", mode: "clean-plate" }, { llm, image })) out.push(ev);
     const canvas = out.flatMap((e) => e.renderData.msgMeta).at(-1)!.canvas;
     expect(canvas.objects.filter((o) => o.type === "Textbox").map((o) => o.name)).toEqual(["block:copy"]);
   });
 
-  it("multi-page: blocks land on the FIRST page only (current pi===0 rule)", async () => {
+  it("multi-page: blocks land on the FIRST page only (current pi===0 rule, clean-plate)", async () => {
     const out: ChatEvent[] = [];
     const multi = JSON.stringify({ title: "T", imagePrompt: "p", imagePrompts: ["p1", "p2"], blocks: [{ role: "price", text: "20%" }] });
-    for await (const ev of runDesignerAgent({ prompt: "poster", pages: 2 }, { llm: stubLlmReturning(multi), image })) out.push(ev);
+    for await (const ev of runDesignerAgent({ prompt: "poster", pages: 2, mode: "clean-plate" }, { llm: stubLlmReturning(multi), image })) out.push(ev);
     const canvases = out.flatMap((e) => e.renderData.msgMeta);
     expect(canvases[0].canvas.objects.filter((o) => o.type === "Textbox")).toHaveLength(1);
     expect(canvases[1].canvas.objects.filter((o) => o.type === "Textbox")).toHaveLength(0);

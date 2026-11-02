@@ -96,7 +96,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [mockMode, setMockMode] = useState(false);
   /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
-  const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
+  const [editableText, setEditableText] = useState(false); // D16: poster (text baked in-image, best-looking type) is the default; the toggle opts into clean-plate
   // C1: conversation pin (A1 VA-9) — every run on this mount joins ONE session;
   // the outline stub and the deck result land in the same conversation (OC-8)
   const [sessionId, setSessionId] = useState<number | null>(resumeSession ?? null);
@@ -481,7 +481,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
               {OUTLINE_SWITCH_LABEL}
             </label>
             <label className="switchRow">
-              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Generated banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
+              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Off: text is rendered inside the image — best-looking type; make it editable later from the editor. On: banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
               {MODE_TOGGLE_LABEL}
             </label>
           </div>
