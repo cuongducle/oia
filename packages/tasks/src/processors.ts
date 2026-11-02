@@ -117,7 +117,9 @@ export function makeDeconstruct(ctx: ProcCtx) {
       prompt: DECONSTRUCT_INPAINT_PROMPT,
       width: size.width,
       height: size.height,
-      referenceImages: [fileUrl],
+      // in-process refs must be self-contained (live repro 2026-11-02: the raw
+      // `/api/files/<key>` URL reached the provider bridge as a file path → ENOENT)
+      referenceImages: [`data:image/png;base64,${Buffer.from(src).toString("base64")}`],
       signal: tctx.signal,
     });
     const bytes = await fetchBytes(img.url, ctx.store);

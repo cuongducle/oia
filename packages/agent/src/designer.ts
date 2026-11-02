@@ -270,7 +270,7 @@ export async function* runDesignerAgent(
 
   yield ev(
     input.referenceImages?.length
-      ? `${t.progress(title.toLowerCase())} (adjusted for ${input.referenceImages.length} reference images)`
+      ? `${t.progress(title.toLowerCase())} (adjusted for ${input.referenceImages.length} reference image${input.referenceImages.length === 1 ? "" : "s"})`
       : t.progress(title.toLowerCase()),
   );
 

@@ -209,6 +209,38 @@ describe("D1 runChat — stage-aware retry (A5)", () => {
   });
 });
 
+describe("live repro 2026-11-02: in-process refs must not reach the provider as /api/files URLs", () => {
+  it("materializes /api/files/<key> and oia://files/<key> refs into data URLs (A1 variant on a real pair)", async () => {
+    const ctx = await freshCtx();
+    const png1x1 = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const { url: assetUrl } = await ctx.files.put(png1x1, "png");
+    expect(assetUrl).toMatch(/^\/api\/files\//); // the renderer's canonical form
+
+    const seen: string[][] = [];
+    const base = new MockImageProvider();
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(false),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        seen.push([...(i.referenceImages ?? [])]);
+        return base.generate(i);
+      },
+    };
+    const legacy = assetUrl.replace("/api/files/", "oia://files/");
+    const res = await runChat({ prompt: "make it warmer", referenceImages: [assetUrl, legacy, "https://example.com/x.png"] }, ctx, { sink: () => {} });
+    expect(res.outcome).toBe("completed");
+    expect(seen.length).toBeGreaterThan(0);
+    for (const refs of seen) {
+      expect(refs[0]).toMatch(/^data:image\/png;base64,/); // store-backed ref became self-contained
+      expect(refs[1]).toMatch(/^data:image\/png;base64,/); // legacy oia:// form too
+      expect(refs[2]).toBe("https://example.com/x.png"); // remote refs pass through untouched
+    }
+  });
+});
+
 describe("D2 remediation: chatRequestSchema is the single boundary schema", () => {
   it("strips unknown keys and rejects invalid values (web adapter + desktop IPC share it)", async () => {
     const { chatRequestSchema } = await import("../src/index.js");
