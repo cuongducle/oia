@@ -32,7 +32,7 @@ Any static host — pick one:
 1. Replace both `href="#"` GitHub/Download links with real URLs
    (lesson from the references: secure the right domain early — invoke.com is
    parked by squatters while the product lives on invoke.ai).
-2. Point `og:image` at a hosted absolute URL (currently relative qa-shots).
+2. ~~Point `og:image` at a hosted absolute URL~~ DONE — every page points at assets/og-hero.png (or its own real asset).
 3. Optionally self-host the 6 CDN libs (gsap ×3, lenis, split-type, three) or
    keep jsDelivr/cdnjs — page is static-first either way; if CDNs fail, the
    page degrades gracefully to the fully-visible no-motion version.
