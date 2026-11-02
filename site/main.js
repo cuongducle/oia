@@ -138,16 +138,17 @@ if (!reduced && !mobile){
   gsap.to('.gtile:nth-child(even)',{yPercent:8,ease:'none',scrollTrigger:{trigger:'.gallery-grid',start:'top bottom',end:'bottom top',scrub:true}});
 }
 
-/* ---- Editor frame curtain + hover tilt ---- */
-ScrollTrigger.create({trigger:'.editor-frame',start:'top 85%',onEnter:()=>document.querySelector('.editor-frame').classList.add('in'),once:true});
-if (!reduced && !mobile){
-  const ef = document.querySelector('.editor-frame');
-  ef.addEventListener('mousemove',e=>{
-    const r = ef.getBoundingClientRect();
-    gsap.to(ef,{rotationY:((e.clientX-r.left)/r.width-.5)*4,rotationX:-((e.clientY-r.top)/r.height-.5)*3,transformPerspective:1200,duration:.5});
-  });
-  ef.addEventListener('mouseleave',()=>gsap.to(ef,{rotationX:0,rotationY:0,duration:.7,ease:'elastic.out(1,.5)'}));
-}
+/* ---- Editor frames: curtain + hover tilt ---- */
+document.querySelectorAll('.editor-frame').forEach(ef=>{
+  ScrollTrigger.create({trigger:ef,start:'top 85%',onEnter:()=>ef.classList.add('in'),once:true});
+  if (!reduced && !mobile){
+    ef.addEventListener('mousemove',e=>{
+      const r = ef.getBoundingClientRect();
+      gsap.to(ef,{rotationY:((e.clientX-r.left)/r.width-.5)*4,rotationX:-((e.clientY-r.top)/r.height-.5)*3,transformPerspective:1200,duration:.5});
+    });
+    ef.addEventListener('mouseleave',()=>gsap.to(ef,{rotationX:0,rotationY:0,duration:.7,ease:'elastic.out(1,.5)'}));
+  }
+});
 
 /* ---- Workflow steps slide-in ---- */
 if (!reduced){

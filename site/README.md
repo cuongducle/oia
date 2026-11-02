@@ -2,6 +2,17 @@
 
 Production static site, promoted from `../concept` (QA ledger in `../concept/SPEC.md`).
 
+## Content sync — v0.2 / UI v1.1 (Nov 2026)
+The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
+`docs/designs/feature-upgrade-brainstorm.md` A1/C1/C3/B1):
+- Hero prompt chip = composer vocabulary (size pill `Shopee 1:1 · 2K`, brand pill,
+  `≈ 1 image` cost hint); telemetry chip = RunSteps (planning › painting › composing)
+- Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
+- `#bring` section = deconstruct (B1): old design → editable text layers
+- Templates section carries the livestream-overlay frame (C3, safe zones)
+- Editor/overlay/deconstruct frames are real screenshots from `apps/desktop`
+  (`pnpm --filter @oia/desktop shot`, downscaled to 1600w WebP)
+
 ## Run locally
 ```bash
 cd site && python3 -m http.server 8765   # → http://localhost:8765
