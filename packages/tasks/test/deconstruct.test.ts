@@ -87,6 +87,18 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     expect(result.texts?.[0]).toMatchObject({ text: "SALE 50" });
   });
 
+  it("the inpaint reference is byte-for-byte the stored image — decode(refs[0]) === store.read(key)", async () => {
+    const { store, fileUrl } = await setup();
+    const seen: { calls: { prompt: string; refs: string[]; w: number; h: number }[] } = { calls: [] };
+    const handler = makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => GOOD_READ) });
+    await handler({ fileUrl }, tctx);
+    expect(seen.calls).toHaveLength(1);
+    const b64 = seen.calls[0].refs[0].replace(/^data:image\/png;base64,/, "");
+    const sent = Buffer.from(b64, "base64");
+    const stored = await store.read(fileUrl.replace(/^\/api\/files\//, ""));
+    expect(Buffer.compare(sent, Buffer.from(stored))).toBe(0); // no truncation, no re-encode
+  });
+
   it("G2 invariant: a malformed read fails BEFORE any image is generated", async () => {
     const { store, fileUrl } = await setup();
     const seen: { calls: unknown[] } = { calls: [] };
