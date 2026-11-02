@@ -61,16 +61,19 @@ export type ChatRequest = z.infer<typeof chatRequestSchema>;
 export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable" | "outline";
 
 /** In-process references: `/api/files/<key>` (web-era canonical URL) and legacy
- *  `oia://files/<key>` resolve through the FileStore into self-contained data URLs —
- *  provider bridges only understand data:/http:/absolute-file refs. */
+ *  `oia://files/<key>` resolve to the LOCAL FILE PATH through the FileStore —
+ *  providers accept absolute paths directly, so no base64 round-trip of
+ *  multi-megabyte assets. Unresolvable keys fail with the KEY named, never a
+ *  leaked absolute path. */
 async function materializeLocalRefs(urls: string[] | undefined, files: FileStore): Promise<string[] | undefined> {
   if (!urls?.length) return undefined;
   const out: string[] = [];
   for (const u of urls) {
     const key = /^\/api\/files\/(.+)$/.exec(u)?.[1] ?? /^oia:\/\/files\/(.+)$/.exec(u)?.[1];
     if (key) {
-      const bytes = await files.read(key);
-      out.push(`data:image/png;base64,${Buffer.from(bytes).toString("base64")}`);
+      const p = await files.pathOf(key);
+      if (!p) throw new Error(`reference asset not found: ${key}`);
+      out.push(p);
     } else {
       out.push(u);
     }

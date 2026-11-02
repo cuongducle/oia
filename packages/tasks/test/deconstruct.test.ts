@@ -77,26 +77,26 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     const result = await handler({ fileUrl }, tctx);
     expect(readPrompts[0]).toContain(DECONSTRUCT_READ_MARKER);
     expect(seen.calls).toHaveLength(1);
-    // in-process contract (live repro 2026-11-02): the provider must receive a
-    // self-contained data URL — the raw `/api/files/<key>` URL reached the codex
-    // bridge as a file path and the job died with ENOENT at the inpaint stage.
-    expect(seen.calls[0].refs[0]).toMatch(/^data:image\/png;base64,/);
+    // in-process contract (live repro 2026-11-02 → P2): the provider receives the
+    // store's LOCAL PATH — the raw `/api/files/<key>` URL once reached the codex
+    // bridge as a relative path and the job died with ENOENT at the inpaint stage.
+    expect(seen.calls[0].refs[0]).toMatch(/[/\\]uploads[/\\]/);
     expect(seen.calls[0].refs[0]).not.toContain("/api/files/");
     expect(seen.calls[0]).toMatchObject({ w: 900, h: 1200 }); // original size — boxes map 1:1
     expect(result.urls).toHaveLength(1);
     expect(result.texts?.[0]).toMatchObject({ text: "SALE 50" });
   });
 
-  it("the inpaint reference is byte-for-byte the stored image — decode(refs[0]) === store.read(key)", async () => {
+  it("the inpaint reference is the store's LOCAL PATH — the file's bytes, byte-for-byte (no base64 round-trip)", async () => {
     const { store, fileUrl } = await setup();
     const seen: { calls: { prompt: string; refs: string[]; w: number; h: number }[] } = { calls: [] };
     const handler = makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => GOOD_READ) });
+    const src = await store.read(fileUrl.replace(/^\/api\/files\//, ""));
     await handler({ fileUrl }, tctx);
     expect(seen.calls).toHaveLength(1);
-    const b64 = seen.calls[0].refs[0].replace(/^data:image\/png;base64,/, "");
-    const sent = Buffer.from(b64, "base64");
-    const stored = await store.read(fileUrl.replace(/^\/api\/files\//, ""));
-    expect(Buffer.compare(sent, Buffer.from(stored))).toBe(0); // no truncation, no re-encode
+    expect(seen.calls[0].refs[0]).not.toMatch(/^data:/); // a path, not a data URL
+    const sent = await import("node:fs/promises").then((fs) => fs.readFile(seen.calls[0].refs[0]));
+    expect(Buffer.compare(sent, Buffer.from(src))).toBe(0); // the exact stored bytes, no truncation
   });
 
   it("G2 invariant: a malformed read fails BEFORE any image is generated", async () => {

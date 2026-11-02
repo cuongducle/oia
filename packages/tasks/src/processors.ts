@@ -113,13 +113,14 @@ export function makeDeconstruct(ctx: ProcCtx) {
       throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
     }
     const size = pngSize(src) ?? { width: 1024, height: 1024 };
+    // in-process ref: the store's LOCAL PATH, no base64 round-trip (P2)
+    const platePath = await ctx.store.pathOf(fileUrl.replace(/^\/api\/files\//, ""));
+    if (!platePath) throw new Error("fileUrl is invalid or has not been uploaded");
     const img = await ctx.image.generate({
       prompt: DECONSTRUCT_INPAINT_PROMPT,
       width: size.width,
       height: size.height,
-      // in-process refs must be self-contained (live repro 2026-11-02: the raw
-      // `/api/files/<key>` URL reached the provider bridge as a file path → ENOENT)
-      referenceImages: [`data:image/png;base64,${Buffer.from(src).toString("base64")}`],
+      referenceImages: [platePath],
       signal: tctx.signal,
     });
     const bytes = await fetchBytes(img.url, ctx.store);

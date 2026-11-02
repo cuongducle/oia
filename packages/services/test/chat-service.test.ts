@@ -234,8 +234,8 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
     expect(res.outcome).toBe("completed");
     expect(seen.length).toBeGreaterThan(0);
     for (const refs of seen) {
-      expect(refs[0]).toMatch(/^data:image\/png;base64,/); // store-backed ref became self-contained
-      expect(refs[1]).toMatch(/^data:image\/png;base64,/); // legacy oia:// form too
+      expect(refs[0]).toMatch(/[/\\]uploads[/\\]/); // store-backed ref became a LOCAL PATH (P2: no base64 round-trip)
+      expect(refs[1]).toMatch(/[/\\]uploads[/\\]/); // legacy oia:// form too
       expect(refs[2]).toBe("https://example.com/x.png"); // remote refs pass through untouched
     }
   });
@@ -266,7 +266,7 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
     expect(seen.some((r) => r === undefined)).toBe(true); // empty list ≠ empty array on the provider input
   });
 
-  it("a missing store key fails the job BEFORE any image is burned — no silent skip, no fallback scan", async () => {
+  it("a missing store key fails the job BEFORE any image is burned — the error names the KEY, never an absolute path", async () => {
     const ctx = await freshCtx();
     const events: ChatEvent[] = [];
     const base = new MockImageProvider();
@@ -284,7 +284,8 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
     expect(gens).toBe(0); // the seller's image quota was NOT burned on a doomed ref (G2 spirit)
     const err = events.find((e) => e.error);
     expect(err?.errorClass).toBeTruthy();
-    expect(err?.error).toMatch(/does-not-exist|ENOENT/i); // the failure names the missing asset
+    expect(err?.error).toContain("does-not-exist"); // names the missing asset
+    expect(err?.error).not.toMatch(/\/(Users|home|var|tmp)\//); // never leaks an absolute path
   });
 
   it("A1 invariant: the materialized data URL never leaks onto any wire — events and the persisted session carry no base64", async () => {
