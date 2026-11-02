@@ -184,6 +184,21 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it blue", referenceImages: ["https://ref/1.png"] }, { llm: llmStub, image: imgSpy })) void _;
     expect(gotRefs).toEqual(["https://ref/1.png"]);
   });
+  it("narrative counts refs with correct pluralization — '1 reference image' / '2 reference images' (live grammar fix)", async () => {
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate() { return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    const llmStub: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { return planSpy; } };
+    const narrativeWith = async (n: number): Promise<string> => {
+      const lines: string[] = [];
+      const refs = Array.from({ length: n }, (_, i) => `https://ref/${i}.png`);
+      for await (const ev of runDesignerAgent({ prompt: "make it blue", referenceImages: refs }, { llm: llmStub, image: imgSpy })) {
+        if (ev.content.includes("adjusted for")) lines.push(ev.content);
+      }
+      return lines.join(" ");
+    };
+    expect(await narrativeWith(1)).toContain("adjusted for 1 reference image");
+    expect(await narrativeWith(1)).not.toContain("1 reference images");
+    expect(await narrativeWith(2)).toContain("adjusted for 2 reference images");
+  });
   it("the skill hint reaches the planner system prompt", async () => {
     let sys = "";
     const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sys = m[0].content; return planSpy; } };

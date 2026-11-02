@@ -239,6 +239,65 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
       expect(refs[2]).toBe("https://example.com/x.png"); // remote refs pass through untouched
     }
   });
+
+  const PNG_1X1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  it("pass-through: data:, https: and absolute-path refs reach the provider verbatim; an empty ref list stays undefined", async () => {
+    const ctx = await freshCtx();
+    const seen: (string[] | undefined)[] = [];
+    const base = new MockImageProvider();
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        seen.push(i.referenceImages);
+        return base.generate(i);
+      },
+    };
+    const refs = ["data:image/png;base64,iVBORw0KGgo=", "https://example.com/x.png", "/tmp/absolute/ref.png"];
+    const first = await runChat({ prompt: "edit", referenceImages: refs }, ctx, { sink: () => {} });
+    expect(first.outcome).toBe("completed");
+    expect(seen.some((r) => JSON.stringify(r) === JSON.stringify(refs))).toBe(true); // verbatim — no rewriting of foreign forms
+    const second = await runChat({ prompt: "edit 2", referenceImages: [] }, ctx, { sink: () => {} });
+    expect(second.outcome).toBe("completed");
+    expect(seen.some((r) => r === undefined)).toBe(true); // empty list ≠ empty array on the provider input
+  });
+
+  it("a missing store key fails the job BEFORE any image is burned — no silent skip, no fallback scan", async () => {
+    const ctx = await freshCtx();
+    const events: ChatEvent[] = [];
+    const base = new MockImageProvider();
+    let gens = 0;
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(false),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        gens++;
+        return base.generate(i);
+      },
+    };
+    const res = await runChat({ prompt: "edit", referenceImages: ["/api/files/uploads/20990101/does-not-exist.png"] }, ctx, { sink: (e) => { events.push(e); } });
+    expect(res.outcome).toBe("failed");
+    expect(gens).toBe(0); // the seller's image quota was NOT burned on a doomed ref (G2 spirit)
+    const err = events.find((e) => e.error);
+    expect(err?.errorClass).toBeTruthy();
+    expect(err?.error).toMatch(/does-not-exist|ENOENT/i); // the failure names the missing asset
+  });
+
+  it("A1 invariant: the materialized data URL never leaks onto any wire — events and the persisted session carry no base64", async () => {
+    const ctx = await freshCtx();
+    const { url: assetUrl } = await ctx.files.put(PNG_1X1, "png");
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "make it warmer", referenceImages: [assetUrl] }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const wire = JSON.stringify(events) + JSON.stringify(stored ?? null);
+    expect(wire).not.toContain("data:image");
+    expect(wire).not.toContain("base64");
+  });
 });
 
 describe("D2 remediation: chatRequestSchema is the single boundary schema", () => {
