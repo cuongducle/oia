@@ -28,9 +28,9 @@ Everything runs on your machine. Bring your own supported provider. Keep your pr
 ## What editable actually means
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor with the Matcha Every Day headline selected as a native text object. Selection handles, text-formatting controls, page thumbnails, and export are visible.">
+  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor with a generated milk-tea flash-sale banner: the FLASH SALE headline is selected as a native text object, Layers panel open, Design inspector showing position and text properties.">
   <br>
-  <sub>Actual editor, bundled Matcha template. The selected headline is a text object—not lettering baked into the photograph.</sub>
+  <sub>Actual editor, real Codex generation. The selected headline is a text object—not lettering baked into the photograph.</sub>
 </p>
 
 **The image and the design are different things.** An Oia document contains separate canvas objects:
