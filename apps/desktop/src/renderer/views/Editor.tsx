@@ -12,7 +12,7 @@ import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { LIVESTREAM_TEMPLATES } from "../lib/livestream-presets.js";
 import { guideFor, guideRects, readGuidePref, writeGuidePref, type GuidePlatform } from "../lib/live-guides.js";
 import { ASPECT_TOLERANCE, isNineSixteen } from "../lib/scene-dims.js";
-import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
+import { appendVariant, bindPromptForJob, bindTargetForJob, canReplaceVariant, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
 import { Dialog } from "../components/Dialog.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { RunSteps } from "../components/RunSteps.js";
@@ -142,11 +142,14 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<{ id: number; name: string; updatedAt: number }[]>([]);
   const [selectedImg, setSelectedImg] = useState(false); // an image layer is active (enables Replace)
+  const [selectedName, setSelectedName] = useState<string | null>(null); // its NAME — A3-lite: variants only replace the layer they were painted for
   const [imageMock, setImageMock] = useState(false); // "≈ 1 image" label only when a real provider
   const [aiSessionId, setAiSessionId] = useState<number | null>(null); // VA-1 conversation pin
   const [variants, setVariants] = useState<VariantCard[]>([]);
   const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now" — view state, never persisted (VA-7)
   const aiPromptByJobRef = useRef<Map<string, string>>(new Map()); // per-job prompt binding (B7) — rules in variant-tray.ts
+  const aiTargetRef = useRef<string | null>(null); // the layer the CURRENT edit targets (A3-lite) — captured at send, bound per job at first event
+  const aiTargetByJobRef = useRef<Map<string, string | null>>(new Map());
   // Templates/Assets/Draw
   const [tplList, setTplList] = useState<Template[]>([]);
   const [assets, setAssets] = useState<string[]>([]);
@@ -265,6 +268,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             key: variantKey(ev.jobId, m.id),
             jobId,
             prompt: bindPromptForJob(aiPromptByJobRef.current, jobId, aiPromptRef.current),
+            targetLayer: bindTargetForJob(aiTargetByJobRef.current, jobId, aiTargetRef.current) ?? undefined,
             thumbnail: typeof m.thumbnail === "string" ? m.thumbnail : "",
             canvas: m.canvas as SceneCanvas,
           };
@@ -338,9 +342,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       editor.on("object:modified", pushHistory);
       editor.on("object:added", () => syncHasText(editor));
       editor.on("object:removed", () => syncHasText(editor));
-      editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
-      editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); });
-      editor.on("selection:cleared", () => { setSelectedText(false); setSelectedImg(false); });
+      editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); setSelectedName(((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null); });
+      editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); setSelectedName(((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null); });
+      editor.on("selection:cleared", () => { setSelectedText(false); setSelectedImg(false); setSelectedName(null); });
       if (!initialProjectId) scheduleSave();
     })().catch(() => { if (!cancelled) setNotice("Could not open the design. Go back and try another project."); });
     return () => {
@@ -426,7 +430,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const prev = undoStack.current.at(-1)!;
     restoring.current = true;
     try { await c.loadFromJSON(JSON.parse(prev)); relock(c); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
-    setSelectedText(false); setSelectedImg(false); // the reloaded page clears selection — state must not lie
+    setSelectedText(false); setSelectedImg(false); setSelectedName(null); // the reloaded page clears selection — state must not lie
     setCanUndo(undoStack.current.length >= 2); setCanRedo(true);
     scheduleSave();
   }
@@ -720,15 +724,14 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           refs = [...aiRefs, ...canvasRefs].slice(0, 4);
         }
       }
-      // Target + size lock ride in the prompt (the planner carries intent into imagePrompt):
-      // the dimension clause kills the ratio-mismatch warnings seen on live runs. When the
-      // page overlays its own text layers, the repaint must stay lettering-free (the copy
-      // is re-added as layers — a plate that grows text doubles it after apply).
-      const target = activeSrc ? ` — edit Image 1 (the ${active?.name ?? "selected image"} layer)` : "";
-      const noText = activeSrc && hasText ? " Do not add any text or lettering — copy is added as separate layers." : "";
-      const prompt = `${aiPrompt}${target} — return the result at the exact same dimensions as Image 1.${noText}`;
+      // A3-lite: the edit contract is STRUCTURED now — referenceImages[0] is the
+      // target; the agent layer welds the clauses (target declaration, dimension
+      // lock, lettering ban). The renderer no longer concatenates prose.
+      const aiTargetName = (active && typeof active.src === "string" ? (active.name ?? "selected image") : undefined);
+      const editMode = { ...(aiTargetName ? { targetName: aiTargetName } : {}), ...(hasText ? { textLayerOverlays: true } : {}) };
+      aiTargetRef.current = aiTargetName ?? null;
       // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
-      const res = await oia().chatRun({ prompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}) });
+      const res = await oia().chatRun({ prompt: aiPrompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}), editMode });
       setAiSessionId(res.sessionId);
       // events stream in through the onChatEvent subscription; wait for the job to settle
       await res;
@@ -752,9 +755,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setAiError({ message: "This variant has no artwork image to apply." });
       return;
     }
-    const active = c.getActiveObject() as (fabricNS.Object & { src?: string }) | undefined;
+    const active = c.getActiveObject() as (fabricNS.Object & { src?: string; name?: string }) | undefined;
     if (!active || typeof active.src !== "string") {
       setAiError({ message: "Select an image layer on the canvas first, then replace it." });
+      return;
+    }
+    // A3-lite TOCTOU: a variant painted for one layer never replaces another —
+    // even if the button state raced a selection change mid-click.
+    const gate = canReplaceVariant(v, { selectedImg: true, selectedName: (active.name as string | undefined) ?? null });
+    if (!gate.ok) {
+      setAiError({ message: `${gate.why}. This variant was painted for a different layer.` });
       return;
     }
     const idx = c.getObjects().indexOf(active);
@@ -1093,8 +1103,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                 <div className="variantTray" data-testid="variant-tray" aria-label="Variants">
                   {[...variants].reverse().filter((v) => !hiddenVariants.has(v.id)).map((v) => {
                     const artwork = variantArtworkObject(v.canvas);
-                    const canReplace = Boolean(artwork) && selectedImg;
-                    const why = !artwork ? "This variant has no artwork image" : !selectedImg ? "Select an image layer on the canvas first" : "";
+                    const gate = canReplaceVariant(v, { selectedImg, selectedName });
+                    const canReplace = Boolean(artwork) && gate.ok;
+                    const why = !artwork ? "This variant has no artwork image" : gate.why;
                     return (
                       <div key={v.id} className="variantCard" data-testid="variant-card" aria-label={`Variant: ${v.prompt.slice(0, 60) || "untitled edit"}`}>
                         <div className="variantThumb">
@@ -1107,7 +1118,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                             <button data-testid="variant-open" onClick={() => void openVariantProject(v)}>Open in editor</button>
                             <button data-testid="variant-dismiss" onClick={() => setHiddenVariants((h) => { const n = new Set(h); n.add(v.id); return n; })}>Not now</button>
                           </div>
-                          {artwork && !selectedImg && <span className="variantWhy">Select an image layer to replace it</span>}
+                          {artwork && !gate.ok && <span className="variantWhy">{gate.why}</span>}
                         </div>
                       </div>
                     );

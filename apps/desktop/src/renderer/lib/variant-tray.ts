@@ -20,6 +20,10 @@ export interface VariantCard {
   thumbnail: string;
   /** Canonical /api/files form. */
   canvas: SceneCanvas;
+  /** A3-lite TOCTOU guard: the layer NAME this variant was painted for,
+   *  captured at SEND time. Apply must target the same layer — a variant
+   *  painted for "artwork" must never silently replace "product sticker". */
+  targetLayer?: string;
 }
 
 export function variantKey(jobId: string | undefined, metaId: string): string {
@@ -43,6 +47,25 @@ export function bindPromptForJob(map: Map<string, string>, jobId: string, submit
   if (known !== undefined) return known;
   map.set(jobId, submittedPrompt);
   return submittedPrompt;
+}
+
+/** Per-job target binding — same B7 rule as the prompt: the FIRST event of a
+ *  job captures the layer the edit was aimed at; later sends can't relabel it. */
+export function bindTargetForJob(map: Map<string, string | null>, jobId: string, submittedTarget: string | null): string | null {
+  const known = map.get(jobId);
+  if (known !== undefined) return known;
+  map.set(jobId, submittedTarget);
+  return submittedTarget;
+}
+
+/** A3-lite gating: can this card's Replace act on the current selection?
+ *  Pure — the view only feeds it selection facts. */
+export function canReplaceVariant(card: VariantCard, sel: { selectedImg: boolean; selectedName: string | null }): { ok: boolean; why: string } {
+  if (!sel.selectedImg) return { ok: false, why: "Select an image layer on the canvas first" };
+  if (card.targetLayer && sel.selectedName && sel.selectedName !== card.targetLayer) {
+    return { ok: false, why: `Painted for the "${card.targetLayer}" layer — select it first` };
+  }
+  return { ok: true, why: "" };
 }
 
 /** One stored conversation message — the shape ChatSessionStore persists. */
