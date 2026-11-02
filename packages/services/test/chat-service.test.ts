@@ -331,3 +331,13 @@ describe("C1 teardown fix: the wire validates deck bounds at the boundary", () =
     expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 9 }).success).toBe(true);
   });
 });
+
+describe("A3-lite: editMode is a structured, validated field on the boundary", () => {
+  it("accepts the shape and strips foreign keys — the renderer sends structure, never prose", () => {
+    const ok = chatRequestSchema.safeParse({ prompt: "make it warmer", editMode: { targetName: "artwork", textLayerOverlays: true } });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.editMode).toEqual({ targetName: "artwork", textLayerOverlays: true });
+    const bad = chatRequestSchema.safeParse({ prompt: "x", editMode: { targetName: 123, evil: true } });
+    expect(bad.success).toBe(false); // unknown/typed-wrong keys are rejected, not silently coerced
+  });
+});

@@ -47,6 +47,11 @@ export const chatRequestSchema = z.object({
   approvedOutline: z.array(planPageSchema).max(9).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
+  /** A3-lite structured edit intent (2026-11-02): referenceImages[0] is the edit
+   *  target. The AGENT layer appends the deterministic clauses (target
+   *  declaration, dimension lock, lettering ban when the page overlays text
+   *  layers) — the renderer never welds English prose into the prompt string. */
+  editMode: z.object({ targetName: z.string().max(120).optional(), textLayerOverlays: z.boolean().optional() }).optional(),
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
@@ -191,6 +196,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         approvedOutline: req.approvedOutline,
         skill: req.skill,
         mode: req.mode,
+        editMode: req.editMode,
         signal: ac.signal,
         ...(reusePlan ? { reusePlan } : {}),
         onPlan: (plan) => sessionPlans().set(session.id, plan),

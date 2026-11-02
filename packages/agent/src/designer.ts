@@ -32,6 +32,9 @@ export interface DesignerAgentInput {
   approvedOutline?: PlanPage[];
   /** Selected skill (e.g. "Presentation Maker") — structure hint for the planner. */
   skill?: string;
+  /** A3-lite: referenceImages[0] is the edit target — clauses are welded HERE
+   *  (deterministic, planner-proof), never in the renderer's prompt string. */
+  editMode?: { targetName?: string; textLayerOverlays?: boolean };
   /** TP.3 — generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
   mode?: GenerationMode;
   /** TP.5 — cooperative cancellation; checked between stages and threaded into providers. */
@@ -71,6 +74,16 @@ export function foldAscii(s: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 60);
+}
+
+/** A3-lite edit contract — one place, deterministic, planner-proof (the live
+ *  experiments of 2026-11-02 verified each clause: target declaration kills
+ *  wrong-image edits, the dimension lock kills ratio-mismatch warnings, the
+ *  lettering ban stops a plate growing text that would double after apply). */
+export function buildEditClauses(edit: { targetName?: string; textLayerOverlays?: boolean }): string {
+  const target = ` Edit Image 1${edit.targetName ? ` (the ${edit.targetName} layer)` : ""} only, and return the result at the exact same dimensions as Image 1.`;
+  const noText = edit.textLayerOverlays ? " Do not add any text or lettering — copy is added as separate layers." : "";
+  return target + noText;
 }
 
 /** Scene builder: artwork placed to cover (zone-anchored crop on ratio mismatch) + named textboxes from blocks. */
@@ -261,13 +274,18 @@ export async function* runDesignerAgent(
     }
   }
 
-  const imagePrompts =
-    input.approvedOutline?.length
+  const imagePrompts = (() => {
+    const base = input.approvedOutline?.length
       ? plan.imagePrompts!
       : pagesWanted > 1 && plan.imagePrompts?.length
         ? plan.imagePrompts.slice(0, pagesWanted)
         : Array.from({ length: pagesWanted }, (_, i) =>
             i === 0 ? (plan.imagePrompt ?? input.prompt) : `${plan.imagePrompt ?? input.prompt} — variation ${i + 1}`);
+    // A3-lite: append the edit contract only when the caller sent references —
+    // "Image 1" names referenceImages[0], so the clauses are meaningless without it.
+    const clauses = input.editMode && input.referenceImages?.length ? buildEditClauses(input.editMode) : "";
+    return clauses ? base.map((p) => p + clauses) : base;
+  })();
 
   yield ev(
     input.referenceImages?.length

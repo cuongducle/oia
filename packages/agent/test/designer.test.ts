@@ -240,6 +240,31 @@ describe("BR-CTRL composer controls", () => {
     expect(await narrativeWith(1)).not.toContain("1 reference images");
     expect(await narrativeWith(2)).toContain("adjusted for 2 reference images");
   });
+  it("A3-lite: editMode clauses are welded in the AGENT layer — deterministic, planner-proof", async () => {
+    let gotPrompt = "";
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { gotPrompt = i.prompt; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://ref/1.png"], editMode: { targetName: "artwork", textLayerOverlays: true } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
+    expect(gotPrompt).toContain("Edit Image 1 (the artwork layer) only");
+    expect(gotPrompt).toContain("exact same dimensions as Image 1");
+    expect(gotPrompt).toContain("Do not add any text or lettering");
+  });
+  it("A3-lite: no targetName → dimension lock only; no editMode → no clauses at all", async () => {
+    let p1 = ""; let p2 = "";
+    const spy = (set: (s: string) => void): ImageProvider => ({ name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { set(i.prompt); return { url: "https://x/y.png", provider: "s", model: "m" }; } });
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://r/1.png"], editMode: {} }, { llm: stubLlmReturning(plan), image: spy((s) => { p1 = s; }) })) void _;
+    expect(p1).toContain("exact same dimensions as Image 1");
+    expect(p1).not.toContain("(the ");
+    expect(p1).not.toContain("Do not add any text");
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://r/1.png"] }, { llm: stubLlmReturning(plan), image: spy((s) => { p2 = s; }) })) void _;
+    expect(p2).not.toContain("Edit Image 1");
+    expect(p2).not.toContain("exact same dimensions");
+  });
+  it("A3-lite: clauses are skipped when no references ride along (Image 1 would name nothing)", async () => {
+    let gotPrompt = "";
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { gotPrompt = i.prompt; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", editMode: { targetName: "artwork" } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
+    expect(gotPrompt).not.toContain("Edit Image 1");
+  });
   it("the skill hint reaches the planner system prompt", async () => {
     let sys = "";
     const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sys = m[0].content; return planSpy; } };
