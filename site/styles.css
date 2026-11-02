@@ -158,6 +158,8 @@ h2{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(
 
 /* ---------- BRING (deconstruct) ---------- */
 .bring-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(30px,5vw,70px);align-items:center}
+.bring-frames{display:flex;flex-direction:column;gap:26px}
+.bring-frames .editor-frame{margin-top:0}
 .bring-log{border:1px solid var(--hairline);border-radius:8px;padding:11px 13px;font-family:'JetBrains Mono';font-size:11px;line-height:2;color:var(--muted);max-width:460px;margin-top:26px}
 .bring-log b{color:#8ef0a6;font-weight:600}
 .bring-log .trust-line{color:var(--paper)}
