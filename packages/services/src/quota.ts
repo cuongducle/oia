@@ -126,6 +126,21 @@ export function meterLlm(inner: LlmProvider, meter: QuotaMeter): LlmProvider {
         throw err;
       }
     },
+    // B1: the vision read is an LLM turn — it rides the SAME metered ledger as
+    // chat (hard rule 6). Forwarded only when the inner provider has it.
+    ...(inner.readImage
+      ? {
+          readImage: async (prompt: string, image: Uint8Array, schema: object, opts?: LlmChatOpts): Promise<string> => {
+            meter.beginTurn("planner");
+            try {
+              return await inner.readImage!(prompt, image, schema, opts);
+            } catch (err) {
+              if (err instanceof ProviderError && err.errorClass === "quota_exceeded") meter.recordLimitHit();
+              throw err;
+            }
+          },
+        }
+      : {}),
   };
 }
 

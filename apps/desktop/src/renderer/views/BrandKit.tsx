@@ -102,7 +102,6 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
 
   return (
     <main className="studioPage brandkitView" data-testid="brandkit-view">
-      <div className="studioTopline"><span>Brand kit</span><span className="privateNote">Your identity, consistently expressed</span></div>
       <header className="sectionHeading">
         <div>
           <h1>Brand kit</h1>

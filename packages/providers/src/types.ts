@@ -95,4 +95,9 @@ export interface LlmProvider {
   readonly capabilities: ProviderCapabilities;
   chat(messages: LlmMessage[], opts?: LlmChatOpts): Promise<string>;
   isAvailable(): Promise<ProviderDiagnostic>;
+  /** B1 deconstruct: one image + prompt → a JSON string the CALLER validates
+   * (codex pins it via --output-schema with the passed schema object).
+   * Optional + capability-gated by `referenceImages` — consumers must check
+   * (TP.11), an unsupported provider must fail loudly, never silently skip. */
+  readImage?(prompt: string, image: Uint8Array, schema: object, opts?: LlmChatOpts): Promise<string>;
 }

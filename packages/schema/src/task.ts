@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { errorClassSchema } from "./plan.js";
+import { deconstructTextSchema } from "./deconstruct.js";
 
 export const taskTypeSchema = z.enum([
   "remove-background",
@@ -14,7 +15,8 @@ export const taskTypeSchema = z.enum([
   "generate-storyboard",
   "generate-photo-poetic-editorial",
   "generate-restaged-cinematic",
-]);
+  "deconstruct",
+]);;
 export type TaskType = z.infer<typeof taskTypeSchema>;
 
 /** CommonResult envelope. */
@@ -63,13 +65,16 @@ export const submitTaskSchemas = {
   "remove-background": z
     .object({ ...submitTaskBase, fileUrl: z.string() })
     .strict(),
+  "deconstruct": z
+    .object({ ...submitTaskBase, fileUrl: z.string() })
+    .strict(),
 } as const;
 
 export const taskStatusSchema = z.object({
   taskId: z.string(),
   sessionId: z.number(),
   progress: z.enum(["processing", "succeeded", "failed"]),
-  taskResult: z.object({ download: z.string().optional() }).nullable(),
+  taskResult: z.object({ download: z.string().optional(), texts: z.array(deconstructTextSchema).optional() }).nullable(),
   taskNote: z.string().nullable(),
   msg: z.string().default(""),
   /** TP.4 durability: every task record carries these (nullable for legacy rows). */

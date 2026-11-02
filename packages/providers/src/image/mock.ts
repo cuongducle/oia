@@ -86,7 +86,10 @@ export function placeholderPng(prompt: string): string {
 }
 
 const MOCK_CAPABILITIES: ProviderCapabilities = {
-  referenceImages: false,
+  // The mock accepts (and ignores) reference inputs — it returns a deterministic
+  // placeholder for ANY generate() call, so declaring "cannot" was a lie about
+  // itself; B1's deconstruct lane runs on mock pairs in every gate.
+  referenceImages: true,
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: true,

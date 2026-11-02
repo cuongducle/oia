@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
-import { runOcrScenario } from "./shotOcr.js";
+import { runOcrScenario, fixturePngB64 } from "./shotOcr.js";
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 import {
@@ -557,7 +557,7 @@ async function shot(): Promise<void> {
   // present AND the bar's computed padding equals the shared constant exactly.
   if (process.platform === "darwin") {
     const chrome = await win.webContents.executeJavaScript(`(() => {
-      const bar = document.querySelector(".viewNav");
+      const bar = document.querySelector(".sidebarHead");
       return {
         marker: document.documentElement.dataset.platform ?? null,
         pad: bar ? getComputedStyle(bar).paddingLeft : null,
@@ -651,6 +651,32 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
+  // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
+  const r6 = await win.webContents.executeJavaScript(`(async () => {
+    const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
+    const aspect = () => document.querySelector('select[aria-label="Aspect ratio"]')?.value ?? null;
+    const live = chip("Livestream"), deck = chip("Deck");
+    if (!live || !deck) return "no-chips";
+    live.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const liveAspect = aspect();
+    deck.click();
+    await new Promise((r) => setTimeout(r, 100));
+    const deckAspect = aspect();
+    const deckPages = document.querySelector(".advancedToggle")?.textContent ?? null;
+    const prompt = document.querySelector('[data-testid="design-idea"]')?.value ?? "";
+    const sel = document.querySelector('select[aria-label="Aspect ratio"]');
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(sel, "auto"); // C1 below runs at the default ratio
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    return { liveAspect, deckAspect, deckPages, prompt };
+  })()`, true);
+  console.log("[shot] R6 chips:", JSON.stringify(r6));
+  if (!r6 || r6.liveAspect !== "9:16" || r6.deckAspect !== "16:9" || r6.deckPages !== "3 pages" || !r6.prompt) {
+    console.error("DESKTOP_SHOT R6 FAILED — a use-case chip did not set its ratio/pages");
+    app.exit(21);
+    return;
+  }
+
   // ---- C1 outline gate: a 2-page deck stops for review BEFORE any image burns ----
   console.log("[shot] C1: running a gated 2-page deck (mock pair)…");
   const c1Setup = await win.webContents.executeJavaScript(`(async () => {
@@ -670,7 +696,7 @@ async function shot(): Promise<void> {
     return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
-  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "· 2 pages ≈ 2 images") {
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images") {
     console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
     app.exit(18);
     return;
@@ -701,7 +727,12 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   if (!outlineShown) {
-    console.error("DESKTOP_SHOT C1 FAILED — outline card never appeared");
+    const why = await win.webContents.executeJavaScript(`({
+      alerts: [...document.querySelectorAll('[role=alert],[role=status]')].map((n) => n.textContent.slice(0, 120)),
+      pages: document.querySelector("#advanced-settings select")?.value ?? null,
+      prompt: document.querySelector('[data-testid="design-idea"]')?.value ?? null,
+    })`, true).catch(() => null);
+    console.error(`DESKTOP_SHOT C1 FAILED — outline card never appeared (${JSON.stringify(why)})`);
     app.exit(18);
     return;
   }
@@ -775,7 +806,7 @@ async function shot(): Promise<void> {
     return { cost, off: sw.getAttribute("aria-checked") };
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
-  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "· 3 pages ≈ 3 images") {
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images") {
     console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;
@@ -856,7 +887,7 @@ async function shot(): Promise<void> {
     for (let i = 0; i < data.length; i += 16) {
       if (data[i] < 245 || data[i + 1] < 245 || data[i + 2] < 245) nonWhite++;
     }
-    return { ok: rail === 7 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
+    return { ok: rail === 8 && dock && strip && nonWhite > 50, painted: nonWhite, rail, dock, strip, err };
   })()`, true);
   console.log("[shot] editor verify:", JSON.stringify(edVerify));
   if (!edVerify || !edVerify.ok) {
@@ -1042,7 +1073,7 @@ async function shot(): Promise<void> {
   await new Promise((r) => setTimeout(r, 800));
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    const ws = pills.find((p) => p.textContent.trim() === "Workspace");
+    const ws = pills.find((p) => p.textContent.trim() === "Projects");
     if (!ws) return false;
     ws.click();
     return true;
@@ -1057,11 +1088,10 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 250));
   }
   await new Promise((r) => setTimeout(r, 1200));
-  const wsVerify = await win.webContents.executeJavaScript(`(() => {
+  const wsVerify = await win.webContents.executeJavaScript(`(async () => {
     const cards = document.querySelectorAll(".projectGrid article").length;
     const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
     const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
-    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box —
     // the fabric wrapper's inline px sizes used to overflow and clip half the artwork.
@@ -1074,7 +1104,20 @@ async function shot(): Promise<void> {
                why: Math.round(r.width) + "x" + Math.round(r.height) + " in " + Math.round(box.width) + "x" + Math.round(box.height) };
     });
     const fitOk = fits.length > 0 && fits.every((f) => f.ok);
-    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && fitOk && !err, cards, preview, samples, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
+    // R2: the Samples filter shows exactly the samples; AI history holds the conversations
+    const chip = (t) => [...document.querySelectorAll(".filterChip")].find((b) => b.textContent === t);
+    chip("Samples")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const samplesOnly = document.querySelectorAll(".projectGrid article").length === samples
+      && document.querySelectorAll(".projectGrid article:not([data-sample])").length === 0;
+    chip("All")?.click();
+    const tab = (t) => [...document.querySelectorAll(".segmented button")].find((b) => b.textContent === t);
+    tab("AI history")?.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const chats = document.querySelectorAll(".chatGrid .chatCard").length;
+    tab("Projects")?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    return { ok: cards >= 1 && preview && chats >= 1 && samples >= 1 && samplesOnly && fitOk && !err, cards, preview, samples, samplesOnly, chats, fitOk, fits: fits.map((f) => f.why).slice(0, 6), err };
   })()`, true);
   console.log("[shot] workspace verify:", JSON.stringify(wsVerify));
   if (!wsVerify || !wsVerify.ok) {
@@ -1083,6 +1126,343 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-workspace.png");
+
+  // ---- C3: livestream overlay preset + safe-zone guides + export purity ----------
+  // Pins live-overlay-presets.md gates 2–4: transparent PNG survives the real
+  // fabric toDataURL lane; guides (DOM layer) never leak into rendered bytes;
+  // the guide toggle refuses a non-9:16 artboard instead of lying.
+  console.log("[shot] C3: creating a livestream overlay project…");
+  // R2: Projects › New opens the Create sheet; the C3 artboards are its Livestream row
+  const sheetOpen = await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[data-testid="projects-new"]');
+    if (!btn) return "no-new-btn";
+    btn.click();
+    await new Promise((r) => setTimeout(r, 300));
+    if (!document.querySelector('[data-testid="create-sheet"]')) return "no-sheet";
+    const rows = [...document.querySelectorAll(".createSizeRow")];
+    const live = rows.find((r) => r.querySelector(".createSizeGroup")?.textContent === "Livestream");
+    const liveItems = live ? live.querySelectorAll(".createSize").length : 0;
+    const stars = document.querySelectorAll(".createSheet .officialStar").length; // LV-10: only the two covers
+    return liveItems === 3 && stars === 2 ? "open" : "live-" + liveItems + "-stars-" + stars;
+  })()`, true);
+  if (sheetOpen !== "open") {
+    console.error(`DESKTOP_SHOT R2 FAILED — create sheet (${sheetOpen})`);
+    app.exit(22);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 800)); // scene previews in the template lane mount lazily
+  await snap(win, "desktop-create.png");
+  const liveCreated = await win.webContents.executeJavaScript(`(() => {
+    const overlay = [...document.querySelectorAll(".createSize")].find((b) => b.textContent.includes("Livestream overlay"));
+    if (!overlay) return "no-overlay-item";
+    overlay.click();
+    return "clicked";
+  })()`, true);
+  if (liveCreated !== "clicked") {
+    console.error(`DESKTOP_SHOT C3 FAILED — create sheet item (${liveCreated})`);
+    app.exit(19);
+    return;
+  }
+  let liveReady = false;
+  for (let i = 0; i < 40; i++) {
+    liveReady = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="editor-root"] .canvasWrap[data-transparent="true"] canvas'))`,
+      true,
+    );
+    if (liveReady) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  await new Promise((r) => setTimeout(r, 1200));
+  if (!liveReady) {
+    console.error("DESKTOP_SHOT C3 FAILED — overlay artboard never mounted transparent");
+    app.exit(19);
+    return;
+  }
+  // Alpha + guides-purity on the REAL canvas (same fabric toDataURL lane export uses).
+  const alphaGate = await win.webContents.executeJavaScript(`(async () => {
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no-canvas" };
+    const corners = async (url) => {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const cv = document.createElement("canvas");
+      cv.width = img.width; cv.height = img.height;
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const px = (x, y) => ctx.getImageData(x, y, 1, 1).data[3];
+      return { w: img.width, h: img.height, tl: px(0, 0), tr: px(img.width - 1, 0), bl: px(0, img.height - 1), br: px(img.width - 1, img.height - 1) };
+    };
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    if (!btn) return { ok: false, why: "no-guide-btn" };
+    if (btn.disabled) return { ok: false, why: "guide-btn-disabled-on-916" };
+    btn.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const zones = document.querySelectorAll(".canvasWrap .guideZone").length;
+    const badge = document.querySelector(".canvasWrap .guideBadge")?.textContent ?? "";
+    const pressed = btn.getAttribute("aria-pressed");
+    const pngOn = c.toDataURL({ format: "png", multiplier: 1 });
+    const cornersOn = await corners(pngOn);
+    // Re-query the button each time: React re-renders it on state change and a
+    // stale node's click() is silently lost (caught by the vision check on the snap).
+    // The cycle is off→TikTok→Shopee→off, so click UNTIL it is off, bounded.
+    let zonesOff = -1;
+    for (let i = 0; i < 3; i++) {
+      document.querySelector('[aria-label="Toggle platform safe-zone guides"]')?.click();
+      await new Promise((r) => setTimeout(r, 300));
+      zonesOff = document.querySelectorAll(".canvasWrap .guideZone").length;
+      if (zonesOff === 0) break;
+    }
+    const pngOff = c.toDataURL({ format: "png", multiplier: 1 });
+    return {
+      ok: pressed === "true" && zones >= 3 && badge.length > 0 && zonesOff === 0
+        && cornersOn.tl === 0 && cornersOn.tr === 0 && cornersOn.bl === 0 && cornersOn.br === 0
+        && pngOn === pngOff,
+      zones, zonesOff, badge, pressed, cornersOn, bytesIdentical: pngOn === pngOff,
+    };
+  })()`, true);
+  console.log("[shot] C3 alpha/guides gate:", JSON.stringify(alphaGate));
+  if (!alphaGate || !alphaGate.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — alpha corners must be 0 and guides must not change rendered bytes");
+    app.exit(19);
+    return;
+  }
+  // Template pack: apply "Flash sale price" — native text on the transparent artboard.
+  const tplApplied = await win.webContents.executeJavaScript(`(async () => {
+    const rail = [...document.querySelectorAll('.railBtn')].find((b) => b.getAttribute("aria-label") === "Templates");
+    if (!rail) return "no-rail";
+    rail.click();
+    await new Promise((r) => setTimeout(r, 300));
+    const groups = [...document.querySelectorAll(".panelBox h5.tplGroup")].map((h) => h.textContent);
+    const tpl = [...document.querySelectorAll(".panelBox .presetBtn")].find((b) => b.textContent.includes("Flash sale price"));
+    if (!tpl) return "no-template-btn:" + groups.join("|");
+    tpl.click();
+    await new Promise((r) => setTimeout(r, 900));
+    const c = (window).__oiaCanvas;
+    const objs = c ? c.toObject().objects : [];
+    const flash = objs.some((o) => o.type === "Textbox" && String(o.text ?? "").includes("FLASH SALE"));
+    const clip = objs.find((o) => o.name === "clip");
+    return { ok: Boolean(flash && clip && clip.fill === "transparent"), groups, flash, fill: clip?.fill ?? null };
+  })()`, true);
+  console.log("[shot] C3 template gate:", JSON.stringify(tplApplied));
+  if (!tplApplied || !tplApplied.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — Flash sale template did not land as native text on a transparent clip");
+    app.exit(19);
+    return;
+  }
+  // Snap WITH guides visible — the artifact must show the feature it certifies
+  // (same rule as the A1 tray snap). Guides were switched off in the alpha gate.
+  await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    if (btn && !btn.disabled) { btn.click(); await new Promise((r) => setTimeout(r, 300)); }
+    return document.querySelectorAll(".canvasWrap .guideZone").length;
+  })()`, true);
+  await snap(win, "desktop-live-overlay.png");
+  // and off again before the refusal check measures a clean slate
+  await win.webContents.executeJavaScript(`(async () => {
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    let n = -1;
+    for (let i = 0; i < 3; i++) {
+      btn?.click();
+      await new Promise((r) => setTimeout(r, 300));
+      n = document.querySelectorAll(".canvasWrap .guideZone").length;
+      if (n === 0) break;
+    }
+    return n;
+  })()`, true);
+  // LV-6 honest refusal: a 3:4 studio template must DISABLE the guide toggle,
+  // not show a 9:16 guide on a poster artboard.
+  const refused = await win.webContents.executeJavaScript(`(async () => {
+    const tpl = [...document.querySelectorAll(".panelBox .presetBtn")].find((b) => b.textContent.includes("Matcha every day"));
+    if (!tpl) return { ok: false, why: "no-poster-template" };
+    tpl.click();
+    await new Promise((r) => setTimeout(r, 900));
+    const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
+    // Teardown C3: applying an opaque template must flip the wrap OFF transparent —
+    // the attr drives the checkerboard AND the export alpha hint; a stale pages
+    // state would keep lying "transparent" after the scene went white.
+    const wrap = document.querySelector('[data-testid="editor-root"] .canvasWrap');
+    return { ok: Boolean(btn && btn.disabled && !wrap?.getAttribute("data-transparent")), disabled: btn ? btn.disabled : null, title: btn?.title ?? "", zones: document.querySelectorAll(".canvasWrap .guideZone").length, stillTransparent: wrap?.getAttribute("data-transparent") ?? null };
+  })()`, true);
+  console.log("[shot] C3 refusal gate:", JSON.stringify(refused));
+  if (!refused || !refused.ok) {
+    console.error("DESKTOP_SHOT C3 FAILED — guide toggle must refuse a non-9:16 artboard");
+    app.exit(19);
+    return;
+  }
+  console.log("[shot] C3 OK (transparent alpha + guides never in bytes + template pack + honest refusal)");
+  // leave the editor so the Tools scenario below starts from the nav
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 800));
+
+  // ---- B1: deconstruct import — old banner in, editable text layers out (mock pair)
+  // Pins deconstruct-import.md: price hidden in mock, two-phase task, texts ride
+  // the result, the scene opens in the editor with native Textboxes (DC-1/DC-8).
+  console.log("[shot] B1: deconstructing a fixture banner…");
+  const deconStarted = await win.webContents.executeJavaScript(`(async () => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "Projects")?.click();
+    await new Promise((r) => setTimeout(r, 600));
+    document.querySelector('[data-testid="projects-new"]')?.click(); // R2: images come in through the Create sheet
+    await new Promise((r) => setTimeout(r, 300));
+    const input = document.querySelector('input[aria-label="Bring an image"]');
+    if (!input) return "no-input";
+    // real PNG bytes (the OCR fixture) — a garbage blob would fail the preview Image load
+    const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
+    const file = new File([bytes], "old-banner.png", { type: "image/png" });
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 200));
+    const editable = document.querySelector('[data-testid="create-image-editable"]');
+    if (!editable || !document.querySelector('[data-testid="create-image-background"]')) return "no-image-choices";
+    if (/image \+/.test(editable.textContent)) return "price-shown-in-trial"; // mock: nothing is billed
+    editable.click();
+    return "picked";
+  })()`, true);
+  if (deconStarted !== "picked") {
+    console.error(`DESKTOP_SHOT B1 FAILED — picker (${deconStarted})`);
+    app.exit(20);
+    return;
+  }
+  let deconDialog = false;
+  for (let i = 0; i < 20 && !deconDialog; i++) {
+    deconDialog = await win.webContents.executeJavaScript(
+      `Boolean(document.querySelector('[data-testid="decon-confirm"]'))`, true,
+    );
+    if (!deconDialog) await new Promise((r) => setTimeout(r, 250));
+  }
+  const deconDialogState = await win.webContents.executeJavaScript(`(() => {
+    const cost = document.querySelector('[data-testid="decon-cost"]');
+    const img = document.querySelector(".deconPreview img");
+    return { dialog: Boolean(cost === null && img) }; // mock provider → cost label HIDDEN
+  })()`, true);
+  if (!deconDialog || !deconDialogState?.dialog) {
+    console.error(`DESKTOP_SHOT B1 FAILED — confirm dialog (open=${deconDialog}, state=${JSON.stringify(deconDialogState)})`);
+    app.exit(20);
+    return;
+  }
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="decon-confirm"]').click()`, true);
+  // teardown B1 pin: "Cancel" must stay clickable WHILE the run is in flight
+  // (the 2s first-poll window guarantees the busy state is observable in mock)
+  const cancelAlive = await win.webContents.executeJavaScript(`(() => {
+    const btn = [...document.querySelectorAll('.dialogActions .secondaryBtn')].find((b) => b.textContent.includes("Cancel"));
+    return btn ? { present: true, disabled: btn.disabled, label: btn.textContent.trim() } : { present: false };
+  })()`, true);
+  if (!cancelAlive?.present || cancelAlive.disabled !== false) {
+    console.error(`DESKTOP_SHOT B1 FAILED — cancel must stay alive mid-run (${JSON.stringify(cancelAlive)})`);
+    app.exit(20);
+    return;
+  }
+  console.log(`[shot] B1 cancel-alive gate:`, JSON.stringify(cancelAlive));
+  let deconDone: unknown = null;
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    deconDone = await win.webContents.executeJavaScript(`(() => {
+      const root = document.querySelector('[data-testid="editor-root"]');
+      const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+      return root ? { open: true, err } : { open: false, err };
+    })()`, true).catch(() => null);
+    if (deconDone && (deconDone as { open: boolean }).open) break;
+  }
+  // the scene load is async (loadFromJSON + fonts) — poll until objects land, not just the root
+  for (let i = 0; i < 20; i++) {
+    const n = await win.webContents.executeJavaScript(
+      `((window).__oiaCanvas ? (window).__oiaCanvas.toObject().objects.length : 0)`,
+      true,
+    ).catch(() => 0);
+    if (n >= 2) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  const deconVerify = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no-canvas" };
+    const objs = c.toObject().objects;
+    const boxes = objs.filter((o) => o.type === "Textbox");
+    const sale = boxes.some((o) => String(o.text ?? "").includes("SALE 50"));
+    const liveImg = c.getObjects().find((o) => typeof o.get("src") === "string");
+    const artScaled = liveImg ? [Math.round(liveImg.getScaledWidth()), Math.round(liveImg.getScaledHeight())] : null;
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: sale && boxes.length === 3 && !err && artScaled !== null && artScaled[0] >= 590, textboxes: boxes.length, sale, artScaled, err };
+  })()`, true);
+  console.log("[shot] B1 verify:", JSON.stringify(deconVerify));
+  if (!deconVerify || !deconVerify.ok) {
+    console.error("DESKTOP_SHOT B1 VERIFY FAILED — expected 3 native textboxes (SALE 50 present) + clean-plate artwork");
+    app.exit(20);
+    return;
+  }
+  await snap(win, "desktop-deconstruct.png");
+  console.log("[shot] B1 OK (mock pair: read → inpaint → editable text layers)");
+
+  // ---- UI v1.1 R4/R5: Layers mirror the Fabric stack; selection drives toolbar + Design tab ----
+  const r45 = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const c = (window).__oiaCanvas;
+    if (!c) return { ok: false, why: "no canvas" };
+    [...document.querySelectorAll(".railBtn")].find((b) => b.getAttribute("aria-label") === "Layers")?.click();
+    await wait(200);
+    const stack = c.getObjects().map((o, i) => (o.name === "clip" ? -1 : i)).filter((i) => i >= 0).reverse();
+    const rows = [...document.querySelectorAll('[data-testid="layers-panel"] .layerRow')].map((r) => Number(r.dataset.layerIndex));
+    const orderOk = rows.length === stack.length && rows.every((v, i) => v === stack[i]);
+
+    const tb = c.getObjects().find((o) => o.type === "textbox");
+    c.setActiveObject(tb); c.requestRenderAll();
+    await wait(150);
+    const ctxKind = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    // the toolbar floats inside the canvas area, above (or just below) the selected layer
+    const tbRect = document.querySelector('[data-testid="ctx-toolbar"]')?.getBoundingClientRect();
+    const area = document.querySelector(".canvasArea").getBoundingClientRect();
+    const wrap = document.querySelector(".canvasWrap").getBoundingClientRect();
+    const sel = tb.getBoundingRect();
+    const selTop = wrap.top + sel.top * c.viewportTransform[3];
+    const ctxPlaced = Boolean(tbRect) && tbRect.width > 120 && tbRect.left >= area.left && tbRect.right <= area.right
+      && (tbRect.bottom <= selTop + 2 || tbRect.top >= selTop);
+    const rowSelected = Boolean(document.querySelector('[data-testid="layers-panel"] .layerRow.selected'));
+    document.querySelector('[data-testid="tab-design"]')?.click();
+    await wait(150);
+    const x = document.querySelector('[data-testid="inspector"] input[aria-label="X"]');
+    const hasSize = Boolean(document.querySelector('[data-testid="inspector"] input[aria-label="Size"]'));
+    if (!x) return { ok: false, why: "no X field", orderOk, ctxKind };
+    x.focus(); await wait(30);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(x, "123");
+    x.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(30);
+    x.dispatchEvent(new FocusEvent("focusout", { bubbles: true })); // React onBlur; blur() is a no-op in an unfocused window
+    await wait(150);
+    const leftAfter = Math.round(tb.left);
+    const undoEnabled = !document.querySelector('.edTop [title="Undo"]').disabled;
+
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    c.setActiveObject(img); c.requestRenderAll();
+    await wait(150);
+    const imgCtx = document.querySelector('[data-testid="ctx-toolbar"]')?.dataset.kind ?? null;
+    document.querySelector('[data-testid="ctx-edit-ai"]')?.click();
+    await wait(150);
+    const aiTab = document.querySelector('[data-testid="tab-ai"]')?.getAttribute("aria-selected");
+    const prompt = document.querySelector('textarea[aria-label="AI edit request"]')?.value ?? "";
+    c.setActiveObject(tb); c.requestRenderAll(); // leave a text layer selected for the capture
+    const ok = orderOk && ctxKind === "text" && ctxPlaced && rowSelected && hasSize && leftAfter === 123 && undoEnabled
+      && imgCtx === "image" && aiTab === "true" && prompt.includes("@(selected");
+    return { ok, rows: rows.length, orderOk, ctxKind, ctxPlaced, rowSelected, hasSize, leftAfter, undoEnabled, imgCtx, aiTab, prompt: prompt.slice(0, 60) };
+  })()`, true);
+  console.log("[shot] R4/R5 verify:", JSON.stringify(r45));
+  if (!r45 || !r45.ok) {
+    console.error("DESKTOP_SHOT R4/R5 FAILED — layers order, toolbar, inspector commit or Edit with AI");
+    app.exit(23);
+    return;
+  }
+  await snap(win, "desktop-layers.png");
+  await win.webContents.executeJavaScript(`(() => { const c = (window).__oiaCanvas; c?.discardActiveObject(); c?.requestRenderAll(); })()`, true);
+  // leave the editor for the Tools scenario
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('[data-testid="editor-root"] .edTop .iconBtn')?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 800));
 
   // ---- reorg 4c: Tools view — grid + one real runner ----------------------------
   console.log("[shot] opening Tools…");
@@ -1193,7 +1573,7 @@ async function shot(): Promise<void> {
   console.log("[shot] opening Brand kit…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "Brand kit")?.click();
+    pills.find((p) => p.textContent.trim() === "Brand kits")?.click();
     return true;
   })()`, true);
   let kitReady = false;
@@ -1224,7 +1604,13 @@ async function shot(): Promise<void> {
   console.log("[shot] opening For agents…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
-    pills.find((p) => p.textContent.trim() === "For agents")?.click();
+    pills.find((p) => p.textContent.trim() === "Settings")?.click();
+    return true;
+  })()`, true);
+  // UI v1.1 R1: For agents is a Settings section now
+  for (let i = 0; i < 20 && !(await win.webContents.executeJavaScript(`Boolean(document.querySelector(".settingsTab"))`, true)); i++) await new Promise((r) => setTimeout(r, 150));
+  await win.webContents.executeJavaScript(`(() => {
+    [...document.querySelectorAll(".settingsTab")].find((t) => t.textContent.trim() === "For agents")?.click();
     return true;
   })()`, true);
   let agentsReady = false;
@@ -1243,8 +1629,12 @@ async function shot(): Promise<void> {
     const emptyKeys = Boolean(document.querySelector(".emptyState"));
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
     const portStr = baseUrl.slice("http://127.0.0.1:".length, baseUrl.length - "/api".length);
-    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && !err;
-    return { ok, form, baseUrl, keysTable, emptyKeys, err };
+    // UI v1.1 R1: For agents lives inside Settings, and the sidebar status card replaces
+    // the runtime panel that used to sit on the Home hero
+    const inSettings = Boolean(document.querySelector(".settingsView .agentsView"));
+    const statusCard = Boolean(document.querySelector(".appSidebar .statusCard"));
+    const ok = form && baseUrl.startsWith("http://127.0.0.1:") && baseUrl.endsWith("/api") && Number.isInteger(Number(portStr)) && (keysTable || emptyKeys) && inSettings && statusCard && !err;
+    return { ok, form, baseUrl, keysTable, emptyKeys, inSettings, statusCard, err };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] agents verify:", JSON.stringify(agentsVerify));
   if (!agentsVerify || !agentsVerify.ok) {

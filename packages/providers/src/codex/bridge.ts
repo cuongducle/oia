@@ -240,10 +240,13 @@ export class CodexBridge {
     const model = opts.role === "planner" ? this.model : this.imageModel;
     const args = this.baseArgs(model);
     if (opts.role === "planner") {
-      // empty scratch dir as working root; the planner agent can never write state
+      // empty scratch dir as working root; the planner agent can never write state.
+      // B1: the vision read attaches its image here too — an image is PROMPT INPUT,
+      // not state; read-only sandbox still blocks every write.
       args.push("--sandbox", "read-only", "-C", scratchDir);
       if (opts.schemaFile) args.push("--output-schema", opts.schemaFile);
       if (opts.lastMessageFile) args.push("-o", opts.lastMessageFile);
+      for (const img of opts.images ?? []) args.push("-i", img);
     } else {
       // the image path must write the PNG — workspace-write scoped to the job scratch
       args.push("--sandbox", "workspace-write", "-C", scratchDir);

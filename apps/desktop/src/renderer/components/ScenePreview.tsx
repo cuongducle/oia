@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SceneCanvas } from "@oia/schema";
 import type { StaticCanvas } from "fabric";
 import { mapAssetUrls } from "../../shared/assets.js";
-import { fabricV6OriginDefaults } from "@oia/canvas";
+import { fabricV6OriginDefaults, normalizeImageScales } from "@oia/canvas";
 
 /** Render the actual editable scene (not its first image layer) — port of the web
  *  ScenePreview with the oia:// mapping the desktop canvas needs. */
@@ -38,6 +38,7 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
         const objects = mapped.objects.map(o => o.fontFamily === "Be Vietnam Pro" ? { ...o, fontFamily: fontStack() } : o);
         await canvas.loadFromJSON({ ...mapped, objects });
         if (disposed) return;
+        normalizeImageScales(canvas); // thumbnails paint the full box (mock plates, mismatched uploads)
         if (size.zoom < 1) {
           canvas.viewportTransform = [size.zoom, 0, 0, size.zoom, 0, 0];
         }

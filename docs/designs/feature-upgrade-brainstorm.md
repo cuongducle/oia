@@ -2,7 +2,7 @@
 
 * **Author:** cuongducle + agent
 * **Date:** 2026-10-31
-* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp → [`variant-preview-apply.md`](variant-preview-apply.md) (ĐÃ SHIP); C1 tốt nghiệp → [`outline-gate.md`](outline-gate.md) (ĐÃ SHIP 2026-10-31). Chi tiết từng feature sống ở doc riêng từ lúc tốt nghiệp.**
+* **Status:** Proposed — v1.1 feature candidates. Đã chốt (kèm spec trong mục tương ứng): **A1, C1, C3, B1**. Còn lại là candidate chưa chốt. Doc này KHÔNG phải kế hoạch triển khai: mỗi feature P0 **tốt nghiệp thành design doc riêng** theo khuôn Goals/Non-Goals/CUJ/TP/gates — decisions sống ở đây cho tới lúc đó. **Update 2026-10-31 (owner): v1.1 triển khai ngay, không chờ D10 — sequencing cũ bị ghi đè. A1 tốt nghiệp → [`variant-preview-apply.md`](variant-preview-apply.md) (ĐÃ SHIP); C1 tốt nghiệp → [`outline-gate.md`](outline-gate.md) (ĐÃ SHIP 2026-10-31); C3 tốt nghiệp → [`live-overlay-presets.md`](live-overlay-presets.md) (ĐÃ SHIP 2026-10-31 — gates xanh: alpha PNG + guides-never-in-bytes + từ chối trung thực 3:4; owner chốt "chốt hết theo đề xuất" cùng ngày: cả 2 nền tảng guides từ đầu, B1 làm sau C3, không thăng cấp candidate nào). Chi tiết từng feature sống ở doc riêng từ lúc tốt nghiệp.**
 * **Branch:** `cuongducle/docs-feature-brainstorm`
 * **Phạm vi:** đối thủ trực tiếp nhất (cùng thesis prompt-first → layer editor, đang chạy web + credit subscription) nghiên cứu ở mức **tính năng/capability** từ trang công khai + phân tích vision 6 ảnh minh họa + RE nội bộ của owner (private, 2026-10-27 — mức UI/protocol, không lặp ở đây) + gap table `docs/reference/design-product-ui-2026.md` (mức cấu trúc UI, không lặp). Theo precedent bảo mật đối thủ: tên sản phẩm, URL, bundle KHÔNG ghi trong repo công khai.
 
@@ -74,7 +74,7 @@ Chi phí: vừa (AI dock + variant storage + apply flow). Rủi ro: partial-edit
 
 ### Nhóm B — Đưa ảnh cũ vào vòng lặp
 
-**B1. "Deconstruct" khi import ảnh** (học P5 nhưng không overclaim) — **Q4 ĐÃ CHỐT (owner, 2026-10-31): AI-first như đối thủ + lane miễn phí làm degradation**
+**B1. "Deconstruct" khi import ảnh** (học P5 nhưng không overclaim) — **Q4 ĐÃ CHỐT (owner, 2026-10-31): AI-first như đối thủ + lane miễn phí làm degradation** — **GHI ĐÈ TIẾP (owner, 2026-10-31, sau teardown C3): "làm giống họ thôi không cần làm khác" — BỎ lane "Đọc thô 0 phí" + BỎ vai trò bbox dự phòng của tesseract. Spike vị trí thu hẹp còn "model trả bbox dùng được không" (không còn phương án B). Tool OCR tesseract sẵn có ở Tools GIỮ NGUYÊN như tool rời — không dây vào B1, không tái định vị.**
 
 Paste/upload banner cũ (làm từ Canva/ChatGPT) → hồi sinh thành bản chỉnh sửa được. KHÔNG hứa tách từng object như đối thủ quảng cáo — chỉ trích chữ + làm sạch, phần còn lại là ảnh phẳng (trung thực).
 
@@ -106,7 +106,7 @@ Trước khi sinh N trang: planner trả outline (tiêu đề + tóm tắt mỗi
 
 **C2. Long-image narrative (ảnh dài XHS/blog)** *(candidate — chưa chốt, xem lại cùng dữ liệu D10)*: artboard dài + cột text native theo khối — dùng thế mạnh text sạch của Oia, dùng image model chỉ cho nền/illustration từng đoạn. Mục tiêu ngách: bài review/product-story dài cho Xiaohongshu/RED và blog seller.
 
-**C3. Live-commerce overlay presets** — **Q3 ĐÃ CHỐT (owner, 2026-10-31): preset trung thực + safe-zone guides**
+**C3. Live-commerce overlay presets** — **Q3 ĐÃ CHỐT (owner, 2026-10-31): preset trung thực + safe-zone guides** — *tốt nghiệp → [`live-overlay-presets.md`](live-overlay-presets.md) (2026-10-31); chi tiết sống ở doc riêng*
 
 Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + template pack đi kèm; đổi giá/đổi chữ qua A1/A3, không regenerate. Use case này đối thủ chọn làm video demo đầu tiên = nhu cầu thật của khán giả chung.
 
@@ -148,7 +148,7 @@ Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + te
 * ~~Q1: A1 — variant lưu ở đâu?~~ **ĐÃ CHỐT (2026-10-31):** khay variant trong AI dock gắn với conversation, asset persist theo G5, không auto-cleanup, "Not now" thay cho Discard; hành động khác biệt **Replace selected layer**; "Open in editor" làm hành động phụ. Chi tiết trong mục A1.
 * ~~Q2: C1 — outline gate mặc định bật khi nào?~~ **ĐÃ CHỐT (2026-10-31, 2 vòng):** mặc định BẬT cho mọi generation nhiều trang (≥ 2 trang) + **switch tắt** nhớ lựa chọn (tắt = AI tự duyệt, pipeline vẫn dùng outline nội bộ); nhãn chi phí "N trang ≈ N ảnh" là luật chung; deck = N job metered-once con theo trang; checkpoint D10 theo dõi click-through mù. Chi tiết trong mục C1.
 * ~~Q3: C3 — spec overlay lấy chuẩn nào?~~ **ĐÃ CHỐT (2026-10-31):** preset trung thực + safe-zone guides. Không có spec sticker công khai — canvas 9:16 OBS + guides vùng nền tảng che là feature chính; chỉ preset ảnh bìa (Shopee 500×500, TikTok 1080×1920) là spec chính thức. Cấm UI copy "kích thước platform yêu cầu". Chi tiết trong mục C3.
-* ~~Q4: B1 — OCR local hay qua model?~~ **ĐÃ CHỐT (2026-10-31):** AI-first như đối thủ — vision đọc chữ (1 lượt) + inpaint làm sạch (1 ảnh), mọi bước hiện giá tường minh; tesseract eng+vie đã ship tái định vị thành lane "Đọc thô 0 phí" (G7 degradation) + nguồn bbox dự phòng. Spike vị trí (model bbox vs tesseract) khi implement. Chi tiết trong mục B1.
+* ~~Q4: B1 — OCR local hay qua model?~~ **ĐÃ CHỐT (2026-10-31):** AI-first như đối thủ — vision đọc chữ (1 lượt) + inpaint làm sạch (1 ảnh), mọi bước hiện giá tường minh. **Ghi đè sau cùng (owner, 2026-10-31): bỏ hoàn toàn tesseract khỏi B1 — làm giống đối thủ, không thêm làn free/bbox dự phòng.** Chi tiết trong mục B1.
 * ~~Q5: sau khi chốt nhập vào đâu?~~ **ĐÃ CHỐT (2026-10-31):** doc này là nhà duy nhất của các quyết định + đăng SITEMAP; KHÔNG rải vào gap table design-product-ui-2026 (sai độ cao — đó là nghiên cứu cấu trúc UI); khi v1.1 triển khai, mỗi feature P0 tốt nghiệp thành design doc riêng theo khuôn Goals/Non-Goals/CUJ/TP.
 
 ## 8. Nguồn
