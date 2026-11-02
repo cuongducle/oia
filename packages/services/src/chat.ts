@@ -55,6 +55,24 @@ export type ChatRequest = z.infer<typeof chatRequestSchema>;
  *  completed: the deck outline is ready for review, zero images generated. */
 export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable" | "outline";
 
+/** In-process references: `/api/files/<key>` (web-era canonical URL) and legacy
+ *  `oia://files/<key>` resolve through the FileStore into self-contained data URLs —
+ *  provider bridges only understand data:/http:/absolute-file refs. */
+async function materializeLocalRefs(urls: string[] | undefined, files: FileStore): Promise<string[] | undefined> {
+  if (!urls?.length) return undefined;
+  const out: string[] = [];
+  for (const u of urls) {
+    const key = /^\/api\/files\/(.+)$/.exec(u)?.[1] ?? /^oia:\/\/files\/(.+)$/.exec(u)?.[1];
+    if (key) {
+      const bytes = await files.read(key);
+      out.push(`data:image/png;base64,${Buffer.from(bytes).toString("base64")}`);
+    } else {
+      out.push(u);
+    }
+  }
+  return out;
+}
+
 export interface RunChatOptions {
   /** Cooperative cancellation wired by the shell (Stop button, disconnect grace, window close). */
   signal?: AbortSignal;
@@ -155,11 +173,18 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
     // A5: a cached plan skips the planner stage entirely
     const reusePlan = typeof req.retryOf === "string" ? sessionPlans().get(session.id) : undefined;
 
+    // Desktop wire reality: the renderer canonicalizes canvas assets as `/api/files/<key>`
+    // (legacy `oia://files/<key>`) — there is no HTTP server in-process, so a provider
+    // bridge would treat that relative URL as a file path and the job dies at Painting
+    // (live repro 2026-11-02: A1 variant edit on a real codex pair, "unknown reason").
+    // Materialize local refs into data URLs via the same FileStore assetizeEvent uses.
+    const referenceImages = await materializeLocalRefs(req.referenceImages, ctx.files);
+
     for await (const event of runDesignerAgent(
       {
         prompt: req.prompt, jobId, width: req.width, height: req.height,
         brandGuidance: kit?.guidance, brandId: kit ? 1 : 0,
-        referenceImages: req.referenceImages,
+        referenceImages,
         pages: req.pages,
         outlineMode: req.outlineMode,
         outlineGate: req.outlineGate,

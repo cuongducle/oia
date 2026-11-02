@@ -77,7 +77,11 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     const result = await handler({ fileUrl }, tctx);
     expect(readPrompts[0]).toContain(DECONSTRUCT_READ_MARKER);
     expect(seen.calls).toHaveLength(1);
-    expect(seen.calls[0].refs).toEqual([fileUrl]);
+    // in-process contract (live repro 2026-11-02): the provider must receive a
+    // self-contained data URL — the raw `/api/files/<key>` URL reached the codex
+    // bridge as a file path and the job died with ENOENT at the inpaint stage.
+    expect(seen.calls[0].refs[0]).toMatch(/^data:image\/png;base64,/);
+    expect(seen.calls[0].refs[0]).not.toContain("/api/files/");
     expect(seen.calls[0]).toMatchObject({ w: 900, h: 1200 }); // original size — boxes map 1:1
     expect(result.urls).toHaveLength(1);
     expect(result.texts?.[0]).toMatchObject({ text: "SALE 50" });
