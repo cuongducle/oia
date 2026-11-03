@@ -12,6 +12,13 @@ The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
   cost lives in the prompt chip pill, DA-5)
 - Ticker + workflow step 01 + FAQ carry the two agent loops — Research the web /
   Auto refine (`docs/designs/designer-agent-loop.md`, slices 0–2 shipped)
+- `#bring` = before/after drag slider (`price-20/30.webp`, halves cropped from
+  the old side-by-side composite) — pointer + keyboard, nudge on first view
+- `#why` band = seller-facing trust beat (no account · local-first · priced
+  up front · export anywhere). Numeric social proof (stars/downloads) was
+  checked and deliberately NOT used — real numbers too small to flex (2026-11)
+- Hero prompt chip types rotating seller prompts (typewriter, em pill pops;
+  static first prompt is the no-JS fallback)
 - Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
 - `#bring` section = deconstruct (B1): old design → editable text layers
 - Editor/deconstruct frames are real screenshots from `apps/desktop`

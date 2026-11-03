@@ -87,8 +87,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:cent
 .chip{position:absolute;font-family:'JetBrains Mono';font-size:11.5px;background:rgba(17,15,38,.92);border:1px solid var(--hairline);border-radius:8px;box-shadow:0 14px 34px rgba(0,0,0,.45)}
 .chip-prompt{right:0;bottom:3%;z-index:8;padding:10px 13px;max-width:262px}
 .chip-prompt .k{color:var(--muted);font-size:10px;letter-spacing:.14em;text-transform:uppercase}
-.chip-prompt .t{color:var(--paper);margin-top:3px;font-size:12px}
-.chip-prompt .t em{color:var(--paper);font-style:normal;background:var(--accent-soft);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.chip-prompt .t{color:var(--paper);margin-top:3px;font-size:12px;min-height:34px}
+.chip-prompt .t em{display:inline-block;color:var(--paper);font-style:normal;background:var(--accent-soft);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.chip-prompt .t em:empty{display:none}
+.chip-prompt .t em.pop{animation:em-pop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes em-pop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
+.tw-caret{display:inline-block;width:7px;height:1.05em;background:var(--accent);margin-left:2px;vertical-align:-2px;animation:tw-blink 1s steps(1) infinite}
+@keyframes tw-blink{50%{opacity:0}}
 .chip-prompt .pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .chip-prompt .pp{font-size:9.5px;letter-spacing:.05em;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:2.5px 8px;white-space:nowrap}
 .chip-prompt .pp.cost{color:#8ef0a6;border-color:rgba(142,240,166,.35)}
@@ -157,6 +162,24 @@ h2{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(
 .editor-frame img{border-radius:10px;width:100%;height:auto}
 .editor-frame .cap{position:absolute;bottom:-26px;right:8px}
 
+/* ---------- BA SLIDER (real repaint compare) ---------- */
+.ba{position:relative;overflow:hidden;border-radius:10px;--x:50%;cursor:ew-resize;touch-action:pan-y}
+.ba>img{display:block;width:100%;height:auto;pointer-events:none;-webkit-user-drag:none;user-select:none}
+.ba-clip{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--x)) 0 0)}
+.ba-clip img{width:100%;height:100%;object-fit:cover}
+.ba-handle{position:absolute;top:0;bottom:0;left:var(--x);width:0;outline:none}
+.ba-handle:focus-visible .ba-knob{box-shadow:0 0 0 3px rgba(124,92,255,.55)}
+.ba-line{position:absolute;top:0;bottom:0;left:-1px;width:2px;background:var(--accent);box-shadow:0 0 14px rgba(124,92,255,.75)}
+.ba-knob{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:rgba(11,10,24,.9);border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;color:var(--paper)}
+.ba-tag{position:absolute;bottom:12px;font-family:'JetBrains Mono';font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;background:rgba(11,10,24,.85);border:1px solid var(--hairline);border-radius:5px;padding:4px 8px;color:var(--paper);pointer-events:none}
+.ba-tag-l{left:12px}.ba-tag-r{right:12px}
+
+/* ---------- WHY BAND (trust beat after workflow) ---------- */
+.why-band{padding:clamp(44px,7vh,84px) clamp(20px,4vw,48px);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);background:linear-gradient(180deg,rgba(124,92,255,.05),transparent)}
+.why-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:26px}
+.wk{display:block;font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:9px}
+.wd{color:var(--muted);font-size:14px;line-height:1.55;display:block}
+
 /* ---------- BRING (deconstruct) ---------- */
 .bring-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(30px,5vw,70px);align-items:center}
 .bring-log{border:1px solid var(--hairline);border-radius:8px;padding:11px 13px;font-family:'JetBrains Mono';font-size:11px;line-height:2;color:var(--muted);max-width:460px;margin-top:26px}
@@ -193,6 +216,7 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
   .steps{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:960px){
+  .why-grid{grid-template-columns:repeat(2,1fr);gap:18px}
   .hero{grid-template-columns:1fr;padding-top:96px;min-height:auto}
   .bring-grid{grid-template-columns:1fr}
   .bring-log{max-width:none}

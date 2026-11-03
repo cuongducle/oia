@@ -96,7 +96,7 @@ document.head.appendChild(st);
   const dx = gsap.quickTo(dot,'x',{duration:.08}), dy = gsap.quickTo(dot,'y',{duration:.08});
   const rx = gsap.quickTo(ring,'x',{duration:.32,ease:'power3'}), ry = gsap.quickTo(ring,'y',{duration:.32,ease:'power3'});
   addEventListener('mousemove', e=>{ document.body.classList.add('cursor-on'); dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); });
-  document.querySelectorAll('a,button,.tile').forEach(el=>{
+  document.querySelectorAll('a,button,.tile,.ba').forEach(el=>{
     el.addEventListener('mouseenter',()=>ring.classList.add('big'));
     el.addEventListener('mouseleave',()=>ring.classList.remove('big'));
   });
@@ -175,6 +175,91 @@ if (!reduced){
     }});
   }
 }
+
+/* ---- Hero prompt typewriter: the chip thinks in seller language ---- */
+if (!reduced){
+  const tw = document.querySelector('.chip-prompt .t');
+  if (tw){
+    const prompts = [
+      {pre:'milk tea flash sale — ', hi:'20% off'},
+      {pre:'halloween drop — ',      hi:'buy 2 get 1'},
+      {pre:'livestream tonight — ',  hi:'free shipping'},
+    ];
+    const caret = document.createElement('span'); caret.className = 'tw-caret';
+    const preNode = document.createTextNode('');
+    const em = document.createElement('em');
+    tw.textContent = '';
+    tw.append(preNode, em, caret);
+    let pi = 0;
+    const schedule = (ms, fn) => setTimeout(fn, ms);
+    const erase = () => {
+      if (em.textContent) { em.textContent = em.textContent.slice(0, -1); return schedule(16, erase); }
+      em.classList.remove('pop');
+      if (preNode.data) { preNode.data = preNode.data.slice(0, -1); return schedule(12, erase); }
+      pi = (pi + 1) % prompts.length;
+      schedule(350, typePre);
+    };
+    const typeHi = () => {
+      const p = prompts[pi];
+      if (em.textContent.length < p.hi.length){
+        em.textContent += p.hi[em.textContent.length];
+        return schedule(46, typeHi);
+      }
+      em.classList.add('pop');
+      schedule(3000, erase);
+    };
+    const typePre = () => {
+      const p = prompts[pi];
+      if (preNode.data.length < p.pre.length){
+        preNode.data += p.pre[preNode.data.length];
+        return schedule(34, typePre);
+      }
+      schedule(260, typeHi);
+    };
+    schedule(900, typePre);
+  }
+}
+
+/* ---- BA slider: drag the real repaint back and forth ---- */
+(() => {
+  const ba = document.getElementById('ba');
+  if (!ba) return;
+  const handle = ba.querySelector('.ba-handle');
+  const set = (pct) => {
+    pct = Math.max(4, Math.min(96, pct));
+    ba.style.setProperty('--x', pct + '%');
+    handle.setAttribute('aria-valuenow', String(Math.round(pct)));
+  };
+  const fromEvent = (e) => {
+    const r = ba.getBoundingClientRect();
+    set(((e.clientX - r.left) / r.width) * 100);
+  };
+  let dragging = false;
+  ba.addEventListener('pointerdown', (e) => { dragging = true; ba.setPointerCapture(e.pointerId); fromEvent(e); });
+  ba.addEventListener('pointermove', (e) => dragging && fromEvent(e));
+  ba.addEventListener('pointerup',    () => dragging = false);
+  ba.addEventListener('pointercancel',() => dragging = false);
+  handle.addEventListener('keydown', (e) => {
+    const cur = parseFloat(ba.style.getPropertyValue('--x')) || 50;
+    if (e.key === 'ArrowLeft')  { set(cur - 4); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { set(cur + 4); e.preventDefault(); }
+  });
+  if (!reduced){ /* one gentle nudge when it first scrolls into view — teaches the drag */
+    const io = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const nudge = (t) => {
+        const k = Math.min(1, (t - t0) / 1200);
+        const ease = 1 - Math.pow(1 - k, 3);
+        set(50 + Math.sin(ease * Math.PI * 2) * 13);
+        if (k < 1) requestAnimationFrame(nudge); else set(50);
+      };
+      requestAnimationFrame(nudge);
+    }, { threshold: .35 });
+    io.observe(ba);
+  }
+})();
 
 /* ---- Generic reveals ---- */
 if (!reduced){

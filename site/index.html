@@ -27,7 +27,7 @@
 "description":"Free and open-source image agent: generate AI artwork on a real, layer-based canvas with editable text, shapes and your own assets.",
 "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
 "license":"https://opensource.org/licenses/MIT",
-"softwareVersion":"0.2","isAccessibleForFree":true,
+"softwareVersion":"0.3","isAccessibleForFree":true,
 "repository":"https://github.com/cuongducle/oia",
 "url":"https://cuongducle.github.io/oia/"}
 </script>
@@ -187,6 +187,15 @@
   </div>
 </section>
 
+<section id="why" class="why-band" aria-label="Why local">
+  <div class="wrap why-grid">
+    <div class="wcell reveal"><span class="wk">no account</span><span class="wd">Sign in with the plan you already pay — no credits to buy</span></div>
+    <div class="wcell reveal"><span class="wk">local-first</span><span class="wd">Projects and designs live on your machine — nothing uploaded, ever</span></div>
+    <div class="wcell reveal"><span class="wk">priced up front</span><span class="wd">Every image and read is counted and shown before you run</span></div>
+    <div class="wcell reveal"><span class="wk">export anywhere</span><span class="wd">PNG · PDF · PPTX · transparent overlays — no lock-in</span></div>
+  </div>
+</section>
+
 <section id="bring">
   <div class="wrap bring-grid">
     <div>
@@ -202,8 +211,17 @@
       <p class="bring-note">Need movable letters? “Make text editable” rebuilds the copy as layers — ≈ 1 image + 1 read.</p>
     </div>
     <div class="editor-frame">
-      <img loading="lazy" src="assets/price-repaint.webp?v=d16d" alt="Two real generations of the same milk-tea banner — “20% OFF TODAY” on the left, “30% OFF TODAY” on the right — identical glossy 3D typography, drinks and lighting; one repaint apart" width="1600" height="798">
-      <span class="cap mono">real generations · same banner, one repaint</span>
+      <div class="ba" id="ba" style="--x:50%">
+        <img loading="lazy" src="assets/price-30.webp" alt="After — the same milk-tea banner regenerated reading 30% OFF TODAY, identical glossy 3D typography, drinks and lighting" width="790" height="798">
+        <div class="ba-clip" aria-hidden="true"><img loading="lazy" src="assets/price-20.webp" alt="" width="790" height="798"></div>
+        <div class="ba-handle" role="slider" tabindex="0" aria-label="Compare before and after the repaint" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+          <span class="ba-line"></span>
+          <span class="ba-knob"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l-5 7 5 7M16 5l5 7-5 7"/></svg></span>
+        </div>
+        <span class="ba-tag ba-tag-l">before · 20% off</span>
+        <span class="ba-tag ba-tag-r">after · 30% off</span>
+      </div>
+      <span class="cap mono">real generations · same banner, one repaint — drag to compare</span>
     </div>
   </div>
 </section>
