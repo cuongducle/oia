@@ -1894,6 +1894,158 @@ async function shot(): Promise<void> {
   app.exit(savedSeen ? 0 : 6);
 }
 
+/**
+ * Busy-state capture for the run-progress area (UI v1.1 R3): the progress line
+ * + streaming notes exist only for the second or two a mock run takes. Hold the
+ * chat traffic in main (utility.setChatHold) and release it ONE FRAME AT A TIME
+ * until the UI shows the richest mid-run state, photograph it (renderer fully
+ * alive — no debugger pause, which was tried and wedged the renderer's IPC),
+ * then release the rest so the run still completes. Mock pair only (F2).
+ */
+async function shotBusy(): Promise<void> {
+  registerAssetProtocol();
+  const win = createWindow();
+  await new Promise<void>((resolve) => {
+    win.webContents.once("did-finish-load", () => resolve());
+    win.webContents.once("did-fail-load", (_e, code, desc) => {
+      console.error(`[shot-busy] DID-FAIL-LOAD ${code} ${desc}`);
+      resolve();
+    });
+    setTimeout(() => resolve(), 15_000);
+  });
+  const hasBridge = await win.webContents.executeJavaScript("typeof window.oia", true).catch(() => "ERR");
+  if (hasBridge !== "object") {
+    console.error("[shot-busy] bridge missing — preload failed");
+    app.exit(2);
+    return;
+  }
+  // macOS throttles an unfocused window's compositor — capturePage would then
+  // hand back a stale pre-run frame. Keep presenting; double-capture to be sure.
+  win.webContents.setBackgroundThrottling(false);
+  win.show();
+  win.focus();
+  utility.setChatHold(true);
+  const offDiag = utility.onUtilityEvent((ev) => {
+    if (ev.type === "chatEvent") {
+      const e = ev.ev as { type?: string; content?: string; renderData?: { taskMeta?: unknown[]; msgMeta?: unknown[] } };
+      console.log(`[shot-busy] utility frame: ${e.type ?? "?"} content=${(e.content ?? "").slice(0, 40).replace(/\n/g, " ")} meta=${e.renderData ? `task=${e.renderData.taskMeta?.length ?? 0} msg=${e.renderData.msgMeta?.length ?? 0}` : "-"}`);
+    }
+  });
+  try {
+    // research defaults ON (owner 2026-11-06) — the row then reads Researching › Planning › Painting
+    const submitted = await win.webContents.executeJavaScript(
+      `(() => {
+        const ta = document.querySelector('[data-testid="design-idea"]');
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+        setter.call(ta, 'labor day cold brew flash sale banner');
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        const btn = document.querySelector('[data-testid="create-btn"]');
+        if (!btn || btn.disabled) return 'create-btn missing/disabled';
+        btn.click();
+        return 'submitted';
+      })()`,
+      true,
+    );
+    if (submitted !== "submitted") {
+      console.error(`[shot-busy] submit failed: ${submitted}`);
+      app.exit(3);
+      return;
+    }
+
+    // frame-step: one chat event per tick until the mid-run row is on screen
+    let snapped = false;
+    let lastState = "";
+    let lastLog = -1;
+    for (let i = 0; i < 600 && !snapped; i++) {
+      const stepped = utility.stepHeldChatFrames(1);
+      if (i % 20 === 0 || stepped > 0) {
+        if (Math.floor(i / 5) !== lastLog) { lastLog = Math.floor(i / 5); }
+        console.log(`[shot-busy] tick ${i} stepped=${stepped} held=${utility.heldChatFrameCount}`);
+      }
+      if (stepped === 0 && utility.heldChatFrameCount === 0) {
+        await new Promise((r) => setTimeout(r, 50)); // utility still working — nothing held yet
+      } else {
+        await new Promise((r) => setTimeout(r, 60)); // let React paint the frame
+      }
+      const state = await win.webContents.executeJavaScript(
+        `(() => ({
+          running: document.querySelector('.runStep.running')?.textContent ?? null,
+          doneCount: document.querySelectorAll('.runStep.done').length,
+          result: Boolean(document.querySelector('.result canvas')),
+          notes: document.querySelector('.aiNotes')?.textContent.slice(0, 80) ?? "",
+          notesOpen: document.querySelector('.aiNotes')?.open ?? false,
+          done: Boolean(document.querySelector('.genSummary')),
+        }))()`,
+        true,
+      ).catch(() => null);
+      if (!state) break;
+      const sNow = JSON.stringify(state);
+      if (sNow !== lastState) console.log(`[shot-busy] state@${i}: ${sNow}`);
+      lastState = sNow;
+      // the USER's frame: ≥1 step done, a paid step in flight, notes streaming OPEN,
+      // and no result yet. Snap at the FIRST such moment — the mock's canvas frame
+      // also flips Composing running, and past it the moment is gone.
+      if (state.running && state.doneCount >= 1 && !state.result && state.notesOpen) {
+        await new Promise((r) => setTimeout(r, 200)); // present the frame (throttling off above)
+        await win.capturePage(); // first grab may be a stale compositor frame
+        await new Promise((r) => setTimeout(r, 150));
+        const image = await win.capturePage(); // the settled grab is the one we keep
+        const { writeFile, mkdir } = await import("node:fs/promises");
+        await mkdir(path.join(here, "../..", "out"), { recursive: true });
+        await writeFile(path.join(here, "../..", "out", "desktop-busy.png"), image.toPNG());
+        console.log(`[shot-busy] wrote out/desktop-busy.png at "${state.running.trim()}" (done=${state.doneCount})`);
+        const order = await win.webContents.executeJavaScript(
+          `[...document.querySelectorAll('.runStep')].map((s) => s.className.replace('runStep ', '') + ':' + (s.querySelector('.runStepIcon')?.nextSibling?.textContent ?? s.textContent.slice(0, 18)))`,
+          true,
+        ).catch(() => []);
+        console.log(`[shot-busy] step order: ${JSON.stringify(order)}`);
+        const rect = await win.webContents.executeJavaScript(
+          `(() => { const r = document.querySelector('.runPanel')?.getBoundingClientRect(); const s = document.querySelector('.runSteps')?.getBoundingClientRect(); return r ? { panel: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], steps: s ? [Math.round(s.left), Math.round(s.width)] : null, dpr: window.devicePixelRatio ?? 1, inner: window.innerWidth } : null; })()`,
+          true,
+        ).catch(() => null);
+        console.log(`[shot-busy] panel rect: ${JSON.stringify(rect)}`);
+        snapped = true;
+        break;
+      }
+      if (state.done) break; // held out — the run finished without hitting the target row
+    }
+
+    // release everything — the run must still complete cleanly (a capture that
+    // broke the flow would photograph a lie, B7's UI cousin)
+    utility.setChatHold(false);
+    let finished = false;
+    let lastAfter = "";
+    for (let i = 0; i < 120; i++) {
+      const after = await win.webContents.executeJavaScript(
+        `(() => ({
+          gen: document.querySelector('.genSummary')?.textContent ?? null,
+          err: document.querySelector('[role=alert]')?.textContent ?? null,
+          canvas: Boolean(document.querySelector('.result canvas')),
+          busy: Boolean(document.querySelector('.runSteps')),
+        }))()`,
+        true,
+      ).catch(() => null);
+      const s = JSON.stringify(after);
+      if (s !== lastAfter) console.log(`[shot-busy] after: ${s}`);
+      lastAfter = s;
+      finished = Boolean(after?.gen);
+      if (finished) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    console.log(`[shot-busy] snapped=${snapped} finished=${finished} last=${lastState}`);
+    if (!snapped || !finished) {
+      console.error("DESKTOP_SHOT_BUSY FAILED");
+      app.exit(9);
+      return;
+    }
+    console.log("DESKTOP_SHOT_BUSY OK");
+    app.exit(0);
+  } finally {
+    offDiag();
+    utility.setChatHold(false); // never leak the hold into a later session
+  }
+}
+
 /** Per-view PNG capture for UI audits (out/desktop-<view>.png). Expands the window
  *  to the document height first so below-the-fold sections (result, gallery) are captured. */
 async function snap(win: BrowserWindow, name: string): Promise<void> {
@@ -2000,6 +2152,13 @@ app.whenReady().then(async () => {
   if (mode === "shot") {
     await shot().catch((err) => {
       console.error("[shot] FAILED:", err);
+      app.exit(1);
+    });
+    return;
+  }
+  if (mode === "shot-busy") {
+    await shotBusy().catch((err) => {
+      console.error("[shot-busy] FAILED:", err);
       app.exit(1);
     });
     return;

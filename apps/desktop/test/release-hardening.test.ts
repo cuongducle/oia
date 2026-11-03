@@ -12,6 +12,7 @@ const allFlags: NodeJS.ProcessEnv = {
   OIA_DESKTOP_CRASH_SMOKE: "1",
   OIA_DESKTOP_REAL_SMOKE: "1",
   OIA_DESKTOP_SHOT: "1",
+  OIA_DESKTOP_SHOT_BUSY: "1",
   OIA_DESKTOP_SI_SMOKE: "1",
 };
 
@@ -24,6 +25,7 @@ describe("F2 smoke/test modes are dev-build only", () => {
     expect(smokeModeFromEnv({ OIA_DESKTOP_CRASH_SMOKE: "1" }, false)).toBe("crash");
     expect(smokeModeFromEnv({ OIA_DESKTOP_REAL_SMOKE: "1" }, false)).toBe("real");
     expect(smokeModeFromEnv({ OIA_DESKTOP_SHOT: "1" }, false)).toBe("shot");
+    expect(smokeModeFromEnv({ OIA_DESKTOP_SHOT_BUSY: "1" }, false)).toBe("shot-busy");
     expect(smokeModeFromEnv({ OIA_DESKTOP_SI_SMOKE: "1" }, false)).toBe("si");
   });
   it("no flags → normal app", () => {

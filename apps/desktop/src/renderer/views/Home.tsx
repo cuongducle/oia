@@ -6,7 +6,8 @@ import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
-import { RunSteps, CostHint } from "../components/RunSteps.js";
+import { CostHint } from "../components/RunSteps.js";
+import { RunPanel } from "../components/RunPanel.js";
 import { costHintText, stepsFromTimeline } from "../lib/run-steps.js";
 import { SIZE_GROUPS, sizeDims } from "../lib/composer-sizes.js";
 import { QUICK_TOOLS } from "../lib/tools-registry.js";
@@ -134,6 +135,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
   const startedAtRef = useRef<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null); // re-render twin of the ref — RunPanel's elapsed timer reads it
   // explicit open/close for the AI notes block — no key-remount tricks; a new run reopens it
   const [notesOpen, setNotesOpen] = useState(false);
   const activeJobRef = useRef<string | null>(null);
@@ -252,6 +254,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     setBusy(true);
     setNotesOpen(true); // stream feedback: show the planner's live text while it works
     startedAtRef.current = retryOf ? startedAtRef.current : Date.now();
+    if (!retryOf) setStartedAt(startedAtRef.current);
     if (!retryOf) setGenSeconds(null);
     activeJobRef.current = retryOf ? null : activeJobRef.current;
     if (!retryOf) activeJobRef.current = null;
@@ -316,6 +319,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     setBusy(true);
     setNotesOpen(true);
     startedAtRef.current = Date.now();
+    setStartedAt(startedAtRef.current);
     setGenSeconds(null);
     activeJobRef.current = null;
     setError("");
@@ -593,14 +597,15 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           )}
         </div>
       )}
-      {busy && <RunSteps steps={timeline.length ? stepsFromTimeline(timeline) : [{ label: "Planning", state: "running" }]} />}
-      {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
-      {narrative && (
-        <details className="aiNotes" open={notesOpen} onToggle={(e) => setNotesOpen(e.currentTarget.open)}>
-          <summary>{busy ? "Assistant working…" : "AI notes"}</summary>
-          <div>{narrative.trim()}</div>
-        </details>
-      )}
+      <RunPanel
+        busy={busy}
+        steps={timeline.length ? stepsFromTimeline(timeline) : [{ label: "Planning", state: "running" }]}
+        narrative={narrative}
+        notesOpen={notesOpen}
+        onToggleNotes={setNotesOpen}
+        startedAt={startedAt}
+        summary={!busy && genSeconds !== null ? `✓ Generated in ${genSeconds}s` : null}
+      />
 
       {canvasMeta && (
         <ResultCard

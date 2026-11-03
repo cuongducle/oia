@@ -381,12 +381,25 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .zoomInput::-webkit-outer-spin-button, .zoomInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .frameLabel { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; align-self: stretch; text-align: left; }
 .canvasColumn { display: flex; flex-direction: column; align-items: center; min-width: min-content; }
-.genSummary { margin: 6px 0 0; font-size: 12px; color: var(--success); text-align: center; }
-.aiNotes { max-width: 660px; margin: 10px auto 0; line-height: 1.7; font-size: 12px; white-space: pre-wrap; color: var(--muted); border-left: 2px solid var(--line); padding-left: 12px; }
-.aiNotes summary { cursor: pointer; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; user-select: none; }
+.genSummary { margin: 0; font-size: 13px; font-weight: 500; color: var(--success-ink); text-align: center; }
+/* UI v1.1 R3 pass 2 — the run sheet: stepper + streaming notes as ONE moment.
+   Same raised-card language as the composer/outline (neutral chrome, ink type,
+   violet ONLY for the AI live dot — design-direction.md). */
+.runPanel { background: var(--card); border-radius: 20px; box-shadow: var(--sheet-shadow); padding: 16px 20px 14px; margin: 14px auto 0; }
+.runPanel.hasNotes .runSteps, .runPanel.hasNotes .genSummary { padding-bottom: 10px; }
+.runPanel .runSteps { justify-content: center; margin: 0; }
+.runPanel .aiNotes summary { margin-top: 2px; }
+.aiNotes { margin: 0; }
+.aiNotes summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--muted); padding: 2px 0; user-select: none; list-style: none; }
+.aiNotes summary::-webkit-details-marker { display: none; }
 .aiNotes summary:hover { color: var(--ink); }
-.aiNotes[open] summary { color: var(--ink); }
-.aiNotes > div { max-height: 180px; overflow-y: auto; }
+.aiNotes .aiChevron { color: var(--faint); flex-shrink: 0; transition: transform 0.15s; }
+.aiNotes[open] .aiChevron { transform: rotate(90deg); }
+.aiNotes .aiNotesLabel { flex: 1; min-width: 0; text-align: left; }
+.aiNotes .aiNotesLive { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px #e2d9fb; animation: runPulse 1.2s ease-in-out infinite; flex-shrink: 0; }
+.aiNotes .aiNotesTimer { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 3.5ch; text-align: right; }
+.aiNotes .aiNotesBody { margin-top: 8px; background: var(--soft); border-radius: 12px; padding: 13px 16px; line-height: 1.65; font-size: 12.5px; white-space: pre-wrap; color: #4a4950; max-height: 200px; overflow-y: auto; }
+.aiNotes > div { max-height: 200px; overflow-y: auto; }
 .pageStrip { position: absolute; left: 20px; bottom: 20px; display: flex; gap: 8px; align-items: center; max-width: calc(100% - 245px); overflow-x: auto; padding: 4px; }
 .pageThumb { position: relative; flex-shrink: 0; width: 40px; height: 52px; border: 1px solid #d4d3da; border-radius: 5px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; }
 .pageThumb.active { border: 2px solid var(--primary); }
@@ -555,16 +568,22 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .statusLine { flex-wrap: nowrap; min-width: 0; white-space: nowrap; }
 .statusLine .statusDetail { overflow: hidden; text-overflow: ellipsis; }
 
-/* UI v1.1 R3 — one progress line + quiet cost hint for every metered flow */
-.runSteps { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 14px 2px; font-size: 12.5px; color: var(--faint); }
-.runStep { display: inline-flex; align-items: center; gap: 7px; }
-.runStepSep { margin: 0 6px; color: var(--line); font-size: 14px; }
-.runStepDot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+/* UI v1.1 R3 — one progress line + quiet cost hint for every metered flow.
+   States are SHAPED, not just tinted: check = done, violet dot with a standing
+   ring = the paid step in flight (the ring survives a static screenshot),
+   gray dot = waiting. Labels recede for done/pending so the running step wins. */
+.runSteps { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; row-gap: 8px; margin: 14px 2px; font-size: 12.5px; color: var(--faint); }
+.runStep { display: inline-flex; align-items: center; gap: 7px; padding: 0 7px; }
+.runStep.pending { opacity: 0.8; }
+.runStepIcon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex-shrink: 0; }
+.runStepDot { width: 7px; height: 7px; border-radius: 50%; background: #cfced6; }
+.runStepTrack { width: 36px; height: 2px; background: var(--line); flex-shrink: 0; border-radius: 1px; }
+.runStepTrack.done { background: #b9b8c1; }
 .runStep.done { color: var(--muted); }
-.runStep.done .runStepDot { background: var(--ink); }
+.runStep.done .runStepIcon { color: var(--success-ink); }
 .runStep.running { color: var(--ink); font-weight: 500; }
-.runStep.running .runStepDot { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); animation: runPulse 1.2s ease-in-out infinite; }
-@keyframes runPulse { 50% { box-shadow: 0 0 0 2px var(--accent-soft); } }
+.runStep.running .runStepDot { background: var(--accent); box-shadow: 0 0 0 4px #e2d9fb; animation: runPulse 1.2s ease-in-out infinite; }
+@keyframes runPulse { 50% { box-shadow: 0 0 0 7px #e2d9fb; } }
 .runStepsStop { margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; border: none; background: var(--soft); color: var(--ink); border-radius: 999px; padding: 5px 12px; font-size: 12px; }
 .runStepsStop:hover { background: var(--line); }
 .costHint { font-size: 12px; color: var(--faint); white-space: nowrap; }

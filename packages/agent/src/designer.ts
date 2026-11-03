@@ -505,6 +505,11 @@ export async function* runDesignerAgent(
       throw new ProviderError("plan_parse_failed", "the planner returned a malformed plan", { provider: deps.llm.name });
     }
     input.onPlan?.(plan); // stash for stage-aware retry (TP.4)
+    // Stepper honesty (stepsFromTimeline renders node order + statuses): the
+    // planner node closes the moment the plan lands. The old single flip at the
+    // END of the run left "Planning" reading as running through Painting's
+    // refine rounds — a timeline that lied about where the job was.
+    taskMeta = taskMeta.map((x: TaskMeta) => (x.id === nodeId ? { ...x, status: "1" } : x));
   } catch (err) {
     if (input.signal?.aborted) return; // TP.5: silent stop — the route emits the terminal cancelled event
     // G2/G7: planner failure aborts BEFORE image generation — explicit failure event, one attempt, no silent fallback

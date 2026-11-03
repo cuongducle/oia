@@ -11,7 +11,7 @@ import type { MenuItemConstructorOptions } from "electron";
  *    including REAL_SMOKE, which bills real quota.
  */
 
-export type SmokeMode = "smoke" | "crash" | "real" | "shot" | "si";
+export type SmokeMode = "smoke" | "crash" | "real" | "shot" | "shot-busy" | "si";
 
 /**
  * Smoke/test modes are DEV-BUILD ONLY. CI runs the unpackaged `electron .`, so
@@ -25,6 +25,7 @@ export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): S
   if (env.OIA_DESKTOP_CRASH_SMOKE === "1") return "crash";
   if (env.OIA_DESKTOP_REAL_SMOKE === "1") return "real";
   if (env.OIA_DESKTOP_SHOT === "1") return "shot";
+  if (env.OIA_DESKTOP_SHOT_BUSY === "1") return "shot-busy";
   return null;
 }
 

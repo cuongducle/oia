@@ -55,6 +55,21 @@ describe("stepsFromTimeline", () => {
   it("an unknown role passes through instead of vanishing", () => {
     expect(stepsFromTimeline([{ content: "Layout Checker", done: false }])).toEqual([{ label: "Layout Checker", state: "running" }]);
   });
+
+  it("the refine loop narrates in the feed, never as stepper rows — a done check must not sit right of a pending phase", () => {
+    // the exact jumble the busy-shot caught live: Checking round 1 closes while
+    // Planning/Painting are still open (their nodes flip at the run's end)
+    const steps = stepsFromTimeline([
+      { content: "Designer Agent", done: true },
+      { content: "Image Generator", done: false },
+      { content: "Checking round 1", done: true },
+      { content: "Refining", done: false },
+    ]);
+    expect(steps).toEqual([
+      { label: "Planning", state: "done" },
+      { label: "Painting", state: "running" },
+    ]);
+  });
 });
 
 describe("costHintText", () => {

@@ -15,6 +15,7 @@ import type { RuntimeModeChoice } from "./ipc.js";
 export interface DesktopProvidersEnv {
   OIA_DESKTOP_SMOKE?: string;
   OIA_DESKTOP_SHOT?: string;
+  OIA_DESKTOP_SHOT_BUSY?: string;
   OIA_DESKTOP_PROVIDERS?: string;
   /** Owner's explicit opt-in real run (OIA_DESKTOP_REAL_SMOKE) — counts as consent. */
   OIA_DESKTOP_REAL_SMOKE?: string;
@@ -50,7 +51,7 @@ export function resolveEffectiveMode(input: {
   env: DesktopProvidersEnv;
 }): "mock" | "codex" {
   const { env } = input;
-  if (env.OIA_DESKTOP_SMOKE === "1" || env.OIA_DESKTOP_SHOT === "1") return "mock";
+  if (env.OIA_DESKTOP_SMOKE === "1" || env.OIA_DESKTOP_SHOT === "1" || env.OIA_DESKTOP_SHOT_BUSY === "1") return "mock";
   if (env.OIA_DESKTOP_PROVIDERS === "mock" || env.OIA_DESKTOP_PROVIDERS === "codex") return env.OIA_DESKTOP_PROVIDERS;
   if (input.choice === "auto") {
     const consent = input.consent || env.OIA_DESKTOP_REAL_SMOKE === "1"; // explicit owner run

@@ -40,6 +40,10 @@ interface Pending {
   reject: (e: Error) => void;
 }
 
+export type HeldChatFrame =
+  | { kind: "event"; sender: WebContents | undefined; ev: unknown }
+  | { kind: "reply"; msg: UtilityResponse };
+
 export class UtilityClient {
   private child: UtilityProcess | null = null;
   private pending = new Map<string, Pending>();
@@ -49,6 +53,11 @@ export class UtilityClient {
   private exitInfo: { code: number } | null = null;
   /** Bumps on every fork — main keys its context cache on this (crash recovery). */
   private generation = 0;
+  /** shot-busy frame stepping: when set, chatRun events AND its reply are buffered
+   *  here instead of delivered — the renderer stays fully alive but its chat UI
+   *  freezes at the last delivered frame. Diagnostics-only, driven from main. */
+  private chatHold: { queue: HeldChatFrame[] } | null = null;
+  private heldChatRids = new Set<string>();
 
   /** Fork if needed. After a crash (exitInfo set) a fresh fork RESETS the crash
    *  state — callers re-init through their generation check. */
@@ -101,12 +110,20 @@ export class UtilityClient {
       // streamed event
       if (msg.type === "chatEvent") {
         const sender = this.chatSenders.get(msg.requestId);
-        if (sender && !sender.isDestroyed()) sender.send(IPC.chatEvent, msg.ev);
+        if (this.chatHold) {
+          this.chatHold.queue.push({ kind: "event", sender, ev: msg.ev });
+        } else if (sender && !sender.isDestroyed()) {
+          sender.send(IPC.chatEvent, msg.ev);
+        }
         this.emitEvent(msg); // smoke + diagnostics observers always see frames, sender or not
         return;
       }
       if (msg.type === "log") console.log(`[utility] ${msg.line}`);
       this.emitEvent(msg);
+      return;
+    }
+    if (this.chatHold && this.heldChatRids.has(msg.rid)) {
+      this.chatHold.queue.push({ kind: "reply", msg }); // the reply flips busy off — it rides the same FIFO
       return;
     }
     const p = this.pending.get(msg.rid);
@@ -124,6 +141,7 @@ export class UtilityClient {
     }
     const rid = randomUUID();
     const req: UtilityRequest = { rid, ...cmd, ...(opts.requestId ? { requestId: opts.requestId } : {}) };
+    if (this.chatHold && cmd.cmd === "chatRun") this.heldChatRids.add(rid);
     const routeKey = opts.requestId ?? rid;
     if (opts.sender) this.chatSenders.set(routeKey, opts.sender);
     const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS[cmd.cmd] ?? DEFAULT_TIMEOUT_MS;
@@ -148,7 +166,49 @@ export class UtilityClient {
       child.postMessage(req);
     }).finally(() => {
       this.chatSenders.delete(routeKey); // chat done (or failed) — stop routing its events
+      this.heldChatRids.delete(rid);
     });
+  }
+
+  /** Begin/end holding chat traffic (shot-busy audits). Release order is the
+   *  arrival order — events first, the reply last — so the renderer never sees
+   *  busy=false before the frames that explain it. */
+  setChatHold(on: boolean): void {
+    if (on) {
+      if (!this.chatHold) this.chatHold = { queue: [] };
+      return;
+    }
+    const hold = this.chatHold;
+    this.chatHold = null;
+    for (const f of hold ? hold.queue : []) this.deliverHeldChatFrame(f);
+  }
+
+  /** Deliver up to `count` held frames (FIFO); returns how many were delivered. */
+  stepHeldChatFrames(count: number): number {
+    const hold = this.chatHold;
+    if (!hold) return 0;
+    let delivered = 0;
+    while (delivered < count && hold.queue.length > 0) {
+      this.deliverHeldChatFrame(hold.queue.shift()!);
+      delivered += 1;
+    }
+    return delivered;
+  }
+
+  get heldChatFrameCount(): number {
+    return this.chatHold ? this.chatHold.queue.length : 0;
+  }
+
+  private deliverHeldChatFrame(f: HeldChatFrame): void {
+    if (f.kind === "event") {
+      if (f.sender && !f.sender.isDestroyed()) f.sender.send(IPC.chatEvent, f.ev);
+      return;
+    }
+    const p = this.pending.get(f.msg.rid);
+    if (!p) return;
+    this.pending.delete(f.msg.rid);
+    if (f.msg.ok) p.resolve(f.msg.result);
+    else p.reject(deserializeUtilityError(f.msg.error));
   }
 
   /** Hard stop (app quit): kill in-flight CLI children with the process tree. */
