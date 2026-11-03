@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/banner.png" width="100%" alt="Oia — Generate the image. Keep the control. Three real studio templates: matcha, music festival, and botanical skincare.">
+  <img src="docs/screenshots/banner.png" width="100%" alt="Oia — Generate the image. Keep the control. Two real generations of the same milk-tea banner, one repaint apart: 20% OFF TODAY becomes 30% OFF TODAY with identical style, auto-refined in round 1.">
 </p>
 
 <p align="center">
@@ -7,31 +7,49 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cuongducle/oia/releases"><img src="https://img.shields.io/github/v/release/cuongducle/oia?color=7c5cff&label=release" alt="latest release"></a>
+  &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8ef0a6" alt="MIT license"></a>
+  &nbsp;<img src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-f4f1e8" alt="macOS and Windows">
+  &nbsp;<img src="https://img.shields.io/badge/pricing-free%20%20open%20source-a3a0b8" alt="free and open source">
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#the-60-second-tour">Tour</a> ·
   <a href="#what-editable-actually-means">How layers work</a> ·
   <a href="#bring-your-own-provider">Providers</a> ·
   <a href="#build-it-into-your-workflow">API & agent skills</a> ·
-  <a href="https://cuongducle.github.io/oia/">Landing page</a> ·
-  <a href="LICENSE">MIT license</a>
+  <a href="https://cuongducle.github.io/oia/">Landing page</a>
 </p>
 
 ---
 
 ## Good images are a starting point. Finished designs need control.
 
-A campaign headline changes. An event date moves. A client wants the logo larger. These are layout and copy edits—not reasons to generate a whole new image.
+A campaign headline changes. An event date moves. A client wants the logo larger. Those are layout and copy edits — not reasons to pay for a whole new image.
 
-**Oia is a desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
+**Oia is a free, open-source desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Generate the artwork, then edit the design: rewrite text, move objects, swap images, add pages — without regenerating what already works. Everything runs on your machine, on your own provider, under your control.
 
-Everything runs on your machine. Bring your own supported provider. Keep your projects under your control.
-
-## What editable actually means
+## The 60-second tour
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor with the Matcha Every Day headline selected as a native text object. Selection handles, text-formatting controls, page thumbnails, and export are visible.">
-  <br>
-  <sub>Actual editor, bundled Matcha template. The selected headline is a text object—not lettering baked into the photograph.</sub>
+  <img src="docs/screenshots/editor.webp" width="100%" alt="Real Oia editor after one “Make text editable” click: FLASH SALE and 20% OFF TODAY are editable text layers over the cleaned artwork, Layers panel open, selection toolbar active.">
+  <br><sub><b>The studio.</b> Real editor, real Codex generation — text rendered into the artwork by the image model, then rebuilt as editable layers in one click.</sub>
 </p>
+
+<p align="center">
+  <img src="site/assets/matcha.webp" width="31%" alt="Matcha Every Day studio template" />
+  <img src="site/assets/festival.webp" width="31%" alt="City Sound Fest studio template" />
+  <img src="site/assets/botanical.webp" width="31%" alt="Lumea skincare studio template" />
+  <br><sub><b>Studio templates.</b> Real generated scenes, published as editable community templates — open one and make it yours.</sub>
+</p>
+
+<p align="center">
+  <img src="site/assets/price-repaint.webp" width="88%" alt="Two real generations of the same milk-tea banner: 20% OFF TODAY on the left, 30% OFF TODAY on the right — identical glossy typography, drinks and lighting; one repaint apart.">
+  <br><sub><b>Change the price, keep the style.</b> Ask for “30% off today” and the repaint preserves the design language — the same banner, one edit apart.</sub>
+</p>
+
+## What editable actually means
 
 **The image and the design are different things.** An Oia document contains separate canvas objects:
 
@@ -44,13 +62,15 @@ Everything runs on your machine. Bring your own supported provider. Keep your pr
 
 Move a native headline without moving the photograph. Fix its wording without calling an image model. Duplicate a page and adapt the copy for another placement. Undo changes and let autosave preserve the project.
 
-> **Layers, not magic image decomposition.** Oia does not turn every object or letter inside a generated image into an editable layer. Generated scenes currently contain an artwork image and, when supplied by the planner, a separate copy textbox on the first page. Bundled templates include more deliberately composed text and shape objects. Text already embedded in the artwork remains pixels.
+> **Text in the image, by default (D16).** Generations render the copy into the artwork with the image model's typography (best-looking results). Two paths keep text editable: flip **“Editable text right away”** in the composer before generating (clean-plate artwork + native text layers), or — on any baked design — select the artwork and click **“Make text editable”** (reads the text with your provider, ≈ 1 image + 1 read, rebuilds each line as a layer). Text already embedded in an imported image is pixels until you run the same command.
 
 ## A studio around your image model
 
 ### 01 — Generate a starting point
 
 Describe the visual, choose dimensions and page count, and follow the streamed generation progress. Use a supported image provider for real artwork, or explore the editor with the keyless mock provider and bundled templates.
+
+Two agent loops run on top of your provider. **Research the web** (on by default where the provider supports it) lets the planner look up current facts — dates, prices, trends — before designing, and shows each finding with its source. **Auto refine** (on by default) checks every generated image against the brief — spelling and language of rendered text first — and re-generates when the critic finds a fixable defect, bounded and priced up front (`up to N images + N reads`). Both switches remember your choice.
 
 ### 02 — Make the design yours
 

@@ -77,11 +77,26 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     const result = await handler({ fileUrl }, tctx);
     expect(readPrompts[0]).toContain(DECONSTRUCT_READ_MARKER);
     expect(seen.calls).toHaveLength(1);
-    // the upload's BYTES, never its /api/files address — no provider can open that (codex read it as a disk path)
-    expect(seen.calls[0].refs).toEqual([`data:image/png;base64,${Buffer.from(fakePng(900, 1200)).toString("base64")}`]);
+    // in-process contract (live repro 2026-11-02 → P2): the provider receives the
+    // store's LOCAL PATH — the raw `/api/files/<key>` URL once reached the codex
+    // bridge as a relative path and the job died with ENOENT at the inpaint stage.
+    expect(seen.calls[0].refs[0]).toMatch(/[/\\]uploads[/\\]/);
+    expect(seen.calls[0].refs[0]).not.toContain("/api/files/");
     expect(seen.calls[0]).toMatchObject({ w: 900, h: 1200 }); // original size — boxes map 1:1
     expect(result.urls).toHaveLength(1);
     expect(result.texts?.[0]).toMatchObject({ text: "SALE 50" });
+  });
+
+  it("the inpaint reference is the store's LOCAL PATH — the file's bytes, byte-for-byte (no base64 round-trip)", async () => {
+    const { store, fileUrl } = await setup();
+    const seen: { calls: { prompt: string; refs: string[]; w: number; h: number }[] } = { calls: [] };
+    const handler = makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => GOOD_READ) });
+    const src = await store.read(fileUrl.replace(/^\/api\/files\//, ""));
+    await handler({ fileUrl }, tctx);
+    expect(seen.calls).toHaveLength(1);
+    expect(seen.calls[0].refs[0]).not.toMatch(/^data:/); // a path, not a data URL
+    const sent = await import("node:fs/promises").then((fs) => fs.readFile(seen.calls[0].refs[0]));
+    expect(Buffer.compare(sent, Buffer.from(src))).toBe(0); // the exact stored bytes, no truncation
   });
 
   it("G2 invariant: a malformed read fails BEFORE any image is generated", async () => {

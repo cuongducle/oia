@@ -42,9 +42,13 @@ const IMAGE_CAPABILITIES: ProviderCapabilities = {
 export function buildPosterPrompt(input: ImageGenInput): string {
   const orientation = orientationFor(input.width, input.height);
   return (
-    `$imagegen Create a ${orientation} image. ` +
+    `$imagegen Create a ${orientation} image with a ${aspectFor(input.width, input.height)} aspect ratio (width:height). ` +
     `Subject: ${input.prompt}. ` +
-    `Render all text exactly as written, keep it sharp and readable.`
+    `Render all text exactly as written, keep it sharp and readable. ` +
+    // DEF-1: this channel cannot receive exact pixels, so the render is cover-cropped
+    // to the page — text hugging an edge gets cut. The ratio above narrows the
+    // mismatch; the safe area keeps the letters out of the crop zone.
+    `Keep all text at least 10% clear of every edge of the image.`
   );
 }
 
@@ -53,7 +57,7 @@ export function buildPosterPrompt(input: ImageGenInput): string {
 export function buildCleanPlatePrompt(input: ImageGenInput): string {
   const orientation = orientationFor(input.width, input.height);
   return (
-    `$imagegen Create a ${orientation} image. ` +
+    `$imagegen Create a ${orientation} image with a ${aspectFor(input.width, input.height)} aspect ratio (width:height). ` +
     `Subject: ${input.prompt}. ` +
     `Do NOT add any text, lettering, numbers, words, captions, logos, or watermarks to the artwork — the copy will be added later as separate editable layers. ` +
     cleanPlateZoneClause() +
@@ -78,6 +82,19 @@ export function referenceClauses(referenceImages: string[]): string {
 function orientationFor(width: number, height: number): "landscape" | "vertical" | "square" {
   const ratio = width / height;
   return ratio > 1.1 ? "landscape" : ratio < 0.9 ? "vertical" : "square";
+}
+
+/** DEF-1 — the model cannot receive exact pixels on this channel, so the ratio
+ * rides the prompt in named form (models follow "2:3" far more reliably than a
+ * bare orientation word — "vertical" alone happily returns 4:5 for a 2:3 page). */
+const COMMON_RATIOS: [number, string][] = [
+  [1, "1:1"], [4 / 5, "4:5"], [3 / 4, "3:4"], [2 / 3, "2:3"], [9 / 16, "9:16"],
+  [4 / 3, "4:3"], [3 / 2, "3:2"], [16 / 9, "16:9"],
+];
+function aspectFor(width: number, height: number): string {
+  const r = width / height;
+  for (const [v, name] of COMMON_RATIOS) if (Math.abs(r - v) / v < 0.02) return name;
+  return `${r.toFixed(2)}:1`;
 }
 
 /** PNG IHDR reader + IEND check — the actual output size recorded on the job result (TP.8),

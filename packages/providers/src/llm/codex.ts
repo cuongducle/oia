@@ -36,6 +36,7 @@ const LLM_CAPABILITIES: ProviderCapabilities = {
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: false,
+  webSearch: true, // DA-1: `codex exec --search` (in the pinned rust-v0.166.0)
 };
 
 export class CodexLlmProvider implements LlmProvider {
@@ -58,7 +59,7 @@ export class CodexLlmProvider implements LlmProvider {
    * Strict parse-out: anything that is not a valid plan throws `plan_parse_failed`.
    */
   async chat(messages: LlmMessage[], opts?: LlmChatOpts): Promise<string> {
-    const plan = await this.plan(messages, opts?.signal, opts?.jobId);
+    const plan = await this.plan(messages, opts?.signal, opts?.jobId, opts?.search);
     return JSON.stringify(plan);
   }
 
@@ -97,7 +98,7 @@ export class CodexLlmProvider implements LlmProvider {
   }
 
   /** One text-only exec; returns the parsed plan (strict). */
-  async plan(messages: LlmMessage[], signal?: AbortSignal, jobId?: string): Promise<PlannerPlan> {
+  async plan(messages: LlmMessage[], signal?: AbortSignal, jobId?: string, search?: boolean): Promise<PlannerPlan> {
     const scratch = await createScratchDir("codex-planner-io");
     try {
       const schemaFile = path.join(scratch, "plan.schema.json");
@@ -113,6 +114,7 @@ export class CodexLlmProvider implements LlmProvider {
         prompt,
         schemaFile,
         lastMessageFile,
+        ...(search ? { search: true } : {}),
         timeoutMs: this.timeoutMs,
         signal,
         jobId: jobId ?? `planner-${randomUUID()}`,

@@ -18,6 +18,10 @@ export interface FileStore {
   findByHash(hash: string): Promise<string | null>; // → previous url, if any
   read(key: string): Promise<Uint8Array>;
   contentType(ext: string): string;
+  /** A3/P2: the absolute path of a stored asset, when the store is on local disk
+   *  (null otherwise/when unreadable) — lets providers consume refs WITHOUT a
+   *  base64 round-trip. Same traversal+realpath guard as read(). */
+  pathOf(key: string): Promise<string | null>;
 }
 
 export class LocalFileStore implements FileStore {
@@ -153,6 +157,20 @@ export class LocalFileStore implements FileStore {
     const realFile = await realpath(full);
     if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) throw new Error("invalid key");
     return new Uint8Array(await readFile(full));
+  }
+
+  async pathOf(key: string): Promise<string | null> {
+    try {
+      const safe = this.safeKey(key);
+      if (!safe) return null;
+      const full = path.join(this.rootDir, safe);
+      const realRoot = await (this.realRootP ??= realpath(this.rootDir));
+      const realFile = await realpath(full);
+      if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) return null;
+      return realFile;
+    } catch {
+      return null; // unreadable/absent — the caller decides what an honest error is
+    }
   }
 
   /** Every stored upload with its mtime (T11 asset GC input). */

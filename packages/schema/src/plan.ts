@@ -54,10 +54,45 @@ export type PlanPage = z.infer<typeof planPageSchema>;
 
 /** C1 — the planner instruction fragments are SHARED CONSTANTS, not prose owned by
  * the designer: the mock planner derives its matchers from THESE (rewording the
- * designer used to silently break every mock gate — teardown 2026-10-31). */
+ * designer used to silently break every mock gate — teardown 2026-10-31).
+ *
+ * DA-1/DA-2 — research rides INSIDE the planner turn (`codex exec --search`).
+ * The instruction is a shared constant for the same reason as C1: the mock
+ * planner keys its deterministic researchNotes on this exact string. */
+export const RESEARCH_INSTRUCTION =
+  "Web research is ENABLED — search the web for current, specific facts (dates, prices, trends, events, holidays) relevant to this request and use what you find. Also return researchNotes[]: one line per finding, each ending with its source in parentheses. If nothing worth citing comes up, return an empty array.";
+
+/** DA-3 — the refine turn instruction (shared constant so the mock planner can
+ * key its deterministic refined output on it). The refine turn returns the SAME
+ * plan JSON shape; the designer uses only `imagePrompt`. */
+export const REFINE_INSTRUCTION =
+  "You are refining a previously generated design after a critic found defects. Revise imagePrompt so the next render fixes every listed issue while keeping everything that already worked. Return the same plan JSON shape as before (designer.refine.v1).";
+
+/**
+ * Art-direction style presets (phrases adapted from SurgePix agent-skills, MIT).
+ * A preset maps the label a seller actually says to the concrete phrases the
+ * image model needs. The mapping is deterministic CODE riding the planner
+ * system prompt — never the planner LLM's guess ("bold" alone buys nothing).
+ */
+export const STYLE_PRESETS = [
+  { id: "modern", label: "Modern", phrases: "grid-based, generous whitespace, strong focal hierarchy, modular alignment", useCases: "business events, product launches" },
+  { id: "vintage", label: "Vintage", phrases: "collage-style, organic layered graphics, retro print alignment", useCases: "creative events, themed campaigns" },
+  { id: "minimalist", label: "Minimalist", phrases: "Swiss grid, maximum whitespace, minimal elements, typography-centered", useCases: "art exhibitions, design events" },
+  { id: "bold", label: "Bold", phrases: "oversized typography, dynamic text layering, high impact", useCases: "e-commerce promos, flash sales, music festivals" },
+  { id: "creative", label: "Creative", phrases: "freeform composition, cinematic balance, floating objects, atmospheric negative space", useCases: "concept launches, art exhibitions" },
+  { id: "3d", label: "3D", phrases: "floating glossy 3D objects, layered digital interface, Y2K typography", useCases: "tech product launches, gaming" },
+  { id: "hand-drawn", label: "Hand-drawn", phrases: "illustration-led, organic strokes, warm textures, playful hand-lettered typography", useCases: "product promotions, community events" },
+  { id: "business-promo", label: "Business promo", phrases: "product-centered composition, large promotional headline, layered badges, clear CTA", useCases: "e-commerce marketing, limited-time campaigns" },
+] as const;
+export type StylePresetId = (typeof STYLE_PRESETS)[number]["id"];
+export const stylePresetIdSchema = z.enum(
+  STYLE_PRESETS.map((p) => p.id) as [StylePresetId, ...StylePresetId[]],
+);
+
 export const PLANNER_INSTRUCTIONS = {
   imagePrompts: (n: number) => `Produce exactly ${n} imagePrompts[] (one per page, coherent series).`,
   pageOutline: (n: number) => `Also return pageOutline[] — EXACTLY ${n} entries {title, summary}, one per page in order (Outline Gate).`,
+  research: RESEARCH_INSTRUCTION,
 } as const;
 
 /**
@@ -72,6 +107,9 @@ export const plannerPlanSchema = z.object({
   pageOutline: z.array(planPageSchema).nullable().optional(),
   copy: z.string().nullable().optional(),
   blocks: z.array(planBlockSchema).nullable().optional(),
+  /** DA-1 — findings from the research-enabled planner turn; each line ends with
+   * its source. Optional-nullable so every legacy plan parses unchanged (D14). */
+  researchNotes: z.array(z.string()).nullable().optional(),
 });
 export type PlannerPlan = z.infer<typeof plannerPlanSchema>;
 
@@ -126,6 +164,9 @@ export const providerCapabilitiesSchema = z.object({
   sizePolicy: sizePolicySchema,
   transparentBg: z.boolean().default(false),
   isMock: z.boolean().default(false),
+  /** DA-2 — the planner channel can run with live web search. Optional so every
+   * legacy declaration parses unchanged (undefined ⇒ treat as false). */
+  webSearch: z.boolean().optional(),
 });
 export type ProviderCapabilities = z.infer<typeof providerCapabilitiesSchema>;
 
@@ -143,7 +184,7 @@ export const PLAN_JSON_SCHEMA = {
   title: "OiaPlannerPlan",
   type: "object",
   additionalProperties: false,
-  required: ["title", "imagePrompt", "imagePrompts", "outline", "pageOutline", "copy", "blocks"],
+  required: ["title", "imagePrompt", "imagePrompts", "outline", "pageOutline", "copy", "blocks", "researchNotes"],
   properties: {
     title: { type: "string", description: "Short project title, same language as the user request." },
     imagePrompt: { type: "string", description: "Art-direction prompt for the image model (English art direction is fine); do not include copy that exists as blocks." },
@@ -171,6 +212,11 @@ export const PLAN_JSON_SCHEMA = {
       description: "Only in outline-gate phase 1: exactly one entry per requested page, in order. Null otherwise.",
     },
     copy: { type: ["string", "null"], description: "Legacy single-copy field. Prefer blocks[]; null when blocks are used." },
+    researchNotes: {
+      type: ["array", "null"],
+      items: { type: "string" },
+      description: "Findings from web research, one line per finding, each ending with its source in parentheses. Null when research was not enabled or found nothing worth citing.",
+    },
     blocks: {
       type: ["array", "null"],
       description: "Free-form text blocks that become editable native text layers. Zero/one/many — decide from the request. Null only when the plan format predates blocks.",
@@ -187,3 +233,72 @@ export const PLAN_JSON_SCHEMA = {
     },
   },
 } as const;
+
+/* ---------- DA — Auto refine (designer-agent-loop.md DA-3..DA-8) ---------- */
+
+/** DA-4 — bounds are greppable constants, not LLM decisions (OC-6 pattern).
+ * Default ON is the owner decision of 2026-11-06 (Q1); the switch OFF persists
+ * in localStorage. A test pins both the default and the cap. */
+export const AUTO_REFINE_DEFAULT = true;
+export const AUTO_REFINE_MAX_ROUNDS_DEFAULT = 1;
+export const AUTO_REFINE_MAX_ROUNDS_CAP = 2;
+
+/** DA-3 — one critic read returns this shape (scores 0..10 per criterion).
+ * `textHandling` is the mode's #1 text-related criterion under ONE name:
+ * poster = rendered-text fidelity (spelling/language); clean-plate = copy-zone
+ * headroom. The critic prompt says which meaning applies (teardown #12). */
+export const criticScoresSchema = z.object({
+  textHandling: z.number().min(0).max(10),
+  brand: z.number().min(0).max(10),
+  fidelity: z.number().min(0).max(10),
+  composition: z.number().min(0).max(10),
+});
+export type CriticScores = z.infer<typeof criticScoresSchema>;
+
+export const evalReadSchema = z.object({
+  verdict: z.enum(["pass", "fail"]),
+  scores: criticScoresSchema,
+  issues: z.array(z.string().max(500)).max(20),
+  fixHints: z.array(z.string().max(500)).max(20),
+});
+export type EvalRead = z.infer<typeof evalReadSchema>;
+
+/** JSON Schema pinned via --output-schema on the critic read turn. */
+export const EVAL_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["verdict", "scores", "issues", "fixHints"],
+  properties: {
+    verdict: { type: "string", enum: ["pass", "fail"], description: "pass when the image is good enough to ship; fail when a fixable defect was found." },
+    scores: {
+      type: "object",
+      additionalProperties: false,
+      required: ["textHandling", "brand", "fidelity", "composition"],
+      properties: {
+        textHandling: { type: "number", minimum: 0, maximum: 10, description: "Poster: rendered-text fidelity (spelling, language). Clean-plate: copy-zone headroom." },
+        brand: { type: "number", minimum: 0, maximum: 10, description: "Brand guidance adherence." },
+        fidelity: { type: "number", minimum: 0, maximum: 10, description: "Match to the request and reference image." },
+        composition: { type: "number", minimum: 0, maximum: 10, description: "Layout, balance, crop." },
+      },
+    },
+    issues: { type: "array", items: { type: "string", maxLength: 500 }, maxItems: 20, description: "Concrete defects found." },
+    fixHints: { type: "array", items: { type: "string", maxLength: 500 }, maxItems: 20, description: "Actionable edits for the image prompt." },
+  },
+} as const;
+
+/** Stable marker at the end of the critic prompt — the mock matcher keys on it
+ * (DECONSTRUCT_READ_MARKER pattern). */
+export const EVAL_READ_MARKER = "designer.eval.v1";
+
+/** DA-6 — the persisted verdict on the WINNING canvas event (B7: the record says
+ * which round won and why). Optional-nullable on renderData (D14 additive). */
+export const selfImproveResultSchema = z.object({
+  /** Refine rounds actually RUN for the winning page (0 = never refined). */
+  rounds: z.number().int().min(0),
+  verdict: z.enum(["pass", "best-effort"]),
+  issues: z.array(z.string().max(500)).max(20),
+  /** B7: which critic rubric judged this artifact — the prompt has shipped in
+   * multiple versions; a record must be able to say WHO failed the work. */
+  criticVersion: z.string().max(40).optional(),
+});
+export type SelfImproveResult = z.infer<typeof selfImproveResultSchema>;

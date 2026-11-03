@@ -24,6 +24,12 @@ const mobile = matchMedia('(max-width: 960px)').matches;
   addEventListener('resize',()=>renderer.setSize(innerWidth,innerHeight,false));
 })();
 
+/* ---- Ticker: clone the single HTML half for the seamless -50% loop ---- */
+(() => {
+  const track = document.querySelector('.ticker-track');
+  if (track) [...track.children].forEach((c) => track.appendChild(c.cloneNode(true))); // full second half — the -50% loop needs it
+})();
+
 /* ---- Lenis smooth scroll + ScrollTrigger ---- */
 if (window.Lenis && !reduced){
   const lenis = new Lenis({lerp:.1});
@@ -90,7 +96,7 @@ document.head.appendChild(st);
   const dx = gsap.quickTo(dot,'x',{duration:.08}), dy = gsap.quickTo(dot,'y',{duration:.08});
   const rx = gsap.quickTo(ring,'x',{duration:.32,ease:'power3'}), ry = gsap.quickTo(ring,'y',{duration:.32,ease:'power3'});
   addEventListener('mousemove', e=>{ document.body.classList.add('cursor-on'); dx(e.clientX); dy(e.clientY); rx(e.clientX); ry(e.clientY); });
-  document.querySelectorAll('a,button,.tile').forEach(el=>{
+  document.querySelectorAll('a,button,.tile,.ba').forEach(el=>{
     el.addEventListener('mouseenter',()=>ring.classList.add('big'));
     el.addEventListener('mouseleave',()=>ring.classList.remove('big'));
   });
@@ -138,16 +144,17 @@ if (!reduced && !mobile){
   gsap.to('.gtile:nth-child(even)',{yPercent:8,ease:'none',scrollTrigger:{trigger:'.gallery-grid',start:'top bottom',end:'bottom top',scrub:true}});
 }
 
-/* ---- Editor frame curtain + hover tilt ---- */
-ScrollTrigger.create({trigger:'.editor-frame',start:'top 85%',onEnter:()=>document.querySelector('.editor-frame').classList.add('in'),once:true});
-if (!reduced && !mobile){
-  const ef = document.querySelector('.editor-frame');
-  ef.addEventListener('mousemove',e=>{
-    const r = ef.getBoundingClientRect();
-    gsap.to(ef,{rotationY:((e.clientX-r.left)/r.width-.5)*4,rotationX:-((e.clientY-r.top)/r.height-.5)*3,transformPerspective:1200,duration:.5});
-  });
-  ef.addEventListener('mouseleave',()=>gsap.to(ef,{rotationX:0,rotationY:0,duration:.7,ease:'elastic.out(1,.5)'}));
-}
+/* ---- Editor frames: curtain + hover tilt ---- */
+document.querySelectorAll('.editor-frame').forEach(ef=>{
+  ScrollTrigger.create({trigger:ef,start:'top 85%',onEnter:()=>ef.classList.add('in'),once:true});
+  if (!reduced && !mobile){
+    ef.addEventListener('mousemove',e=>{
+      const r = ef.getBoundingClientRect();
+      gsap.to(ef,{rotationY:((e.clientX-r.left)/r.width-.5)*4,rotationX:-((e.clientY-r.top)/r.height-.5)*3,transformPerspective:1200,duration:.5});
+    });
+    ef.addEventListener('mouseleave',()=>gsap.to(ef,{rotationX:0,rotationY:0,duration:.7,ease:'elastic.out(1,.5)'}));
+  }
+});
 
 /* ---- Workflow steps slide-in ---- */
 if (!reduced){
@@ -168,6 +175,124 @@ if (!reduced){
     }});
   }
 }
+
+/* ---- Hero prompt typewriter: the chip thinks in seller language ---- */
+if (!reduced){
+  const tw = document.querySelector('.chip-prompt .t');
+  if (tw){
+    const prompts = [
+      {pre:'milk tea flash sale — ', hi:'20% off'},
+      {pre:'halloween drop — ',      hi:'buy 2 get 1'},
+      {pre:'livestream tonight — ',  hi:'free shipping'},
+    ];
+    const staticFallback = tw.innerHTML; // any failure restores the shipped markup — never a frozen half-word
+    const caret = document.createElement('span'); caret.className = 'tw-caret';
+    const preNode = document.createTextNode('');
+    const em = document.createElement('em');
+    let pi = 0, dead = false;
+    const schedule = (ms, fn) => setTimeout(() => {
+      if (dead) return;
+      try { fn(); } catch { dead = true; tw.innerHTML = staticFallback; }
+    }, ms);
+    const erase = () => {
+      if (em.textContent) { em.textContent = em.textContent.slice(0, -1); return schedule(16, erase); }
+      em.classList.remove('pop');
+      if (preNode.data) { preNode.data = preNode.data.slice(0, -1); return schedule(12, erase); }
+      pi = (pi + 1) % prompts.length;
+      schedule(350, typePre);
+    };
+    const typeHi = () => {
+      const p = prompts[pi];
+      if (em.textContent.length < p.hi.length){
+        em.textContent += p.hi[em.textContent.length];
+        return schedule(46, typeHi);
+      }
+      em.classList.add('pop');
+      schedule(3000, erase);
+    };
+    const typePre = () => {
+      const p = prompts[pi];
+      if (preNode.data.length < p.pre.length){
+        preNode.data += p.pre[preNode.data.length];
+        return schedule(34, typePre);
+      }
+      schedule(260, typeHi);
+    };
+    try {
+      tw.textContent = '';
+      tw.append(preNode, em, caret);
+      schedule(900, typePre);
+    } catch { tw.innerHTML = staticFallback; }
+  }
+}
+
+/* ---- Demo loop video: lazy, motion-safe, paused off-screen ---- */
+(() => {
+  const v = document.querySelector('.demo-loop');
+  if (!v || reduced) return; // reduced motion: the poster frame stays, nothing autoplays
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    v.addEventListener('error', () => { v.removeAttribute('src'); v.load(); }, { once: true });
+    v.querySelectorAll('source').forEach((s) => {
+      if (!s.src) s.src = s.dataset.srcWebm || s.dataset.srcMp4 || '';
+    });
+    v.load();
+    v.play().catch(() => {});
+  };
+  const io = new IntersectionObserver(([en]) => {
+    if (en.isIntersecting) start();
+    else if (started) v.pause();
+  }, { rootMargin: '200px' });
+  io.observe(v);
+})();
+
+/* ---- BA slider: drag the real repaint back and forth ---- */
+(() => {
+  const ba = document.getElementById('ba');
+  if (!ba) return;
+  const handle = ba.querySelector('.ba-handle');
+  const set = (pct) => {
+    pct = Math.max(4, Math.min(96, pct));
+    ba.style.setProperty('--x', pct + '%');
+    handle.setAttribute('aria-valuenow', String(Math.round(pct)));
+  };
+  const fromEvent = (e) => {
+    const r = ba.getBoundingClientRect();
+    set(((e.clientX - r.left) / r.width) * 100);
+  };
+  let dragging = false, activePointer = null;
+  ba.addEventListener('pointerdown', (e) => {
+    dragging = true; activePointer = e.pointerId;
+    try { ba.setPointerCapture(e.pointerId); } catch { /* pointer already released — move events still track */ }
+    fromEvent(e);
+  });
+  ba.addEventListener('pointermove', (e) => { if (dragging && e.pointerId === activePointer) fromEvent(e); });
+  ba.addEventListener('pointerup',    (e) => { if (e.pointerId === activePointer) { dragging = false; activePointer = null; } });
+  ba.addEventListener('pointercancel',(e) => { if (e.pointerId === activePointer) { dragging = false; activePointer = null; } });
+  handle.addEventListener('keydown', (e) => {
+    // computed style — correct wherever --x lives (inline today, stylesheet tomorrow)
+    const cur = parseFloat(getComputedStyle(ba).getPropertyValue('--x')) || 50;
+    if (e.key === 'ArrowLeft')  { set(cur - 4); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { set(cur + 4); e.preventDefault(); }
+  });
+  if (!reduced){ /* one gentle nudge when it first scrolls into view — teaches the drag */
+    const io = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const nudge = (t) => {
+        const k = Math.min(1, (t - t0) / 1200);
+        const ease = 1 - Math.pow(1 - k, 3);
+        set(50 + Math.sin(ease * Math.PI * 2) * 13);
+        if (k < 1) requestAnimationFrame(nudge); else set(50);
+      };
+      requestAnimationFrame(nudge);
+    }, { threshold: .35 });
+    io.observe(ba);
+  }
+})();
 
 /* ---- Generic reveals ---- */
 if (!reduced){

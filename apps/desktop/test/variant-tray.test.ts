@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SceneCanvas } from "@oia/schema";
-import { appendVariant, bindPromptForJob, variantKey, variantsFromSession, type VariantCard } from "../src/renderer/lib/variant-tray.js";
+import { appendVariant, bindPromptForJob, bindTargetForJob, canReplaceVariant, variantKey, variantsFromSession, type VariantCard } from "../src/renderer/lib/variant-tray.js";
 
 /**
  * A1 preview-apply — the pure tray rules. The dedupe here is what the shot gate
@@ -80,5 +80,24 @@ describe("variantsFromSession — resume shows the conversation's canvases", () 
     const cards = variantsFromSession(9, [{ role: "assistant", canvas: scene(1) }]);
     expect(cards).toHaveLength(1);
     expect(cards[0].prompt).toBe("");
+  });
+});
+
+describe("A3-lite: per-job target binding + replace gating (TOCTOU)", () => {
+  it("bindTargetForJob: first event wins, later sends never relabel a job's target", () => {
+    const m = new Map<string, string | null>();
+    expect(bindTargetForJob(m, "j1", "artwork")).toBe("artwork");
+    expect(bindTargetForJob(m, "j1", "product sticker")).toBe("artwork"); // B7: bound at send time
+    expect(bindTargetForJob(m, "j2", null)).toBe(null); // no-selection edit targets nothing
+  });
+  it("canReplaceVariant: a variant painted for one layer never replaces another", () => {
+    const painted: VariantCard = { ...card("job1:c1", "make it warmer"), targetLayer: "artwork" };
+    expect(canReplaceVariant(painted, { selectedImg: true, selectedName: "artwork" }).ok).toBe(true);
+    const wrong = canReplaceVariant(painted, { selectedImg: true, selectedName: "product sticker" });
+    expect(wrong.ok).toBe(false);
+    expect(wrong.why).toContain('Painted for the "artwork" layer');
+    expect(canReplaceVariant(painted, { selectedImg: false, selectedName: null }).ok).toBe(false); // no image selected
+    const untethered = canReplaceVariant(card("job1:c1", "x"), { selectedImg: true, selectedName: "anything" });
+    expect(untethered.ok).toBe(true); // legacy/resumed cards without a target keep the old behavior
   });
 });

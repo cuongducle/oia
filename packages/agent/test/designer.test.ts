@@ -184,6 +184,87 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it blue", referenceImages: ["https://ref/1.png"] }, { llm: llmStub, image: imgSpy })) void _;
     expect(gotRefs).toEqual(["https://ref/1.png"]);
   });
+  it("D16 poster mode: the copy is baked by the model — planner blocks are NEVER placed as overlays (no doubled text)", async () => {
+    const planWithBlocks = JSON.stringify({
+      title: "Milk tea flash sale",
+      imagePrompt: "milk tea banner with bold condensed 'FLASH SALE' and '20% OFF TODAY' rendered large",
+      blocks: [
+        { role: "headline", text: "FLASH SALE" },
+        { role: "discount", text: "20% OFF" },
+      ],
+    });
+    let sysPrompt = "";
+    const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sysPrompt = m[0].content; return planWithBlocks; } };
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner" }, { llm: llmSpy, image })) evs.push(ev);
+    expect(sysPrompt).toContain("Poster mode"); // the planner was told to bake the copy
+    const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
+    expect(canvas?.canvas.objects.filter((o) => o.type === "Textbox")).toEqual([]); // half-complying planner ≠ doubled text
+    expect(canvas?.canvas.objects.some((o) => o.name === "artwork")).toBe(true);
+    // B7: dropped blocks are ANNOUNCED, never silent — the seller learns copy may be missing
+    const warn = evs.find((e) => e.content.includes("were not drawn"));
+    expect(warn?.content).toContain("2 planned text blocks");
+    expect(warn?.content).toContain("ask for a repaint");
+  });
+  it("D16 poster mode, planner obeys (no blocks): zero warning noise", async () => {
+    const planNoBlocks = JSON.stringify({ title: "Milk tea flash sale", imagePrompt: "banner with 'FLASH SALE' baked" });
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner" }, { llm: stubLlmReturning(planNoBlocks), image })) evs.push(ev);
+    expect(evs.some((e) => e.content.includes("were not drawn"))).toBe(false);
+  });
+  it("D16 clean-plate mode: blocks still land as editable overlays", async () => {
+    const planWithBlocks = JSON.stringify({
+      title: "Milk tea flash sale",
+      imagePrompt: "text-free milk tea banner",
+      blocks: [{ role: "discount", text: "20% OFF" }],
+    });
+    const evs: ChatEvent[] = [];
+    for await (const ev of runDesignerAgent({ prompt: "milk tea flash sale banner", mode: "clean-plate" }, { llm: stubLlmReturning(planWithBlocks), image })) evs.push(ev);
+    const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
+    const boxes = canvas?.canvas.objects.filter((o) => o.type === "Textbox") ?? [];
+    expect(boxes.length).toBe(1);
+    expect(boxes[0]).toMatchObject({ name: "block:discount" });
+  });
+  it("narrative counts refs with correct pluralization — '1 reference image' / '2 reference images' (live grammar fix)", async () => {
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate() { return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    const llmStub: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { return planSpy; } };
+    const narrativeWith = async (n: number): Promise<string> => {
+      const lines: string[] = [];
+      const refs = Array.from({ length: n }, (_, i) => `https://ref/${i}.png`);
+      for await (const ev of runDesignerAgent({ prompt: "make it blue", referenceImages: refs }, { llm: llmStub, image: imgSpy })) {
+        if (ev.content.includes("adjusted for")) lines.push(ev.content);
+      }
+      return lines.join(" ");
+    };
+    expect(await narrativeWith(1)).toContain("adjusted for 1 reference image");
+    expect(await narrativeWith(1)).not.toContain("1 reference images");
+    expect(await narrativeWith(2)).toContain("adjusted for 2 reference images");
+  });
+  it("A3-lite: editMode clauses are welded in the AGENT layer — deterministic, planner-proof", async () => {
+    let gotPrompt = "";
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { gotPrompt = i.prompt; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://ref/1.png"], editMode: { targetName: "artwork", textLayerOverlays: true } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
+    expect(gotPrompt).toContain("Edit Image 1 (the artwork layer) only");
+    expect(gotPrompt).toContain("exact same dimensions as Image 1");
+    expect(gotPrompt).toContain("Do not add any text or lettering");
+  });
+  it("A3-lite: no targetName → dimension lock only; no editMode → no clauses at all", async () => {
+    let p1 = ""; let p2 = "";
+    const spy = (set: (s: string) => void): ImageProvider => ({ name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { set(i.prompt); return { url: "https://x/y.png", provider: "s", model: "m" }; } });
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://r/1.png"], editMode: {} }, { llm: stubLlmReturning(plan), image: spy((s) => { p1 = s; }) })) void _;
+    expect(p1).toContain("exact same dimensions as Image 1");
+    expect(p1).not.toContain("(the ");
+    expect(p1).not.toContain("Do not add any text");
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://r/1.png"] }, { llm: stubLlmReturning(plan), image: spy((s) => { p2 = s; }) })) void _;
+    expect(p2).not.toContain("Edit Image 1");
+    expect(p2).not.toContain("exact same dimensions");
+  });
+  it("A3-lite: clauses are skipped when no references ride along (Image 1 would name nothing)", async () => {
+    let gotPrompt = "";
+    const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { gotPrompt = i.prompt; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", editMode: { targetName: "artwork" } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
+    expect(gotPrompt).not.toContain("Edit Image 1");
+  });
   it("the skill hint reaches the planner system prompt", async () => {
     let sys = "";
     const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sys = m[0].content; return planSpy; } };
@@ -234,17 +315,17 @@ describe("STAGE-0 TP.1: blocks → named editable textboxes placed in copy zones
     expect(box.fontFamily).toBe("Be Vietnam Pro");
   });
 
-  it("legacy copy plan still yields one editable textbox (backward compat)", async () => {
+  it("legacy copy plan still yields one editable textbox (backward compat — clean-plate; D16: poster bakes, blocks never overlay)", async () => {
     const out: ChatEvent[] = [];
-    for await (const ev of runDesignerAgent({ prompt: "poster" }, { llm, image })) out.push(ev);
+    for await (const ev of runDesignerAgent({ prompt: "poster", mode: "clean-plate" }, { llm, image })) out.push(ev);
     const canvas = out.flatMap((e) => e.renderData.msgMeta).at(-1)!.canvas;
     expect(canvas.objects.filter((o) => o.type === "Textbox").map((o) => o.name)).toEqual(["block:copy"]);
   });
 
-  it("multi-page: blocks land on the FIRST page only (current pi===0 rule)", async () => {
+  it("multi-page: blocks land on the FIRST page only (current pi===0 rule, clean-plate)", async () => {
     const out: ChatEvent[] = [];
     const multi = JSON.stringify({ title: "T", imagePrompt: "p", imagePrompts: ["p1", "p2"], blocks: [{ role: "price", text: "20%" }] });
-    for await (const ev of runDesignerAgent({ prompt: "poster", pages: 2 }, { llm: stubLlmReturning(multi), image })) out.push(ev);
+    for await (const ev of runDesignerAgent({ prompt: "poster", pages: 2, mode: "clean-plate" }, { llm: stubLlmReturning(multi), image })) out.push(ev);
     const canvases = out.flatMap((e) => e.renderData.msgMeta);
     expect(canvases[0].canvas.objects.filter((o) => o.type === "Textbox")).toHaveLength(1);
     expect(canvases[1].canvas.objects.filter((o) => o.type === "Textbox")).toHaveLength(0);
@@ -508,6 +589,10 @@ describe("C1 teardown fix: a deck trimmed to ONE page still generates (regressio
     await run({ prompt: "deck", pages: 2, outlineGate: true }, { llm: spy, image: countingImage().provider });
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.imagePrompts(2));
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.pageOutline(2));
+    // style vocabulary (adapted from SurgePix agent-skills, MIT) — concrete phrases, never labels alone
+    expect(systems[0]).toContain("Style vocabulary");
+    expect(systems[0]).toContain("oversized typography");
+    expect(systems[0]).toContain("Swiss grid");
   });
 });
 
@@ -527,5 +612,27 @@ describe("C1/OC-4 — cancel mid-deck stops BETWEEN pages; generated pages survi
     expect(n).toBe(1); // stopped between pages
     expect(out.some((e) => e.renderData.msgMeta.some((m) => m.type === "canvas"))).toBe(true); // page 1 kept
     expect(out.some((e) => e.content.includes("variation 3"))).toBe(false);
+  });
+});
+
+describe("Style preset — CODE injects the concrete phrases (surgepix pattern)", () => {
+  it("style='bold' puts oversized-typography phrases into the planner system prompt", async () => {
+    const systems: string[] = [];
+    const spy: LlmProvider = {
+      name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return plan; },
+    };
+    for await (const _ of runDesignerAgent({ prompt: "flash sale", style: "bold" }, { llm: spy, image: countingImage().provider })) void _;
+    expect(systems[0]).toContain("Style preset selected by the user — 'bold'");
+    expect(systems[0]).toContain("oversized typography, dynamic text layering, high impact");
+  });
+  it("no style = no injection (Auto stays out of the prompt)", async () => {
+    const systems: string[] = [];
+    const spy: LlmProvider = {
+      name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return plan; },
+    };
+    for await (const _ of runDesignerAgent({ prompt: "flash sale" }, { llm: spy, image: countingImage().provider })) void _;
+    expect(systems[0]).not.toContain("Style preset selected by the user");
   });
 });

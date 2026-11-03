@@ -88,6 +88,9 @@ export interface LlmChatOpts {
   signal?: AbortSignal;
   /** TP.4 — correlation id forwarded to CLI transcripts. */
   jobId?: string;
+  /** DA-1 — run the turn with live web search when the provider supports it
+   * (capability `webSearch`). Ignored by providers without the capability. */
+  search?: boolean;
 }
 
 export interface LlmProvider {

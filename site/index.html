@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oia — Generate the image. Keep the control.</title>
-<meta name="description" content="Oia is the free, open-source image agent: AI artwork on a real, layer-based canvas. Editable text, shapes and your own assets. MIT, self-hosted, bring your own provider.">
+<meta name="description" content="Free, open-source image agent: AI artwork on a real, layer-based canvas. Web research + auto refine, outline review, preview AI edits, livestream overlays. MIT · BYO provider.">
 <meta name="theme-color" content="#0e0d1f">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Oia — Generate the image. Keep the control.">
-<meta property="og:description" content="Free & open-source image agent. AI artwork on a real, layer-based canvas. MIT · self-hosted · bring your own provider.">
-<meta property="og:image" content="https://cuongducle.github.io/oia/qa-shots/1-hero.png">
+<meta property="og:description" content="Free & open-source image agent. AI artwork on a real, layer-based canvas. Web research + auto refine · outline review · preview AI edits · livestream overlays. MIT · BYO provider.">
+<meta property="og:image" content="https://cuongducle.github.io/oia/assets/og-hero.png">
 <meta property="og:url" content="https://cuongducle.github.io/oia/">
 <meta property="og:site_name" content="Oia">
-<meta name="twitter:image" content="https://cuongducle.github.io/oia/qa-shots/1-hero.png">
+<meta name="twitter:image" content="https://cuongducle.github.io/oia/assets/og-hero.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
 "description":"Free and open-source image agent: generate AI artwork on a real, layer-based canvas with editable text, shapes and your own assets.",
 "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
 "license":"https://opensource.org/licenses/MIT",
-"softwareVersion":"0.1","isAccessibleForFree":true,
+"softwareVersion":"0.3","isAccessibleForFree":true,
 "repository":"https://github.com/cuongducle/oia",
 "url":"https://cuongducle.github.io/oia/"}
 </script>
@@ -44,6 +44,8 @@
   <div class="navlinks">
     <a href="#layers">How it works</a>
     <a href="#templates">Templates</a>
+    <a href="prompts/">Prompts</a>
+    <a href="#bring">Keep the style</a>
     <a href="#oss">Open source</a>
   </div>
   <div class="navcta">
@@ -61,7 +63,7 @@
       <span class="line"><span>Generate the image.</span></span>
       <span class="line"><span>Keep the control.</span></span>
     </h1>
-    <p class="trust"><span>FREE &amp; OPEN SOURCE</span> <b>·</b> <span>MIT</span> <b>·</b> <span>SELF-HOSTED</span> <b>·</b> <span>BYO PROVIDER</span></p>
+    <p class="trust"><span>FREE &amp; OPEN SOURCE</span> <b>·</b> <span>MIT</span> <b>·</b> <span>SELF-HOSTED</span> <b>·</b> <span>BYO PROVIDER</span> <b>·</b> <span>MAC + WINDOWS</span></p>
     <div class="ctas">
       <a class="btn btn-accent" href="https://github.com/cuongducle/oia/releases">Download</a>
       <a class="btn btn-ghost" href="https://github.com/cuongducle/oia" rel="noopener">View on GitHub</a>
@@ -88,20 +90,23 @@
     <figure class="tile t-persp">
       <div class="t1">Good tea,<br>brighter days.</div>
       <div class="t2">text · layer 6</div>
-      <span class="cap mono">native text object</span>
+      <span class="cap mono">text — a movable layer</span>
     </figure>
 
     <div class="chip chip-prompt">
       <div class="k">prompt</div>
-      <div class="t">a matcha editorial study — <em>cream type</em>, quiet morning light</div>
+      <div class="t">milk tea flash sale — <em>20% off</em></div>
+      <div class="pills"><span class="pp">Shopee 1:1 · 2K</span><span class="pp">brand: Lumea</span><span class="pp cost">up to 2 img + 2 reads</span></div>
     </div>
     <div class="chip chip-log">
-      <div class="row"><span>generate scene</span><b>done · 12.4s</b></div>
-      <div class="row"><span>place copy layer</span><b>done · 0.3s</b></div>
-      <div class="row"><span>export png</span><span><span class="spin"></span></span></div>
+      <div class="row"><span>researching</span><b>done · 6.4s</b></div>
+      <div class="row"><span>planning</span><b>done · 2.1s</b></div>
+      <div class="row"><span>painting</span><b>done · 12.4s</b></div>
+      <div class="row"><span>checking</span><b>auto-refined · round 1</b></div>
+      <div class="row"><span>composing</span><span><span class="spin"></span></span></div>
     </div>
 
-    <svg class="arrow" style="right:24%;bottom:21%;width:118px" viewBox="0 0 118 74" fill="none" aria-hidden="true">
+    <svg class="arrow" style="right:25%;bottom:28%;width:118px" viewBox="0 0 118 74" fill="none" aria-hidden="true">
       <path class="draw" d="M112 64 C 78 70, 40 52, 12 12" stroke="#7c5cff" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
       <path class="draw" d="M10 26 L12 12 L26 16" stroke="#7c5cff" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".65"/>
     </svg>
@@ -110,8 +115,7 @@
 
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
-    <span>Open image agent <i>◆</i></span><span>Editable text objects <i>◆</i></span><span>Export PNG · PDF · PPTX <i>◆</i></span><span>Bring your own provider <i>◆</i></span><span>Task API &amp; agent skills <i>◆</i></span><span>Non-destructive refinement <i>◆</i></span>
-    <span>Open image agent <i>◆</i></span><span>Editable text objects <i>◆</i></span><span>Export PNG · PDF · PPTX <i>◆</i></span><span>Bring your own provider <i>◆</i></span><span>Task API &amp; agent skills <i>◆</i></span><span>Non-destructive refinement <i>◆</i></span>
+    <span>Open image agent <i>◆</i></span><span>Text in the image — or editable layers <i>◆</i></span><span>Change the price — the style stays <i>◆</i></span><span>Tag any layer with @ <i>◆</i></span><span>Preview AI edits — apply only what you keep <i>◆</i></span><span>Outline first, paint later <i>◆</i></span><span>Researches the web before it designs <i>◆</i></span><span>Auto refine — checks its own work <i>◆</i></span><span>Sizes for Shopee · Lazada · TikTok Shop <i>◆</i></span><span>Livestream overlays · TikTok &amp; Shopee safe zones <i>◆</i></span><span>PNG · PDF · PPTX · transparent overlay <i>◆</i></span><span>BYO provider · MIT <i>◆</i></span>
   </div>
 </div>
 
@@ -130,7 +134,7 @@
       <h2>The image and the design are different things.</h2>
       <p class="hint">scroll — the layers separate</p>
       <div class="chips3">
-        <span class="c3">text</span><span class="c3">images</span><span class="c3">shapes</span><span class="c3">your uploads</span><span class="c3">multi-page</span><span class="c3">undo · autosave</span>
+        <span class="c3">text</span><span class="c3">images</span><span class="c3">shapes</span><span class="c3">your uploads</span><span class="c3">layers panel</span><span class="c3">safe zones</span><span class="c3">multi-page</span><span class="c3">undo · autosave</span>
       </div>
     </div>
   </div>
@@ -158,22 +162,85 @@
       <div class="step">
         <div class="num">01 — GENERATE</div>
         <h3>Describe it</h3>
-        <div class="log"><div>plan scene <b>ok · 2.1s</b></div><div>generate artwork <b>ok · 12.4s</b></div></div>
+        <div class="log"><div>flash sale · livestream · menu</div><div>shopee 1:1 · 2K <b>grouped by platform</b></div><div>research the web · auto refine — <b>on by default</b></div><div class="trust-line">every image + read priced up front</div></div>
       </div>
       <div class="step">
-        <div class="num">02 — MAKE IT YOURS</div>
+        <div class="num">02 — REVIEW</div>
+        <h3>Approve the outline</h3>
+        <div class="log"><div>3 pages planned — see it first</div><div>rewrite the copy, then paint</div><div>outline edits <b>0 images</b></div></div>
+      </div>
+      <div class="step">
+        <div class="num">03 — MAKE IT YOURS</div>
         <h3>Edit the layers</h3>
-        <div class="log"><div>your layers are stamped</div><div class="trust-line"><b>origin: user</b> — AI never deletes them</div></div>
+        <div class="log"><div>layers panel · design inspector</div><div>change the price → <b>repaint keeps the style</b></div><div class="trust-line">preview first — apply only what you keep</div></div>
       </div>
       <div class="step">
-        <div class="num">03 — PRODUCE</div>
+        <div class="num">04 — PRODUCE</div>
         <h3>Export</h3>
-        <div class="log"><div>png · jpg · pdf · pptx · zip</div><div>export pdf <b>ok · 1.8s</b></div></div>
+        <div class="log"><div>png · jpg · pdf · pptx · zip</div><div>transparent png · overlays</div><div>export png <b>ok · 1.8s</b></div></div>
       </div>
     </div>
     <div class="editor-frame">
-      <img loading="lazy" src="assets/editor.png" alt="Oia editor with the Matcha Every Day headline selected as a native text object" width="1440" height="1020">
-      <span class="cap mono">real editor · headline is a text object</span>
+      <video class="demo-loop" muted loop playsinline preload="none" poster="assets/demo-loop-poster.webp" width="1600" height="1073" aria-label="Real Oia run on Codex: the agent researches the web (Black Friday 2026 sourced from timeanddate.com), checks its own artwork, refines round 1, and ships with an auto-refined badge and the surviving issues listed">
+        <source data-src-webm="assets/demo-loop.webm" type="video/webm">
+        <source data-src-mp4="assets/demo-loop.mp4" type="video/mp4">
+      </video>
+      <span class="cap mono">real codex run · research → check → refine → auto-refined</span>
+    </div>
+  </div>
+</section>
+
+<section id="why" class="why-band" aria-label="Why local">
+  <div class="wrap why-grid">
+    <div class="wcell reveal"><span class="wk">no account</span><span class="wd">Sign in with the plan you already pay — no credits to buy</span></div>
+    <div class="wcell reveal"><span class="wk">local-first</span><span class="wd">Projects and designs live on your machine — nothing uploaded, ever</span></div>
+    <div class="wcell reveal"><span class="wk">priced up front</span><span class="wd">Every image and read is counted and shown before you run</span></div>
+    <div class="wcell reveal"><span class="wk">export anywhere</span><span class="wd">PNG · PDF · PPTX · transparent overlays — no lock-in</span></div>
+  </div>
+</section>
+
+<section id="bring">
+  <div class="wrap bring-grid">
+    <div>
+      <p class="kicker">Text in image</p>
+      <h2>Change the price.<br>Keep the style.</h2>
+      <div class="bring-log">
+        <div>ask: “make it 30% off today”</div>
+        <div>@ the layer — the edit targets <b>exactly that image</b></div>
+        <div>repaint <b>≈ 1 image</b> · style stays</div>
+        <div>preview → apply — nothing touches the page until you say so</div>
+        <div class="trust-line">undo keeps the original one step away</div>
+      </div>
+      <p class="bring-note">Need movable letters? “Make text editable” rebuilds the copy as layers — ≈ 1 image + 1 read.</p>
+    </div>
+    <div class="editor-frame">
+      <div class="ba" id="ba" style="--x:50%">
+        <img loading="lazy" src="assets/price-30.webp" alt="After — the same milk-tea banner regenerated reading 30% OFF TODAY, identical glossy 3D typography, drinks and lighting" width="790" height="798">
+        <div class="ba-clip" aria-hidden="true"><img loading="lazy" src="assets/price-20.webp" alt="" width="790" height="798"></div>
+        <div class="ba-handle" role="slider" tabindex="0" aria-label="Compare before and after the repaint" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+          <span class="ba-line"></span>
+          <span class="ba-knob"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5l-5 7 5 7M16 5l5 7-5 7"/></svg></span>
+        </div>
+        <span class="ba-tag ba-tag-l">before · 20% off</span>
+        <span class="ba-tag ba-tag-r">after · 30% off</span>
+      </div>
+      <span class="cap mono">real generations · same banner, one repaint — drag to compare</span>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <p class="kicker">FAQ</p>
+    <h2>Questions sellers ask.</h2>
+    <div class="faq">
+      <details><summary>Is Oia really free?</summary><p>Yes — MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, or plug in your OpenAI/fal API key.</p></details>
+      <details><summary>Can I edit the text in a generated image?</summary><p>By default the copy is rendered <em>into</em> the artwork for the best-looking typography. Change it by asking — “make it 30% off today” — and the repaint keeps the style. Need movable letters instead? Flip <em>Editable text right away</em> before generating, or run <em>Make text editable</em> on any design.</p></details>
+      <details><summary>What do Research and Auto refine do?</summary><p>Two agent loops that run over your provider. <em>Research the web</em> (on by default where supported) lets the planner look up current facts — dates, prices, trends — before designing, and shows every finding with its source. <em>Auto refine</em> checks each generated image against your brief — spelling and language of the rendered text first — and re-generates when the critic finds a fixable defect. Bounded, and the full price is shown before you run (e.g. <em>up to 2 images + 2 reads</em>). Both switches remember your choice.</p></details>
+      <details><summary>Mac or Windows?</summary><p>Both — native builds for macOS (Apple Silicon) and Windows. Your projects live on your machine.</p></details>
+      <details><summary>Do I need an API key?</summary><p>No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Keys are optional (OpenAI, fal).</p></details>
+      <details><summary>What sizes does it support?</summary><p>Shopee / Lazada / TikTok Shop squares, TikTok 9:16, story and post ratios, livestream overlays (1080×1920 transparent), posters, 16:9 presentations, YouTube thumbnails and A4.</p></details>
+      <details><summary>Where do my designs live?</summary><p>On your machine — projects, assets and conversations are stored locally. Nothing is uploaded to us (there is no “us” server).</p></details>
     </div>
   </div>
 </section>
@@ -199,7 +266,14 @@
 
 <footer>
   <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
-  <span class="meta">MIT · site — Oct 2026</span>
+  <div class="navlinks" style="gap:18px">
+    <a href="prompts/">Prompt library</a>
+    <a href="templates/">Templates</a>
+    <a href="use-cases/flash-sale-banners/">Flash-sale banners</a>
+    <a href="use-cases/livestream-overlays/">Livestream overlays</a>
+    <a href="use-cases/presentations/">Presentations</a>
+  </div>
+  <span class="meta">MIT · site — Nov 2026</span>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
@@ -208,6 +282,7 @@
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/split-type@0.3.4/umd/index.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script src="faq-schema.js" type="module"></script>
 <script src="main.js" defer></script>
 </body>
 </html>

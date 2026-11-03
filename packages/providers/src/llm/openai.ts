@@ -6,6 +6,9 @@ const OPENAI_LLM_CAPABILITIES: ProviderCapabilities = {
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: false,
+  // DA-2 slice 1: the Responses API web_search tool is NOT wired into this
+  // adapter yet — declared false so the agent announces "unavailable" honestly.
+  webSearch: false,
 };
 
 export class OpenAiLlmProvider implements LlmProvider {

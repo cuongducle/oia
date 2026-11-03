@@ -3,6 +3,7 @@ import type { RuntimeSnapshot } from "../src/shared/bridge.js";
 import { runtimeStatusLine } from "../src/renderer/lib/runtime-status.js";
 import { costHintText, stepsFromTimeline } from "../src/renderer/lib/run-steps.js";
 import { SIZE_GROUPS, sizeDims } from "../src/renderer/lib/composer-sizes.js";
+import { readAutoRefinePref, writeAutoRefinePref, readResearchPref, writeResearchPref } from "../src/renderer/lib/composer-prefs.js";
 
 /**
  * UI v1.1 R1 — the sidebar status card replaces the runtime panel that used to sit
@@ -66,6 +67,44 @@ describe("costHintText", () => {
     expect(costHintText({ images: 1, isMock: false })).toBe("≈ 1 image");
     expect(costHintText({ images: 1, reads: 1, isMock: false })).toBe("≈ 1 image + 1 read");
     expect(costHintText({ images: 1, pages: 1, isMock: true })).toBeNull();
+  });
+});
+
+describe("DA-5: the Auto refine cost label is a display law", () => {
+  it("loop ON shows the worst-case images + reads — Trial included (it previews the real bill)", () => {
+    expect(costHintText({ images: 1, isMock: true, autoRefineRounds: 1 })).toBe("Auto refine on · up to 2 images + 2 reads");
+    expect(costHintText({ images: 1, isMock: false, autoRefineRounds: 1 })).toBe("≈ 1 image · Auto refine on · up to 2 images + 2 reads");
+  });
+  it("multi-page keeps C1's contract label AND adds the per-page worst case", () => {
+    expect(costHintText({ images: 1, pages: 3, isMock: false, autoRefineRounds: 1 })).toBe("3 pages ≈ 3 images · Auto refine on · up to 6 images + 6 reads");
+  });
+  it("loop OFF → the label disappears entirely (rounds 0 = absent)", () => {
+    expect(costHintText({ images: 1, isMock: false, autoRefineRounds: 0 })).toBe("≈ 1 image");
+    expect(costHintText({ images: 1, isMock: true })).toBeNull();
+  });
+});
+
+describe("DA-4: composer prefs — auto refine defaults ON (owner Q1), research defaults OFF (S1.5)", () => {
+  const store = () => {
+    const m = new Map<string, string>();
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), dump: () => m };
+  };
+  it("absent/corrupt keys restore the DECIDED defaults — a broken key never flips an owner decision", () => {
+    // SAFETY: Pick<Storage> is structurally a tiny in-memory map; the real
+    // localStorage satisfies it — the cast only silences the DOM lib mismatch.
+    const s = store();
+    expect(readAutoRefinePref(s as unknown as Storage)).toBe(true); // AUTO_REFINE_DEFAULT
+    expect(readResearchPref(s as unknown as Storage)).toBe(true); // owner 2026-11-06: default ON
+    s.setItem("oia.autoRefine", "garbage");
+    expect(readAutoRefinePref(s as unknown as Storage)).toBe(true);
+  });
+  it("the switch choice persists both ways (OC-6)", () => {
+    // SAFETY: same structural Pick<Storage> stand-in as above.
+    const s = store();
+    writeAutoRefinePref(false, s as unknown as Storage);
+    expect(readAutoRefinePref(s as unknown as Storage)).toBe(false);
+    writeResearchPref(true, s as unknown as Storage);
+    expect(readResearchPref(s as unknown as Storage)).toBe(true);
   });
 });
 

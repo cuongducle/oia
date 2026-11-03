@@ -112,6 +112,16 @@ describe("TP.3 mode-aware prompt templates", () => {
     expect(buildPosterPrompt(input)).toContain("Render all text exactly as written");
     expect(buildPosterPrompt(input)).toContain("vertical");
   });
+  it("DEF-1: the DESIRED ratio rides the prompt in named form + a text safe area (poster)", () => {
+    expect(buildPosterPrompt(input)).toContain("3:4 aspect ratio"); // 900×1200
+    expect(buildPosterPrompt({ ...input, width: 1360, height: 2048 })).toContain("2:3 aspect ratio");
+    expect(buildPosterPrompt({ ...input, width: 1080, height: 1080 })).toContain("1:1 aspect ratio");
+    expect(buildPosterPrompt({ ...input, width: 1000, height: 1900 })).toContain("0.53:1"); // uncommon ratio falls back to decimal
+    expect(buildPosterPrompt(input)).toContain("at least 10% clear of every edge");
+  });
+  it("DEF-1: clean-plate carries the ratio too (exact ratio = no cover-crop at all)", () => {
+    expect(buildCleanPlatePrompt(input)).toContain("3:4 aspect ratio");
+  });
   it("clean-plate forbids ADDED typography and reserves copy zones", () => {
     const p = buildCleanPlatePrompt(input);
     expect(p).toContain("Do NOT add any text");
@@ -215,6 +225,27 @@ echo "STDIN_END"
     expect(argsLine).toContain("--sandbox workspace-write");
     expect(argsLine).toContain("-i /tmp/ref-a.png");
     expect(argsLine).not.toContain("$imagegen");
+  });
+
+  it("DA-1/--search is a TOP-LEVEL flag: it must PRECEDE the exec subcommand (teardown #19 — the bug real quota caught, argv order is now pinned for free)", async () => {
+    const bridge = new CodexBridge({ bin: fakeBin, model: "test-model" });
+    const schemaFile = path.join(fakeDir, "plan.schema.json");
+    const lastMsg = path.join(fakeDir, "plan.json");
+    const argsOf = async (opts: Partial<Parameters<CodexBridge["exec"]>[0]>): Promise<string[]> => {
+      const res = await bridge.exec({ role: "planner", prompt: "p", schemaFile, lastMessageFile: lastMsg, timeoutMs: 5_000, jobId: "argv-pin", ...opts } as Parameters<CodexBridge["exec"]>[0]);
+      const line = res.stdout.split("\n").find((l) => l.startsWith("ARGS:"))!;
+      return line.slice("ARGS:".length).trim().split(/\s+/);
+    };
+    const withSearch = await argsOf({ search: true });
+    expect(withSearch[0]).toBe("--search"); // 0.166.0 rejects it after the subcommand
+    expect(withSearch[1]).toBe("exec");
+    const without = await argsOf({});
+    expect(without[0]).toBe("exec");
+    expect(without).not.toContain("--search");
+    // planner-only: the image path never sees the flag even if a caller sets it
+    const imgRes = await bridge.exec({ role: "image", prompt: "$imagegen", search: true, timeoutMs: 5_000, jobId: "argv-pin-img" });
+    const imgArgs = imgRes.stdout.split("\n").find((l) => l.startsWith("ARGS:"))!;
+    expect(imgArgs).not.toContain("--search");
   });
 
   it("isAvailable=false when codex is not installed (missing binary)", async () => {

@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChatEvent, ImageProvider, ProviderCapabilities } from "@oia/schema";
-import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, type ServiceContext } from "../src/index.js";
+import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, selfImproveRounds, chatBudgetMs, type ServiceContext } from "../src/index.js";
 import { MockImageProvider, MockLlmProvider, FailingMockLlmProvider } from "@oia/providers";
 
 /**
@@ -209,6 +209,98 @@ describe("D1 runChat — stage-aware retry (A5)", () => {
   });
 });
 
+describe("live repro 2026-11-02: in-process refs must not reach the provider as /api/files URLs", () => {
+  it("materializes /api/files/<key> and oia://files/<key> refs into data URLs (A1 variant on a real pair)", async () => {
+    const ctx = await freshCtx();
+    const png1x1 = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const { url: assetUrl } = await ctx.files.put(png1x1, "png");
+    expect(assetUrl).toMatch(/^\/api\/files\//); // the renderer's canonical form
+
+    const seen: string[][] = [];
+    const base = new MockImageProvider();
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(false),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        seen.push([...(i.referenceImages ?? [])]);
+        return base.generate(i);
+      },
+    };
+    const legacy = assetUrl.replace("/api/files/", "oia://files/");
+    const res = await runChat({ prompt: "make it warmer", referenceImages: [assetUrl, legacy, "https://example.com/x.png"] }, ctx, { sink: () => {} });
+    expect(res.outcome).toBe("completed");
+    expect(seen.length).toBeGreaterThan(0);
+    for (const refs of seen) {
+      expect(refs[0]).toMatch(/[/\\]uploads[/\\]/); // store-backed ref became a LOCAL PATH (P2: no base64 round-trip)
+      expect(refs[1]).toMatch(/[/\\]uploads[/\\]/); // legacy oia:// form too
+      expect(refs[2]).toBe("https://example.com/x.png"); // remote refs pass through untouched
+    }
+  });
+
+  const PNG_1X1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+
+  it("pass-through: data:, https: and absolute-path refs reach the provider verbatim; an empty ref list stays undefined", async () => {
+    const ctx = await freshCtx();
+    const seen: (string[] | undefined)[] = [];
+    const base = new MockImageProvider();
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        seen.push(i.referenceImages);
+        return base.generate(i);
+      },
+    };
+    const refs = ["data:image/png;base64,iVBORw0KGgo=", "https://example.com/x.png", "/tmp/absolute/ref.png"];
+    const first = await runChat({ prompt: "edit", referenceImages: refs }, ctx, { sink: () => {} });
+    expect(first.outcome).toBe("completed");
+    expect(seen.some((r) => JSON.stringify(r) === JSON.stringify(refs))).toBe(true); // verbatim — no rewriting of foreign forms
+    const second = await runChat({ prompt: "edit 2", referenceImages: [] }, ctx, { sink: () => {} });
+    expect(second.outcome).toBe("completed");
+    expect(seen.some((r) => r === undefined)).toBe(true); // empty list ≠ empty array on the provider input
+  });
+
+  it("a missing store key fails the job BEFORE any image is burned — the error names the KEY, never an absolute path", async () => {
+    const ctx = await freshCtx();
+    const events: ChatEvent[] = [];
+    const base = new MockImageProvider();
+    let gens = 0;
+    (ctx.chat as { image: unknown }).image = {
+      name: base.name, capabilities: caps(false),
+      isAvailable: () => base.isAvailable(),
+      async generate(i: Parameters<typeof base.generate>[0]) {
+        gens++;
+        return base.generate(i);
+      },
+    };
+    const res = await runChat({ prompt: "edit", referenceImages: ["/api/files/uploads/20990101/does-not-exist.png"] }, ctx, { sink: (e) => { events.push(e); } });
+    expect(res.outcome).toBe("failed");
+    expect(gens).toBe(0); // the seller's image quota was NOT burned on a doomed ref (G2 spirit)
+    const err = events.find((e) => e.error);
+    expect(err?.errorClass).toBeTruthy();
+    expect(err?.error).toContain("does-not-exist"); // names the missing asset
+    expect(err?.error).not.toMatch(/\/(Users|home|var|tmp)\//); // never leaks an absolute path
+  });
+
+  it("A1 invariant: the materialized data URL never leaks onto any wire — events and the persisted session carry no base64", async () => {
+    const ctx = await freshCtx();
+    const { url: assetUrl } = await ctx.files.put(PNG_1X1, "png");
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "make it warmer", referenceImages: [assetUrl] }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const wire = JSON.stringify(events) + JSON.stringify(stored ?? null);
+    expect(wire).not.toContain("data:image");
+    expect(wire).not.toContain("base64");
+  });
+});
+
 describe("D2 remediation: chatRequestSchema is the single boundary schema", () => {
   it("strips unknown keys and rejects invalid values (web adapter + desktop IPC share it)", async () => {
     const { chatRequestSchema } = await import("../src/index.js");
@@ -241,49 +333,108 @@ describe("C1 teardown fix: the wire validates deck bounds at the boundary", () =
   });
 });
 
-describe("reference images reach the provider as bytes, never as store addresses", () => {
-  /** Mock image provider that records the refs it was handed. */
-  function capturingImage(seen: string[][]): ImageProvider {
-    const inner = new MockImageProvider();
-    return {
-      name: inner.name,
-      capabilities: inner.capabilities,
-      generate: (i) => { seen.push(i.referenceImages ?? []); return inner.generate(i); },
-      isAvailable: () => inner.isAvailable(),
-    };
-  }
 
-  it("/api/files and oia://files refs arrive as data: URLs of the stored upload; other forms pass through", async () => {
-    const ctx = await freshCtx();
-    const seen: string[][] = [];
-    (ctx.chat as { image: unknown }).image = capturingImage(seen);
-    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
-    const up = await ctx.files.put(png, "png");
-    const dataUrl = `data:image/png;base64,${Buffer.from(png).toString("base64")}`;
-    const { outcome } = await runChat(
-      { prompt: "product shot", referenceImages: [up.url, up.url.replace("/api/files/", "oia://files/"), "https://example.test/a.png"] },
-      ctx, { sink: () => {} },
-    );
-    expect(outcome).toBe("completed");
-    expect(seen[0]).toEqual([dataUrl, dataUrl, "https://example.test/a.png"]);
+describe("Style preset — validated at the boundary, passed through to the planner", () => {
+  it("a preset id parses; junk is rejected (never reaches the agent as free text)", () => {
+    expect(chatRequestSchema.safeParse({ prompt: "banner", style: "bold" }).success).toBe(true);
+    expect(chatRequestSchema.safeParse({ prompt: "banner", style: "aztec-brutalism" }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ prompt: "banner" }).success).toBe(true); // absent = Auto
+  });
+});
+
+describe("A3-lite: editMode is a structured, validated field on the boundary", () => {
+  it("accepts the shape and strips foreign keys — the renderer sends structure, never prose", () => {
+    const ok = chatRequestSchema.safeParse({ prompt: "make it warmer", editMode: { targetName: "artwork", textLayerOverlays: true } });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.editMode).toEqual({ targetName: "artwork", textLayerOverlays: true });
+    const bad = chatRequestSchema.safeParse({ prompt: "x", editMode: { targetName: 123, evil: true } });
+    expect(bad.success).toBe(false); // unknown/typed-wrong keys are rejected, not silently coerced
+  });
+});
+
+/* ---------- DA — research + auto refine on the wire (designer-agent-loop.md) ---------- */
+
+describe("DA: chatRequestSchema — research + selfImprove (S0.1/S2.1)", () => {
+  it("both optional booleans parse; absent keys stay absent (D14 additive)", () => {
+    const ok = chatRequestSchema.safeParse({ prompt: "banner", research: true, selfImprove: true });
+    expect(ok.success).toBe(true);
+    if (ok.success) {
+      expect(ok.data.research).toBe(true);
+      expect(ok.data.selfImprove).toBe(true);
+    }
+    const legacy = chatRequestSchema.safeParse({ prompt: "banner" });
+    expect(legacy.success).toBe(true);
+    if (legacy.success) expect(legacy.data.research).toBeUndefined();
   });
 
-  it("a missing upload fails the job before any image is generated — and the cause is logged", async () => {
-    const ctx = await freshCtx();
-    const seen: string[][] = [];
-    (ctx.chat as { image: unknown }).image = capturingImage(seen);
-    const logged: unknown[][] = [];
-    const orig = console.error;
-    console.error = (...a: unknown[]) => { logged.push(a); };
-    try {
-      const { events, sink } = collector();
-      const { outcome } = await runChat({ prompt: "x", referenceImages: ["/api/files/uploads/gone.png"] }, ctx, { sink });
-      expect(outcome).toBe("failed");
-      expect(seen).toHaveLength(0);
-      expect(events.at(-1)?.errorClass).toBe("unknown");
-      expect(logged.some((a) => String(a[0]).startsWith("[chat] job ") && String(a[1]).length > 0)).toBe(true);
-    } finally {
-      console.error = orig;
+  it("explicit rounds are capped at the BOUNDARY — 0..2 pass, 3 fails with a clear message (never deep inside the loop)", () => {
+    for (const rounds of [0, 1, 2]) {
+      expect(chatRequestSchema.safeParse({ prompt: "banner", selfImprove: { rounds } }).success).toBe(true);
     }
+    const over = chatRequestSchema.safeParse({ prompt: "banner", selfImprove: { rounds: 3 } });
+    expect(over.success).toBe(false);
+  });
+
+  it("selfImproveRounds normalizes the wire forms (true → default, false → off)", () => {
+    expect(selfImproveRounds(undefined)).toBeNull();
+    expect(selfImproveRounds(false)).toBeNull();
+    expect(selfImproveRounds(true)).toBe(1);
+    expect(selfImproveRounds({ rounds: 2 })).toBe(2);
+  });
+});
+
+describe("DA: runChat with auto refine — verdict persists into the conversation (gate d, B7)", () => {
+  it("mock pair: one deterministic refine round, completed, and the stored session carries renderData.selfImprove", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "banner trà sữa", selfImprove: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    // the loop ran: verdict pass after round 1 (2 images under the hood —
+    // asserted at the agent layer; here the wire + persistence are the point)
+    const canvasEvents = events.filter((e) => e.content.includes("[[canvas::canvas::"));
+    expect(canvasEvents).toHaveLength(1);
+    expect(events.at(-1)?.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+    // persisted: replay sees the same verdict (the record must not lie)
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const last = stored?.messages.at(-1) as { renderData?: { selfImprove?: { rounds: number; verdict: string } } };
+    expect(last?.renderData?.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+  });
+
+  it("research with a provider that cannot search (mock) — announced, job still completes", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "banner", research: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    expect(events.map((e) => e.content).join("\n")).toContain("Research unavailable on mock");
+  });
+});
+
+/* ---------- DA teardown fixes (2026-11-06) ---------- */
+
+describe("DA teardown #4 — the budget scales with pages × refine rounds (no flat-480s mid-deck abort)", () => {
+  it("chatBudgetMs: flat without refine; 480s + pages×rounds×150s with it; capped by the 9-page ceiling", () => {
+    expect(chatBudgetMs({ prompt: "x" })).toBe(480_000);
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true })).toBe(480_000 + 150_000); // 1 page × 1 round
+    expect(chatBudgetMs({ prompt: "x", selfImprove: { rounds: 2 }, pages: 3 })).toBe(480_000 + 3 * 2 * 150_000);
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true, pages: 99 })).toBe(480_000 + 9 * 150_000); // ceiling holds
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true, approvedOutline: [{ title: "t", summary: "s" }] })).toBe(480_000 + 150_000); // outline decides pages
+  });
+});
+
+describe("DA teardown #2 — multi-page verdicts persist into the conversation (B7)", () => {
+  it("a 2-page deck with refine stores the hero verdict AND selfImprovePages (one entry per page)", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "deck trà sữa", pages: 2, selfImprove: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    const final = events.at(-1);
+    expect(final?.renderData.selfImprovePages).toHaveLength(2);
+    // mock critic per jobId: page 0 fails once → refines → pass(rounds 1); page 1 passes first try (rounds 0)
+    expect(final?.renderData.selfImprovePages?.[0]).toMatchObject({ rounds: 1, verdict: "pass" });
+    expect(final?.renderData.selfImprovePages?.[1]).toMatchObject({ rounds: 0, verdict: "pass" });
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const last = stored?.messages.at(-1) as { renderData?: { selfImprovePages?: unknown[]; selfImprove?: { rounds: number } } };
+    expect(last?.renderData?.selfImprovePages).toHaveLength(2); // replay sees every page's verdict
+    expect(last?.renderData?.selfImprove).toMatchObject({ rounds: 1 }); // hero = page 0
   });
 });

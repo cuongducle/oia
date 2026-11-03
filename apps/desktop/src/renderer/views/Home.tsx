@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BrandKit, CanvasMsgMeta, Project, Template, SceneCanvas } from "@oia/schema";
+import type { BrandKit, CanvasMsgMeta, Project, Template, SceneCanvas, SelfImproveResult } from "@oia/schema";
+import { AUTO_REFINE_MAX_ROUNDS_DEFAULT, STYLE_PRESETS, type StylePresetId } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
@@ -15,9 +16,10 @@ import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
 import {
-  addPage, editPage, movePage, outlineCostLabel, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
+  addPage, editPage, movePage, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
   type OutlineRow,
 } from "../lib/outline-card.js";
+import { readAutoRefinePref, readResearchPref, writeAutoRefinePref, writeResearchPref, readStylePref, writeStylePref } from "../lib/composer-prefs.js";
 import type { PlanPage } from "@oia/schema";
 import type { ChatRequest } from "@oia/services";
 
@@ -33,6 +35,8 @@ import type { ChatRequest } from "@oia/services";
 
 const MODE_TOGGLE_LABEL = "Editable text right away";
 const OUTLINE_SWITCH_LABEL = "Review outline before generating";
+const RESEARCH_SWITCH_LABEL = "Research the web";
+const AUTO_REFINE_SWITCH_LABEL = "Auto refine (check & improve)";
 const TRIAL_CHIP = "Trial mode · placeholder images";
 const STOP_LABEL = "Stop";
 
@@ -96,7 +100,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [mockMode, setMockMode] = useState(false);
   /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
-  const [editableText, setEditableText] = useState(true); // clean-plate default ("editable text right away")
+  const [editableText, setEditableText] = useState(false); // D16: poster (text baked in-image, best-looking type) is the default; the toggle opts into clean-plate
   // C1: conversation pin (A1 VA-9) — every run on this mount joins ONE session;
   // the outline stub and the deck result land in the same conversation (OC-8)
   const [sessionId, setSessionId] = useState<number | null>(resumeSession ?? null);
@@ -106,6 +110,13 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [resolution, setResolution] = useState("2k");
   const [pages, setPages] = useState("auto");
   const [outlineGateOn, setOutlineGateOn] = useState(() => readOutlineGatePref()); // C1 default ON (OC-6)
+  // DA-1 research (default OFF in slice 1 — S1.5) and DA-3/DA-4 Auto refine
+  // (default ON, owner Q1 2026-11-06); both persist the switch choice (OC-6).
+  const [researchOn, setResearchOn] = useState(() => readResearchPref());
+  const [stylePreset, setStylePreset] = useState(() => readStylePref());
+  const [autoRefineOn, setAutoRefineOn] = useState(() => readAutoRefinePref());
+  /** DA-6 — the refine verdict from the winning canvas (badge on the ResultCard). */
+  const [selfImprove, setSelfImprove] = useState<SelfImproveResult | null>(null);
   /** C1: the outline awaiting review — rows + the phase-1 request to resume from. */
   const [outlineDeck, setOutlineDeck] = useState<{ rows: OutlineRow[]; base: ChatRequest } | null>(null);
   const pendingOutlineRef = useRef<PlanPage[] | null>(null); // events outlive the submit closure
@@ -177,6 +188,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       }
       if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
+      // DA-6: the badge pairs with the canvas it describes — canvas events only.
+      // Terminal events carry the HERO (page 0) verdict; taking it here would
+      // mismatch the badge with the LAST page Home actually displays (teardown #2).
+      if (ev.renderData?.selfImprove && ev.renderData.msgMeta.some((m) => m.type === "canvas")) setSelfImprove(ev.renderData.selfImprove);
       if (ev.renderData?.exportMeta?.projectName) setResultName(ev.renderData.exportMeta.projectName);
       if (ev.content) setNarrative((n) => (n ? `${n}\n${stripMarkers(ev.content)}` : stripMarkers(ev.content)));
       for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") {
@@ -245,6 +260,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     setTimeline([]);
     setNarrative("");
     setCanvasMeta(null);
+    setSelfImprove(null);
     pendingOutlineRef.current = null;
     const [w, h] = sizeDims(aspect, ASPECTS) ?? ([1360, 2048] as [number, number]);
     const scale = resolution === "1k" ? 0.75 : 1;
@@ -258,6 +274,9 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       // C1 gate (OC-1): multi-page + switch on → stop after the outline. Retry keeps
       // the direct path — the plan is already stashed server-side (A5).
       ...(pagesN && pagesN >= 2 && outlineGateOn && !retryOf ? { outlineGate: true } : {}),
+      ...(researchOn ? { research: true } : {}),
+      ...(stylePreset ? { style: stylePreset } : {}),
+      ...(autoRefineOn ? { selfImprove: true } : {}),
       ...(refs.length ? { referenceImages: refs } : {}),
       ...(brandKitId ? { brandKitId } : {}),
       ...(retryOf ? { retryOf } : {}),
@@ -304,6 +323,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     setTimeline([]);
     setNarrative("");
     setCanvasMeta(null);
+    setSelfImprove(null);
     try {
       const res = await oia().chatRun({ ...base, ...(sessionId ? { sessionId } : {}), approvedOutline: rows });
       setSessionId(res.sessionId);
@@ -459,7 +479,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           {!busy && (
             <CostHint
               testId={pages !== "auto" && Number(pages) >= 2 ? "deck-cost" : "cost-hint"}
-              text={costHintText({ images: 1, pages: pages === "auto" ? null : Number(pages), isMock: mockMode })}
+              text={costHintText({ images: 1, pages: pages === "auto" ? null : Number(pages), isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
             />
           )}
           {busy ? (
@@ -476,13 +496,27 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
                 {Array.from({ length: 9 }, (_, i) => <option key={i} value={i + 1}>{i + 1} {i === 0 ? "page" : "pages"}</option>)}
               </select>
             </label>
+            <label className="field">Style
+              <select aria-label="Style preset" value={stylePreset} onChange={(e) => { const v = e.target.value as StylePresetId | ""; setStylePreset(v); writeStylePref(v); }}>
+                <option value="">Auto</option>
+                {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </label>
             <label className="switchRow">
               <button type="button" role="switch" aria-checked={outlineGateOn} aria-label={OUTLINE_SWITCH_LABEL} title="Multi-page decks stop for outline review first; turn off to generate straight through" className={`switch ${outlineGateOn ? "on" : ""}`} onClick={() => { const v = !outlineGateOn; setOutlineGateOn(v); writeOutlineGatePref(v); }} />
               {OUTLINE_SWITCH_LABEL}
             </label>
             <label className="switchRow">
-              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Generated banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
+              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Off: text is rendered inside the image — best-looking type; make it editable later from the editor. On: banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
               {MODE_TOGGLE_LABEL}
+            </label>
+            <label className="switchRow">
+              <button type="button" role="switch" aria-checked={researchOn} aria-label={RESEARCH_SWITCH_LABEL} title="The planner searches the web for current facts (dates, prices, trends) before designing. Available on Codex" className={`switch ${researchOn ? "on" : ""}`} onClick={() => { const v = !researchOn; setResearchOn(v); writeResearchPref(v); }} />
+              {RESEARCH_SWITCH_LABEL}
+            </label>
+            <label className="switchRow">
+              <button type="button" role="switch" aria-checked={autoRefineOn} aria-label={AUTO_REFINE_SWITCH_LABEL} data-testid="auto-refine-switch" title="Each image is checked by the AI and re-generated once when a defect is found. Uses up to 2 images + 2 reads per page" className={`switch ${autoRefineOn ? "on" : ""}`} onClick={() => { const v = !autoRefineOn; setAutoRefineOn(v); writeAutoRefinePref(v); }} />
+              {AUTO_REFINE_SWITCH_LABEL}
             </label>
           </div>
         )}
@@ -503,7 +537,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         <section className="outlineCard" data-testid="outline-card" aria-label="Review the page outline">
           <div className="sectionHeading" style={{ marginBottom: 10 }}>
             <h2 style={{ margin: 0, fontSize: 17 }}><span className="stepLabel">Step 2 of 2</span>Review the outline</h2>
-            <span className="hintP" data-testid="outline-cost">{outlineCostLabel(outlineDeck.rows.length)}</span>
+            {/* teardown #1: the card where the user APPROVES the spend must show
+                the SAME cost law as the composer — one source (costHintText),
+                never a second label that forgets auto refine. */}
+            <span className="hintP" data-testid="outline-cost">{costHintText({ images: outlineDeck.rows.length, pages: outlineDeck.rows.length, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}</span>
           </div>
           <div className="outlineRows">
             {outlineDeck.rows.map((r, i) => (
@@ -530,7 +567,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
             <button className="primaryBtn" data-testid="outline-generate" disabled={!outlineRowsValid(outlineDeck.rows)}
               title={outlineRowsValid(outlineDeck.rows) ? "Generate every page below" : "Every page needs a title and a summary"}
               onClick={() => void generateFromOutline(outlineDeck.rows)}>
-              Generate · {outlineCostLabel(outlineDeck.rows.length)}
+              Generate · {costHintText({ images: outlineDeck.rows.length, pages: outlineDeck.rows.length, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
             </button>
           </div>
         </section>
@@ -572,6 +609,8 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           h={sceneDims(canvasMeta.canvas).h}
           ready={!busy}
           canvasRef={canvasElRef}
+          badge={selfImprove && selfImprove.rounds > 0 ? `auto-refined · round ${selfImprove.rounds}` : null}
+          refineIssues={selfImprove?.issues?.length ? selfImprove.issues : null}
           actions={(
             <>
               <button className="primary" data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>

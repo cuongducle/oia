@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
-import { nextMsgId, planPageSchema, type ChatEvent, type PlannerPlan } from "@oia/schema";
-import { migrateSrc, migrateScene, resolveReferenceImages, type FileStore } from "@oia/tasks";
+import { nextMsgId, planPageSchema, AUTO_REFINE_MAX_ROUNDS_CAP, AUTO_REFINE_MAX_ROUNDS_DEFAULT, type ChatEvent, type PlannerPlan, stylePresetIdSchema } from "@oia/schema";
+import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
 import { isMeteredBusy, meteredBusy } from "./meteredGuard.js";
@@ -47,13 +47,66 @@ export const chatRequestSchema = z.object({
   approvedOutline: z.array(planPageSchema).max(9).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
+  /** DA-1 — run the planner turn with live web search (capability-gated in the
+   * agent: providers without webSearch generate from the prompt alone). */
+  research: z.boolean().optional(),
+  style: stylePresetIdSchema.optional(),
+  /** DA-3/DA-4 — Auto refine: after each image, a critic read checks it and a
+   * failed check re-generates. `true` = the default round count; an explicit
+   * rounds object is capped at the schema boundary (never deep inside the loop). */
+  selfImprove: z
+    .union([
+      z.boolean(),
+      z.object({
+        rounds: z
+          .number()
+          .int()
+          .min(0)
+          .max(AUTO_REFINE_MAX_ROUNDS_CAP, { message: `auto refine rounds are capped at ${AUTO_REFINE_MAX_ROUNDS_CAP}` }),
+      }),
+    ])
+    .optional(),
+  /** A3-lite structured edit intent (2026-11-02): referenceImages[0] is the edit
+   *  target. The AGENT layer appends the deterministic clauses (target
+   *  declaration, dimension lock, lettering ban when the page overlays text
+   *  layers) — the renderer never welds English prose into the prompt string. */
+  editMode: z.object({ targetName: z.string().max(120).optional(), textLayerOverlays: z.boolean().optional() }).optional(),
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
+/** DA-4 — normalize the wire forms to the round count the designer consumes:
+ * undefined/false → null (off); true → the default; {rounds} → itself. */
+export function selfImproveRounds(v: ChatRequest["selfImprove"]): number | null {
+  if (v === undefined || v === false) return null;
+  if (v === true) return AUTO_REFINE_MAX_ROUNDS_DEFAULT;
+  return v.rounds;
+}
+
 /** Distinguishes the refusal flavors without event sniffing. `outline` = C1 phase 1
  *  completed: the deck outline is ready for review, zero images generated. */
 export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable" | "outline";
+
+/** In-process references: `/api/files/<key>` (web-era canonical URL) and legacy
+ *  `oia://files/<key>` resolve to the LOCAL FILE PATH through the FileStore —
+ *  providers accept absolute paths directly, so no base64 round-trip of
+ *  multi-megabyte assets. Unresolvable keys fail with the KEY named, never a
+ *  leaked absolute path. */
+async function materializeLocalRefs(urls: string[] | undefined, files: FileStore): Promise<string[] | undefined> {
+  if (!urls?.length) return undefined;
+  const out: string[] = [];
+  for (const u of urls) {
+    const key = /^\/api\/files\/(.+)$/.exec(u)?.[1] ?? /^oia:\/\/files\/(.+)$/.exec(u)?.[1];
+    if (key) {
+      const p = await files.pathOf(key);
+      if (!p) throw new Error(`reference asset not found: ${key}`);
+      out.push(p);
+    } else {
+      out.push(u);
+    }
+  }
+  return out;
+}
 
 export interface RunChatOptions {
   /** Cooperative cancellation wired by the shell (Stop button, disconnect grace, window close). */
@@ -62,6 +115,21 @@ export interface RunChatOptions {
 }
 
 const BUDGET_MS = 480_000;
+/** DA budget decision (owner teardown fix, 2026-11-06): refine multiplies the
+ * worst case per page (~75s/image + ~20s/critic read + ~15s/refine turn, from
+ * the REAL_SMOKE 221s/2-round datapoint). The safety cap therefore SCALES with
+ * pages × rounds instead of aborting mid-deck at a flat 480s — a budget abort
+ * mid-deck keeps the best pages but still kills the paid ones still queued. */
+export const REFINE_BUDGET_PER_PAGE_ROUND_MS = 150_000;
+
+/** The job budget as a PURE function of the request (greppable, test-pinned).
+ * No refine → the flat 480s. Refine → 480s + pages × rounds × 150s. */
+export function chatBudgetMs(req: ChatRequest): number {
+  const rounds = selfImproveRounds(req.selfImprove) ?? 0;
+  if (rounds <= 0) return BUDGET_MS;
+  const pages = Math.max(1, Math.min(9, req.approvedOutline?.length ?? req.pages ?? 1));
+  return BUDGET_MS + pages * rounds * REFINE_BUDGET_PER_PAGE_ROUND_MS;
+}
 
 /** A1: the sink never receives base64 artwork — bytes land in the asset store once. */
 async function assetizeEvent(ev: ChatEvent, files: FileStore): Promise<void> {
@@ -120,7 +188,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
   const ac = new AbortController();
   const onExternalAbort = () => ac.abort("external");
   opts.signal?.addEventListener("abort", onExternalAbort, { once: true });
-  const budget = setTimeout(() => ac.abort("budget"), BUDGET_MS);
+  const budget = setTimeout(() => ac.abort("budget"), chatBudgetMs(req));
   registerJob(jobId, ac);
 
   let lastEvent: ChatEvent | null = null;
@@ -152,11 +220,18 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       }
     }
 
-    // store addresses → bytes BEFORE any metered turn: a missing upload fails for free
-    const referenceImages = await resolveReferenceImages(req.referenceImages, ctx.files);
-
     // A5: a cached plan skips the planner stage entirely
     const reusePlan = typeof req.retryOf === "string" ? sessionPlans().get(session.id) : undefined;
+    // DA-3: normalize the wire forms ONCE (teardown #14 — the double call read
+    // as two sources of truth for the same decision)
+    const refineRounds = selfImproveRounds(req.selfImprove);
+
+    // Desktop wire reality: the renderer canonicalizes canvas assets as `/api/files/<key>`
+    // (legacy `oia://files/<key>`) — there is no HTTP server in-process, so a provider
+    // bridge would treat that relative URL as a file path and the job dies at Painting
+    // (live repro 2026-11-02: A1 variant edit on a real codex pair, "unknown reason").
+    // Materialize local refs into data URLs via the same FileStore assetizeEvent uses.
+    const referenceImages = await materializeLocalRefs(req.referenceImages, ctx.files);
 
     for await (const event of runDesignerAgent(
       {
@@ -169,6 +244,10 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         approvedOutline: req.approvedOutline,
         skill: req.skill,
         mode: req.mode,
+        editMode: req.editMode,
+        research: req.research,
+        ...(req.style ? { style: req.style } : {}),
+        ...(refineRounds !== null ? { selfImprove: { rounds: refineRounds } } : {}),
         signal: ac.signal,
         ...(reusePlan ? { reusePlan } : {}),
         onPlan: (plan) => sessionPlans().set(session.id, plan),
@@ -192,8 +271,6 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       terminalCancelled();
       outcome = "cancelled";
     } else {
-      // the UI shows only the class ("unknown"): this line is the one record of what broke
-      console.error(`[chat] job ${jobId} failed:`, err instanceof Error ? (err.stack ?? err.message) : err);
       send({
         msgId: nextMsgId(), content: "", status: 1, jobId,
         error: err instanceof Error ? err.message : "agent failed",

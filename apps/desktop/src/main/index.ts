@@ -486,47 +486,137 @@ async function crashSmoke(): Promise<void> {
  * TP-D3 exit check — the REAL run through the shell wiring (quota-billed, opt-in via
  * OIA_DESKTOP_REAL_SMOKE=1, never in CI): auto mode must resolve codex from the live
  * runtime state, one real banner completes, assets land in the store with bytes on disk.
+ *
+ * DA gates (designer-agent-loop.md, owner-approved quota 2026-11-06) run in the SAME
+ * invocation so a future pin bump re-verifies every paid surface in one go (D12 rule):
+ * - DA-RESEARCH: one poster whose facts need a web lookup — codex `--search` must run
+ *   through the BUNDLED binary and researchNotes[] must come back with real sources.
+ * - DA-REFINE: one poster whose exact copy is deliberately hard to render — the critic
+ *   must really read the image (readImage) and the verdict must be honest; rounds ≥ 1
+ *   additionally proves the refine→re-generate path on the real pair.
  */
 async function realSmoke(): Promise<void> {
   const t0 = Date.now();
   await ensureUtility();
-  const events: { error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[] } }[] = [];
-  const off = utility.onUtilityEvent((ev) => {
-    if (ev.type === "chatEvent") events.push(ev.ev as (typeof events)[number]);
-  });
-  const { outcome, jobId } = (await utility.call(
-    { cmd: "chatRun", req: { prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" } },
-    { requestId: "real-smoke" },
-  )) as { outcome: string; jobId: string };
-  off();
-  const snap = await runtimeSnapshotFor(await effectiveMode());
-  const canvasMeta = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
-  // asset bytes must exist on disk — a canvas meta without stored bytes is not a banner
-  let assetBytes = 0;
-  const scene = (canvasMeta as { canvas?: { objects?: { src?: string }[] } } | undefined)?.canvas;
-  for (const o of scene?.objects ?? []) {
-    const src = o.src ?? "";
-    if (src.startsWith("/api/files/")) {
-      try {
-        assetBytes += ((await utility.call({ cmd: "files.read", key: src.replace("/api/files/", "") })) as Uint8Array).length;
-      } catch {
-        /* missing asset counted as 0 */
+  type Ev = { content?: string; error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[]; taskMeta?: { id: string; content: string; status?: string }[]; selfImprove?: { rounds: number; verdict: string; issues: string[] } } };
+  const collect = async (req: Record<string, unknown>): Promise<{ outcome: string; jobId: string; events: Ev[] }> => {
+    const events: Ev[] = [];
+    const off = utility.onUtilityEvent((ev) => {
+      if (ev.type === "chatEvent") events.push(ev.ev as Ev);
+    });
+    try {
+      const { outcome, jobId } = (await utility.call({ cmd: "chatRun", req }, { requestId: "real-smoke" })) as { outcome: string; jobId: string };
+      return { outcome, jobId, events };
+    } finally {
+      off();
+    }
+  };
+  const failFast = (line: string) => {
+    console.error(line);
+    app.exit(1);
+  };
+  /** Asset bytes on disk behind a job's canvas — a canvas meta without stored
+   * bytes is not a banner (job 0's old inline loop, shared with the DA gates). */
+  const assetBytesOf = async (events: Ev[]): Promise<number> => {
+    const canvas = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string; canvas?: { objects?: { src?: string }[] } }[]).find((m) => m.type === "canvas");
+    let bytes = 0;
+    for (const o of canvas?.canvas?.objects ?? []) {
+      const src = o.src ?? "";
+      if (src.startsWith("/api/files/")) {
+        try {
+          bytes += ((await utility.call({ cmd: "files.read", key: src.replace("/api/files/", "") })) as Uint8Array).length;
+        } catch {
+          /* missing asset counted as 0 */
+        }
       }
     }
-  }
-  const err = events.find((e) => e.errorClass);
-  const ok =
-    outcome === "completed" &&
+    return bytes;
+  };
+
+  // ---- job 0: the D12 pair check (unchanged) ----
+  const job0 = await collect({ prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" });
+  const snap = await runtimeSnapshotFor(await effectiveMode());
+  const assetBytes = await assetBytesOf(job0.events);
+  const err0 = job0.events.find((e) => e.errorClass);
+  const ok0 =
+    job0.outcome === "completed" &&
     snap.effective === "codex" &&
     snap.runtime.state === "ready" &&
-    Boolean(canvasMeta) &&
     assetBytes > 10_000;
   console.log(
-    `DESKTOP_REAL_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
-      `version=${snap.runtime.version ?? "?"} assetBytes=${assetBytes} events=${events.length} ` +
-      `${err ? `error=${err.errorClass}` : "no-error"} jobId=${jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
+    `DESKTOP_REAL_SMOKE ${ok0 ? "OK" : "FAILED"} outcome=${job0.outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
+      `version=${snap.runtime.version ?? "?"} assetBytes=${assetBytes} events=${job0.events.length} ` +
+      `${err0 ? `error=${err0.errorClass}` : "no-error"} jobId=${job0.jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
   );
-  app.exit(ok ? 0 : 1);
+  if (!ok0) {
+    failFast("DESKTOP_REAL_SMOKE FAILED — pair check (job 0) failed; skipping the DA gates");
+    return;
+  }
+
+  // ---- DA-RESEARCH (slice 1 gate): facts that need a live lookup. ALSO runs
+  // refine (rounds 1) — the DEFAULT combination (research + selfImprove together,
+  // teardown #7) must be proven on the real pair, not just each loop alone ----
+  const t1 = Date.now();
+  const job1 = await collect({
+    prompt:
+      "banner quảng bá ngày Black Friday 2026 cho shop trà sữa — phải tra web lấy NGÀY Black Friday 2026 chính xác in lên banner, kèm giảm giá 35%",
+    research: true,
+    selfImprove: { rounds: 1 },
+  });
+  const notesEv = job1.events.find((e) => (e.content ?? "").includes("Research notes:"));
+  const noteLines = (notesEv?.content ?? "").split("\n").filter((l) => l.trim().startsWith("-"));
+  // teardown #17: "sourced" means a domain-ish or URL citation — any trailing
+  // parenthesis (e.g. "(mock planner)") must NOT pass
+  const sourced = noteLines.filter((l) => /\((?:[^)]*https?:\/\/[^)]*|[^)]*[a-z0-9-]+\.[a-z]{2,}[^)]*)\)\s*$/i.test(l.trim())).length;
+  const researchNode = job1.events.at(-1)?.renderData?.taskMeta?.find((tm) => tm.content === "Researching the web");
+  const combinedVerdict = [...job1.events].reverse().find((e) => e.renderData?.selfImprove)?.renderData?.selfImprove;
+  const ok1 =
+    job1.outcome === "completed" && Boolean(notesEv) && noteLines.length > 0 && sourced > 0 &&
+    researchNode?.status === "1" && Boolean(combinedVerdict) && (combinedVerdict?.verdict === "pass" || combinedVerdict?.verdict === "best-effort");
+  console.log(
+    `DESKTOP_REAL_SMOKE_DA_RESEARCH ${ok1 ? "OK" : "FAILED"} outcome=${job1.outcome} notes=${noteLines.length} sourced=${sourced} ` +
+      `researchNode=${researchNode?.status ?? "absent"} refine=${combinedVerdict ? `${combinedVerdict.verdict}/r${combinedVerdict.rounds}` : "none"} ` +
+      `${job1.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `jobId=${job1.jobId} took=${Math.round((Date.now() - t1) / 1000)}s`,
+  );
+  if (!ok1) {
+    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED — --search did not yield sourced notes, or the combined research+refine run produced no honest verdict");
+    return;
+  }
+
+  // ---- DA-REFINE (slice 2f gate): copy deliberately hard to render → the critic must really look ----
+  const t2 = Date.now();
+  const job2 = await collect({
+    prompt:
+      "poster dọc, nền pastel, in ĐÚNG từng chữ dòng này: 'TRÀ SỮA TRÂN CHÂU ĐƯỜNG ĐEN GIẢM GIÁ 35% · CHỈ DUY NHẤT THỨ SÁU 27/11 · MÃ GIAM35 · FREESHIP ĐƠN TỪ 99K'",
+    selfImprove: { rounds: 2 },
+  });
+  const verdict = [...job2.events].reverse().find((e) => e.renderData?.selfImprove)?.renderData?.selfImprove;
+  const checks = Math.max(
+    0,
+    ...job2.events.flatMap((e) => e.renderData?.taskMeta?.filter((tm) => tm.content.startsWith("Checking round")).map((tm) => Number(tm.content.replace(/\D+/g, ""))) ?? [0]),
+  );
+  const refineAssetBytes = await assetBytesOf(job2.events);
+  const ok2 =
+    job2.outcome === "completed" && Boolean(verdict) && (verdict?.verdict === "pass" || verdict?.verdict === "best-effort") && refineAssetBytes > 10_000;
+  console.log(
+    `DESKTOP_REAL_SMOKE_DA_REFINE ${ok2 ? (verdict && verdict.rounds >= 1 ? "OK-REFINED" : "OK-FIRST-TRY") : "FAILED"} ` +
+      `outcome=${job2.outcome} rounds=${verdict?.rounds ?? "none"} verdict=${verdict?.verdict ?? "none"} checks=${checks} ` +
+      `issues=${verdict?.issues?.length ?? 0} assetBytes=${refineAssetBytes} ` +
+      `${job2.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `jobId=${job2.jobId} took=${Math.round((Date.now() - t2) / 1000)}s`,
+  );
+  if (!ok2) {
+    failFast("DESKTOP_REAL_SMOKE_DA_REFINE FAILED — no honest selfImprove verdict on the winning canvas");
+    return;
+  }
+  if (verdict && verdict.rounds < 1) {
+    // not a failure — the critic passed the first image; but the refine turn itself stayed
+    // unproven this run. Loud, because the doc gate wants ≥1 recorded round.
+    console.log("DESKTOP_REAL_SMOKE_DA_REFINE NOTE: critic passed the first image — the refine→re-generate path was NOT exercised this run (rerun to prove it)");
+  }
+  console.log(`DESKTOP_REAL_SMOKE_ALL_OK took=${Math.round((Date.now() - t0) / 1000)}s`);
+  app.exit(0);
 }
 
 /**
@@ -654,6 +744,76 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
+  // ---- DA (designer-agent-loop): auto refine default ON — badge on the result,
+  // the cost-label law (DA-5), switch OFF remembered + label gone (DA-4) ----
+  const da = await win.webContents.executeJavaScript(`(async () => {
+    const badge = document.querySelector('[data-testid="auto-refined-badge"]')?.textContent ?? null;
+    const open = () => { if (!document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click(); };
+    open();
+    await new Promise((r) => setTimeout(r, 120));
+    const sw = document.querySelector('[data-testid="auto-refine-switch"]');
+    const research = document.querySelector('[aria-label="Research the web"]');
+    return { badge, cost: document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null, switchOn: sw?.getAttribute('aria-checked') ?? null, hasResearch: Boolean(research), researchOn: research?.getAttribute('aria-checked') ?? null, researchNote: document.querySelector('.aiNotes')?.textContent ?? "" };
+  })()`, true);
+  console.log("[shot] DA:", JSON.stringify(da));
+  if (
+    !da || da.badge !== "auto-refined · round 1" ||
+    !da.cost || !da.cost.includes("Auto refine on · up to 2 images + 2 reads") ||
+    da.switchOn !== "true" || !da.hasResearch || da.researchOn !== "true" ||
+    !da.researchNote.includes("Research unavailable on mock") // default ON announces honestly on a pair that cannot search
+  ) {
+    console.error("DESKTOP_SHOT DA FAILED — auto-refine badge, cost label, or the default-on switch is missing");
+    app.exit(23);
+    return;
+  }
+  const daOff = await win.webContents.executeJavaScript(`(async () => {
+    const sw = document.querySelector('[data-testid="auto-refine-switch"]');
+    sw?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const off = sw?.getAttribute('aria-checked');
+    const costOff = document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null;
+    sw?.click(); // restore the decided default for the gates that follow
+    await new Promise((r) => setTimeout(r, 80));
+    // close the advanced panel — the C1 gate below toggles it open itself
+    if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 80));
+    return { off, costOff, restored: sw?.getAttribute('aria-checked'), panelClosed: !document.querySelector('.advancedSettings') };
+  })()`, true);
+  console.log("[shot] DA off:", JSON.stringify(daOff));
+  if (!daOff || daOff.off !== "false" || (daOff.costOff ?? "") !== "" || daOff.restored !== "true") {
+    console.error("DESKTOP_SHOT DA FAILED — switching auto refine off did not clear the cost label or remember the choice");
+    app.exit(24);
+    return;
+  }
+
+  // ---- Style preset (surgepix pattern): the select ships 8 presets + Auto,
+  // the choice persists, and Auto cleans the key back out ------------------------
+  const styleGate = await win.webContents.executeJavaScript(`(async () => {
+    if (!document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const sel = document.querySelector('select[aria-label="Style preset"]');
+    if (!sel) return { ok: false, why: "no style select" };
+    const opts = [...sel.options].map((o) => o.value);
+    sel.value = "bold";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    const stored = localStorage.getItem("oia.style");
+    const shown = sel.value;
+    sel.value = "";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 100));
+    // restore the panel-closed state the next gate (C1) expects from daOff
+    if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 100));
+    return { ok: opts.length === 9 && stored === "bold" && shown === "bold" && localStorage.getItem("oia.style") === null, options: opts.length, stored, shown, cleared: localStorage.getItem("oia.style") === null };
+  })()`, true);
+  console.log("[shot] style preset:", JSON.stringify(styleGate));
+  if (!styleGate || !styleGate.ok) {
+    console.error("DESKTOP_SHOT STYLE PRESET FAILED — select missing, choice not persisted, or Auto did not clean the key");
+    app.exit(25);
+    return;
+  }
+
   // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
   const r6 = await win.webContents.executeJavaScript(`(async () => {
     const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
@@ -734,7 +894,9 @@ async function shot(): Promise<void> {
     return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
-  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images") {
+  // DA-5: the deck label keeps C1's contract AND appends the per-page refine
+  // worst case (2 pages × (1 round + 1) = 4) — auto refine was restored ON above.
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
     console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
     app.exit(18);
     return;
@@ -782,7 +944,9 @@ async function shot(): Promise<void> {
     return { rows, resultHiddenWhileReviewing: gone, genEnabled: gen ? !gen.disabled : null, cost: document.querySelector('[data-testid="outline-cost"]')?.textContent ?? null };
   })()`, true);
   console.log("[shot] C1 card:", JSON.stringify(c1Card));
-  if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images") {
+  // teardown #1: the card where the user APPROVES the spend shows the SAME cost
+  // law as the composer — with auto refine default-on that includes the worst case
+  if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
     console.error("DESKTOP_SHOT C1 FAILED — card state wrong (rows/hidden-result/enabled/cost)");
     app.exit(18);
     return;
@@ -844,7 +1008,7 @@ async function shot(): Promise<void> {
     return { cost, off: sw.getAttribute("aria-checked") };
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
-  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images") {
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images · Auto refine on · up to 6 images + 6 reads") {
     console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;

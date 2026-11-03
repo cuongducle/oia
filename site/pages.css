@@ -1,0 +1,54 @@
+/* ---------- SEO content pages (prompts / templates / use-cases) ----------
+   Static, JS-light (copy button only), no CDN — fast and crawlable. */
+
+body.page{font-size:15.5px}
+.pageNav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
+.pageNav .links{display:flex;gap:22px;flex-wrap:wrap}
+.pageNav a{font-size:13px;color:var(--muted)}
+.pageNav a:hover{color:var(--paper)}
+.pageHero{padding:clamp(48px,7vh,84px) clamp(20px,4vw,48px) 8px;max-width:880px}
+.pageHero .kicker{margin-bottom:14px}
+.pageHero h1{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(30px,4.4vw,52px);line-height:1.05;letter-spacing:.01em;text-wrap:balance}
+.pageHero .lede{margin-top:16px;color:var(--muted);font-size:16.5px;max-width:640px}
+.pageMain{padding:24px clamp(20px,4vw,48px) 72px;max-width:1080px}
+.catH{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:44px 0 6px}
+.catNote{color:var(--faint);font-size:13px;margin-bottom:16px}
+.promptGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+@media(max-width:860px){.promptGrid{grid-template-columns:1fr}}
+.promptCard{border:1px solid var(--hairline);border-radius:10px;padding:16px 16px 12px;background:rgba(21,19,50,.35);display:flex;flex-direction:column;gap:10px}
+.promptCard h3{font-size:15px;font-weight:600}
+.promptCard .chips{display:flex;gap:6px;flex-wrap:wrap}
+.promptCard .chips span{font-family:'JetBrains Mono';font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:3px 9px}
+.promptCard .chips span.ok{color:#8ef0a6;border-color:rgba(142,240,166,.35)}
+.promptCard pre{white-space:pre-wrap;font-family:'JetBrains Mono';font-size:12px;line-height:1.7;color:var(--paper);background:rgba(11,10,24,.7);border:1px solid var(--hairline);border-radius:8px;padding:12px}
+.promptCard .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.copyBtn{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--paper);border:1px solid var(--hairline);background:transparent;border-radius:8px;padding:7px 14px;cursor:pointer;transition:.15s}
+.copyBtn:hover{border-color:var(--accent);color:#fff;background:var(--accent-soft)}
+.copyBtn.done{color:#8ef0a6;border-color:rgba(142,240,166,.4)}
+.tplGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:20px}
+@media(max-width:860px){.tplGrid{grid-template-columns:repeat(2,1fr)}}
+.tplCard{border:1px solid var(--hairline);border-radius:10px;overflow:hidden;background:rgba(21,19,50,.35)}
+.tplCard img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.tplCard .body{padding:12px 14px}
+.tplCard h3{font-size:14.5px}
+.tplCard p{color:var(--muted);font-size:12.5px;margin-top:4px}
+.frame{margin-top:26px;border-radius:12px;padding:2px;background:linear-gradient(140deg,var(--accent),transparent 45%)}
+.frame img{border-radius:10px;width:100%;height:auto}
+.ucGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(26px,4vw,56px);align-items:start;margin-top:26px}
+@media(max-width:860px){.ucGrid{grid-template-columns:1fr}}
+.stepsList{margin-top:18px;display:flex;flex-direction:column;gap:14px}
+.stepsList .n{font-family:'JetBrains Mono';font-size:11px;color:var(--accent);letter-spacing:.14em}
+.stepsList h3{font-size:16px;margin:4px 0 2px}
+.stepsList p{color:var(--muted);font-size:14px}
+.faq{margin-top:26px;display:flex;flex-direction:column;gap:10px;max-width:760px}
+.faq details{border:1px solid var(--hairline);border-radius:10px;padding:14px 18px;background:rgba(21,19,50,.35)}
+.faq summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::before{content:"+ ";color:var(--accent)}
+.faq details[open] summary::before{content:"− "}
+.faq p{color:var(--muted);font-size:14px;margin-top:10px}
+.pageFooter{padding:34px clamp(20px,4vw,48px) 44px;border-top:1px solid var(--hairline);display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+.pageFooter .links{display:flex;gap:18px;flex-wrap:wrap}
+.pageFooter a{font-size:13px;color:var(--muted)}
+.pageFooter a:hover{color:var(--paper)}
+.ctaRow{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
