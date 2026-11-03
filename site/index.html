@@ -21,18 +21,6 @@
 <link rel="canonical" href="https://cuongducle.github.io/oia/">
 <link rel="stylesheet" href="styles.css">
 <script>document.documentElement.classList.add('js')</script>
-<script type="module">
-// FAQ schema derives from the VISIBLE FAQ — one source, zero drift (P2 fix).
-const qa = [...document.querySelectorAll('#faq details')].map(d => ({
-  "@type": "Question", name: d.querySelector('summary').textContent.trim(),
-  acceptedAnswer: { "@type": "Answer", text: d.querySelector('p').textContent.trim() }
-}));
-if (qa.length) {
-  const ld = document.createElement('script'); ld.type = 'application/ld+json';
-  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa });
-  document.head.appendChild(ld);
-}
-</script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Oia",
 "applicationCategory":"DesignApplication","operatingSystem":"macOS, Windows",
@@ -102,7 +90,7 @@ if (qa.length) {
     <figure class="tile t-persp">
       <div class="t1">Good tea,<br>brighter days.</div>
       <div class="t2">text · layer 6</div>
-      <span class="cap mono">native text object</span>
+      <span class="cap mono">text — a movable layer</span>
     </figure>
 
     <div class="chip chip-prompt">
@@ -126,7 +114,7 @@ if (qa.length) {
 
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
-    <span>Open image agent <i>◆</i></span><span>Editable text objects <i>◆</i></span><span>Change the price — the style stays <i>◆</i></span><span>Tag any layer with @ <i>◆</i></span><span>Preview AI edits — apply only what you keep <i>◆</i></span><span>Outline first, paint later <i>◆</i></span><span>Sizes for Shopee · Lazada · TikTok Shop <i>◆</i></span><span>Livestream overlays · TikTok &amp; Shopee safe zones <i>◆</i></span><span>PNG · PDF · PPTX · transparent overlay <i>◆</i></span><span>BYO provider · MIT <i>◆</i></span>
+    <span>Open image agent <i>◆</i></span><span>Text in the image — or editable layers <i>◆</i></span><span>Change the price — the style stays <i>◆</i></span><span>Tag any layer with @ <i>◆</i></span><span>Preview AI edits — apply only what you keep <i>◆</i></span><span>Outline first, paint later <i>◆</i></span><span>Sizes for Shopee · Lazada · TikTok Shop <i>◆</i></span><span>Livestream overlays · TikTok &amp; Shopee safe zones <i>◆</i></span><span>PNG · PDF · PPTX · transparent overlay <i>◆</i></span><span>BYO provider · MIT <i>◆</i></span>
   </div>
 </div>
 
@@ -271,6 +259,7 @@ if (qa.length) {
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/split-type@0.3.4/umd/index.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+<script src="faq-schema.js" type="module"></script>
 <script src="main.js" defer></script>
 </body>
 </html>

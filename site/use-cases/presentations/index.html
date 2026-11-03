@@ -18,18 +18,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../../pages.css">
-<script type="module">
-// FAQ schema derives from the VISIBLE FAQ — one source, zero drift (P2 fix).
-const qa = [...document.querySelectorAll('.faq details')].map(d => ({
-  "@type": "Question", name: d.querySelector('summary').textContent.trim(),
-  acceptedAnswer: { "@type": "Answer", text: d.querySelector('p').textContent.trim() }
-}));
-if (qa.length) {
-  const ld = document.createElement('script'); ld.type = 'application/ld+json';
-  ld.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa });
-  document.head.appendChild(ld);
-}
-</script>
 </head>
 <body class="page">
 <nav class="pageNav" aria-label="Main">
@@ -96,5 +84,6 @@ if (qa.length) {
   </div>
   <span class="meta">MIT · Oia — free &amp; open source</span>
 </footer>
+<script src="../../faq-schema.js" type="module"></script>
 </body>
 </html>
