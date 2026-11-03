@@ -112,6 +112,16 @@ describe("TP.3 mode-aware prompt templates", () => {
     expect(buildPosterPrompt(input)).toContain("Render all text exactly as written");
     expect(buildPosterPrompt(input)).toContain("vertical");
   });
+  it("DEF-1: the DESIRED ratio rides the prompt in named form + a text safe area (poster)", () => {
+    expect(buildPosterPrompt(input)).toContain("3:4 aspect ratio"); // 900×1200
+    expect(buildPosterPrompt({ ...input, width: 1360, height: 2048 })).toContain("2:3 aspect ratio");
+    expect(buildPosterPrompt({ ...input, width: 1080, height: 1080 })).toContain("1:1 aspect ratio");
+    expect(buildPosterPrompt({ ...input, width: 1000, height: 1900 })).toContain("0.53:1"); // uncommon ratio falls back to decimal
+    expect(buildPosterPrompt(input)).toContain("at least 10% clear of every edge");
+  });
+  it("DEF-1: clean-plate carries the ratio too (exact ratio = no cover-crop at all)", () => {
+    expect(buildCleanPlatePrompt(input)).toContain("3:4 aspect ratio");
+  });
   it("clean-plate forbids ADDED typography and reserves copy zones", () => {
     const p = buildCleanPlatePrompt(input);
     expect(p).toContain("Do NOT add any text");
