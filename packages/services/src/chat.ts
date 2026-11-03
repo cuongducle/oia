@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
-import { nextMsgId, planPageSchema, AUTO_REFINE_MAX_ROUNDS_CAP, AUTO_REFINE_MAX_ROUNDS_DEFAULT, type ChatEvent, type PlannerPlan } from "@oia/schema";
+import { nextMsgId, planPageSchema, AUTO_REFINE_MAX_ROUNDS_CAP, AUTO_REFINE_MAX_ROUNDS_DEFAULT, type ChatEvent, type PlannerPlan, stylePresetIdSchema } from "@oia/schema";
 import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
@@ -50,6 +50,7 @@ export const chatRequestSchema = z.object({
   /** DA-1 — run the planner turn with live web search (capability-gated in the
    * agent: providers without webSearch generate from the prompt alone). */
   research: z.boolean().optional(),
+  style: stylePresetIdSchema.optional(),
   /** DA-3/DA-4 — Auto refine: after each image, a critic read checks it and a
    * failed check re-generates. `true` = the default round count; an explicit
    * rounds object is capped at the schema boundary (never deep inside the loop). */
@@ -245,6 +246,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         mode: req.mode,
         editMode: req.editMode,
         research: req.research,
+        ...(req.style ? { style: req.style } : {}),
         ...(refineRounds !== null ? { selfImprove: { rounds: refineRounds } } : {}),
         signal: ac.signal,
         ...(reusePlan ? { reusePlan } : {}),

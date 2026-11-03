@@ -2,8 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan, EvalRead, SelfImproveResult, TaskMeta } from "@oia/schema";
 import {
   parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION, PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION,
-  EVAL_JSON_SCHEMA, EVAL_READ_MARKER, evalReadSchema,
-} from "@oia/schema";
+  EVAL_JSON_SCHEMA, EVAL_READ_MARKER, evalReadSchema, STYLE_PRESETS } from "@oia/schema";
 import type { ImageProvider, LlmProvider, ImageGenResult } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -35,6 +34,8 @@ export interface DesignerAgentInput {
   approvedOutline?: PlanPage[];
   /** Selected skill (e.g. "Presentation Maker") — structure hint for the planner. */
   skill?: string;
+  /** Style preset id — the concrete phrases are injected by CODE from STYLE_PRESETS. */
+  style?: string;
   /** A3-lite: referenceImages[0] is the edit target — clauses are welded HERE
    *  (deterministic, planner-proof), never in the renderer's prompt string. */
   editMode?: { targetName?: string; textLayerOverlays?: boolean };
@@ -490,7 +491,10 @@ export async function* runDesignerAgent(
             `creative=freeform composition, cinematic balance, atmospheric negative space; ` +
             `3d=floating glossy 3D objects, layered digital interface, Y2K typography; ` +
             `hand-drawn=illustration-led, organic strokes, playful hand-lettered typography; ` +
-            `business-promo=product-centered, large promotional headline, layered badges, clear CTA.`,
+            `business-promo=product-centered, large promotional headline, layered badges, clear CTA.`
+            + (input.style
+              ? `\nStyle preset selected by the user — '${input.style}': ${(STYLE_PRESETS.find((p) => p.id === input.style) ?? STYLE_PRESETS[0]).phrases}. Weave these exact qualities into every imagePrompt.`
+              : "")
         },
         { role: "user", content: input.prompt },
       ],

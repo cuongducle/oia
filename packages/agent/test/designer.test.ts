@@ -614,3 +614,25 @@ describe("C1/OC-4 — cancel mid-deck stops BETWEEN pages; generated pages survi
     expect(out.some((e) => e.content.includes("variation 3"))).toBe(false);
   });
 });
+
+describe("Style preset — CODE injects the concrete phrases (surgepix pattern)", () => {
+  it("style='bold' puts oversized-typography phrases into the planner system prompt", async () => {
+    const systems: string[] = [];
+    const spy: LlmProvider = {
+      name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return plan; },
+    };
+    for await (const _ of runDesignerAgent({ prompt: "flash sale", style: "bold" }, { llm: spy, image: countingImage().provider })) void _;
+    expect(systems[0]).toContain("Style preset selected by the user — 'bold'");
+    expect(systems[0]).toContain("oversized typography, dynamic text layering, high impact");
+  });
+  it("no style = no injection (Auto stays out of the prompt)", async () => {
+    const systems: string[] = [];
+    const spy: LlmProvider = {
+      name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
+      async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return plan; },
+    };
+    for await (const _ of runDesignerAgent({ prompt: "flash sale" }, { llm: spy, image: countingImage().provider })) void _;
+    expect(systems[0]).not.toContain("Style preset selected by the user");
+  });
+});

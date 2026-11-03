@@ -68,6 +68,27 @@ export const RESEARCH_INSTRUCTION =
 export const REFINE_INSTRUCTION =
   "You are refining a previously generated design after a critic found defects. Revise imagePrompt so the next render fixes every listed issue while keeping everything that already worked. Return the same plan JSON shape as before (designer.refine.v1).";
 
+/**
+ * Art-direction style presets (phrases adapted from SurgePix agent-skills, MIT).
+ * A preset maps the label a seller actually says to the concrete phrases the
+ * image model needs. The mapping is deterministic CODE riding the planner
+ * system prompt — never the planner LLM's guess ("bold" alone buys nothing).
+ */
+export const STYLE_PRESETS = [
+  { id: "modern", label: "Modern", phrases: "grid-based, generous whitespace, strong focal hierarchy, modular alignment", useCases: "business events, product launches" },
+  { id: "vintage", label: "Vintage", phrases: "collage-style, organic layered graphics, retro print alignment", useCases: "creative events, themed campaigns" },
+  { id: "minimalist", label: "Minimalist", phrases: "Swiss grid, maximum whitespace, minimal elements, typography-centered", useCases: "art exhibitions, design events" },
+  { id: "bold", label: "Bold", phrases: "oversized typography, dynamic text layering, high impact", useCases: "e-commerce promos, flash sales, music festivals" },
+  { id: "creative", label: "Creative", phrases: "freeform composition, cinematic balance, floating objects, atmospheric negative space", useCases: "concept launches, art exhibitions" },
+  { id: "3d", label: "3D", phrases: "floating glossy 3D objects, layered digital interface, Y2K typography", useCases: "tech product launches, gaming" },
+  { id: "hand-drawn", label: "Hand-drawn", phrases: "illustration-led, organic strokes, warm textures, playful hand-lettered typography", useCases: "product promotions, community events" },
+  { id: "business-promo", label: "Business promo", phrases: "product-centered composition, large promotional headline, layered badges, clear CTA", useCases: "e-commerce marketing, limited-time campaigns" },
+] as const;
+export type StylePresetId = (typeof STYLE_PRESETS)[number]["id"];
+export const stylePresetIdSchema = z.enum(
+  STYLE_PRESETS.map((p) => p.id) as [StylePresetId, ...StylePresetId[]],
+);
+
 export const PLANNER_INSTRUCTIONS = {
   imagePrompts: (n: number) => `Produce exactly ${n} imagePrompts[] (one per page, coherent series).`,
   pageOutline: (n: number) => `Also return pageOutline[] — EXACTLY ${n} entries {title, summary}, one per page in order (Outline Gate).`,

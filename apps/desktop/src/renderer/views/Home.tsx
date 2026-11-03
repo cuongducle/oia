@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrandKit, CanvasMsgMeta, Project, Template, SceneCanvas, SelfImproveResult } from "@oia/schema";
-import { AUTO_REFINE_MAX_ROUNDS_DEFAULT } from "@oia/schema";
+import { AUTO_REFINE_MAX_ROUNDS_DEFAULT, STYLE_PRESETS, type StylePresetId } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
@@ -19,7 +19,7 @@ import {
   addPage, editPage, movePage, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
   type OutlineRow,
 } from "../lib/outline-card.js";
-import { readAutoRefinePref, readResearchPref, writeAutoRefinePref, writeResearchPref } from "../lib/composer-prefs.js";
+import { readAutoRefinePref, readResearchPref, writeAutoRefinePref, writeResearchPref, readStylePref, writeStylePref } from "../lib/composer-prefs.js";
 import type { PlanPage } from "@oia/schema";
 import type { ChatRequest } from "@oia/services";
 
@@ -113,6 +113,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   // DA-1 research (default OFF in slice 1 — S1.5) and DA-3/DA-4 Auto refine
   // (default ON, owner Q1 2026-11-06); both persist the switch choice (OC-6).
   const [researchOn, setResearchOn] = useState(() => readResearchPref());
+  const [stylePreset, setStylePreset] = useState(() => readStylePref());
   const [autoRefineOn, setAutoRefineOn] = useState(() => readAutoRefinePref());
   /** DA-6 — the refine verdict from the winning canvas (badge on the ResultCard). */
   const [selfImprove, setSelfImprove] = useState<SelfImproveResult | null>(null);
@@ -274,6 +275,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       // the direct path — the plan is already stashed server-side (A5).
       ...(pagesN && pagesN >= 2 && outlineGateOn && !retryOf ? { outlineGate: true } : {}),
       ...(researchOn ? { research: true } : {}),
+      ...(stylePreset ? { style: stylePreset } : {}),
       ...(autoRefineOn ? { selfImprove: true } : {}),
       ...(refs.length ? { referenceImages: refs } : {}),
       ...(brandKitId ? { brandKitId } : {}),
@@ -492,6 +494,12 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
               <select value={pages} onChange={(e) => setPages(e.target.value)}>
                 <option value="auto">Auto</option>
                 {Array.from({ length: 9 }, (_, i) => <option key={i} value={i + 1}>{i + 1} {i === 0 ? "page" : "pages"}</option>)}
+              </select>
+            </label>
+            <label className="field">Style
+              <select aria-label="Style preset" value={stylePreset} onChange={(e) => { const v = e.target.value as StylePresetId | ""; setStylePreset(v); writeStylePref(v); }}>
+                <option value="">Auto</option>
+                {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
             </label>
             <label className="switchRow">

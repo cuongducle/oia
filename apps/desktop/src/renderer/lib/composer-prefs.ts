@@ -1,4 +1,4 @@
-import { AUTO_REFINE_DEFAULT } from "@oia/schema";
+import { AUTO_REFINE_DEFAULT, STYLE_PRESETS, type StylePresetId } from "@oia/schema";
 
 /**
  * DA — composer switch preferences (designer-agent-loop.md DA-4/DA-5).
@@ -43,5 +43,24 @@ export function writeResearchPref(on: boolean, storage: Pick<Storage, "setItem">
     storage.setItem(RESEARCH_STORAGE_KEY, on ? "on" : "off");
   } catch {
     /* private mode / disabled storage: the toggle works for this session, just not remembered */
+  }
+}
+
+export const STYLE_STORAGE_KEY = "oia.style";
+
+/** Style preset choice ("" = Auto). Corrupt/unknown values fall back to Auto —
+ *  a stale id from a removed preset must never 400 the chat request. */
+export function readStylePref(storage: Pick<Storage, "getItem"> = globalThis.localStorage): StylePresetId | "" {
+  const raw = storage.getItem(STYLE_STORAGE_KEY) ?? "";
+  const hit = STYLE_PRESETS.find((p) => p.id === raw);
+  return hit ? hit.id : "";
+}
+
+export function writeStylePref(id: string, storage: Pick<Storage, "setItem" | "removeItem"> = globalThis.localStorage): void {
+  try {
+    if (id) storage.setItem(STYLE_STORAGE_KEY, id);
+    else storage.removeItem(STYLE_STORAGE_KEY);
+  } catch {
+    /* private mode / disabled storage: works for this session, not remembered */
   }
 }

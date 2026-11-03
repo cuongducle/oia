@@ -333,6 +333,15 @@ describe("C1 teardown fix: the wire validates deck bounds at the boundary", () =
   });
 });
 
+
+describe("Style preset — validated at the boundary, passed through to the planner", () => {
+  it("a preset id parses; junk is rejected (never reaches the agent as free text)", () => {
+    expect(chatRequestSchema.safeParse({ prompt: "banner", style: "bold" }).success).toBe(true);
+    expect(chatRequestSchema.safeParse({ prompt: "banner", style: "aztec-brutalism" }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ prompt: "banner" }).success).toBe(true); // absent = Auto
+  });
+});
+
 describe("A3-lite: editMode is a structured, validated field on the boundary", () => {
   it("accepts the shape and strips foreign keys — the renderer sends structure, never prose", () => {
     const ok = chatRequestSchema.safeParse({ prompt: "make it warmer", editMode: { targetName: "artwork", textLayerOverlays: true } });

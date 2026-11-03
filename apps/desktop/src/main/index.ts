@@ -786,6 +786,34 @@ async function shot(): Promise<void> {
     return;
   }
 
+  // ---- Style preset (surgepix pattern): the select ships 8 presets + Auto,
+  // the choice persists, and Auto cleans the key back out ------------------------
+  const styleGate = await win.webContents.executeJavaScript(`(async () => {
+    if (!document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const sel = document.querySelector('select[aria-label="Style preset"]');
+    if (!sel) return { ok: false, why: "no style select" };
+    const opts = [...sel.options].map((o) => o.value);
+    sel.value = "bold";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 150));
+    const stored = localStorage.getItem("oia.style");
+    const shown = sel.value;
+    sel.value = "";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 100));
+    // restore the panel-closed state the next gate (C1) expects from daOff
+    if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 100));
+    return { ok: opts.length === 9 && stored === "bold" && shown === "bold" && localStorage.getItem("oia.style") === null, options: opts.length, stored, shown, cleared: localStorage.getItem("oia.style") === null };
+  })()`, true);
+  console.log("[shot] style preset:", JSON.stringify(styleGate));
+  if (!styleGate || !styleGate.ok) {
+    console.error("DESKTOP_SHOT STYLE PRESET FAILED — select missing, choice not persisted, or Auto did not clean the key");
+    app.exit(25);
+    return;
+  }
+
   // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
   const r6 = await win.webContents.executeJavaScript(`(async () => {
     const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
