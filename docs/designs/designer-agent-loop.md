@@ -114,6 +114,7 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 | Q3 | Tên UI? | **"Auto refine"** — switch label "Auto refine (check & improve)", badge "auto-refined · round N", timeline node "Checking round N". |
 | Q4 | Nâng critic prompt v2 (sau 2 real run pass vòng 0 dễ dàng)? | **LÀM (owner 2026-11-03)** — anchor bands + transcribe-first + anti-leniency + ngưỡng 7+/critical-defect; schema giữ nguyên. Trade-off đã cân: critic ngặt hơn = nhiều job đi 1 vòng refine hơn (+1 ảnh +1 read mỗi trang, đã nằm trong bound DA-4). |
 | Q5 | v3: generalize rubric theo chuẩn cộng đồng designer? | **LÀM (owner 2026-11-03: "tham khảo từ cộng đồng designer, làm generalize")** — v2 còn vựng từ banner bán hàng (offer > product > decor, thumbnail). v3 đưa checklist phê bình chuẩn ngành: C.R.A.P. (Robin Williams, The Non-Designer's Design Book — contrast/repetition/alignment/proximity), Gestalt figure-ground, squint test cho hierarchy; hierarchy tổng quát “primary message > secondary > supporting theo intent của brief”; legibility gắn với “kích thước tiêu thụ thật” từ brief thay vì thumbnail cố định. Nguồn: lewisu.edu/CRAP, designlab.wisc.edu, gestalt/figure-ground (Smashing Magazine), LLM-judge anchor calibration. |
+| Q6 | Chính sách crop poster khi model trả sai ratio? | **Crop GIỮA + chặn từ nguồn (2026-11-03, sau shred)** — planner bắt buộc nêu aspect + safe-area ≥10% trong imagePrompt (crop 4:5→2:3 ăn ~8,5% — 10% là ngưỡng sống còn); crop giữa là phòng hờ khi vẫn lệch. Đã cân contain (băng trắng) và stretch (hỏng typography) — loại. Verify hậu-place = follow-up mở. |
 
 ## TP / luật bị chạm
 
@@ -133,7 +134,20 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 
 | # | Defect | Bằng chứng | Xử lý |
 |---|---|---|---|
-| DEF-1 | **`fitCoverWithZones` crop trái poster mode** — chính sách anchor-phải (viết cho clean-plate, chữ vùng top+right) bị áp cho poster (chữ nướng khắp ảnh): codex trả ảnh 4:5 (1122×1402) cho canvas 2:3 (1360×2048) → cropX=191 ăn mất "BL"/"GI"/"2"/"H" của banner ĐÃ render đúng (critic in-app transcribed "all four lines match" trên ảnh gốc). Critic không thể bắt vì nó chấm artifact TRƯỚC khi place. Mock không bao giờ dính (ảnh đúng ratio — branch crop không chạy), chỉ real pair lộ. | session record: cropX 190.98 + selfImprove issues; standalone critic v3 chấm canvas render bắt đúng từng dòng hỏng | **FIX**: `fitCoverWithZones` nhận `mode` — poster crop GIỮA, clean-plate giữ anchor (TP.8); regression test pin đúng số production (`copy-zones.test.ts`). Follow-up candidate (chưa làm): imagePrompt nêu đích danh aspect + safe-area ≥10% (giảm lệch ratio từ gốc), verify hậu-place. |
+| DEF-1 | **`fitCoverWithZones` crop trái poster mode** — chính sách anchor-phải (viết cho clean-plate, chữ vùng top+right) bị áp cho poster (chữ nướng khắp ảnh): codex trả ảnh 4:5 (1122×1402) cho canvas 2:3 (1360×2048) → cropX=191 ăn mất "BL"/"GI"/"2"/"H" của banner ĐÃ render đúng (critic in-app transcribed "all four lines match" trên ảnh gốc). Critic không thể bắt vì nó chấm artifact TRƯỚC khi place. Mock không bao giờ dính (ảnh đúng ratio — branch crop không chạy), chỉ real pair lộ. | session record: cropX 190.98 + selfImprove issues; standalone critic v3 chấm canvas render bắt đúng từng dòng hỏng | **FIX (đợt 1)**: `fitCoverWithZones` nhận `mode` — poster crop GIỮA, clean-plate giữ anchor (TP.8); regression test pin đúng số production (`copy-zones.test.ts`). **FIX (đợt 2, sau shred 2026-11-03)**: (a) `mode` BẮT BUỘC — không default, bỏ mode là không compile (typecheck chặn); (b) wiring test qua `runDesignerAgent` với ảnh lệch ratio 4:5 — đúng đường DEF-1 từng đứt (unit pin cũ không phủ call site); (c) root-cause: planner poster-branch giờ yêu cầu imagePrompt nêu aspect trang thật + safe-area ≥10% mọi cạnh (crop 4:5→2:3 ăn ~8,5% — 10% là ngưỡng sống còn kỹ thuật); (d) test cũ pin default-mode (footgun) đã XÓA; test name nói dối đã sửa. **Còn mở**: verify hậu-place (critic vẫn chấm trước khi place — một crop gây hại sau verdict vẫn không ai bắt). |
+
+
+## Hiệu chuẩn critic v3 standalone (2026-11-03, 6 lượt readImage thật qua CLI bundled)
+
+| Ảnh | Brief | verdict | scores | Ghi chú |
+|---|---|---|---|---|
+| Black Friday banner (canvas render, chữ bị crop) | poster đúng brief | **fail** | text 1-2, comp 2-3 | Bắt đúng từng dòng hỏng — transcribe-first hoạt động |
+| matcha template (không chữ) | poster có copy | **fail** | text 0 | **ĐÚNG**: template là artwork sạch — test design sai, không phải critic sai |
+| festival template (không chữ) | poster có copy | **fail** | text 0 | Như trên |
+| price-30 (đã ship, chữ chuẩn) | poster, yêu cầu lề 10% | **fail** | **text 10**, brand 10, fid 8, comp 6 | text perfect 10/10 — fail chỉ vì lề thực 4-5% < 10% yêu cầu; và crop 4:5→2:3 sẽ ăn chữ thật ở lề đó → **true positive trúng rủi ro tiềm ẩn** |
+| price-30 (brief lề mềm) | poster, "comfortable margins" | **fail** | text 10, comp 6 | Vẫn 6 — v3 giữ hàng lề chặt kể cả brief mềm; kèm bắt artifact tam giác tím ở mép (thật) |
+
+**Kết luận**: (1) textHandling hiệu chuẩn chắc 2 chiều — 10/10 cho chữ tốt, 0-2 cho chữ hỏng; (2) composition bar ngồi ngay biên: tác phẩm chữ-perfect với lề 4-5% chạm band 6 (một notch dưới "shippable 7") — với auto-refine mặc định ON, mỗi poster kiểu headline sát mép (layout flash-sale rất phổ biến) tốn +1 ảnh +1 read. **Quyết định còn ngỏ cho owner**: giữ nguyên (house style khắt khe) hay nudge anchor "margin-tight đơn lẻ = 7 nếu không critical" (tiết kiệm quota). Chưa đổi — chờ owner. (3) 2/6 lượt read bị đốt oan vì `.webp` đổi tên `.png` — đúng bẫy teardown B1 đã cảnh báo; lesson: convert bytes thật, đừng đổi tên.
 
 ## Ghi nhận teardown DA (2026-11-06, owner yêu cầu té code sau khi ship — 20 phát hiện, trả nợ trong ngày)
 

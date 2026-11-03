@@ -138,6 +138,10 @@ export function evalTotal(e: EvalRead): number {
  * headroom: `overlayCopy` lists ONLY the copy that will land on THIS page
  * (page 0 carries the blocks; later pages carry none — teardown #3).
  * The `textHandling` score covers both meanings; the prompt says which applies. */
+/** B7: stamped into every selfImprove record — the rubric shipped 3 versions in one day;
+ * a verdict must name its judge. Bump when the rubric changes. */
+export const CRITIC_PROMPT_VERSION = "v3";
+
 export function criticPrompt(o: {
   mode: GenerationMode;
   title: string;
@@ -152,6 +156,7 @@ export function criticPrompt(o: {
       : "This page carries NO overlay copy (purely visual plate)."
     : `The image prompt above names the exact copy lines that must be rendered — judge every rendered line against them.`;
   return (
+    `Critic rubric ${CRITIC_PROMPT_VERSION}.\n` +
     `You are a senior art director doing final review of ONE generated image for a paying client. You are strict and evidence-driven: "shippable" means the client approves it without a single revision.\n` +
     `Brief title: ${o.title}\n` +
     `Image prompt that produced it: ${o.pagePrompt}\n` +
@@ -266,18 +271,18 @@ async function* refinePage(a: {
     if (!evalRead) {
       // DA-7: check unavailable → keep this version, zero extra burn
       yield ev("Auto refine check unavailable — keeping this version.");
-      selfImprove = { rounds: roundsRun, verdict: "best-effort", issues: [] };
+      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: [] };
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
     candidates.push({ img, prompt: pagePrompt, evalRead });
     if (evalRead.verdict === "pass") {
-      selfImprove = { rounds: roundsRun, verdict: "pass", issues: evalRead.issues };
+      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "pass", issues: evalRead.issues };
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
     if (attemptsLeft <= 0) {
       // DA-3: no pass within budget → the best-scoring candidate wins (best-effort)
       const best = candidates.reduce((x, y) => (evalTotal(x.evalRead) >= evalTotal(y.evalRead) ? x : y));
-      selfImprove = { rounds: roundsRun, verdict: "best-effort", issues: best.evalRead.issues };
+      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: best.evalRead.issues };
       return { img: best.img, prompt: best.prompt, selfImprove, taskMeta };
     }
     // one refine turn: planner revises the prompt (text-only), then one image
@@ -303,7 +308,7 @@ async function* refinePage(a: {
       // teardown #5/#6: the burned planner turn is ANNOUNCED — a quota cost with
       // no round and no note is a record that lies
       yield ev("Auto refine could not revise the prompt (planner returned no usable plan) — keeping this version.");
-      selfImprove = { rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
+      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
     try {
@@ -319,7 +324,7 @@ async function* refinePage(a: {
       // teardown #6: the note names the class — "failed" alone hides quota_exceeded
       const cls = ProviderError.from(err, deps.image.name).errorClass;
       yield ev(`Auto refine regeneration failed (${cls}) — keeping this version.`);
-      selfImprove = { rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
+      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
   }
@@ -333,7 +338,8 @@ export function buildScene(opts: {
   width: number;
   height: number;
   blocks: PlanBlock[];
-  mode?: GenerationMode;
+  /** Placement policy is mode-dependent (DEF-1) — required, no silent default. */
+  mode: GenerationMode;
 }): SceneCanvas {
   const { width, height } = opts;
   const objects: FabricObject[] = [
@@ -343,7 +349,7 @@ export function buildScene(opts: {
   // Zone-anchored cover placement (TP.8): the canvas keeps its nominal size; the
   // artwork layer covers it, cropping the overflow away from the copy zones.
   if (opts.artworkW && opts.artworkH) {
-    const fit = fitCoverWithZones(opts.artworkW, opts.artworkH, width, height, opts.mode ?? "clean-plate");
+    const fit = fitCoverWithZones(opts.artworkW, opts.artworkH, width, height, opts.mode);
     objects.push({
       type: "Image", name: "artwork", origin: "generated",
       left: 0, top: 0, width: fit.cropW, height: fit.cropH,
@@ -472,7 +478,7 @@ export async function* runDesignerAgent(
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
               ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].`
-              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top.`
+              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ratio ${(width / height).toFixed(2)}): state this aspect explicitly in every imagePrompt and demand ALL text inside a safe area — at least 10% clear of every edge — or the crop will cut edge-hugging lines.`
             ),
         },
         { role: "user", content: input.prompt },

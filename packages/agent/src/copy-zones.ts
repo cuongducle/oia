@@ -98,12 +98,14 @@ export function placeBlocks(blocks: PlanBlock[], canvasW: number, canvasH: numbe
 
 /**
  * TP.8 size policy — zone-anchored cover-crop for the Codex channel (exact pixels
- * cannot be requested there). Naive cover-crop is REJECTED: it crops into the top
- * band where clean-plate reserves copy zones and can cut the reference product.
- *
- * Policy: keep the side/edge carrying the copy zones (top + right), never crop
- * into the reference product's bounding box (when known), and the canvas keeps
- * its nominal size — the artwork layer is placed to cover with a source-space crop.
+ * cannot be requested there). Mode-aware since DEF-1 (2026-11-03):
+ * - CLEAN-PLATE: keep the side/edge carrying the copy zones (top + right) —
+ *   naive center/top crops eat the top band and can cut the reference product.
+ * - POSTER: text is baked ANYWHERE (including the left edge) — anchor crops are
+ *   forbidden; horizontal overflow is split evenly (center). Paired with the
+ *   planner's safe-area instruction this bounds the damage, but a center crop can
+ *   still clip text that hugs an edge — the honest full fix (post-place verify)
+ *   is DEF-1's open follow-up.
  */
 export interface CoverCrop {
   /** Source-space crop rect (image px) shown on the canvas. */
@@ -120,7 +122,7 @@ export function fitCoverWithZones(
   imgH: number,
   canvasW: number,
   canvasH: number,
-  mode: GenerationMode = "clean-plate",
+  mode: GenerationMode,
 ): CoverCrop {
   const imgRatio = imgW / imgH;
   const canvasRatio = canvasW / canvasH;
@@ -133,11 +135,10 @@ export function fitCoverWithZones(
   }
   if (imgRatio > canvasRatio) {
     // image is wider — horizontal overflow.
-    // POSTER (text baked anywhere, even at the left edge): CENTER the crop — a
-    // side-anchored crop eats the first letters of every line (the 2026-11-03
-    // real-run defect: cropX=191 removed "BL"/"GI"/"2"/"H" from a shippable artwork).
-    // CLEAN-PLATE: keep the side carrying the copy zones — anchor RIGHT (sideBlock side).
-    const cropX = mode === "poster" ? Math.floor((imgW - cropW) / 2) : imgW - cropW;
+    // POSTER: center the crop — an anchored crop eats the leading letters of
+    // every line on the losing side (DEF-1: cropX=191 removed "BL"/"GI"/"2"/"H").
+    // CLEAN-PLATE: anchor RIGHT — the copy zones live top + right (sideBlock side).
+    const cropX = mode === "poster" ? (imgW - cropW) / 2 : imgW - cropW;
     return { cropX, cropY: 0, cropW, cropH, scale };
   }
   // image is taller — vertical overflow: anchor TOP (the topBand side)

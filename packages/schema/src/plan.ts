@@ -276,5 +276,8 @@ export const selfImproveResultSchema = z.object({
   rounds: z.number().int().min(0),
   verdict: z.enum(["pass", "best-effort"]),
   issues: z.array(z.string().max(500)).max(20),
+  /** B7: which critic rubric judged this artifact — the prompt has shipped in
+   * multiple versions; a record must be able to say WHO failed the work. */
+  criticVersion: z.string().max(40).optional(),
 });
 export type SelfImproveResult = z.infer<typeof selfImproveResultSchema>;
