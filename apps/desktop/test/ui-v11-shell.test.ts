@@ -90,6 +90,8 @@ describe("DA-4: composer prefs — auto refine defaults ON (owner Q1), research 
     return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), dump: () => m };
   };
   it("absent/corrupt keys restore the DECIDED defaults — a broken key never flips an owner decision", () => {
+    // SAFETY: Pick<Storage> is structurally a tiny in-memory map; the real
+    // localStorage satisfies it — the cast only silences the DOM lib mismatch.
     const s = store();
     expect(readAutoRefinePref(s as unknown as Storage)).toBe(true); // AUTO_REFINE_DEFAULT
     expect(readResearchPref(s as unknown as Storage)).toBe(true); // owner 2026-11-06: default ON
@@ -97,6 +99,7 @@ describe("DA-4: composer prefs — auto refine defaults ON (owner Q1), research 
     expect(readAutoRefinePref(s as unknown as Storage)).toBe(true);
   });
   it("the switch choice persists both ways (OC-6)", () => {
+    // SAFETY: same structural Pick<Storage> stand-in as above.
     const s = store();
     writeAutoRefinePref(false, s as unknown as Storage);
     expect(readAutoRefinePref(s as unknown as Storage)).toBe(false);

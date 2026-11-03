@@ -51,6 +51,10 @@ export const renderDataSchema = z.object({
   /** DA-6 — Auto refine verdict, on the WINNING canvas event only (absent on
    * every other event; optional-nullable — D14 additive). */
   selfImprove: selfImproveResultSchema.nullable().optional(),
+  /** DA-6/B7 — per-page verdicts of a multi-page run, on the terminal events
+   * only; absent when the loop never ran (D14 additive, teardown #2: the record
+   * must keep every verdict that burned quota, not just the hero page's). */
+  selfImprovePages: z.array(selfImproveResultSchema.nullable()).nullable().optional(),
 });
 
 /**

@@ -54,8 +54,9 @@ export function costHintText(opts: {
   }
   const rounds = opts.autoRefineRounds ?? 0;
   if (rounds > 0) {
+    // rounds ≥ 1 ⇒ k ≥ 2 — the plural form is the only form (teardown #16 killed the dead k===1 guard)
     const k = Math.max(1, pages ?? 1) * (rounds + 1);
-    const refine = `Auto refine on · up to ${k} image${k === 1 ? "" : "s"} + ${k} read${k === 1 ? "" : "s"}`;
+    const refine = `Auto refine on · up to ${k} images + ${k} reads`;
     return base ? `${base} · ${refine}` : refine;
   }
   return base;

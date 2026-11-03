@@ -217,6 +217,27 @@ echo "STDIN_END"
     expect(argsLine).not.toContain("$imagegen");
   });
 
+  it("DA-1/--search is a TOP-LEVEL flag: it must PRECEDE the exec subcommand (teardown #19 — the bug real quota caught, argv order is now pinned for free)", async () => {
+    const bridge = new CodexBridge({ bin: fakeBin, model: "test-model" });
+    const schemaFile = path.join(fakeDir, "plan.schema.json");
+    const lastMsg = path.join(fakeDir, "plan.json");
+    const argsOf = async (opts: Partial<Parameters<CodexBridge["exec"]>[0]>): Promise<string[]> => {
+      const res = await bridge.exec({ role: "planner", prompt: "p", schemaFile, lastMessageFile: lastMsg, timeoutMs: 5_000, jobId: "argv-pin", ...opts } as Parameters<CodexBridge["exec"]>[0]);
+      const line = res.stdout.split("\n").find((l) => l.startsWith("ARGS:"))!;
+      return line.slice("ARGS:".length).trim().split(/\s+/);
+    };
+    const withSearch = await argsOf({ search: true });
+    expect(withSearch[0]).toBe("--search"); // 0.166.0 rejects it after the subcommand
+    expect(withSearch[1]).toBe("exec");
+    const without = await argsOf({});
+    expect(without[0]).toBe("exec");
+    expect(without).not.toContain("--search");
+    // planner-only: the image path never sees the flag even if a caller sets it
+    const imgRes = await bridge.exec({ role: "image", prompt: "$imagegen", search: true, timeoutMs: 5_000, jobId: "argv-pin-img" });
+    const imgArgs = imgRes.stdout.split("\n").find((l) => l.startsWith("ARGS:"))!;
+    expect(imgArgs).not.toContain("--search");
+  });
+
   it("isAvailable=false when codex is not installed (missing binary)", async () => {
     const p = new CodexImageProvider(new CodexBridge({ bin: "/nonexistent/codex-bin" }));
     const diag = await p.isAvailable();

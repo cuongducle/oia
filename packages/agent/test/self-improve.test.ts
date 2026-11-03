@@ -20,8 +20,8 @@ const caps = (extra: Partial<ProviderCapabilities> = {}): ProviderCapabilities =
   ...extra,
 });
 
-const evalJson = (verdict: "pass" | "fail", text = 9) =>
-  JSON.stringify({ verdict, scores: { text, brand: 8, fidelity: 8, composition: 8 }, issues: verdict === "fail" ? ["mock issue"] : [], fixHints: verdict === "fail" ? ["mock hint"] : [] });
+const evalJson = (verdict: "pass" | "fail", textHandling = 9) =>
+  JSON.stringify({ verdict, scores: { textHandling, brand: 8, fidelity: 8, composition: 8 }, issues: verdict === "fail" ? ["mock issue"] : [], fixHints: verdict === "fail" ? ["mock hint"] : [] });
 
 /** One data-URL image per call — the critic needs decodable pixels. */
 const png1x1 = () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -70,14 +70,17 @@ describe("DA-3 helpers", () => {
     expect(parseEvalRead("not json")).toBeNull();
     expect(parseEvalRead(JSON.stringify({ verdict: "pass" }))).toBeNull(); // missing scores
   });
-  it("criticPrompt: mode-aware criteria + the stable marker (DA-8)", () => {
-    const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "p", intendedCopy: ["SALE 20%"] });
-    const plate = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", intendedCopy: ["SALE 20%"] });
-    expect(poster).toContain("TEXT (heaviest weight)");
-    expect(poster).toContain("match the intended copy EXACTLY");
-    expect(plate).toContain("TEXT-ZONE (heaviest weight)");
-    expect(poster.endsWith(EVAL_READ_MARKER)).toBe(true);
-    expect(plate.endsWith(EVAL_READ_MARKER)).toBe(true);
+  it("criticPrompt: mode-aware criteria + the stable marker (DA-8); no duplicated copy (teardown #11)", () => {
+    const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "poster with 'SALE 20%'", overlayCopy: [] });
+    const plate0 = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: ["SALE 20%"] });
+    const plateN = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: [] });
+    expect(poster).toContain("TEXTHANDLING (heaviest weight)");
+    expect(poster).toContain("judge every rendered line against them");
+    expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE — inside the prompt line it belongs to
+    expect(poster).not.toContain("Overlay copy");
+    expect(plate0).toContain("Overlay copy that will land on this page");
+    expect(plateN).toContain("NO overlay copy (purely visual plate)");
+    for (const p of [poster, plate0, plateN]) expect(p.endsWith(EVAL_READ_MARKER)).toBe(true);
   });
 });
 
@@ -252,5 +255,124 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     const out = await run({ prompt: "banner", selfImprove: { rounds: 0 } }, { llm: new MockLlmProvider(), image: img.provider });
     expect(img.calls()).toBe(1);
     expect(out.some((e) => e.content.includes("Checking round"))).toBe(false);
+  });
+});
+
+/* ---------- teardown fixes (2026-11-06) ---------- */
+
+describe("teardown #7 — the DEFAULT combination (research + refine together)", () => {
+  it("both loops active in ONE run: search opt + research instruction AND the refine cycle", async () => {
+    const systems: string[] = [];
+    const optsSeen: LlmChatOpts[] = [];
+    let readCalls = 0;
+    const spy: LlmProvider = {
+      name: "codex", capabilities: caps({ webSearch: true }), async isAvailable() { return { ok: true }; },
+      async chat(m, o) {
+        systems.push(m[0].content);
+        optsSeen.push(o ?? {});
+        return m[0].content.includes(REFINE_INSTRUCTION)
+          ? JSON.stringify({ title: "T", imagePrompt: "revised" })
+          : JSON.stringify({ title: "T", imagePrompt: "p", researchNotes: ["note (src)"] });
+      },
+      async readImage() { readCalls++; return readCalls === 1 ? evalJson("fail") : evalJson("pass"); },
+    };
+    const img = countingImage();
+    const out = await run({ prompt: "banner", research: true, selfImprove: { rounds: 1 }, jobId: "combined-1" }, { llm: spy, image: img.provider });
+    expect(systems[0]).toContain(RESEARCH_INSTRUCTION);
+    expect(optsSeen[0]?.search).toBe(true);
+    expect(img.calls()).toBe(2); // initial + refined
+    expect(out.at(-1)!.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+  });
+});
+
+describe("teardown #8 — cancel mid-refine through the REAL failure mode (generation throws)", () => {
+  it("abort kills the refine regeneration → the PREVIOUS image is still yielded, stream aborts", async () => {
+    const ac = new AbortController();
+    let n = 0;
+    const img: ImageProvider = {
+      name: "paged", capabilities: caps(), async isAvailable() { return { ok: true }; },
+      async generate(i) {
+        n += 1;
+        if (n === 2) {
+          ac.abort("user-stop"); // the kill fires DURING the refine regen…
+          throw new Error("generation was killed"); // …and the real bridge THROWS (not a graceful return)
+        }
+        return { url: png1x1(), provider: "paged", model: "x", width: 8, height: 8 };
+      },
+    };
+    const out = await run({ prompt: "banner", selfImprove: { rounds: 1 }, signal: ac.signal, jobId: "cancel-throw" }, { llm: new MockLlmProvider(), image: img });
+    expect(n).toBe(2);
+    const canvasEv = out.find((e) => e.renderData.msgMeta.some((m) => m.type === "canvas"));
+    expect(canvasEv).toBeDefined(); // the FIRST image survived the abort
+    expect(out.at(-1)?.content).not.toBe("</Content>"); // aborted, not completed
+  });
+});
+
+describe("teardown #2 — multi-page verdict record (B7)", () => {
+  it("terminal events pair the page-0 canvas with the page-0 verdict; every page's verdict rides selfImprovePages", async () => {
+    const img = countingImage();
+    // mock critic per jobId: page 0 fails its first check → refines → passes;
+    // page 1's first check passes (per-job state, teardown #9)
+    const out = await run({ prompt: "deck", pages: 2, selfImprove: { rounds: 1 }, jobId: "deck-record" }, { llm: new MockLlmProvider(), image: img.provider });
+    const done = out.find((e) => e.content.startsWith("Finished"))!;
+    expect(done.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" }); // page 0 = hero
+    expect(done.renderData.selfImprovePages).toHaveLength(2);
+    expect(done.renderData.selfImprovePages?.[0]).toMatchObject({ rounds: 1, verdict: "pass" });
+    expect(done.renderData.selfImprovePages?.[1]).toMatchObject({ rounds: 0, verdict: "pass" });
+    // each page's own canvas event carried its own verdict (page 1 refined 0 rounds)
+    const canvasEvs = out.filter((e) => e.content.includes("[[canvas::canvas::"));
+    expect(canvasEvs[0].renderData.selfImprove).toMatchObject({ rounds: 1 });
+    expect(canvasEvs[1].renderData.selfImprove).toMatchObject({ rounds: 0 });
+  });
+
+  it("loop off → selfImprovePages absent (D14: no field when the loop never ran)", async () => {
+    const out = await run({ prompt: "deck", pages: 2, jobId: "deck-off" }, { llm: new MockLlmProvider(), image: countingImage().provider });
+    expect(out.at(-1)!.renderData.selfImprovePages).toBeUndefined();
+    expect(out.at(-1)!.renderData.selfImprove).toBeUndefined();
+  });
+});
+
+describe("teardown #3 — clean-plate critic asks the RIGHT question per page", () => {
+  it("page 0 judged against the overlay copy; later pages judged as purely visual plates", async () => {
+    const prompts: string[] = [];
+    let job = 0;
+    const seen = new Set<string>();
+    const spy: LlmProvider = {
+      name: "s", capabilities: caps(), async isAvailable() { return { ok: true }; },
+      async chat() {
+        return JSON.stringify({ title: "T", imagePrompt: "p", blocks: [{ role: "price", text: "20% OFF" }] });
+      },
+      async readImage(prompt, _img, _schema, opts) {
+        const key = opts?.jobId ?? `anon-${job}`;
+        if (!seen.has(key)) { seen.add(key); job += 1; }
+        prompts.push(prompt);
+        return evalJson("pass");
+      },
+    };
+    await run({ prompt: "banner", mode: "clean-plate", pages: 2, selfImprove: { rounds: 1 }, jobId: "plates" }, { llm: spy, image: countingImage().provider });
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).toContain("Overlay copy that will land on this page");
+    expect(prompts[0]).toContain("20% OFF");
+    expect(prompts[1]).toContain("NO overlay copy (purely visual plate)");
+    expect(prompts[1]).not.toContain("20% OFF");
+  });
+});
+
+describe("teardown #5/#6 — failed refine attempts announce their burn, rounds count only images produced", () => {
+  it("regeneration failure names the error class and records rounds=0", async () => {
+    const img = countingImage();
+    let n = 0;
+    const flaky: ImageProvider = {
+      name: "flaky", capabilities: caps(), async isAvailable() { return { ok: true }; },
+      async generate() {
+        n += 1;
+        if (n === 2) throw new (class extends Error {})(); // generic error → class `unknown`
+        return { url: png1x1(), provider: "flaky", model: "x", width: 8, height: 8 };
+      },
+    };
+    const out = await run({ prompt: "banner", selfImprove: { rounds: 1 }, jobId: "regen-fail" }, { llm: new MockLlmProvider(), image: flaky });
+    expect(out.map((e) => e.content).join("\n")).toContain("Auto refine regeneration failed (unknown)");
+    const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ rounds: 0, verdict: "best-effort" });
   });
 });

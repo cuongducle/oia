@@ -114,6 +114,21 @@ export interface RunChatOptions {
 }
 
 const BUDGET_MS = 480_000;
+/** DA budget decision (owner teardown fix, 2026-11-06): refine multiplies the
+ * worst case per page (~75s/image + ~20s/critic read + ~15s/refine turn, from
+ * the REAL_SMOKE 221s/2-round datapoint). The safety cap therefore SCALES with
+ * pages × rounds instead of aborting mid-deck at a flat 480s — a budget abort
+ * mid-deck keeps the best pages but still kills the paid ones still queued. */
+export const REFINE_BUDGET_PER_PAGE_ROUND_MS = 150_000;
+
+/** The job budget as a PURE function of the request (greppable, test-pinned).
+ * No refine → the flat 480s. Refine → 480s + pages × rounds × 150s. */
+export function chatBudgetMs(req: ChatRequest): number {
+  const rounds = selfImproveRounds(req.selfImprove) ?? 0;
+  if (rounds <= 0) return BUDGET_MS;
+  const pages = Math.max(1, Math.min(9, req.approvedOutline?.length ?? req.pages ?? 1));
+  return BUDGET_MS + pages * rounds * REFINE_BUDGET_PER_PAGE_ROUND_MS;
+}
 
 /** A1: the sink never receives base64 artwork — bytes land in the asset store once. */
 async function assetizeEvent(ev: ChatEvent, files: FileStore): Promise<void> {
@@ -172,7 +187,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
   const ac = new AbortController();
   const onExternalAbort = () => ac.abort("external");
   opts.signal?.addEventListener("abort", onExternalAbort, { once: true });
-  const budget = setTimeout(() => ac.abort("budget"), BUDGET_MS);
+  const budget = setTimeout(() => ac.abort("budget"), chatBudgetMs(req));
   registerJob(jobId, ac);
 
   let lastEvent: ChatEvent | null = null;
@@ -206,6 +221,9 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
 
     // A5: a cached plan skips the planner stage entirely
     const reusePlan = typeof req.retryOf === "string" ? sessionPlans().get(session.id) : undefined;
+    // DA-3: normalize the wire forms ONCE (teardown #14 — the double call read
+    // as two sources of truth for the same decision)
+    const refineRounds = selfImproveRounds(req.selfImprove);
 
     // Desktop wire reality: the renderer canonicalizes canvas assets as `/api/files/<key>`
     // (legacy `oia://files/<key>`) — there is no HTTP server in-process, so a provider
@@ -227,7 +245,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         mode: req.mode,
         editMode: req.editMode,
         research: req.research,
-        ...(selfImproveRounds(req.selfImprove) !== null ? { selfImprove: { rounds: selfImproveRounds(req.selfImprove)! } } : {}),
+        ...(refineRounds !== null ? { selfImprove: { rounds: refineRounds } } : {}),
         signal: ac.signal,
         ...(reusePlan ? { reusePlan } : {}),
         onPlan: (plan) => sessionPlans().set(session.id, plan),

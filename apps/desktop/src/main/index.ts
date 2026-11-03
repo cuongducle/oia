@@ -515,30 +515,33 @@ async function realSmoke(): Promise<void> {
     console.error(line);
     app.exit(1);
   };
+  /** Asset bytes on disk behind a job's canvas — a canvas meta without stored
+   * bytes is not a banner (job 0's old inline loop, shared with the DA gates). */
+  const assetBytesOf = async (events: Ev[]): Promise<number> => {
+    const canvas = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string; canvas?: { objects?: { src?: string }[] } }[]).find((m) => m.type === "canvas");
+    let bytes = 0;
+    for (const o of canvas?.canvas?.objects ?? []) {
+      const src = o.src ?? "";
+      if (src.startsWith("/api/files/")) {
+        try {
+          bytes += ((await utility.call({ cmd: "files.read", key: src.replace("/api/files/", "") })) as Uint8Array).length;
+        } catch {
+          /* missing asset counted as 0 */
+        }
+      }
+    }
+    return bytes;
+  };
 
   // ---- job 0: the D12 pair check (unchanged) ----
   const job0 = await collect({ prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" });
   const snap = await runtimeSnapshotFor(await effectiveMode());
-  const canvasMeta = job0.events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
-  // asset bytes must exist on disk — a canvas meta without stored bytes is not a banner
-  let assetBytes = 0;
-  const scene = (canvasMeta as { canvas?: { objects?: { src?: string }[] } } | undefined)?.canvas;
-  for (const o of scene?.objects ?? []) {
-    const src = o.src ?? "";
-    if (src.startsWith("/api/files/")) {
-      try {
-        assetBytes += ((await utility.call({ cmd: "files.read", key: src.replace("/api/files/", "") })) as Uint8Array).length;
-      } catch {
-        /* missing asset counted as 0 */
-      }
-    }
-  }
+  const assetBytes = await assetBytesOf(job0.events);
   const err0 = job0.events.find((e) => e.errorClass);
   const ok0 =
     job0.outcome === "completed" &&
     snap.effective === "codex" &&
     snap.runtime.state === "ready" &&
-    Boolean(canvasMeta) &&
     assetBytes > 10_000;
   console.log(
     `DESKTOP_REAL_SMOKE ${ok0 ? "OK" : "FAILED"} outcome=${job0.outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
@@ -550,25 +553,34 @@ async function realSmoke(): Promise<void> {
     return;
   }
 
-  // ---- DA-RESEARCH (slice 1 gate): facts that need a live lookup ----
+  // ---- DA-RESEARCH (slice 1 gate): facts that need a live lookup. ALSO runs
+  // refine (rounds 1) — the DEFAULT combination (research + selfImprove together,
+  // teardown #7) must be proven on the real pair, not just each loop alone ----
   const t1 = Date.now();
   const job1 = await collect({
     prompt:
       "banner quảng bá ngày Black Friday 2026 cho shop trà sữa — phải tra web lấy NGÀY Black Friday 2026 chính xác in lên banner, kèm giảm giá 35%",
     research: true,
+    selfImprove: { rounds: 1 },
   });
   const notesEv = job1.events.find((e) => (e.content ?? "").includes("Research notes:"));
   const noteLines = (notesEv?.content ?? "").split("\n").filter((l) => l.trim().startsWith("-"));
-  const sourced = noteLines.filter((l) => /\([^)]+\)\s*$/.test(l.trim()) || l.includes("(http") || /\((?:source|nguồn|theo)\b/i.test(l)).length;
+  // teardown #17: "sourced" means a domain-ish or URL citation — any trailing
+  // parenthesis (e.g. "(mock planner)") must NOT pass
+  const sourced = noteLines.filter((l) => /\((?:[^)]*https?:\/\/[^)]*|[^)]*[a-z0-9-]+\.[a-z]{2,}[^)]*)\)\s*$/i.test(l.trim())).length;
   const researchNode = job1.events.at(-1)?.renderData?.taskMeta?.find((tm) => tm.content === "Researching the web");
-  const ok1 = job1.outcome === "completed" && Boolean(notesEv) && noteLines.length > 0 && sourced > 0 && researchNode?.status === "1";
+  const combinedVerdict = [...job1.events].reverse().find((e) => e.renderData?.selfImprove)?.renderData?.selfImprove;
+  const ok1 =
+    job1.outcome === "completed" && Boolean(notesEv) && noteLines.length > 0 && sourced > 0 &&
+    researchNode?.status === "1" && Boolean(combinedVerdict) && (combinedVerdict?.verdict === "pass" || combinedVerdict?.verdict === "best-effort");
   console.log(
     `DESKTOP_REAL_SMOKE_DA_RESEARCH ${ok1 ? "OK" : "FAILED"} outcome=${job1.outcome} notes=${noteLines.length} sourced=${sourced} ` +
-      `researchNode=${researchNode?.status ?? "absent"} ${job1.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `researchNode=${researchNode?.status ?? "absent"} refine=${combinedVerdict ? `${combinedVerdict.verdict}/r${combinedVerdict.rounds}` : "none"} ` +
+      `${job1.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
       `jobId=${job1.jobId} took=${Math.round((Date.now() - t1) / 1000)}s`,
   );
   if (!ok1) {
-    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED — --search did not yield sourced notes through the bundled binary");
+    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED — --search did not yield sourced notes, or the combined research+refine run produced no honest verdict");
     return;
   }
 
@@ -584,11 +596,14 @@ async function realSmoke(): Promise<void> {
     0,
     ...job2.events.flatMap((e) => e.renderData?.taskMeta?.filter((tm) => tm.content.startsWith("Checking round")).map((tm) => Number(tm.content.replace(/\D+/g, ""))) ?? [0]),
   );
-  const ok2 = job2.outcome === "completed" && Boolean(verdict) && (verdict?.verdict === "pass" || verdict?.verdict === "best-effort");
+  const refineAssetBytes = await assetBytesOf(job2.events);
+  const ok2 =
+    job2.outcome === "completed" && Boolean(verdict) && (verdict?.verdict === "pass" || verdict?.verdict === "best-effort") && refineAssetBytes > 10_000;
   console.log(
     `DESKTOP_REAL_SMOKE_DA_REFINE ${ok2 ? (verdict && verdict.rounds >= 1 ? "OK-REFINED" : "OK-FIRST-TRY") : "FAILED"} ` +
       `outcome=${job2.outcome} rounds=${verdict?.rounds ?? "none"} verdict=${verdict?.verdict ?? "none"} checks=${checks} ` +
-      `issues=${verdict?.issues?.length ?? 0} ${job2.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `issues=${verdict?.issues?.length ?? 0} assetBytes=${refineAssetBytes} ` +
+      `${job2.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
       `jobId=${job2.jobId} took=${Math.round((Date.now() - t2) / 1000)}s`,
   );
   if (!ok2) {
@@ -901,7 +916,9 @@ async function shot(): Promise<void> {
     return { rows, resultHiddenWhileReviewing: gone, genEnabled: gen ? !gen.disabled : null, cost: document.querySelector('[data-testid="outline-cost"]')?.textContent ?? null };
   })()`, true);
   console.log("[shot] C1 card:", JSON.stringify(c1Card));
-  if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images") {
+  // teardown #1: the card where the user APPROVES the spend shows the SAME cost
+  // law as the composer — with auto refine default-on that includes the worst case
+  if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
     console.error("DESKTOP_SHOT C1 FAILED — card state wrong (rows/hidden-result/enabled/cost)");
     app.exit(18);
     return;

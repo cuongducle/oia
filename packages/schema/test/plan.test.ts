@@ -144,11 +144,11 @@ describe("DA — Auto refine bounds + eval contract", () => {
     expect(AUTO_REFINE_MAX_ROUNDS_CAP).toBe(2);
   });
   it("evalReadSchema: a full read parses; wrong verdicts/garbage fail", () => {
-    const good = evalReadSchema.parse({ verdict: "fail", scores: { text: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["typo"], fixHints: ["fix it"] });
+    const good = evalReadSchema.parse({ verdict: "fail", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["typo"], fixHints: ["fix it"] });
     expect(good.verdict).toBe("fail");
-    expect(() => evalReadSchema.parse({ verdict: "maybe", scores: { text: 4, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow();
+    expect(() => evalReadSchema.parse({ verdict: "maybe", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow();
     expect(() => evalReadSchema.parse("not json")).toThrow();
-    expect(() => evalReadSchema.parse({ verdict: "pass", scores: { text: 11, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow(); // 0..10
+    expect(() => evalReadSchema.parse({ verdict: "pass", scores: { textHandling: 11, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow(); // 0..10
   });
   it("selfImproveResultSchema: the persisted verdict (DA-6)", () => {
     const r = selfImproveResultSchema.parse({ rounds: 1, verdict: "pass", issues: [] });

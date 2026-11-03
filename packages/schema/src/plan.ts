@@ -194,7 +194,7 @@ export const PLAN_JSON_SCHEMA = {
     researchNotes: {
       type: ["array", "null"],
       items: { type: "string" },
-      description: "Only when web research was enabled: one line per finding, each ending with its source in parentheses. Null otherwise.",
+      description: "Findings from web research, one line per finding, each ending with its source in parentheses. Null when research was not enabled or found nothing worth citing.",
     },
     blocks: {
       type: ["array", "null"],
@@ -222,9 +222,12 @@ export const AUTO_REFINE_DEFAULT = true;
 export const AUTO_REFINE_MAX_ROUNDS_DEFAULT = 1;
 export const AUTO_REFINE_MAX_ROUNDS_CAP = 2;
 
-/** DA-3 — one critic read returns this shape (scores 0..10 per criterion). */
+/** DA-3 — one critic read returns this shape (scores 0..10 per criterion).
+ * `textHandling` is the mode's #1 text-related criterion under ONE name:
+ * poster = rendered-text fidelity (spelling/language); clean-plate = copy-zone
+ * headroom. The critic prompt says which meaning applies (teardown #12). */
 export const criticScoresSchema = z.object({
-  text: z.number().min(0).max(10),
+  textHandling: z.number().min(0).max(10),
   brand: z.number().min(0).max(10),
   fidelity: z.number().min(0).max(10),
   composition: z.number().min(0).max(10),
@@ -249,9 +252,9 @@ export const EVAL_JSON_SCHEMA = {
     scores: {
       type: "object",
       additionalProperties: false,
-      required: ["text", "brand", "fidelity", "composition"],
+      required: ["textHandling", "brand", "fidelity", "composition"],
       properties: {
-        text: { type: "number", minimum: 0, maximum: 10, description: "Spelling/language of rendered text (poster mode) or copy-zone space (clean-plate)." },
+        textHandling: { type: "number", minimum: 0, maximum: 10, description: "Poster: rendered-text fidelity (spelling, language). Clean-plate: copy-zone headroom." },
         brand: { type: "number", minimum: 0, maximum: 10, description: "Brand guidance adherence." },
         fidelity: { type: "number", minimum: 0, maximum: 10, description: "Match to the request and reference image." },
         composition: { type: "number", minimum: 0, maximum: 10, description: "Layout, balance, crop." },

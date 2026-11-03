@@ -83,7 +83,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Only when web research was enabled: one line per finding, each ending with its source in parentheses. Null otherwise."
+      "description": "Findings from web research, one line per finding, each ending with its source in parentheses. Null when research was not enabled or found nothing worth citing."
     },
     "blocks": {
       "type": [

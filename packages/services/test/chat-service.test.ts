@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChatEvent, ImageProvider, ProviderCapabilities } from "@oia/schema";
-import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, selfImproveRounds, type ServiceContext } from "../src/index.js";
+import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, selfImproveRounds, chatBudgetMs, type ServiceContext } from "../src/index.js";
 import { MockImageProvider, MockLlmProvider, FailingMockLlmProvider } from "@oia/providers";
 
 /**
@@ -397,5 +397,35 @@ describe("DA: runChat with auto refine — verdict persists into the conversatio
     const res = await runChat({ prompt: "banner", research: true }, ctx, { sink });
     expect(res.outcome).toBe("completed");
     expect(events.map((e) => e.content).join("\n")).toContain("Research unavailable on mock");
+  });
+});
+
+/* ---------- DA teardown fixes (2026-11-06) ---------- */
+
+describe("DA teardown #4 — the budget scales with pages × refine rounds (no flat-480s mid-deck abort)", () => {
+  it("chatBudgetMs: flat without refine; 480s + pages×rounds×150s with it; capped by the 9-page ceiling", () => {
+    expect(chatBudgetMs({ prompt: "x" })).toBe(480_000);
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true })).toBe(480_000 + 150_000); // 1 page × 1 round
+    expect(chatBudgetMs({ prompt: "x", selfImprove: { rounds: 2 }, pages: 3 })).toBe(480_000 + 3 * 2 * 150_000);
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true, pages: 99 })).toBe(480_000 + 9 * 150_000); // ceiling holds
+    expect(chatBudgetMs({ prompt: "x", selfImprove: true, approvedOutline: [{ title: "t", summary: "s" }] })).toBe(480_000 + 150_000); // outline decides pages
+  });
+});
+
+describe("DA teardown #2 — multi-page verdicts persist into the conversation (B7)", () => {
+  it("a 2-page deck with refine stores the hero verdict AND selfImprovePages (one entry per page)", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "deck trà sữa", pages: 2, selfImprove: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    const final = events.at(-1);
+    expect(final?.renderData.selfImprovePages).toHaveLength(2);
+    // mock critic per jobId: page 0 fails once → refines → pass(rounds 1); page 1 passes first try (rounds 0)
+    expect(final?.renderData.selfImprovePages?.[0]).toMatchObject({ rounds: 1, verdict: "pass" });
+    expect(final?.renderData.selfImprovePages?.[1]).toMatchObject({ rounds: 0, verdict: "pass" });
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const last = stored?.messages.at(-1) as { renderData?: { selfImprovePages?: unknown[]; selfImprove?: { rounds: number } } };
+    expect(last?.renderData?.selfImprovePages).toHaveLength(2); // replay sees every page's verdict
+    expect(last?.renderData?.selfImprove).toMatchObject({ rounds: 1 }); // hero = page 0
   });
 });

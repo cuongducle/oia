@@ -16,7 +16,7 @@ import { sceneDims } from "../lib/scene-dims.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl } from "../../shared/assets.js";
 import {
-  addPage, editPage, movePage, outlineCostLabel, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
+  addPage, editPage, movePage, outlineRowsValid, readOutlineGatePref, removePage, waitForOutline, writeOutlineGatePref,
   type OutlineRow,
 } from "../lib/outline-card.js";
 import { readAutoRefinePref, readResearchPref, writeAutoRefinePref, writeResearchPref } from "../lib/composer-prefs.js";
@@ -187,7 +187,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
       }
       if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
-      if (ev.renderData?.selfImprove) setSelfImprove(ev.renderData.selfImprove); // DA-6 badge payload
+      // DA-6: the badge pairs with the canvas it describes — canvas events only.
+      // Terminal events carry the HERO (page 0) verdict; taking it here would
+      // mismatch the badge with the LAST page Home actually displays (teardown #2).
+      if (ev.renderData?.selfImprove && ev.renderData.msgMeta.some((m) => m.type === "canvas")) setSelfImprove(ev.renderData.selfImprove);
       if (ev.renderData?.exportMeta?.projectName) setResultName(ev.renderData.exportMeta.projectName);
       if (ev.content) setNarrative((n) => (n ? `${n}\n${stripMarkers(ev.content)}` : stripMarkers(ev.content)));
       for (const m of ev.renderData?.msgMeta ?? []) if (m.type === "canvas") {
@@ -526,7 +529,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         <section className="outlineCard" data-testid="outline-card" aria-label="Review the page outline">
           <div className="sectionHeading" style={{ marginBottom: 10 }}>
             <h2 style={{ margin: 0, fontSize: 17 }}><span className="stepLabel">Step 2 of 2</span>Review the outline</h2>
-            <span className="hintP" data-testid="outline-cost">{outlineCostLabel(outlineDeck.rows.length)}</span>
+            {/* teardown #1: the card where the user APPROVES the spend must show
+                the SAME cost law as the composer — one source (costHintText),
+                never a second label that forgets auto refine. */}
+            <span className="hintP" data-testid="outline-cost">{costHintText({ images: outlineDeck.rows.length, pages: outlineDeck.rows.length, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}</span>
           </div>
           <div className="outlineRows">
             {outlineDeck.rows.map((r, i) => (
@@ -553,7 +559,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
             <button className="primaryBtn" data-testid="outline-generate" disabled={!outlineRowsValid(outlineDeck.rows)}
               title={outlineRowsValid(outlineDeck.rows) ? "Generate every page below" : "Every page needs a title and a summary"}
               onClick={() => void generateFromOutline(outlineDeck.rows)}>
-              Generate · {outlineCostLabel(outlineDeck.rows.length)}
+              Generate · {costHintText({ images: outlineDeck.rows.length, pages: outlineDeck.rows.length, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
             </button>
           </div>
         </section>

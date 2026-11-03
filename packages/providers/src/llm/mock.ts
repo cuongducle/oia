@@ -37,10 +37,21 @@ function instructedCount(system: string, template: (n: number) => string): numbe
 export class MockLlmProvider implements LlmProvider {
   readonly name = "mock";
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
-  /** DA-3 mock critic: FAIL the first check of an instance, PASS every later one —
-   * one deterministic refine round per mock run (loop gates need variety, not
-   * one canned verdict). */
-  #evalChecks = 0;
+  /** DA-3 mock critic: per JOB (keyed by opts.jobId), the FIRST check fails and
+   * every later one passes — one deterministic refine round per run, whatever
+   * ran before it (teardown #9: an instance-lifetime counter made shot gates
+   * depend on run ORDER). Bounded: a long-lived process forgets old jobs. */
+  #evalChecks = new Map<string, number>();
+  #evalSeen(jobId: string | undefined): number {
+    const key = jobId ?? "";
+    const n = this.#evalChecks.get(key) ?? 0;
+    this.#evalChecks.set(key, n + 1);
+    if (this.#evalChecks.size > 100) {
+      const oldest = this.#evalChecks.keys().next().value;
+      if (oldest !== undefined) this.#evalChecks.delete(oldest);
+    }
+    return n;
+  }
   async chat(messages: LlmMessage[], _opts?: LlmChatOpts): Promise<string> {
     const user = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
     const system = [...messages].reverse().find((m) => m.role === "system")?.content ?? "";
@@ -94,15 +105,14 @@ export class MockLlmProvider implements LlmProvider {
   /** B1 mock vision read — deterministic, marker-keyed on the SHARED prompt
    * constant (reword the prompt and the matcher follows, PLANNER_INSTRUCTIONS
    * pattern). Bytes are ignored: the mock proves wiring, not eyesight. */
-  async readImage(prompt: string, _image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA): Promise<string> {
+  async readImage(prompt: string, _image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA, opts: LlmChatOpts = {}): Promise<string> {
     if (prompt.includes(EVAL_READ_MARKER)) {
-      // DA-3 mock critic — deterministic fail→pass (see #evalChecks)
-      const fail = this.#evalChecks === 0;
-      this.#evalChecks += 1;
+      // DA-3 mock critic — deterministic fail→pass per job (see #evalSeen)
+      const fail = this.#evalSeen(opts.jobId) === 0;
       return JSON.stringify(
         fail
-          ? { verdict: "fail", scores: { text: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["mock issue: headline rendered with a typo"], fixHints: ["fix the headline spelling"] }
-          : { verdict: "pass", scores: { text: 9, brand: 9, fidelity: 9, composition: 9 }, issues: [], fixHints: [] },
+          ? { verdict: "fail", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["mock issue: headline rendered with a typo"], fixHints: ["fix the headline spelling"] }
+          : { verdict: "pass", scores: { textHandling: 9, brand: 9, fidelity: 9, composition: 9 }, issues: [], fixHints: [] },
       );
     }
     if (!prompt.includes(DECONSTRUCT_READ_MARKER)) {
