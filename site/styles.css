@@ -159,7 +159,7 @@ h2{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(
 .editor-frame{margin-top:64px;position:relative;border-radius:12px;padding:2px;background:linear-gradient(140deg,var(--accent),transparent 45%);transform-style:preserve-3d}
 .js .editor-frame{clip-path:inset(8% 4% 8% 4%)}
 .editor-frame.in{clip-path:inset(0 0 -32px 0);transition:clip-path 1.1s cubic-bezier(.22,1,.3,1)}
-.editor-frame img{border-radius:10px;width:100%;height:auto}
+.editor-frame img,.editor-frame video{border-radius:10px;width:100%;height:auto;display:block}
 .editor-frame .cap{position:absolute;bottom:-26px;right:8px}
 
 /* ---------- BA SLIDER (real repaint compare) ---------- */

@@ -19,6 +19,13 @@ The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
   checked and deliberately NOT used — real numbers too small to flex (2026-11)
 - Hero prompt chip types rotating seller prompts (typewriter, em pill pops;
   static first prompt is the no-JS fallback)
+- `#workflow` editor-frame = `demo-loop` video (8,9s, 1600px, webm 241KB +
+  mp4 192KB, poster webp, lazy via IntersectionObserver, paused off-screen,
+  poster-only under prefers-reduced-motion). Recorded from the REAL app:
+  shot driver run with a temp frame-capture patch (capturePage ~9fps) + mock
+  DA pacing — code reverted after harvest, only the site assets shipped.
+  Trial-mode placeholder artwork is visible and captioned honestly
+  ("real app in trial mode") — never pass mock output off as model output.
 - Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
 - `#bring` section = deconstruct (B1): old design → editable text layers
 - Editor/deconstruct frames are real screenshots from `apps/desktop`

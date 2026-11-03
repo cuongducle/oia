@@ -220,6 +220,27 @@ if (!reduced){
   }
 }
 
+/* ---- Demo loop video: lazy, motion-safe, paused off-screen ---- */
+(() => {
+  const v = document.querySelector('.demo-loop');
+  if (!v || reduced) return; // reduced motion: the poster frame stays, nothing autoplays
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    v.querySelectorAll('source').forEach((s) => {
+      if (!s.src) s.src = s.dataset.srcWebm || s.dataset.srcMp4 || '';
+    });
+    v.load();
+    v.play().catch(() => {});
+  };
+  const io = new IntersectionObserver(([en]) => {
+    if (en.isIntersecting) start();
+    else if (started) v.pause();
+  }, { rootMargin: '200px' });
+  io.observe(v);
+})();
+
 /* ---- BA slider: drag the real repaint back and forth ---- */
 (() => {
   const ba = document.getElementById('ba');
