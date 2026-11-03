@@ -22,6 +22,8 @@ import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
 import { deconstructScene } from "../lib/deconstruct-scene.js";
 import { pollTask } from "../lib/poll-task.js";
+import { resolveEditTarget } from "../lib/edit-target.js";
+import { dataUrlBytes } from "../lib/data-url.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -149,6 +151,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now" — view state, never persisted (VA-7)
   const aiPromptByJobRef = useRef<Map<string, string>>(new Map()); // per-job prompt binding (B7) — rules in variant-tray.ts
   const aiTargetRef = useRef<string | null>(null); // the layer the CURRENT edit targets (A3-lite) — captured at send, bound per job at first event
+  const aiLastImageRef = useRef<string | null>(null); // LAST image layer the user picked — survives selection:cleared (teardown #1: fabric can drop the active object mid-flow)
   const aiTargetByJobRef = useRef<Map<string, string | null>>(new Map());
   // Templates/Assets/Draw
   const [tplList, setTplList] = useState<Template[]>([]);
@@ -342,8 +345,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       editor.on("object:modified", pushHistory);
       editor.on("object:added", () => syncHasText(editor));
       editor.on("object:removed", () => syncHasText(editor));
-      editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); setSelectedName(((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null); });
-      editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); setSelectedName(((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null); });
+      editor.on("selection:created", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); const nm = ((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null; setSelectedName(nm); if (hasSrc(e.selected?.[0])) aiLastImageRef.current = nm; });
+      editor.on("selection:updated", (e) => { setSelectedText(e.selected?.[0]?.type === "textbox"); setSelectedImg(hasSrc(e.selected?.[0])); const nm = ((e.selected?.[0] as (fabricNS.Object & { name?: string }) | undefined)?.name) ?? null; setSelectedName(nm); if (hasSrc(e.selected?.[0])) aiLastImageRef.current = nm; });
       editor.on("selection:cleared", () => { setSelectedText(false); setSelectedImg(false); setSelectedName(null); });
       if (!initialProjectId) scheduleSave();
     })().catch(() => { if (!cancelled) setNotice("Could not open the design. Go back and try another project."); });
@@ -628,8 +631,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
    *  THIS page (≈ 1 image + 1 read) into a clean plate + native text layers.
    *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
    *  scene through replaceCurrentScene so undo/history/save all behave. */
-  const [textEditAsk, setTextEditAsk] = useState(false);
-  const [textEditBusy, setTextEditBusy] = useState(false);
+  // teardown #2: one phase instead of two booleans (ask → running → null)
+  const [textEditPhase, setTextEditPhase] = useState<"ask" | "running" | null>(null);
   const textEditTaskRef = useRef<string | null>(null);
   const textEditRunRef = useRef(0);
   const textEditStoppedRef = useRef(false);
@@ -637,19 +640,19 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const id = textEditTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
     textEditStoppedRef.current = true; // B1 teardown: the poll keeps watching — a late success still applies
-    setTextEditAsk(false);
+    setTextEditPhase(null);
   }
   async function runMakeTextEditable() {
     const c = fabricRef.current;
-    if (!c || textEditBusy) return;
+    if (!c || textEditPhase === "running") return;
     const myRun = ++textEditRunRef.current;
     const size = sceneDimensions.current;
     textEditStoppedRef.current = false;
-    setTextEditBusy(true); setNotice("");
+    setTextEditPhase("running"); setNotice("");
     try {
       // export the page as-is — the model reads exactly what the seller sees
       const dataUrl = c.toDataURL({ format: "png", multiplier: 1, enableRetinaScaling: false });
-      const bytes = Uint8Array.from(atob(dataUrl.split(",")[1] ?? ""), (ch) => ch.charCodeAt(0));
+      const bytes = dataUrlBytes(dataUrl); // teardown #3: indexed loop, not the per-char callback path
       const up = await oia().uploadAsset("page.png", bytes);
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
       textEditTaskRef.current = started.taskId;
@@ -660,19 +663,19 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       const texts = (final.taskResult.texts ?? []) as DeconstructText[];
       await replaceCurrentScene(deconstructScene({ imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }));
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
-      setTextEditAsk(false);
+      setTextEditPhase(null);
       // honest notice: a Stop does not refund the read — if it finished anyway, say so (B7)
       setNotice(textEditStoppedRef.current
         ? `It finished after you stopped — the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
         : `Text is editable — ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
     } catch (e) {
       if (textEditRunRef.current === myRun) {
-        setTextEditAsk(false);
+        setTextEditPhase(null);
         setNotice(bridgeErrorMessage(e, "The text could not be made editable. Please try again."));
       }
     } finally {
       textEditTaskRef.current = null;
-      if (textEditRunRef.current === myRun) setTextEditBusy(false);
+      if (textEditRunRef.current === myRun) setTextEditPhase(null);
     }
   }
   /** R5 Replace image: new pixels, same box on the page; the swapped layer becomes the user's (TP.10). */
@@ -711,7 +714,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       // image the model can act on: selected image layer → that image alone; no image
       // selection → the flattened page (what the seller sees) leads as before.
       const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string }) | undefined;
-      const activeSrc = active && typeof active.src === "string" ? toCanonicalUrl(active.src) : null;
+      // teardown #1: the live selection leads, but if fabric dropped it mid-flow the
+      // LAST image the user picked still targets the edit (resolveEditTarget ignores stale names)
+      const target = resolveEditTarget(active, (scene?.objects ?? []) as { src?: string; name?: string }[], aiLastImageRef.current);
+      const activeSrc = target ? toCanonicalUrl(target.src) : null;
       const hasText = (scene?.objects ?? []).some((o) => o.type === "Textbox");
       let refs: string[] | undefined;
       if (refCapable) {
@@ -727,7 +733,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       // A3-lite: the edit contract is STRUCTURED now — referenceImages[0] is the
       // target; the agent layer welds the clauses (target declaration, dimension
       // lock, lettering ban). The renderer no longer concatenates prose.
-      const aiTargetName = (active && typeof active.src === "string" ? (active.name ?? "selected image") : undefined);
+      const aiTargetName = target?.name;
       const editMode = { ...(aiTargetName ? { targetName: aiTargetName } : {}), ...(hasText ? { textLayerOverlays: true } : {}) };
       aiTargetRef.current = aiTargetName ?? null;
       // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
@@ -1155,7 +1161,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
               <div className="canvasWrap" data-transparent={activeClipFill === "transparent" ? "true" : undefined}>
                 <canvas ref={canvasElRef} width={500} height={750} />
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditAsk(true)} />
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1219,15 +1225,15 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       </div>
 
       {/* Export dialog (BR-ED5) */}
-      {textEditAsk && (
-        <Dialog onClose={() => { if (!textEditBusy) setTextEditAsk(false); }} label="Make text editable">
+      {textEditPhase && (
+        <Dialog onClose={() => { if (textEditPhase !== "running") setTextEditPhase(null); }} label="Make text editable">
           <h3>Make this text editable?</h3>
           <p>Oia reads the text on this page, cleans it off the artwork, and rebuilds each line as an editable text layer. Everything else stays in place.</p>
           {!imageMock && <p className="hintP" data-testid="text-edit-cost">≈ 1 image + 1 read</p>}
-          {textEditBusy && <p className="hintP">Reading the text…</p>}
+          {textEditPhase === "running" && <p className="hintP">Reading the text…</p>}
           <div className="dialogActions">
-            <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditBusy ? "Stop" : "Cancel"}</button>
-            <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditBusy} onClick={() => void runMakeTextEditable()}>Make text editable</button>
+            <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditPhase === "running" ? "Stop" : "Cancel"}</button>
+            <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditPhase === "running"} onClick={() => void runMakeTextEditable()}>Make text editable</button>
           </div>
         </Dialog>
       )}
