@@ -589,6 +589,10 @@ describe("C1 teardown fix: a deck trimmed to ONE page still generates (regressio
     await run({ prompt: "deck", pages: 2, outlineGate: true }, { llm: spy, image: countingImage().provider });
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.imagePrompts(2));
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.pageOutline(2));
+    // style vocabulary (adapted from SurgePix agent-skills, MIT) — concrete phrases, never labels alone
+    expect(systems[0]).toContain("Style vocabulary");
+    expect(systems[0]).toContain("oversized typography");
+    expect(systems[0]).toContain("Swiss grid");
   });
 });
 

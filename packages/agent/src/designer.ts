@@ -479,7 +479,18 @@ export async function* runDesignerAgent(
             + (mode === "clean-plate"
               ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].`
               : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ratio ${(width / height).toFixed(2)}): state this aspect explicitly in every imagePrompt and demand ALL text inside a safe area — at least 10% clear of every edge — or the crop will cut edge-hugging lines.`
-            ),
+            )
+            +
+            `\nStyle vocabulary — when the request names or implies a style, spell the CONCRETE phrases into imagePrompt, never the label alone ` +
+            `(adapted from SurgePix agent-skills, MIT): ` +
+            `modern=grid-based, generous whitespace, strong focal hierarchy, modular alignment; ` +
+            `vintage=collage-style, organic layered graphics, retro print alignment; ` +
+            `minimalist=Swiss grid, maximum whitespace, typography-centered; ` +
+            `bold=oversized typography, dynamic text layering, high impact (e-commerce promos); ` +
+            `creative=freeform composition, cinematic balance, atmospheric negative space; ` +
+            `3d=floating glossy 3D objects, layered digital interface, Y2K typography; ` +
+            `hand-drawn=illustration-led, organic strokes, playful hand-lettered typography; ` +
+            `business-promo=product-centered, large promotional headline, layered badges, clear CTA.`,
         },
         { role: "user", content: input.prompt },
       ],
