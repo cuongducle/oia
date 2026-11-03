@@ -113,6 +113,7 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 | Q2 | Tách "critic provider" riêng để dùng model vision mạnh hơn? | **KHÔNG — dùng đúng provider chat hiện tại** (thường codex/ChatGPT, đã login). Không thêm cấu hình; mở lại chỉ khi số liệu REAL_SMOKE cho thấy critic yếu. |
 | Q3 | Tên UI? | **"Auto refine"** — switch label "Auto refine (check & improve)", badge "auto-refined · round N", timeline node "Checking round N". |
 | Q4 | Nâng critic prompt v2 (sau 2 real run pass vòng 0 dễ dàng)? | **LÀM (owner 2026-11-03)** — anchor bands + transcribe-first + anti-leniency + ngưỡng 7+/critical-defect; schema giữ nguyên. Trade-off đã cân: critic ngặt hơn = nhiều job đi 1 vòng refine hơn (+1 ảnh +1 read mỗi trang, đã nằm trong bound DA-4). |
+| Q5 | v3: generalize rubric theo chuẩn cộng đồng designer? | **LÀM (owner 2026-11-03: "tham khảo từ cộng đồng designer, làm generalize")** — v2 còn vựng từ banner bán hàng (offer > product > decor, thumbnail). v3 đưa checklist phê bình chuẩn ngành: C.R.A.P. (Robin Williams, The Non-Designer's Design Book — contrast/repetition/alignment/proximity), Gestalt figure-ground, squint test cho hierarchy; hierarchy tổng quát “primary message > secondary > supporting theo intent của brief”; legibility gắn với “kích thước tiêu thụ thật” từ brief thay vì thumbnail cố định. Nguồn: lewisu.edu/CRAP, designlab.wisc.edu, gestalt/figure-ground (Smashing Magazine), LLM-judge anchor calibration. |
 
 ## TP / luật bị chạm
 

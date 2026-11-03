@@ -156,19 +156,24 @@ export function criticPrompt(o: {
     `Brief title: ${o.title}\n` +
     `Image prompt that produced it: ${o.pagePrompt}\n` +
     (o.brandGuidance ? `Brand rules that must hold: ${o.brandGuidance}\n` : "") +
-    `\nMETHOD — read before you judge:\n` +
+    `\nMETHOD — look before you judge:\n` +
     `1. TRANSCRIBE first: read every line of text actually painted in the image, character by character, including every diacritic. Never assume the copy came out right because the prompt asked for it — garbled rendered text is the single most common defect of image models.\n` +
-    `2. Compare each transcribed line against the brief copy (poster) or the overlay landing zones (clean-plate).\n` +
+    `2. SQUINT at the image (the designer's squint test): when blurred, what registers first, second, third? That is the real hierarchy — it must match what the brief intends to lead.\n` +
     `3. Only then score. Every issue you report must be something you SAW, at a place you can name.\n` +
     `\nSCORE BANDS — same meaning for every criterion:\n` +
     `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
     `When torn between two scores, take the LOWER one.\n` +
-    `\nCRITERIA:\n` +
-    `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? " — every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the headline stays legible at thumbnail size and is not clipped or colliding with the subject. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable headline." : " — the artwork leaves clean, uncluttered space where each overlay line lands (check contrast against what will sit behind it); any text painted INTO the image is a defect in this mode."}\n` +
+    `\nCRITERIA — the classic design-review dimensions (C.R.A.P. + Gestalt), weighted for AI image output:\n` +
+    `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? " — every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the leading line stays legible at the size the design will actually be consumed. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable leading line." : " — the artwork leaves clean, uncluttered space where each overlay line lands (check figure-ground contrast against what sits behind it); any text painted INTO the image is a defect in this mode."}\n` +
     overlays + `\n` +
     `BRAND: adherence to the brand rules above (10 only when none were given).\n` +
-    `FIDELITY: subject, style, mood and aspect match the brief; anything the brief explicitly named that is absent or wrong is a defect.\n` +
-    `COMPOSITION: one clear focal hierarchy (offer > product > decor), aligned layout, breathing room, safe margins — nothing important within ~5% of any edge, no awkward crop of the product or the offer.\n` +
+    `FIDELITY: everything the brief named — subject, style, mood, aspect and platform context; anything named that is absent or wrong is a defect.\n` +
+    `COMPOSITION — judge like a designer, whatever the design type (poster, menu, slide, overlay, social post):\n` +
+    `- Hierarchy: one clear focal order — primary message/subject first, then secondary, then supporting; the squint-test order must match the brief's intent.\n` +
+    `- Contrast & figure-ground: text and subject separate cleanly from the background; contrast is deliberate, never accidental blending.\n` +
+    `- Alignment & proximity: elements align to edges or a grid; related elements grouped, unrelated separated (C.R.A.P.).\n` +
+    `- Repetition & consistency: recurring styles, colors and type treatments stay consistent where the brief implies them.\n` +
+    `- Balance, negative space, crop: no accidental crowding or dead zones; nothing important clipped or within ~5% of any edge.\n` +
     `\nVERDICT: "pass" ONLY when every score is 7+ AND no critical defect exists. Anything fixable that you would revise yourself means "fail" — do not grade effort, grade the artifact.\n` +
     `issues[]: one entry per defect, evidence-first — what you saw and where, e.g. rendered 'GIAM SÓC' top center while the brief says 'GIẢM SỐC' (diacritics missing).\n` +
     `fixHints[]: imperative edits to the IMAGE PROMPT only — change exactly what is broken, keep everything that worked, specific enough that one regeneration fixes it.\n` +

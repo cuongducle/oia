@@ -74,12 +74,22 @@ describe("DA-3 helpers", () => {
     const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "poster with 'SALE 20%'", overlayCopy: [] });
     const plate0 = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: ["SALE 20%"] });
     const plateN = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: [] });
-    // v2 (2026-11-03, owner: "pro like a designer"): anchors, transcribe-first, anti-leniency
+    // v2 (2026-11-03): anchors, transcribe-first, anti-leniency
     for (const p of [poster, plate0, plateN]) {
       expect(p).toContain("SCORE BANDS");
       expect(p).toContain("take the LOWER one");
       expect(p).toContain("TRANSCRIBE first");
       expect(p).toContain("TEXTHANDLING (heaviest weight)");
+    }
+    // v3 (2026-11-03, owner: generalize from the designer community) — C.R.A.P. + Gestalt,
+    // squint test, and NO banner-only vocabulary: works for poster/menu/slide/overlay alike
+    for (const p of [poster, plate0, plateN]) {
+      expect(p).toContain("SQUINT at the image");
+      expect(p).toContain("C.R.A.P.");
+      expect(p).toContain("Contrast & figure-ground");
+      expect(p).toContain("Alignment & proximity");
+      expect(p).toContain("Hierarchy: one clear focal order");
+      expect(p).not.toContain("offer > product"); // generalized away from sale-banner vocabulary
     }
     expect(poster).toContain("judge every rendered line against them");
     expect(poster).toContain("diacritics"); // D16/RE §7.1 — the #1 real defect class
