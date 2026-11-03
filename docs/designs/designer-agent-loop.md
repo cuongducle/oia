@@ -1,7 +1,7 @@
 # DA — Designer Agent loop: research-informed planning + self-improvement
 
 **Ngày:** 2026-11-06
-**Trạng thái:** Owner đã chốt 3 câu hỏi mở (2026-11-06 — xem mục "Quyết định owner"); sẵn sàng triển khai theo slices.
+**Trạng thái:** Slices 0/1/2 ĐÃ SHIP (2026-11-06, mock-pair đầy đủ gate lỗi-path + shot UI thật). Hai REAL_SMOKE còn TREO chờ owner duyệt (chạm quota): slice 1 (1 poster có search thật) + slice 2(f) (poster sai chính tả → ≥1 vòng refine). Slice 3 (openai webSearch) chỉ làm khi owner dùng openai planner.
 **Nguồn quyết định cha:** gap đối thủ trong [`gap-analysis.md`](../private/gap-analysis.md) (mục "lệch thật": agent đọc web) + [`surgepix-reverse-engineering.md`](../private/surgepix-reverse-engineering.md) (RE nội bộ — bằng chứng capture thật, không đoán).
 **Ràng buộc cha:** hard rule 6 (quota là tiền — mọi vòng lặp phải bounded + hiển thị chi phí), G2/G3 (không đốt quota cho job doomed; metered-once), B7 (records must not lie — verdict vòng lặp phải persist), D8 (UI EN), D14 (wire additive, không bump schema version).
 
@@ -76,34 +76,34 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 ## Checklist thực thi (theo slices — tick + ghi gate khi xong)
 
 **Slice 0 — Nền schema/provider (chung cho cả 2 vòng)**
-- [ ] S0.1 `@oia/schema`: `chatRequestSchema += research?: boolean, selfImprove?: boolean`; `plannerPlanSchema += researchNotes?: string[]`; `renderData += selfImprove` (nullable-additive, kiểu C1 outline); `EVAL_JSON_SCHEMA` + zod parse. Regen `plan.schema.json`. (DA-9, D14 — không bump version)
-- [ ] S0.2 `@oia/providers` types: `ProviderCapabilities += webSearch?: boolean` (default false) + test capability parse provider cũ không vỡ.
-- Gate: `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh; golden test schema cũ parse được payload mới (D14 hai chiều).
+- [x] S0.1 `@oia/schema`: `chatRequestSchema += research?: boolean, selfImprove?: boolean`; `plannerPlanSchema += researchNotes?: string[]`; `renderData += selfImprove` (nullable-additive, kiểu C1 outline); `EVAL_JSON_SCHEMA` + zod parse. Regen `plan.schema.json`. (DA-9, D14 — không bump version)
+- [x] S0.2 `@oia/providers` types: `ProviderCapabilities += webSearch?: boolean` (default false) + test capability parse provider cũ không vỡ.
+- Gate: ✅ `pnpm build && pnpm test && pnpm typecheck` toàn repo xanh (schema 25, agent 66, services 38, desktop 137 test); golden test schema cũ parse được payload mới (D14 hai chiều — plan.test.ts "stays optional + nullable" + providerCapabilitiesSchema legacy parse).
 
 **Slice 1 — Research phase (DA-1/2)**
-- [ ] S1.1 `codex/bridge.ts`: `CodexExecOptions += search?: boolean` → thêm `--search` (chỉ lane planner text; ảnh exec không đụng).
-- [ ] S1.2 `llm/codex.ts`: `chat()` opts passthrough `search`; capability `webSearch: true`. `llm/openai.ts` / `llm/mock.ts`: `webSearch: false` (slice này).
-- [ ] S1.3 `agent/designer.ts`: planner system prompt research chỉ thị (được phép search, bắt buộc `researchNotes` kèm nguồn khi `research` bật) + timeline node "Researching the web"; provider không capability → node "Research unavailable on {provider}…" + chạy tiếp.
-- [ ] S1.4 `services/chat.ts`: pass-through `research` (schema parse một nơi).
-- [ ] S1.5 `Home.tsx`: switch "Research the web" (default off trong slice này — quyết định default riêng khi có số liệu REAL_SMOKE).
-- Gate: mock golden test (researchNotes deterministic); test provider-không-có-capability (node unavailable + outcome completed); **REAL_SMOKE owner duyệt**: 1 poster có search thật qua binary bundled pin (D12: nghiệm `--search` trên rust-v0.166.0 trước khi ghi tested).
+- [x] S1.1 `codex/bridge.ts`: `CodexExecOptions += search?: boolean` → thêm `--search` (chỉ lane planner text; ảnh exec không đụng).
+- [x] S1.2 `llm/codex.ts`: `chat()` opts passthrough `search`; capability `webSearch: true`. `llm/openai.ts` / `llm/mock.ts`: `webSearch: false` (slice này).
+- [x] S1.3 `agent/designer.ts`: planner system prompt research chỉ thị (được phép search, bắt buộc `researchNotes` kèm nguồn khi `research` bật) + timeline node "Researching the web"; provider không capability → node "Research unavailable on {provider}…" + chạy tiếp.
+- [x] S1.4 `services/chat.ts`: pass-through `research` (schema parse một nơi).
+- [x] S1.5 `Home.tsx`: switch "Research the web" (default off trong slice này — quyết định default riêng khi có số liệu REAL_SMOKE).
+- Gate: ✅ mock golden test (researchNotes deterministic từ matcher `PLANNER_INSTRUCTIONS.research`); test provider-không-có-capability (node unavailable + outcome completed, self-improve.test.ts); **REAL_SMOKE owner duyệt: CÒN TREO** — cần 1 poster có search thật qua binary bundled pin (D12: nghiệm `--search` trên rust-v0.166.0 trước khi ghi tested; chạm quota, chờ owner duyệt).
 
 **Slice 2 — Auto refine (DA-3–DA-8)**
-- [ ] S2.1 Hằng số greppable: `AUTO_REFINE_DEFAULT = true`, `AUTO_REFINE_MAX_ROUNDS_DEFAULT = 1`, `AUTO_REFINE_MAX_ROUNDS_CAP = 2` + schema từ chối rounds > cap + test ghim default-on (pattern OC-6).
-- [ ] S2.2 `agent/designer.ts` critic loop: `readImage` + `EVAL_JSON_SCHEMA` chấm theo mode (DA-8); fail + còn lượt → planner refine turn (plan cũ + issues + fixHints) → ảnh mới → critic lại; best-effort selection theo scores; abort-check giữa vòng; timeline "Checking round N" / "Refining…".
-- [ ] S2.3 `agent/designer.ts` critic system prompt theo mode: poster — text (chính tả + ngôn ngữ) > brand > fidelity > composition; clean-plate — copy-zones thay text. Một nơi, version cùng planner prompt.
-- [ ] S2.4 `llm/mock.ts`: critic prompt-aware (đọc từ khóa verdict → fail 1 lần round 0 để test vòng lặp deterministic).
-- [ ] S2.5 B7 persistence: `renderData.selfImprove` trên canvas thắng cuộc + conversation replay giữ verdict + số vòng.
-- [ ] S2.6 `Home.tsx`: switch "Auto refine (check & improve)" default BẬT + `localStorage.oia.autoRefine`; cost label luật "Auto refine on · up to {N+1} images + {N+1} reads" (đa trang nhân theo trang).
-- [ ] S2.7 `ResultCard`: badge "auto-refined · round N" khi có verdict.
-- Gate (lỗi-path trước): (a) critic parse fail → dừng giữ bản + timeline ghi + 0 đốt thêm; (b) cancel giữa vòng refine → canvas bản trước vẫn yield + outcome cancelled (test pin như OC-4); (c) rounds vượt cap → schema từ chối; (d) replay test verdict persist; (e) shot assert cost label + default-on; (f) **REAL_SMOKE owner duyệt**: poster chủ đù sai chính tả → kỳ vọng ≥1 vòng refine được ghi + verdict pass hoặc best-effort trung thực.
+- [x] S2.1 Hằng số greppable: `AUTO_REFINE_DEFAULT = true`, `AUTO_REFINE_MAX_ROUNDS_DEFAULT = 1`, `AUTO_REFINE_MAX_ROUNDS_CAP = 2` + schema từ chối rounds > cap + test ghim default-on (pattern OC-6).
+- [x] S2.2 `agent/designer.ts` critic loop: `readImage` + `EVAL_JSON_SCHEMA` chấm theo mode (DA-8); fail + còn lượt → planner refine turn (plan cũ + issues + fixHints) → ảnh mới → critic lại; best-effort selection theo scores; abort-check giữa vòng; timeline "Checking round N" / "Refining…".
+- [x] S2.3 `agent/designer.ts` critic system prompt theo mode: poster — text (chính tả + ngôn ngữ) > brand > fidelity > composition; clean-plate — copy-zones thay text. Một nơi, version cùng planner prompt.
+- [x] S2.4 `llm/mock.ts`: critic prompt-aware (đọc từ khóa verdict → fail 1 lần round 0 để test vòng lặp deterministic).
+- [x] S2.5 B7 persistence: `renderData.selfImprove` trên canvas thắng cuộc + conversation replay giữ verdict + số vòng.
+- [x] S2.6 `Home.tsx`: switch "Auto refine (check & improve)" default BẬT + `localStorage.oia.autoRefine`; cost label luật "Auto refine on · up to {N+1} images + {N+1} reads" (đa trang nhân theo trang).
+- [x] S2.7 `ResultCard`: badge "auto-refined · round N" khi có verdict.
+- Gate (lỗi-path trước): ✅ (a) critic parse fail → dừng giữ bản + timeline ghi + 0 đốt thêm (self-improve.test.ts, cả nhánh critic throw); ✅ (b) cancel giữa vòng refine → canvas bản trước vẫn yield + stream abort không `</Content>` (pin như OC-4); ✅ (c) rounds vượt cap → schema từ chối ở BOUNDARY (chat-service.test.ts, 0..2 pass / 3 fail); ✅ (d) replay test verdict persist (runChat mock pair → session lưu `renderData.selfImprove {rounds:1, verdict:"pass"}`); ✅ (e) shot assert cost label + default-on + switch-off nhớ lựa chọn (gate DA exit 23/24 trong shot; badge "auto-refined · round 1" hiện trên ResultCard — toàn kịch bản chạy qua UI thật); ✅ best-effort selection (candidate điểm cao thắng, issues ghi đúng); ✅ mock pair chạy trọn vòng lặp trong smoke/shot (2 ảnh + 2 reads). **(f) REAL_SMOKE owner duyệt: CÒN TREO** — poster chủ đù sai chính tả → kỳ vọng ≥1 vòng refine được ghi (chạm quota thật, chờ owner duyệt).
 
 **Slice 3 — (tùy chọn, chỉ khi owner dùng openai planner) Responses API web_search** — bỏ qua nếu không có nhu cầu thật.
 
 **Hậu kỳ mọi slice**
-- [ ] Cập nhật dòng ledger `SITEMAP.md` (trạng thái DRAFT → ship từng slice).
-- [ ] Budget 480s: đo bằng REAL_SMOKE slice 2 (multi-page + auto refine) trước khi đổi — đổi budget là quyết định ghi ở doc này.
-- [ ] Đối chiếu `docs/reference/cross-platform-support.md` nếu chạm spawn/CLI args (S1.1 chạm — rà Windows `.cmd` shim không vỡ với flag mới).
+- [x] Cập nhật dòng ledger `SITEMAP.md` (trạng thái DRAFT → SHIP slices 0–2, REAL_SMOKE còn treo).
+- [ ] Budget 480s: đo bằng REAL_SMOKE slice 2 (multi-page + auto refine) trước khi đổi — đổi budget là quyết định ghi ở doc này. **CÒN TREO chờ REAL_SMOKE.**
+- [x] Đối chiếu `docs/reference/cross-platform-support.md` nếu chạm spawn/CLI args (S1.1 chạm — rà Windows `.cmd` shim không vỡ với flag mới).
 
 ## Quyết định owner (2026-11-06)
 

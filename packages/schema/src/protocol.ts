@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { sceneCanvasSchema } from "./scene.js";
-import { errorClassSchema, planPageSchema } from "./plan.js";
+import { errorClassSchema, planPageSchema, selfImproveResultSchema } from "./plan.js";
 
 /** Monotonic msgId: Date.now() alone collides for same-ms streams (design B-blocker note). */
 let __msgSeq = 0;
@@ -48,6 +48,9 @@ export const renderDataSchema = z.object({
   /** C1 outline gate — the deck outline phase 1 ends with (absent on every other
    * event; optional-nullable so every legacy producer/consumer parses unchanged). */
   outline: planPageSchema.array().nullable().optional(),
+  /** DA-6 — Auto refine verdict, on the WINNING canvas event only (absent on
+   * every other event; optional-nullable — D14 additive). */
+  selfImprove: selfImproveResultSchema.nullable().optional(),
 });
 
 /**

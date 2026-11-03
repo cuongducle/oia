@@ -12,8 +12,10 @@ export function ResultCard(props: {
   ready: boolean;
   canvasRef: React.Ref<HTMLCanvasElement>;
   actions: ReactNode;
+  /** DA-6 — "auto-refined · round N" when a refine round actually ran. */
+  badge?: string | null;
 }) {
-  const { name, w, h, ready, canvasRef, actions } = props;
+  const { name, w, h, ready, canvasRef, actions, badge } = props;
   return (
     <section className="result" aria-label="Your design" data-testid="home-result">
       <div className="resultCard">
@@ -23,6 +25,7 @@ export function ResultCard(props: {
             <span className="resultDims">{w} × {h} px</span>
           </div>
           {ready && <span className="resultBadge">Ready</span>}
+          {badge && <span className="resultBadge autoRefined" data-testid="auto-refined-badge">{badge}</span>}
         </div>
         <div className="canvasWrap">
           <canvas ref={canvasRef} />

@@ -34,6 +34,9 @@ export interface CodexExecOptions {
   schemaFile?: string;
   /** Planner only: absolute path the final message is written to (`-o`). */
   lastMessageFile?: string;
+  /** Planner only (DA-1): `codex exec --search` — live web search inside the
+   * turn. Available in the pinned rust-v0.166.0; re-verify on every pin bump (D12). */
+  search?: boolean;
   timeoutMs: number;
   signal?: AbortSignal;
   jobId: string;
@@ -244,6 +247,7 @@ export class CodexBridge {
       // B1: the vision read attaches its image here too — an image is PROMPT INPUT,
       // not state; read-only sandbox still blocks every write.
       args.push("--sandbox", "read-only", "-C", scratchDir);
+      if (opts.search) args.push("--search");
       if (opts.schemaFile) args.push("--output-schema", opts.schemaFile);
       if (opts.lastMessageFile) args.push("-o", opts.lastMessageFile);
       for (const img of opts.images ?? []) args.push("-i", img);

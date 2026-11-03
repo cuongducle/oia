@@ -654,6 +654,47 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
+  // ---- DA (designer-agent-loop): auto refine default ON — badge on the result,
+  // the cost-label law (DA-5), switch OFF remembered + label gone (DA-4) ----
+  const da = await win.webContents.executeJavaScript(`(async () => {
+    const badge = document.querySelector('[data-testid="auto-refined-badge"]')?.textContent ?? null;
+    const open = () => { if (!document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click(); };
+    open();
+    await new Promise((r) => setTimeout(r, 120));
+    const sw = document.querySelector('[data-testid="auto-refine-switch"]');
+    const research = document.querySelector('[aria-label="Research the web"]');
+    return { badge, cost: document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null, switchOn: sw?.getAttribute('aria-checked') ?? null, hasResearch: Boolean(research), researchOn: research?.getAttribute('aria-checked') ?? null };
+  })()`, true);
+  console.log("[shot] DA:", JSON.stringify(da));
+  if (
+    !da || da.badge !== "auto-refined · round 1" ||
+    !da.cost || !da.cost.includes("Auto refine on · up to 2 images + 2 reads") ||
+    da.switchOn !== "true" || !da.hasResearch || da.researchOn !== "false"
+  ) {
+    console.error("DESKTOP_SHOT DA FAILED — auto-refine badge, cost label, or the default-on switch is missing");
+    app.exit(23);
+    return;
+  }
+  const daOff = await win.webContents.executeJavaScript(`(async () => {
+    const sw = document.querySelector('[data-testid="auto-refine-switch"]');
+    sw?.click();
+    await new Promise((r) => setTimeout(r, 120));
+    const off = sw?.getAttribute('aria-checked');
+    const costOff = document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null;
+    sw?.click(); // restore the decided default for the gates that follow
+    await new Promise((r) => setTimeout(r, 80));
+    // close the advanced panel — the C1 gate below toggles it open itself
+    if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
+    await new Promise((r) => setTimeout(r, 80));
+    return { off, costOff, restored: sw?.getAttribute('aria-checked'), panelClosed: !document.querySelector('.advancedSettings') };
+  })()`, true);
+  console.log("[shot] DA off:", JSON.stringify(daOff));
+  if (!daOff || daOff.off !== "false" || (daOff.costOff ?? "") !== "" || daOff.restored !== "true") {
+    console.error("DESKTOP_SHOT DA FAILED — switching auto refine off did not clear the cost label or remember the choice");
+    app.exit(24);
+    return;
+  }
+
   // ---- UI v1.1 R6: a use-case chip seeds the prompt AND the ratio (Deck also 3 pages) ----
   const r6 = await win.webContents.executeJavaScript(`(async () => {
     const chip = (name) => [...document.querySelectorAll(".useCaseChip")].find((b) => b.textContent === name);
@@ -734,7 +775,9 @@ async function shot(): Promise<void> {
     return { switchDefaultOn: sw ? sw.getAttribute("aria-checked") : null, cost };
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
-  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images") {
+  // DA-5: the deck label keeps C1's contract AND appends the per-page refine
+  // worst case (2 pages × (1 round + 1) = 4) — auto refine was restored ON above.
+  if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
     console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
     app.exit(18);
     return;
@@ -844,7 +887,7 @@ async function shot(): Promise<void> {
     return { cost, off: sw.getAttribute("aria-checked") };
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
-  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images") {
+  if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images · Auto refine on · up to 6 images + 6 reads") {
     console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;

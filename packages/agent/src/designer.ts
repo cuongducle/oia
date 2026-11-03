@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan } from "@oia/schema";
-import { parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION, PLANNER_INSTRUCTIONS } from "@oia/schema";
+import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan, EvalRead, SelfImproveResult } from "@oia/schema";
+import {
+  parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION, PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION,
+  EVAL_JSON_SCHEMA, EVAL_READ_MARKER, evalReadSchema,
+} from "@oia/schema";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -37,6 +40,14 @@ export interface DesignerAgentInput {
   editMode?: { targetName?: string; textLayerOverlays?: boolean };
   /** TP.3 — generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
   mode?: GenerationMode;
+  /** DA-1 — run the planner turn with live web search. Capability-gated: a
+   * provider without `webSearch` plans from the prompt alone (announced, never
+   * silently skipped — DA-2). Ignored when reusePlan skips the planner turn. */
+  research?: boolean;
+  /** DA-3 — Auto refine rounds PER PAGE: after each image a critic read checks
+   * it; a failed check re-plans + re-generates, bounded by `rounds` (0 = off).
+   * The loop lives INSIDE the one metered job (hard rule 6 / G3). */
+  selfImprove?: { rounds: number };
   /** TP.5 — cooperative cancellation; checked between stages and threaded into providers. */
   signal?: AbortSignal;
   /** TP.4/TP.5 — correlation id; when provided (the SSE route pre-generates it so /api/chat/cancel can address the job), every event carries it. */
@@ -84,6 +95,73 @@ export function buildEditClauses(edit: { targetName?: string; textLayerOverlays?
   const target = ` Edit Image 1${edit.targetName ? ` (the ${edit.targetName} layer)` : ""} only, and return the result at the exact same dimensions as Image 1.`;
   const noText = edit.textLayerOverlays ? " Do not add any text or lettering — copy is added as separate layers." : "";
   return target + noText;
+}
+
+/** DA-3..DA-8 — Auto refine helpers. The loop itself lives inline in the page
+ * loop so every yield keeps the taskMeta/ev orchestration in one place. */
+
+/** Decode a `data:` image URL to bytes — the critic needs the actual pixels.
+ * Every current provider returns data URLs; anything else returns null and the
+ * loop reports "check unavailable" instead of pretending (DA-7, 0 extra burn). */
+export function decodeDataImage(url: string): Uint8Array | null {
+  const m = /^data:image\/[a-z+.-]+;base64,(.+)$/i.exec(url.trim());
+  if (!m) return null;
+  try {
+    return Uint8Array.from(Buffer.from(m[1], "base64"));
+  } catch {
+    return null;
+  }
+}
+
+/** Tolerant eval parse: strict on shape, lenient on fences (parsePlannerPlan pattern). */
+export function parseEvalRead(raw: string): EvalRead | null {
+  const unfenced = raw.trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+  try {
+    const parsed = evalReadSchema.safeParse(JSON.parse(unfenced));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort ranking: mean of the four criteria (DA-3). */
+export function evalTotal(e: EvalRead): number {
+  return (e.scores.text + e.scores.brand + e.scores.fidelity + e.scores.composition) / 4;
+}
+
+/** DA-8 — mode-aware critic criteria live in ONE place, versioned with the
+ * planner prompt. Poster weighs rendered text heaviest (D16 + RE §7.1: wrong
+ * spelling/language is the image model's #1 defect — the reference competitor
+ * ships it too); clean-plate swaps it for copy-zone headroom (text lands as
+ * native layers, so painted-in lettering is the defect). */
+export function criticPrompt(o: {
+  mode: GenerationMode;
+  title: string;
+  pagePrompt: string;
+  /** Poster: the copy that should be baked into the artwork. Clean-plate: the
+   * block texts that need clean space to sit on. */
+  intendedCopy: string[];
+  brandGuidance?: string;
+}): string {
+  const copy = o.intendedCopy.length ? o.intendedCopy.join(" | ") : "(none — purely visual)";
+  const textCriterion =
+    o.mode === "poster"
+      ? `TEXT (heaviest weight): every rendered line must match the intended copy EXACTLY — correct spelling, correct language, no gibberish, no duplicated or missing words. This is the most common defect; score it hard.`
+      : `TEXT-ZONE (heaviest weight): the artwork must leave clean, uncluttered space where the copy layers will sit (center and lower bands); text painted INTO the image is a defect in this mode.`;
+  return (
+    `You are a strict design critic judging ONE generated image against its brief.\n` +
+    `Brief title: ${o.title}\n` +
+    `Image prompt that produced it: ${o.pagePrompt}\n` +
+    `Intended copy: ${copy}\n` +
+    (o.brandGuidance ? `Brand rules that must hold: ${o.brandGuidance}\n` : "") +
+    `Score each criterion 0-10, then decide the verdict.\n` +
+    textCriterion + `\n` +
+    `BRAND: adherence to the brand rules above (10 when there are none).\n` +
+    `FIDELITY: match to the brief — subject, style, aspect.\n` +
+    `COMPOSITION: layout balance, readability, crop.\n` +
+    `verdict "pass" only when the image is shippable as-is; "fail" when a fixable defect was found. issues[] names each defect; fixHints[] says exactly how the image prompt must change.\n` +
+    EVAL_READ_MARKER
+  );
 }
 
 /** Scene builder: artwork placed to cover (zone-anchored crop on ratio mismatch) + named textboxes from blocks. */
@@ -190,9 +268,21 @@ export async function* runDesignerAgent(
   const approvedPages = input.approvedOutline?.length ?? 0;
   const pagesWanted = Math.max(1, Math.min(9, approvedPages || (input.pages ?? 1)));
   // ---- 1) Planner node ----
+  // DA-1: research rides INSIDE the planner turn (one exec: search + plan); its
+  // node opens first so the timeline narrates "Researching the web → Planning".
+  const researchWanted = input.research === true && !input.reusePlan;
+  const researchActive = researchWanted && deps.llm.capabilities.webSearch === true;
   const nodeId = uuid32();
-  taskMeta = [{ id: nodeId, content: "Designer Agent", type: "node", status: "0" }];
-  yield ev(`<Collapse>[[task::node::${nodeId}]]`);
+  const researchId = uuid32();
+  if (researchWanted && !researchActive) {
+    // DA-2: say it, never skip silently — research is an enhancer, the job runs on
+    yield ev(`Research unavailable on ${deps.llm.name} — generating from the prompt alone.`);
+  }
+  taskMeta = [
+    ...(researchActive ? [{ id: researchId, content: "Researching the web", type: "node" as const, status: "0" }] : []),
+    { id: nodeId, content: "Designer Agent", type: "node", status: "0" },
+  ];
+  yield ev(`<Collapse>[[task::node::${researchActive ? `${researchId}]][[task::node::` : ""}${nodeId}]]`);
 
   let plan: ReturnType<typeof parsePlannerPlan>;
   if (input.reusePlan) {
@@ -212,6 +302,7 @@ export async function* runDesignerAgent(
             `omit blocks when the text must stay baked into the artwork. ` +
             `Coherence rule: never emit a block whose text duplicates what the imagePrompt asks the model to render.` +
             (input.skill ? `\nSkill structure hint: ${input.skill}.` : "")
+            + (researchActive ? `\n${PLANNER_INSTRUCTIONS.research}` : "")
             + ((pagesWanted > 1 || approvedPages >= 1) ? `\n${PLANNER_INSTRUCTIONS.imagePrompts(pagesWanted)}` : "")
             + (input.outlineMode ? `\nAlso return outline[] — 3-6 short bullets planning the content (Outline Mode).` : "")
             + (input.outlineGate && pagesWanted > 1 ? `\n${PLANNER_INSTRUCTIONS.pageOutline(pagesWanted)}` : "")
@@ -224,7 +315,7 @@ export async function* runDesignerAgent(
         },
         { role: "user", content: input.prompt },
       ],
-      { json: true, signal: input.signal, jobId: input.jobId },
+      { json: true, signal: input.signal, jobId: input.jobId, ...(researchActive ? { search: true } : {}) },
     );
     plan = parsePlannerPlan(planRaw);
     if (!plan) {
@@ -240,6 +331,15 @@ export async function* runDesignerAgent(
 
   const title = plan.title || input.prompt.slice(0, 60);
   const blocks = normalizeBlocks(plan);
+
+  // DA-6: the research findings are part of the record — the user sees what the
+  // planner learned (and imagePrompt already inherited them inside the turn).
+  if (researchActive && plan.researchNotes?.length) {
+    if (researchActive) taskMeta = taskMeta.map((x) => (x.id === researchId ? { ...x, status: "1" } : x));
+    yield ev(`Research notes:\n${plan.researchNotes.map((n) => `- ${n}`).join("\n")}\n`);
+  } else if (researchActive) {
+    taskMeta = taskMeta.map((x) => (x.id === researchId ? { ...x, status: "1" } : x));
+  }
 
   // ---- C1 outline gate phase 1: emit the outline and STOP — zero image calls (OC-1) ----
   if (input.outlineGate && !input.approvedOutline && pagesWanted > 1) {
@@ -304,15 +404,118 @@ export async function* runDesignerAgent(
   yield ev(`[[task::tool::${toolId}]]`);
 
   const pages: { canvasId: string; canvasMeta: { id: string; type: "canvas"; thumbnail: string; canvas: SceneCanvas } }[] = [];
+  const refineRounds = Math.max(0, input.selfImprove?.rounds ?? 0);
+  /** DA-6 — the verdict riding the terminal events is the LAST page's (the canvas
+   * Home's ResultCard shows). null when the loop never ran for that page. */
+  let finalSelfImprove: SelfImproveResult | null = null;
   for (let pi = 0; pi < imagePrompts.length; pi++) {
     if (input.signal?.aborted) return; // TP.5: stop between stages; no orphan generation
     try {
-      const img = await deps.image.generate({
+      let img = await deps.image.generate({
         prompt: imagePrompts[pi], width, height, mode,
         referenceImages: pi === 0 ? input.referenceImages : undefined,
         signal: input.signal,
         jobId: input.jobId, // A9: one correlation id across events, records, and CLI transcripts
       });
+      let pagePrompt = imagePrompts[pi];
+
+      // ---- DA-3: Auto refine — critic check → bounded refine, INSIDE this metered job ----
+      let selfImprove: SelfImproveResult | null = null;
+      if (refineRounds > 0) {
+        const candidates: { img: typeof img; prompt: string; evalRead: EvalRead }[] = [];
+        let refinementsLeft = refineRounds;
+        let stop = false; // verdict settled (pass / best-effort / unavailable)
+        while (!stop) {
+          if (input.signal?.aborted) break; // DA-7: keep the best already-generated image
+          const checkRound = candidates.length + 1;
+          const checkId = uuid32();
+          taskMeta = [...taskMeta, { id: checkId, content: `Checking round ${checkRound}`, type: "node", status: "0" }];
+          yield ev(`Checking round ${checkRound}…`);
+          const bytes = decodeDataImage(img.url);
+          let evalRead: EvalRead | null = null;
+          if (bytes && deps.llm.readImage) {
+            try {
+              const raw = await deps.llm.readImage(
+                criticPrompt({ mode, title, pagePrompt, intendedCopy: mode === "poster" ? [imagePrompts[pi]] : blocks.map((b) => b.text), brandGuidance: input.brandGuidance }),
+                bytes, EVAL_JSON_SCHEMA, { signal: input.signal, jobId: input.jobId },
+              );
+              evalRead = parseEvalRead(raw);
+            } catch {
+              evalRead = null; // G2: a failed check never burns the main flow
+            }
+          }
+          if (input.signal?.aborted) break;
+          taskMeta = taskMeta.map((x) => (x.id === checkId ? { ...x, status: "1" } : x));
+          if (!evalRead) {
+            // DA-7: check unavailable → keep this version, zero extra burn
+            yield ev("Auto refine check unavailable — keeping this version.");
+            selfImprove = { rounds: refineRounds - refinementsLeft, verdict: "best-effort", issues: [] };
+            stop = true;
+            break;
+          }
+          candidates.push({ img, prompt: pagePrompt, evalRead });
+          if (evalRead.verdict === "pass") {
+            selfImprove = { rounds: refineRounds - refinementsLeft, verdict: "pass", issues: evalRead.issues };
+            stop = true;
+            break;
+          }
+          if (refinementsLeft <= 0) {
+            // DA-3: no pass within budget → the best-scoring candidate wins (best-effort)
+            const best = candidates.reduce((a, b) => (evalTotal(a.evalRead) >= evalTotal(b.evalRead) ? a : b));
+            img = best.img;
+            pagePrompt = best.prompt;
+            selfImprove = { rounds: refineRounds, verdict: "best-effort", issues: best.evalRead.issues };
+            stop = true;
+            break;
+          }
+          // one refine turn: planner revises the prompt (text-only), then one image
+          refinementsLeft -= 1;
+          const refineId = uuid32();
+          taskMeta = [...taskMeta, { id: refineId, content: "Refining", type: "node", status: "0" }];
+          yield ev("Refining…");
+          let revisedPrompt: string | null = null;
+          try {
+            const refined = parsePlannerPlan(await deps.llm.chat(
+              [
+                { role: "system", content: REFINE_INSTRUCTION + (input.brandGuidance ? `\nBrand rules still apply:\n${input.brandGuidance}` : "") },
+                { role: "user", content: JSON.stringify({ imagePrompt: pagePrompt, issues: evalRead.issues, fixHints: evalRead.fixHints }) },
+              ],
+              { json: true, signal: input.signal, jobId: input.jobId },
+            ));
+            revisedPrompt = refined?.imagePrompt ?? null;
+          } catch {
+            revisedPrompt = null; // G2: refine-planner failure keeps the current image
+          }
+          taskMeta = taskMeta.map((x) => (x.id === refineId ? { ...x, status: "1" } : x));
+          if (!revisedPrompt) {
+            yield ev("Auto refine could not revise the prompt — keeping this version.");
+            selfImprove = { rounds: refineRounds - refinementsLeft - 1, verdict: "best-effort", issues: evalRead.issues };
+            stop = true;
+            break;
+          }
+          try {
+            img = await deps.image.generate({
+              prompt: revisedPrompt, width, height, mode,
+              referenceImages: pi === 0 ? input.referenceImages : undefined,
+              signal: input.signal, jobId: input.jobId,
+            });
+            pagePrompt = revisedPrompt;
+          } catch (err) {
+            if (input.signal?.aborted) break;
+            void err;
+            yield ev("Auto refine regeneration failed — keeping this version.");
+            selfImprove = { rounds: refineRounds - refinementsLeft - 1, verdict: "best-effort", issues: evalRead.issues };
+            stop = true;
+            break;
+          }
+        }
+        if (input.signal?.aborted) {
+          // DA-7: cancel mid-refine still yields the best already-generated image,
+          // then the route emits the terminal cancelled event (OC-4 semantics)
+          selfImprove = selfImprove ?? { rounds: refineRounds - refinementsLeft, verdict: "best-effort", issues: [] };
+        }
+      }
+
       const canvasId = uuid32();
       // D16: in poster mode the copy is baked into the artwork — overlay blocks
       // would DOUBLE the text. The planner is told not to emit them; this guard
@@ -334,7 +537,11 @@ export async function* runDesignerAgent(
       });
       const canvasMeta = { id: canvasId, type: "canvas" as const, thumbnail: img.url, canvas: scene };
       pages.push({ canvasId, canvasMeta });
-      yield ev(`[[canvas::canvas::${canvasId}]] `, { renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
+      finalSelfImprove = selfImprove;
+      yield ev(`[[canvas::canvas::${canvasId}]] `, {
+        renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(selfImprove ? { selfImprove } : {}) },
+      });
+      if (input.signal?.aborted) return; // DA-7: canvas yielded, stop here — route sends cancelled
     } catch (err) {
       if (input.signal?.aborted) return;
       yield fail(err, deps.image.name);
@@ -345,9 +552,9 @@ export async function* runDesignerAgent(
 
   // ---- 3) Tool done + done narrative ----
   taskMeta = taskMeta.map((x) => (x.id === toolId ? { ...x, status: "1" } : x));
-  if (pages.length > 1) yield ev(`Created ${pages.length} pages.`, { renderData: { msgMeta: [pages.at(-1)!.canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
+  if (pages.length > 1) yield ev(`Created ${pages.length} pages.`, { renderData: { msgMeta: [pages.at(-1)!.canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(finalSelfImprove ? { selfImprove: finalSelfImprove } : {}) } });
   yield ev(t.done(title.toLowerCase()), {
-    renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null },
+    renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(finalSelfImprove ? { selfImprove: finalSelfImprove } : {}) },
   });
 
   // ---- 4) Node done ----
@@ -368,11 +575,12 @@ export async function* runDesignerAgent(
         defaultExportType: "jpg",
       },
       confirmRequest: null,
+      ...(finalSelfImprove ? { selfImprove: finalSelfImprove } : {}),
     },
   });
   // BR-2 settle: the result node CLOSES (0→1) — without this terminal flip the UI
   // timeline hangs on "Manager Agent · running…" after the poster has finished.
   taskMeta = taskMeta.map((x) => (x.id === resultId ? { ...x, status: "1" } : x));
-  yield ev("", { renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
-  yield ev(`</Content>`);
+  yield ev("", { renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(finalSelfImprove ? { selfImprove: finalSelfImprove } : {}) } });
+  yield ev(`</Content>`, { renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(finalSelfImprove ? { selfImprove: finalSelfImprove } : {}) } });
 }

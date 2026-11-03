@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { runDesignerAgent } from "@oia/agent";
-import { nextMsgId, planPageSchema, type ChatEvent, type PlannerPlan } from "@oia/schema";
+import { nextMsgId, planPageSchema, AUTO_REFINE_MAX_ROUNDS_CAP, AUTO_REFINE_MAX_ROUNDS_DEFAULT, type ChatEvent, type PlannerPlan } from "@oia/schema";
 import { migrateSrc, migrateScene, type FileStore } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 import { registerJob, releaseJob } from "./cancel.js";
@@ -47,6 +47,24 @@ export const chatRequestSchema = z.object({
   approvedOutline: z.array(planPageSchema).max(9).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
+  /** DA-1 — run the planner turn with live web search (capability-gated in the
+   * agent: providers without webSearch generate from the prompt alone). */
+  research: z.boolean().optional(),
+  /** DA-3/DA-4 — Auto refine: after each image, a critic read checks it and a
+   * failed check re-generates. `true` = the default round count; an explicit
+   * rounds object is capped at the schema boundary (never deep inside the loop). */
+  selfImprove: z
+    .union([
+      z.boolean(),
+      z.object({
+        rounds: z
+          .number()
+          .int()
+          .min(0)
+          .max(AUTO_REFINE_MAX_ROUNDS_CAP, { message: `auto refine rounds are capped at ${AUTO_REFINE_MAX_ROUNDS_CAP}` }),
+      }),
+    ])
+    .optional(),
   /** A3-lite structured edit intent (2026-11-02): referenceImages[0] is the edit
    *  target. The AGENT layer appends the deterministic clauses (target
    *  declaration, dimension lock, lettering ban when the page overlays text
@@ -55,6 +73,14 @@ export const chatRequestSchema = z.object({
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
+
+/** DA-4 — normalize the wire forms to the round count the designer consumes:
+ * undefined/false → null (off); true → the default; {rounds} → itself. */
+export function selfImproveRounds(v: ChatRequest["selfImprove"]): number | null {
+  if (v === undefined || v === false) return null;
+  if (v === true) return AUTO_REFINE_MAX_ROUNDS_DEFAULT;
+  return v.rounds;
+}
 
 /** Distinguishes the refusal flavors without event sniffing. `outline` = C1 phase 1
  *  completed: the deck outline is ready for review, zero images generated. */
@@ -200,6 +226,8 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
         skill: req.skill,
         mode: req.mode,
         editMode: req.editMode,
+        research: req.research,
+        ...(selfImproveRounds(req.selfImprove) !== null ? { selfImprove: { rounds: selfImproveRounds(req.selfImprove)! } } : {}),
         signal: ac.signal,
         ...(reusePlan ? { reusePlan } : {}),
         onPlan: (plan) => sessionPlans().set(session.id, plan),

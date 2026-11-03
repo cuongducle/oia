@@ -11,7 +11,8 @@
     "outline",
     "pageOutline",
     "copy",
-    "blocks"
+    "blocks",
+    "researchNotes"
   ],
   "properties": {
     "title": {
@@ -73,6 +74,16 @@
         "null"
       ],
       "description": "Legacy single-copy field. Prefer blocks[]; null when blocks are used."
+    },
+    "researchNotes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Only when web research was enabled: one line per finding, each ending with its source in parentheses. Null otherwise."
     },
     "blocks": {
       "type": [

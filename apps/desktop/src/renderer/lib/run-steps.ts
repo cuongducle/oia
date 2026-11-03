@@ -33,10 +33,30 @@ export function stepsFromTimeline(timeline: { content: string; done: boolean }[]
  * The cost line next to a paid action. Multi-page keeps C1's contract label
  * ("N pages ≈ N images", shown even in Trial — the gate pins it); a single image
  * is hidden in Trial, where nothing is billed.
+ *
+ * DA-5: the Auto refine label is a display LAW — it shows whenever the loop is
+ * ON (Trial included: it previews the real bill). K = pages × (rounds + 1):
+ * worst case images AND critic reads, computed per page like C1 did.
  */
-export function costHintText(opts: { images: number; pages?: number | null; reads?: number; isMock: boolean }): string | null {
-  if (opts.pages && opts.pages >= 2) return outlineCostLabel(opts.pages);
-  if (opts.isMock) return null;
-  const img = `≈ ${opts.images} image${opts.images === 1 ? "" : "s"}`;
-  return opts.reads ? `${img} + ${opts.reads} read${opts.reads === 1 ? "" : "s"}` : img;
+export function costHintText(opts: {
+  images: number;
+  pages?: number | null;
+  reads?: number;
+  isMock: boolean;
+  autoRefineRounds?: number;
+}): string | null {
+  const pages = opts.pages ?? null;
+  let base: string | null = null;
+  if (pages && pages >= 2) base = outlineCostLabel(pages);
+  else if (!opts.isMock) {
+    const img = `≈ ${opts.images} image${opts.images === 1 ? "" : "s"}`;
+    base = opts.reads ? `${img} + ${opts.reads} read${opts.reads === 1 ? "" : "s"}` : img;
+  }
+  const rounds = opts.autoRefineRounds ?? 0;
+  if (rounds > 0) {
+    const k = Math.max(1, pages ?? 1) * (rounds + 1);
+    const refine = `Auto refine on · up to ${k} image${k === 1 ? "" : "s"} + ${k} read${k === 1 ? "" : "s"}`;
+    return base ? `${base} · ${refine}` : refine;
+  }
+  return base;
 }

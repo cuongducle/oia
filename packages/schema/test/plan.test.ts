@@ -9,6 +9,12 @@ import {
   parsePlannerPlan,
   planBlockSchema,
   plannerPlanSchema,
+  providerCapabilitiesSchema,
+  evalReadSchema,
+  selfImproveResultSchema,
+  AUTO_REFINE_DEFAULT,
+  AUTO_REFINE_MAX_ROUNDS_DEFAULT,
+  AUTO_REFINE_MAX_ROUNDS_CAP,
   type PlannerPlan,
 } from "../src/plan.js";
 
@@ -28,7 +34,7 @@ describe("plan schema drift (TP.2): plan.schema.json is generated from PLAN_JSON
       expect(PLAN_JSON_SCHEMA.required, `${key} must be listed in required`).toContain(key);
     }
     // fields optional in zod must be ["X","null"] in the JSON Schema
-    const nullable = ["imagePrompts", "outline", "copy", "blocks"];
+    const nullable = ["imagePrompts", "outline", "copy", "blocks", "researchNotes"];
     for (const key of nullable) expect((top[key].type as string[]).at(-1)).toBe("null");
     // blocks items: strict too
     const items = (PLAN_JSON_SCHEMA.properties.blocks as { items: { required: string[]; properties: Record<string, { type: unknown }> } }).items;
@@ -106,6 +112,49 @@ describe("C1 outline gate: pageOutline on the plan contract", () => {
   it("stays optional + nullable (legacy plans parse unchanged — D14 additive)", () => {
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I"}')?.pageOutline).toBeUndefined();
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":null}')?.pageOutline).toBeNull();
+  });
+});
+
+describe("DA — researchNotes on the plan contract (D14 additive)", () => {
+  it("parses a plan with researchNotes (one line per finding + source)", () => {
+    const plan = parsePlannerPlan('{"title":"T","imagePrompt":"I","researchNotes":["2026 Tet falls on Feb 17 (vnexpress.net)"]}');
+    expect(plan?.researchNotes).toEqual(["2026 Tet falls on Feb 17 (vnexpress.net)"]);
+  });
+  it("stays optional + nullable — legacy plans parse unchanged (both directions)", () => {
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I"}')?.researchNotes).toBeUndefined();
+    expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","researchNotes":null}')?.researchNotes).toBeNull();
+  });
+});
+
+describe("DA — webSearch capability (optional-default-false)", () => {
+  it("a legacy capabilities object parses unchanged (no webSearch key)", () => {
+    const caps = providerCapabilitiesSchema.parse({ referenceImages: true, sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false } });
+    expect(caps.webSearch).toBeUndefined(); // consumers read `=== true`
+  });
+  it("declares webSearch when present", () => {
+    const caps = providerCapabilitiesSchema.parse({ referenceImages: true, sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false }, webSearch: true });
+    expect(caps.webSearch).toBe(true);
+  });
+});
+
+describe("DA — Auto refine bounds + eval contract", () => {
+  it("DA-4: the bounds are pinned constants — default ON, default 1 round, hard cap 2", () => {
+    expect(AUTO_REFINE_DEFAULT).toBe(true);
+    expect(AUTO_REFINE_MAX_ROUNDS_DEFAULT).toBe(1);
+    expect(AUTO_REFINE_MAX_ROUNDS_CAP).toBe(2);
+  });
+  it("evalReadSchema: a full read parses; wrong verdicts/garbage fail", () => {
+    const good = evalReadSchema.parse({ verdict: "fail", scores: { text: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["typo"], fixHints: ["fix it"] });
+    expect(good.verdict).toBe("fail");
+    expect(() => evalReadSchema.parse({ verdict: "maybe", scores: { text: 4, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow();
+    expect(() => evalReadSchema.parse("not json")).toThrow();
+    expect(() => evalReadSchema.parse({ verdict: "pass", scores: { text: 11, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow(); // 0..10
+  });
+  it("selfImproveResultSchema: the persisted verdict (DA-6)", () => {
+    const r = selfImproveResultSchema.parse({ rounds: 1, verdict: "pass", issues: [] });
+    expect(r.rounds).toBe(1);
+    expect(() => selfImproveResultSchema.parse({ rounds: 1, verdict: "maybe", issues: [] })).toThrow();
+    expect(() => selfImproveResultSchema.parse({ rounds: -1, verdict: "pass", issues: [] })).toThrow();
   });
 });
 

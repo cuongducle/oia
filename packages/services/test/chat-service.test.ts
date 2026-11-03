@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ChatEvent, ImageProvider, ProviderCapabilities } from "@oia/schema";
-import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, type ServiceContext } from "../src/index.js";
+import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSchema, selfImproveRounds, type ServiceContext } from "../src/index.js";
 import { MockImageProvider, MockLlmProvider, FailingMockLlmProvider } from "@oia/providers";
 
 /**
@@ -340,5 +340,62 @@ describe("A3-lite: editMode is a structured, validated field on the boundary", (
     if (ok.success) expect(ok.data.editMode).toEqual({ targetName: "artwork", textLayerOverlays: true });
     const bad = chatRequestSchema.safeParse({ prompt: "x", editMode: { targetName: 123, evil: true } });
     expect(bad.success).toBe(false); // unknown/typed-wrong keys are rejected, not silently coerced
+  });
+});
+
+/* ---------- DA — research + auto refine on the wire (designer-agent-loop.md) ---------- */
+
+describe("DA: chatRequestSchema — research + selfImprove (S0.1/S2.1)", () => {
+  it("both optional booleans parse; absent keys stay absent (D14 additive)", () => {
+    const ok = chatRequestSchema.safeParse({ prompt: "banner", research: true, selfImprove: true });
+    expect(ok.success).toBe(true);
+    if (ok.success) {
+      expect(ok.data.research).toBe(true);
+      expect(ok.data.selfImprove).toBe(true);
+    }
+    const legacy = chatRequestSchema.safeParse({ prompt: "banner" });
+    expect(legacy.success).toBe(true);
+    if (legacy.success) expect(legacy.data.research).toBeUndefined();
+  });
+
+  it("explicit rounds are capped at the BOUNDARY — 0..2 pass, 3 fails with a clear message (never deep inside the loop)", () => {
+    for (const rounds of [0, 1, 2]) {
+      expect(chatRequestSchema.safeParse({ prompt: "banner", selfImprove: { rounds } }).success).toBe(true);
+    }
+    const over = chatRequestSchema.safeParse({ prompt: "banner", selfImprove: { rounds: 3 } });
+    expect(over.success).toBe(false);
+  });
+
+  it("selfImproveRounds normalizes the wire forms (true → default, false → off)", () => {
+    expect(selfImproveRounds(undefined)).toBeNull();
+    expect(selfImproveRounds(false)).toBeNull();
+    expect(selfImproveRounds(true)).toBe(1);
+    expect(selfImproveRounds({ rounds: 2 })).toBe(2);
+  });
+});
+
+describe("DA: runChat with auto refine — verdict persists into the conversation (gate d, B7)", () => {
+  it("mock pair: one deterministic refine round, completed, and the stored session carries renderData.selfImprove", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "banner trà sữa", selfImprove: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    // the loop ran: verdict pass after round 1 (2 images under the hood —
+    // asserted at the agent layer; here the wire + persistence are the point)
+    const canvasEvents = events.filter((e) => e.content.includes("[[canvas::canvas::"));
+    expect(canvasEvents).toHaveLength(1);
+    expect(events.at(-1)?.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+    // persisted: replay sees the same verdict (the record must not lie)
+    const stored = ctx.chatSessions.get(res.sessionId);
+    const last = stored?.messages.at(-1) as { renderData?: { selfImprove?: { rounds: number; verdict: string } } };
+    expect(last?.renderData?.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+  });
+
+  it("research with a provider that cannot search (mock) — announced, job still completes", async () => {
+    const ctx = await freshCtx();
+    const { events, sink } = collector();
+    const res = await runChat({ prompt: "banner", research: true }, ctx, { sink });
+    expect(res.outcome).toBe("completed");
+    expect(events.map((e) => e.content).join("\n")).toContain("Research unavailable on mock");
   });
 });
