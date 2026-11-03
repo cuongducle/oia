@@ -436,7 +436,7 @@ export async function* runDesignerAgent(
           if (bytes && deps.llm.readImage) {
             try {
               const raw = await deps.llm.readImage(
-                criticPrompt({ mode, title, pagePrompt, intendedCopy: mode === "poster" ? [imagePrompts[pi]] : blocks.map((b) => b.text), brandGuidance: input.brandGuidance }),
+                criticPrompt({ mode, title, pagePrompt, intendedCopy: mode === "poster" ? [pagePrompt] : blocks.map((b) => b.text), brandGuidance: input.brandGuidance }),
                 bytes, EVAL_JSON_SCHEMA, { signal: input.signal, jobId: input.jobId },
               );
               evalRead = parseEvalRead(raw);
