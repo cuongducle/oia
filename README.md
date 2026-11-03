@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/banner.png" width="100%" alt="Oia — Generate the image. Keep the control. Three real studio templates: matcha, music festival, and botanical skincare.">
+  <img src="docs/screenshots/banner.png" width="100%" alt="Oia — Generate the image. Keep the control. Two real generations of the same milk-tea banner, one repaint apart: 20% OFF TODAY becomes 30% OFF TODAY with identical style, auto-refined in round 1.">
 </p>
 
 <p align="center">
@@ -7,31 +7,49 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cuongducle/oia/releases"><img src="https://img.shields.io/github/v/release/cuongducle/oia?color=7c5cff&label=release" alt="latest release"></a>
+  &nbsp;<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-8ef0a6" alt="MIT license"></a>
+  &nbsp;<img src="https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-f4f1e8" alt="macOS and Windows">
+  &nbsp;<img src="https://img.shields.io/badge/pricing-free%20%20open%20source-a3a0b8" alt="free and open source">
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#the-60-second-tour">Tour</a> ·
   <a href="#what-editable-actually-means">How layers work</a> ·
   <a href="#bring-your-own-provider">Providers</a> ·
   <a href="#build-it-into-your-workflow">API & agent skills</a> ·
-  <a href="https://cuongducle.github.io/oia/">Landing page</a> ·
-  <a href="LICENSE">MIT license</a>
+  <a href="https://cuongducle.github.io/oia/">Landing page</a>
 </p>
 
 ---
 
 ## Good images are a starting point. Finished designs need control.
 
-A campaign headline changes. An event date moves. A client wants the logo larger. These are layout and copy edits—not reasons to generate a whole new image.
+A campaign headline changes. An event date moves. A client wants the logo larger. Those are layout and copy edits — not reasons to pay for a whole new image.
 
-**Oia is a desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Combine generated artwork with editable text, shapes, and your own assets. Refine the composition by hand, keep multiple pages in one project, and export the result without leaving the studio.
+**Oia is a free, open-source desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Generate the artwork, then edit the design: rewrite text, move objects, swap images, add pages — without regenerating what already works. Everything runs on your machine, on your own provider, under your control.
 
-Everything runs on your machine. Bring your own supported provider. Keep your projects under your control.
-
-## What editable actually means
+## The 60-second tour
 
 <p align="center">
-  <img src="docs/screenshots/editor.png" width="100%" alt="Real Oia editor after one “Make text editable” click: FLASH SALE and 20% OFF TODAY are editable text layers over the cleaned artwork, Layers panel open, selection toolbar active.">
-  <br>
-  <sub>Actual editor, real Codex generation. Text is rendered into the artwork by the image model — one click rebuilds it as editable layers.</sub>
+  <img src="docs/screenshots/editor.webp" width="100%" alt="Real Oia editor after one “Make text editable” click: FLASH SALE and 20% OFF TODAY are editable text layers over the cleaned artwork, Layers panel open, selection toolbar active.">
+  <br><sub><b>The studio.</b> Real editor, real Codex generation — text rendered into the artwork by the image model, then rebuilt as editable layers in one click.</sub>
 </p>
+
+<p align="center">
+  <img src="site/assets/matcha.webp" width="31%" alt="Matcha Every Day studio template" />
+  <img src="site/assets/festival.webp" width="31%" alt="City Sound Fest studio template" />
+  <img src="site/assets/botanical.webp" width="31%" alt="Lumea skincare studio template" />
+  <br><sub><b>Studio templates.</b> Real generated scenes, published as editable community templates — open one and make it yours.</sub>
+</p>
+
+<p align="center">
+  <img src="site/assets/price-repaint.webp" width="88%" alt="Two real generations of the same milk-tea banner: 20% OFF TODAY on the left, 30% OFF TODAY on the right — identical glossy typography, drinks and lighting; one repaint apart.">
+  <br><sub><b>Change the price, keep the style.</b> Ask for “30% off today” and the repaint preserves the design language — the same banner, one edit apart.</sub>
+</p>
+
+## What editable actually means
 
 **The image and the design are different things.** An Oia document contains separate canvas objects:
 
