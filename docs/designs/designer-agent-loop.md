@@ -91,7 +91,7 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 **Slice 2 — Auto refine (DA-3–DA-8)**
 - [x] S2.1 Hằng số greppable: `AUTO_REFINE_DEFAULT = true`, `AUTO_REFINE_MAX_ROUNDS_DEFAULT = 1`, `AUTO_REFINE_MAX_ROUNDS_CAP = 2` + schema từ chối rounds > cap + test ghim default-on (pattern OC-6).
 - [x] S2.2 `agent/designer.ts` critic loop: `readImage` + `EVAL_JSON_SCHEMA` chấm theo mode (DA-8); fail + còn lượt → planner refine turn (plan cũ + issues + fixHints) → ảnh mới → critic lại; best-effort selection theo scores; abort-check giữa vòng; timeline "Checking round N" / "Refining…".
-- [x] S2.3 `agent/designer.ts` critic system prompt theo mode: poster — text (chính tả + ngôn ngữ) > brand > fidelity > composition; clean-plate — copy-zones thay text. Một nơi, version cùng planner prompt.
+- [x] S2.3 `agent/designer.ts` critic system prompt theo mode: poster — text (chính tả + ngôn ngữ) > brand > fidelity > composition; clean-plate — copy-zones thay text. Một nơi, version cùng planner prompt. **Nâng cấp v2 (owner 2026-11-03: "critic pro như designer") sau khi 2 real run liên tiếp pass ngay vòng 0 với copy tiếng Việt — critic cũ khen dễ. v2: (1) score bands có anchor 9-10/7-8/4-6/0-3, (2) luật lấy điểm THẤP khi phân vân (anti-leniency — nghiên cứu LLM-judge: anchor + strictness calibration là 2 cách giảm variance đầu tiên), (3) TRANSCRIBE-first — bắt buộc đọc từng ký tự chữ trong ảnh (kể cả dấu tiếng Việt) TRƯỚC khi chấm — nhắm thẳng vào lỗi số 1 của image model (D16/RE §7.1), (4) ngưỡng verdict determinist: pass ⟺ mọi score ≥ 7 VÀ không critical defect, (5) issues evidence-first (thấy gì, ở đâu), fixHints chỉ sửa đúng chỗ hỏng. Wire contract EVAL_JSON_SCHEMA không đổi.**
 - [x] S2.4 `llm/mock.ts`: critic prompt-aware (đọc từ khóa verdict → fail 1 lần round 0 để test vòng lặp deterministic).
 - [x] S2.5 B7 persistence: `renderData.selfImprove` trên canvas thắng cuộc + conversation replay giữ verdict + số vòng.
 - [x] S2.6 `Home.tsx`: switch "Auto refine (check & improve)" default BẬT + `localStorage.oia.autoRefine`; cost label luật "Auto refine on · up to {N+1} images + {N+1} reads" (đa trang nhân theo trang).
@@ -112,6 +112,7 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 | Q1 | Auto refine mặc định bật hay tắt? | **BẬT** (ghi đè dự nháp default-off — DA-4 đã cập nhật; trade-off bill ghi nhận tại đó). |
 | Q2 | Tách "critic provider" riêng để dùng model vision mạnh hơn? | **KHÔNG — dùng đúng provider chat hiện tại** (thường codex/ChatGPT, đã login). Không thêm cấu hình; mở lại chỉ khi số liệu REAL_SMOKE cho thấy critic yếu. |
 | Q3 | Tên UI? | **"Auto refine"** — switch label "Auto refine (check & improve)", badge "auto-refined · round N", timeline node "Checking round N". |
+| Q4 | Nâng critic prompt v2 (sau 2 real run pass vòng 0 dễ dàng)? | **LÀM (owner 2026-11-03)** — anchor bands + transcribe-first + anti-leniency + ngưỡng 7+/critical-defect; schema giữ nguyên. Trade-off đã cân: critic ngặt hơn = nhiều job đi 1 vòng refine hơn (+1 ảnh +1 read mỗi trang, đã nằm trong bound DA-4). |
 
 ## TP / luật bị chạm
 

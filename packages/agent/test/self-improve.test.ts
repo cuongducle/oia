@@ -74,12 +74,21 @@ describe("DA-3 helpers", () => {
     const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "poster with 'SALE 20%'", overlayCopy: [] });
     const plate0 = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: ["SALE 20%"] });
     const plateN = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: [] });
-    expect(poster).toContain("TEXTHANDLING (heaviest weight)");
+    // v2 (2026-11-03, owner: "pro like a designer"): anchors, transcribe-first, anti-leniency
+    for (const p of [poster, plate0, plateN]) {
+      expect(p).toContain("SCORE BANDS");
+      expect(p).toContain("take the LOWER one");
+      expect(p).toContain("TRANSCRIBE first");
+      expect(p).toContain("TEXTHANDLING (heaviest weight)");
+    }
     expect(poster).toContain("judge every rendered line against them");
-    expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE — inside the prompt line it belongs to
+    expect(poster).toContain("diacritics"); // D16/RE §7.1 — the #1 real defect class
+    expect(poster).toContain("pass\" ONLY when every score is 7+");
     expect(poster).not.toContain("Overlay copy");
     expect(plate0).toContain("Overlay copy that will land on this page");
+    expect(plate0).toContain("painted INTO the image is a defect");
     expect(plateN).toContain("NO overlay copy (purely visual plate)");
+    expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE — inside the prompt line it belongs to
     for (const p of [poster, plate0, plateN]) expect(p.endsWith(EVAL_READ_MARKER)).toBe(true);
   });
 });

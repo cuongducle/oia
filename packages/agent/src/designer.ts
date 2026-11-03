@@ -148,21 +148,30 @@ export function criticPrompt(o: {
 }): string {
   const overlays = o.mode === "clean-plate"
     ? o.overlayCopy.length
-      ? `Overlay copy that will land on this page (leave clean room where it sits): ${o.overlayCopy.join(" | ")}`
-      : "This page carries NO overlay copy (purely visual plate) — but text painted INTO the image is still a defect in this mode."
+      ? `Overlay copy that will land on this page (the artwork must leave clean, uncluttered room exactly where each line sits): ${o.overlayCopy.join(" | ")}`
+      : "This page carries NO overlay copy (purely visual plate)."
     : `The image prompt above names the exact copy lines that must be rendered — judge every rendered line against them.`;
   return (
-    `You are a strict design critic judging ONE generated image against its brief.\n` +
+    `You are a senior art director doing final review of ONE generated image for a paying client. You are strict and evidence-driven: "shippable" means the client approves it without a single revision.\n` +
     `Brief title: ${o.title}\n` +
     `Image prompt that produced it: ${o.pagePrompt}\n` +
     (o.brandGuidance ? `Brand rules that must hold: ${o.brandGuidance}\n` : "") +
-    `Score each criterion 0-10, then decide the verdict.\n` +
-    `TEXTHANDLING (heaviest weight): ${o.mode === "poster" ? "every rendered line matches the copy named in the image prompt EXACTLY — correct spelling, correct language, no gibberish, no duplicated or missing words. This is the most common defect; score it hard." : "the artwork leaves clean, uncluttered space for the overlay copy listed above; text painted INTO the image is a defect."}\n` +
+    `\nMETHOD — read before you judge:\n` +
+    `1. TRANSCRIBE first: read every line of text actually painted in the image, character by character, including every diacritic. Never assume the copy came out right because the prompt asked for it — garbled rendered text is the single most common defect of image models.\n` +
+    `2. Compare each transcribed line against the brief copy (poster) or the overlay landing zones (clean-plate).\n` +
+    `3. Only then score. Every issue you report must be something you SAW, at a place you can name.\n` +
+    `\nSCORE BANDS — same meaning for every criterion:\n` +
+    `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
+    `When torn between two scores, take the LOWER one.\n` +
+    `\nCRITERIA:\n` +
+    `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? " — every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the headline stays legible at thumbnail size and is not clipped or colliding with the subject. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable headline." : " — the artwork leaves clean, uncluttered space where each overlay line lands (check contrast against what will sit behind it); any text painted INTO the image is a defect in this mode."}\n` +
     overlays + `\n` +
-    `BRAND: adherence to the brand rules above (10 when there are none).\n` +
-    `FIDELITY: match to the brief — subject, style, aspect.\n` +
-    `COMPOSITION: layout balance, readability, crop.\n` +
-    `verdict "pass" only when the image is shippable as-is; "fail" when a fixable defect was found. issues[] names each defect; fixHints[] says exactly how the image prompt must change.\n` +
+    `BRAND: adherence to the brand rules above (10 only when none were given).\n` +
+    `FIDELITY: subject, style, mood and aspect match the brief; anything the brief explicitly named that is absent or wrong is a defect.\n` +
+    `COMPOSITION: one clear focal hierarchy (offer > product > decor), aligned layout, breathing room, safe margins — nothing important within ~5% of any edge, no awkward crop of the product or the offer.\n` +
+    `\nVERDICT: "pass" ONLY when every score is 7+ AND no critical defect exists. Anything fixable that you would revise yourself means "fail" — do not grade effort, grade the artifact.\n` +
+    `issues[]: one entry per defect, evidence-first — what you saw and where, e.g. rendered 'GIAM SÓC' top center while the brief says 'GIẢM SỐC' (diacritics missing).\n` +
+    `fixHints[]: imperative edits to the IMAGE PROMPT only — change exactly what is broken, keep everything that worked, specific enough that one regeneration fixes it.\n` +
     EVAL_READ_MARKER
   );
 }
