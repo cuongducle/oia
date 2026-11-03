@@ -19,13 +19,19 @@ The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
   checked and deliberately NOT used — real numbers too small to flex (2026-11)
 - Hero prompt chip types rotating seller prompts (typewriter, em pill pops;
   static first prompt is the no-JS fallback)
-- `#workflow` editor-frame = `demo-loop` video (8,9s, 1600px, webm 241KB +
-  mp4 192KB, poster webp, lazy via IntersectionObserver, paused off-screen,
-  poster-only under prefers-reduced-motion). Recorded from the REAL app:
-  shot driver run with a temp frame-capture patch (capturePage ~9fps) + mock
-  DA pacing — code reverted after harvest, only the site assets shipped.
-  Trial-mode placeholder artwork is visible and captioned honestly
-  ("real app in trial mode") — never pass mock output off as model output.
+- `#workflow` editor-frame = `demo-loop` video. **v2 (2026-11-03): REAL codex run**
+  (18,9s, 1600px, webm 492KB + mp4 453KB, poster webp, lazy via
+  IntersectionObserver, paused off-screen, poster-only under
+  prefers-reduced-motion): research note with a real source (Black Friday
+  2026 ← timeanddate.com) → Checking round 1 → Refining → result with the
+  auto-refined badge and the surviving critic issues listed. Recorded from
+  the real app via the shot driver with a TEMP frame-capture patch
+  (capturePage + dedupe, speed-ramped per segment in post) — code reverted
+  after harvest; only site assets ship.
+  **Owner decision (2026-11-03, standing): demo/marketing recordings use the
+  REAL codex pair by default — no per-run confirmation needed. Quota cost of
+  one loop video ≈ one Create (up to 2 images + 2 reads).**
+  v1 (mock pair, 433KB) kept in git history.
 - Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
 - `#bring` section = deconstruct (B1): old design → editable text layers
 - Editor/deconstruct frames are real screenshots from `apps/desktop`
