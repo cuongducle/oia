@@ -92,7 +92,7 @@ describe("DA-4: composer prefs — auto refine defaults ON (owner Q1), research 
   it("absent/corrupt keys restore the DECIDED defaults — a broken key never flips an owner decision", () => {
     const s = store();
     expect(readAutoRefinePref(s as unknown as Storage)).toBe(true); // AUTO_REFINE_DEFAULT
-    expect(readResearchPref(s as unknown as Storage)).toBe(false); // S1.5
+    expect(readResearchPref(s as unknown as Storage)).toBe(true); // owner 2026-11-06: default ON
     s.setItem("oia.autoRefine", "garbage");
     expect(readAutoRefinePref(s as unknown as Storage)).toBe(true);
   });

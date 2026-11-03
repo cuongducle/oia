@@ -1,7 +1,7 @@
 # DA — Designer Agent loop: research-informed planning + self-improvement
 
 **Ngày:** 2026-11-06
-**Trạng thái:** Slices 0/1/2 ĐÃ SHIP + **REAL_SMOKE ĐÃ CHẠY XANH trên cặp thật (2026-11-06): DA_RESEARCH OK (52s, notes có nguồn) · DA_REFINE OK-REFINED (221s, 2 vòng refine, verdict best-effort trung thực) · pair-check OK (45s).** Slice 3 (openai webSearch) chỉ làm khi owner dùng openai planner. Còn mở: quyết định default research (số liệu: search-planner ~+7s/job), budget multi-page.
+**Trạng thái:** Slices 0/1/2 ĐÃ SHIP + **REAL_SMOKE ĐÃ CHẠY XANH trên cặp thật (2026-11-06): DA_RESEARCH OK (52s, notes có nguồn) · DA_REFINE OK-REFINED (221s, 2 vòng refine, verdict best-effort trung thực) · pair-check OK (45s). Research default BẬT (owner, 2026-11-06).** Slice 3 (openai webSearch) chỉ làm khi owner dùng openai planner. Còn mở: budget multi-page.
 **Nguồn quyết định cha:** gap đối thủ trong [`gap-analysis.md`](../private/gap-analysis.md) (mục "lệch thật": agent đọc web) + [`surgepix-reverse-engineering.md`](../private/surgepix-reverse-engineering.md) (RE nội bộ — bằng chứng capture thật, không đoán).
 **Ràng buộc cha:** hard rule 6 (quota là tiền — mọi vòng lặp phải bounded + hiển thị chi phí), G2/G3 (không đốt quota cho job doomed; metered-once), B7 (records must not lie — verdict vòng lặp phải persist), D8 (UI EN), D14 (wire additive, không bump schema version).
 
@@ -85,7 +85,7 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 - [x] S1.2 `llm/codex.ts`: `chat()` opts passthrough `search`; capability `webSearch: true`. `llm/openai.ts` / `llm/mock.ts`: `webSearch: false` (slice này).
 - [x] S1.3 `agent/designer.ts`: planner system prompt research chỉ thị (được phép search, bắt buộc `researchNotes` kèm nguồn khi `research` bật) + timeline node "Researching the web"; provider không capability → node "Research unavailable on {provider}…" + chạy tiếp.
 - [x] S1.4 `services/chat.ts`: pass-through `research` (schema parse một nơi).
-- [x] S1.5 `Home.tsx`: switch "Research the web" (default off trong slice này — quyết định default riêng khi có số liệu REAL_SMOKE).
+- [x] S1.5 `Home.tsx`: switch "Research the web" — **default BẬT (owner chốt 2026-11-06 sau khi có số liệu REAL_SMOKE: +7s/job, notes kèm nguồn — ghi đè dự nháp default-off của S1.5)**; switch OFF nhớ lựa chọn (localStorage, pattern OC-6).
 - Gate: ✅ mock golden test (researchNotes deterministic từ matcher `PLANNER_INSTRUCTIONS.research`); test provider-không-có-capability (node unavailable + outcome completed, self-improve.test.ts); **REAL_SMOKE owner duyệt: ✅ ĐÃ CHẠY 2026-11-06** — `DESKTOP_REAL_SMOKE_DA_RESEARCH OK outcome=completed notes=1 sourced=1 researchNode=1 no-error took=52s` (jobId a6e96e79) — `--search` chạy thật qua binary bundled pin, notes kèm nguồn thật. **Bug thật gate này bắt được (mock KHÔNG THỂ bắt: mock không spawn codex): `--search` là flag TOP-LEVEL — `codex exec … --search` thoát non-zero ngay (phân loại `unknown`); đúng dạng `codex --search exec …`. Bridge đã sửa (unshift trước subcommand). Bài học: gate mock xanh không chứng minh gì về argv của CLI thật — được nghiệm đúng nhờ owner duyệt quota thật.**
 
 **Slice 2 — Auto refine (DA-3–DA-8)**

@@ -738,13 +738,14 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 120));
     const sw = document.querySelector('[data-testid="auto-refine-switch"]');
     const research = document.querySelector('[aria-label="Research the web"]');
-    return { badge, cost: document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null, switchOn: sw?.getAttribute('aria-checked') ?? null, hasResearch: Boolean(research), researchOn: research?.getAttribute('aria-checked') ?? null };
+    return { badge, cost: document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null, switchOn: sw?.getAttribute('aria-checked') ?? null, hasResearch: Boolean(research), researchOn: research?.getAttribute('aria-checked') ?? null, researchNote: document.querySelector('.aiNotes')?.textContent ?? "" };
   })()`, true);
   console.log("[shot] DA:", JSON.stringify(da));
   if (
     !da || da.badge !== "auto-refined · round 1" ||
     !da.cost || !da.cost.includes("Auto refine on · up to 2 images + 2 reads") ||
-    da.switchOn !== "true" || !da.hasResearch || da.researchOn !== "false"
+    da.switchOn !== "true" || !da.hasResearch || da.researchOn !== "true" ||
+    !da.researchNote.includes("Research unavailable on mock") // default ON announces honestly on a pair that cannot search
   ) {
     console.error("DESKTOP_SHOT DA FAILED — auto-refine badge, cost label, or the default-on switch is missing");
     app.exit(23);

@@ -8,12 +8,13 @@ import { AUTO_REFINE_DEFAULT } from "@oia/schema";
  *
  * Auto refine defaults ON (owner Q1, 2026-11-06): switching OFF persists, and a
  * missing/corrupt key restores ON — the cost label (DA-5) rides with it.
- * Research defaults OFF in slice 1 (S1.5): REAL_SMOKE data decides the default.
+ * Research defaults ON (owner, 2026-11-06 — after REAL_SMOKE: +7s/job, notes
+ * with sources; S1.5's provisional OFF is overridden). Same persistence rule.
  */
 
 export const AUTO_REFINE_STORAGE_KEY = "oia.autoRefine";
 export const RESEARCH_STORAGE_KEY = "oia.research";
-export const RESEARCH_DEFAULT = false;
+export const RESEARCH_DEFAULT = true;
 
 export function readAutoRefinePref(storage: Pick<Storage, "getItem"> = globalThis.localStorage): boolean {
   const raw = storage.getItem(AUTO_REFINE_STORAGE_KEY);
