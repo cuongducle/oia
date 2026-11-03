@@ -6,7 +6,12 @@ Production static site, promoted from `../concept` (QA ledger in `../concept/SPE
 The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
 `docs/designs/feature-upgrade-brainstorm.md` A1/C1/C3/B1):
 - Hero prompt chip = composer vocabulary (size pill `Shopee 1:1 · 2K`, brand pill,
-  `≈ 1 image` cost hint); telemetry chip = RunSteps (planning › painting › composing)
+  cost pill `up to 2 img + 2 reads` = the real Auto refine cost label, DA-5);
+  telemetry chip = DA timeline (researching › planning › painting ›
+  checking › composing; `auto-refined · round 1` = the real ResultCard badge;
+  cost lives in the prompt chip pill, DA-5)
+- Ticker + workflow step 01 + FAQ carry the two agent loops — Research the web /
+  Auto refine (`docs/designs/designer-agent-loop.md`, slices 0–2 shipped)
 - Workflow = 4 steps incl. outline review (C1) and preview-apply AI edits (A1)
 - `#bring` section = deconstruct (B1): old design → editable text layers
 - Editor/deconstruct frames are real screenshots from `apps/desktop`

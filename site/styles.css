@@ -92,8 +92,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:cent
 .chip-prompt .pills{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .chip-prompt .pp{font-size:9.5px;letter-spacing:.05em;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:2.5px 8px;white-space:nowrap}
 .chip-prompt .pp.cost{color:#8ef0a6;border-color:rgba(142,240,166,.35)}
-.chip-log{right:4%;top:17%;z-index:8;padding:10px 13px;min-width:218px}
-.chip-log .row{display:flex;justify-content:space-between;gap:14px;color:var(--muted);font-size:11px;line-height:2}
+.chip-log{right:4%;top:14%;z-index:8;padding:10px 13px;min-width:218px}
+.chip-log .row{display:flex;justify-content:space-between;gap:14px;color:var(--muted);font-size:11px;line-height:1.9}
 .chip-log .row b{color:#8ef0a6;font-weight:400}
 .chip-log .row .spin{display:inline-block;width:9px;height:9px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;vertical-align:-1px}
 @keyframes spin{to{transform:rotate(360deg)}}

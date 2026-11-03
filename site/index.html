@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oia — Generate the image. Keep the control.</title>
-<meta name="description" content="Free, open-source image agent: AI artwork on a real, layer-based canvas. Outline review, preview-before-apply AI edits, livestream overlays. MIT · BYO provider.">
+<meta name="description" content="Free, open-source image agent: AI artwork on a real, layer-based canvas. Web research + auto refine, outline review, preview AI edits, livestream overlays. MIT · BYO provider.">
 <meta name="theme-color" content="#0e0d1f">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Oia — Generate the image. Keep the control.">
-<meta property="og:description" content="Free & open-source image agent. AI artwork on a real, layer-based canvas. Outline review · preview-before-apply AI edits · livestream overlays. MIT · BYO provider.">
+<meta property="og:description" content="Free & open-source image agent. AI artwork on a real, layer-based canvas. Web research + auto refine · outline review · preview AI edits · livestream overlays. MIT · BYO provider.">
 <meta property="og:image" content="https://cuongducle.github.io/oia/assets/og-hero.png">
 <meta property="og:url" content="https://cuongducle.github.io/oia/">
 <meta property="og:site_name" content="Oia">
@@ -96,13 +96,14 @@
     <div class="chip chip-prompt">
       <div class="k">prompt</div>
       <div class="t">milk tea flash sale — <em>20% off</em></div>
-      <div class="pills"><span class="pp">Shopee 1:1 · 2K</span><span class="pp">brand: Lumea</span><span class="pp cost">≈ 1 image</span></div>
+      <div class="pills"><span class="pp">Shopee 1:1 · 2K</span><span class="pp">brand: Lumea</span><span class="pp cost">up to 2 img + 2 reads</span></div>
     </div>
     <div class="chip chip-log">
+      <div class="row"><span>researching</span><b>done · 6.4s</b></div>
       <div class="row"><span>planning</span><b>done · 2.1s</b></div>
       <div class="row"><span>painting</span><b>done · 12.4s</b></div>
+      <div class="row"><span>checking</span><b>auto-refined · round 1</b></div>
       <div class="row"><span>composing</span><span><span class="spin"></span></span></div>
-      <div class="row"><span>cost</span><b>≈ 1 image</b></div>
     </div>
 
     <svg class="arrow" style="right:25%;bottom:28%;width:118px" viewBox="0 0 118 74" fill="none" aria-hidden="true">
@@ -114,7 +115,7 @@
 
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
-    <span>Open image agent <i>◆</i></span><span>Text in the image — or editable layers <i>◆</i></span><span>Change the price — the style stays <i>◆</i></span><span>Tag any layer with @ <i>◆</i></span><span>Preview AI edits — apply only what you keep <i>◆</i></span><span>Outline first, paint later <i>◆</i></span><span>Sizes for Shopee · Lazada · TikTok Shop <i>◆</i></span><span>Livestream overlays · TikTok &amp; Shopee safe zones <i>◆</i></span><span>PNG · PDF · PPTX · transparent overlay <i>◆</i></span><span>BYO provider · MIT <i>◆</i></span>
+    <span>Open image agent <i>◆</i></span><span>Text in the image — or editable layers <i>◆</i></span><span>Change the price — the style stays <i>◆</i></span><span>Tag any layer with @ <i>◆</i></span><span>Preview AI edits — apply only what you keep <i>◆</i></span><span>Outline first, paint later <i>◆</i></span><span>Researches the web before it designs <i>◆</i></span><span>Auto refine — checks its own work <i>◆</i></span><span>Sizes for Shopee · Lazada · TikTok Shop <i>◆</i></span><span>Livestream overlays · TikTok &amp; Shopee safe zones <i>◆</i></span><span>PNG · PDF · PPTX · transparent overlay <i>◆</i></span><span>BYO provider · MIT <i>◆</i></span>
   </div>
 </div>
 
@@ -161,7 +162,7 @@
       <div class="step">
         <div class="num">01 — GENERATE</div>
         <h3>Describe it</h3>
-        <div class="log"><div>flash sale · livestream · menu</div><div>shopee 1:1 · 2K <b>grouped by platform</b></div><div class="trust-line">≈ 1 image — shown up front</div></div>
+        <div class="log"><div>flash sale · livestream · menu</div><div>shopee 1:1 · 2K <b>grouped by platform</b></div><div>research the web · auto refine — <b>on by default</b></div><div class="trust-line">every image + read priced up front</div></div>
       </div>
       <div class="step">
         <div class="num">02 — REVIEW</div>
@@ -214,6 +215,7 @@
     <div class="faq">
       <details><summary>Is Oia really free?</summary><p>Yes — MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, or plug in your OpenAI/fal API key.</p></details>
       <details><summary>Can I edit the text in a generated image?</summary><p>By default the copy is rendered <em>into</em> the artwork for the best-looking typography. Change it by asking — “make it 30% off today” — and the repaint keeps the style. Need movable letters instead? Flip <em>Editable text right away</em> before generating, or run <em>Make text editable</em> on any design.</p></details>
+      <details><summary>What do Research and Auto refine do?</summary><p>Two agent loops that run over your provider. <em>Research the web</em> (on by default where supported) lets the planner look up current facts — dates, prices, trends — before designing, and shows every finding with its source. <em>Auto refine</em> checks each generated image against your brief — spelling and language of the rendered text first — and re-generates when the critic finds a fixable defect. Bounded, and the full price is shown before you run (e.g. <em>up to 2 images + 2 reads</em>). Both switches remember your choice.</p></details>
       <details><summary>Mac or Windows?</summary><p>Both — native builds for macOS (Apple Silicon) and Windows. Your projects live on your machine.</p></details>
       <details><summary>Do I need an API key?</summary><p>No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Keys are optional (OpenAI, fal).</p></details>
       <details><summary>What sizes does it support?</summary><p>Shopee / Lazada / TikTok Shop squares, TikTok 9:16, story and post ratios, livestream overlays (1080×1920 transparent), posters, 16:9 presentations, YouTube thumbnails and A4.</p></details>
