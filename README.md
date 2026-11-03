@@ -52,6 +52,8 @@ Move a native headline without moving the photograph. Fix its wording without ca
 
 Describe the visual, choose dimensions and page count, and follow the streamed generation progress. Use a supported image provider for real artwork, or explore the editor with the keyless mock provider and bundled templates.
 
+Two agent loops run on top of your provider. **Research the web** (on by default where the provider supports it) lets the planner look up current facts — dates, prices, trends — before designing, and shows each finding with its source. **Auto refine** (on by default) checks every generated image against the brief — spelling and language of rendered text first — and re-generates when the critic finds a fixable defect, bounded and priced up front (`up to N images + N reads`). Both switches remember your choice.
+
 ### 02 — Make the design yours
 
 Edit native objects directly on the Fabric.js canvas. Add your own images and copy, adjust the stacking order, use undo/redo, and work across pages with different dimensions. Save projects locally through the app, reopen them, or publish an editable template.

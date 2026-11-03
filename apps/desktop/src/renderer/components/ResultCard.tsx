@@ -14,8 +14,11 @@ export function ResultCard(props: {
   actions: ReactNode;
   /** DA-6 — "auto-refined · round N" when a refine round actually ran. */
   badge?: string | null;
+  /** DA-6/B7 — defects the critic still flagged on the shipped image (best-effort
+   * verdicts); the record must be visible, not only persisted. */
+  refineIssues?: string[] | null;
 }) {
-  const { name, w, h, ready, canvasRef, actions, badge } = props;
+  const { name, w, h, ready, canvasRef, actions, badge, refineIssues } = props;
   return (
     <section className="result" aria-label="Your design" data-testid="home-result">
       <div className="resultCard">
@@ -30,6 +33,11 @@ export function ResultCard(props: {
         <div className="canvasWrap">
           <canvas ref={canvasRef} />
         </div>
+        {refineIssues && refineIssues.length > 0 && (
+          <p className="refineNotes" data-testid="refine-notes" title="What the Auto refine critic still flagged on this image">
+            <strong>Auto refine kept this version with:</strong> {refineIssues.join(" · ")}
+          </p>
+        )}
         <div className="resultActions">{actions}</div>
       </div>
     </section>

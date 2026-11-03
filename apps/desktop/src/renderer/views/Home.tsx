@@ -602,6 +602,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           ready={!busy}
           canvasRef={canvasElRef}
           badge={selfImprove && selfImprove.rounds > 0 ? `auto-refined · round ${selfImprove.rounds}` : null}
+          refineIssues={selfImprove?.issues?.length ? selfImprove.issues : null}
           actions={(
             <>
               <button className="primary" data-testid="open-editor" onClick={() => void openInEditor(resultName || prompt.slice(0, 60) || "New banner", canvasMeta.canvas)}>{Icon.pencil} Open in editor</button>
