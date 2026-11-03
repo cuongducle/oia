@@ -15,6 +15,15 @@ The page tracks the shipped product (`docs/designs/ui-v11-redesign.md`,
   cost lives in the prompt chip pill, DA-5)
 - Ticker + workflow step 01 + FAQ carry the two agent loops — Research the web /
   Auto refine (`docs/designs/designer-agent-loop.md`, slices 0–2 shipped)
+- `#templates` = FEATURE WALL (owner 2026-11-03: showcase the premium features,
+  one taxonomy — tags name FEATURES, never origins; all-English samples; no
+  mixed "studio template / real run" labeling). The Labor Day poster
+  (assets/laborday.webp) is a REAL codex run (research note sourced opm.gov,
+  auto-refine pass round 1) harvested via the temp shot-driver patch, English
+  copy by owner decision. Hero tile uses contain-fit (the pair must never crop).
+- Download buttons (`a[data-dl]`): main.js pins the OS-detected installer
+  (v0.4.0 dmg/exe direct CDN URL); unknown OS keeps the releases-page link.
+  BUMP the version constant in main.js on every release.
 - `#bring` = before/after drag slider (`price-20/30.webp`, halves cropped from
   the old side-by-side composite) — pointer + keyboard, nudge on first view
 - `#why` band = seller-facing trust beat (no account · local-first · priced
