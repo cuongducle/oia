@@ -34,13 +34,13 @@ Gallery Featured (thumbnail 1/N, tác giả, tip credits), publish → community
 ## Slices
 
 ### T1 — Taxonomy + filter (LÀM luôn trong PR này)
-`@oia/schema`: `TEMPLATE_CATEGORIES` (id + label EN, khớp chips Home sẵn có: flash-sale, new-product, livestream, menu, social-post, deck, poster, overlay) + `templateCategorySchema`. `TemplateStore.list(q)` nhận `category`; `templateListQuery` nhận `category`. Additive D14, test ghim parse + filter + legacy không vỡ.
+`@oia/schema`: `TEMPLATE_CATEGORIES` (id + label EN, **align theo VOCABULARY chips Home** — chưa phải contract id: chips là label UI, wiring thật thuộc T5; `poster`/`overlay` là category store-only chưa có chip) + `templateCategorySchema`. Định nghĩa tách bạch (G3): `overlay` = overlay trong suốt generic (lower-third, frame); `livestream` = preset 1080×1920 platform-safe (dòng LV-7). `TemplateStore.list(q)` nhận `category`; `templateListQuery` nhận `category`. Additive D14, test ghim parse + filter + legacy không vỡ.
 
 ### T2 — Template authoring doctrine (doc, chờ duyệt)
 Ghi chuẩn vào doc này (mục "Doctrine" dưới): mọi template seed/publish của Oia phải đạt: (a) artwork clean-plate (không chữ nướng — trừ loại "poster-art" ghi rõ), (b) ≥1 text block có role đúng + copy MẪU THẬT (không "Add text"), (c) ≤3 font, (d) nội dung chính trong safe-area copy-zones, (e) có category. Áp cho cả publish gate (T4).
 
 ### T3 — Starter pack 8 template English (chờ duyệt — quota thật)
-Mỗi category 1 template: flash-sale (price-banner), new-product, livestream overlay, menu, social post, deck cover, poster, holiday sale. Nguồn: real run clean-plate (~1 ảnh/template + 1 read nếu refine) ≈ **8-10 ảnh quota** theo quy chế đứng. Pipeline: harvest như quy trình asset tuần này → author scene JSON (artwork + blocks có role) → seed theo pattern sample hiện có.
+Mỗi category 1 template: flash-sale (price-banner), new-product, livestream overlay, menu, social post, deck cover, poster, holiday sale. Nguồn: real run clean-plate (~1 ảnh/template + 1 read nếu refine) ≈ **8-10 ảnh quota + buffer retry ~30%** (tỷ lệ run hỏng thực tế tuần này ~40% — 3/7) theo quy chế đứng; số tiêu hao thật ghi lại đây sau mỗi đợt. Pipeline: harvest như quy trình asset tuần này → author scene JSON (artwork + blocks có role) → seed theo pattern sample hiện có.
 
 ### T4 — Publish quality gate (chờ duyệt)
 `TemplateStore.publish` từ chối khi: thumbnail < ngưỡng byte/kích thước, scene thiếu text block, category trống. Không chặn publish community lạnh giá — cảnh báo mềm bản đầu, hard sau.
@@ -65,6 +65,11 @@ Mỗi category 1 template: flash-sale (price-banner), new-product, livestream ov
 | Q1 | Duyệt T3 starter pack (8-10 ảnh quota thật)? | LÀM theo đợt — 4 template đầu (flash-sale, menu, social, overlay) rồi đánh giá |
 | Q2 | T4 publish gate hard ngay hay soft-warning trước? | Soft 1 release, hard sau |
 | Q3 | T5 site per-category pages (SEO loop) ưu tiên bao sớm? | Sau T3 — cần kho đủ dày thì category page mới không trống |
+
+## Wire notes (G7, goldfish)
+
+- `templates.create` giờ **400** với category id ngoài taxonomy (edge enforcement) — thay đổi hành vi wire có chủ đích, ghi ở đây theo phép lịch sự D14
+- `templates.list` nhận `input` tùy chọn (page/pageSize/featured/category qua `templateListQuery`) — trước đây hardcode trang 1 và **đổ query của caller** (G1 — bug thật: featured filter từ renderer chưa từng chạy)
 
 ## TP / luật bị chạm
 

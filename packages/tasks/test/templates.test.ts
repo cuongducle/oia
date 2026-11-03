@@ -50,19 +50,21 @@ describe("TPL-T1 — category taxonomy rides the store + the boundary query", ()
     expect(templateListQuery.safeParse({ category: "vibes" }).success).toBe(false);
     expect(templateCategorySchema.safeParse("livestream").success).toBe(true);
   });
-  it("list({category}) filters; legacy templates without a category never match a filter but still list", async () => {
+  it("addImported sanitizes junk categories (G4): the template imports, the category does not", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-tpl-cat-"));
     const st = new TemplateStore(path.join(dir, "tpl.json"));
     await st.load();
     await st.publish({ name: "A", scene, category: "flash-sale" });
     await st.publish({ name: "B", scene, category: "menu" });
     await st.publish({ name: "legacy", scene });
-    expect((await import("../src/index.js")).TemplateStore).toBeTruthy();
+    const ok = await st.addImported({ id: "tpl_legacy1", name: "old", scene, featured: false, tipCredits: 0, createdAt: 1, category: "flyers" as never });
+    expect(ok).toBe(true);
+    expect(st.get("tpl_legacy1")?.category).toBeUndefined();
     const only = st.list({ category: "flash-sale" });
     expect(only.total).toBe(1);
     expect(only.items[0].name).toBe("A");
     const all = st.list({});
-    expect(all.total).toBe(3); // unfiltered sees everything, legacy included
+    expect(all.total).toBe(4); // unfiltered sees everything — published + the sanitized import
   });
 });
 

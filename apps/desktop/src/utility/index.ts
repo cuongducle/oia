@@ -8,6 +8,7 @@ import {
   type ServiceContext,
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
+import { templateListQuery } from "@oia/schema";
 import { TaskNotFound, importWebData } from "@oia/tasks";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
@@ -176,7 +177,9 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     }
 
     case "templates.list":
-      return requireCtx().templates.list({ page: 1, pageSize: 100 }).items;
+      // G1 (goldfish): the caller's query rides templateListQuery — page/featured/category
+      // were silently dropped before; an absent input keeps the legacy first-page shape.
+      return requireCtx().templates.list(templateListQuery.parse(req.input ?? {})).items;
     case "templates.create":
       return requireCtx().templates.publish(req.input);
 

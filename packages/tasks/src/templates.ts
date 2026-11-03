@@ -56,6 +56,11 @@ export class TemplateStore {
    *  Existing ids are refused (desktop data wins), returns false. */
   async addImported(tpl: Template): Promise<boolean> {
     if (this.items.some((t) => t.id === tpl.id)) return false;
+    // G4 (goldfish): legacy free-text categories enter as undefined — the closed
+    // taxonomy is forward-looking; imports never silently match a filter they don't mean.
+    if (tpl.category !== undefined && !templateCategorySchema.safeParse(tpl.category).success) {
+      tpl = { ...tpl, category: undefined };
+    }
     this.items.unshift(tpl);
     await this.save();
     return true;
