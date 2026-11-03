@@ -1,4 +1,4 @@
-import type { PlanBlock } from "@oia/schema";
+import type { GenerationMode, PlanBlock } from "@oia/schema";
 import { COPY_ZONE_GEOMETRY, cleanPlateZoneClause } from "@oia/schema";
 
 /**
@@ -120,6 +120,7 @@ export function fitCoverWithZones(
   imgH: number,
   canvasW: number,
   canvasH: number,
+  mode: GenerationMode = "clean-plate",
 ): CoverCrop {
   const imgRatio = imgW / imgH;
   const canvasRatio = canvasW / canvasH;
@@ -131,8 +132,13 @@ export function fitCoverWithZones(
     return { cropX: 0, cropY: 0, cropW: imgW, cropH: imgH, scale };
   }
   if (imgRatio > canvasRatio) {
-    // image is wider — horizontal overflow: anchor RIGHT (the sideBlock side)
-    return { cropX: imgW - cropW, cropY: 0, cropW, cropH, scale };
+    // image is wider — horizontal overflow.
+    // POSTER (text baked anywhere, even at the left edge): CENTER the crop — a
+    // side-anchored crop eats the first letters of every line (the 2026-11-03
+    // real-run defect: cropX=191 removed "BL"/"GI"/"2"/"H" from a shippable artwork).
+    // CLEAN-PLATE: keep the side carrying the copy zones — anchor RIGHT (sideBlock side).
+    const cropX = mode === "poster" ? Math.floor((imgW - cropW) / 2) : imgW - cropW;
+    return { cropX, cropY: 0, cropW, cropH, scale };
   }
   // image is taller — vertical overflow: anchor TOP (the topBand side)
   return { cropX: 0, cropY: 0, cropW, cropH, scale };

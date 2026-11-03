@@ -333,6 +333,7 @@ export function buildScene(opts: {
   width: number;
   height: number;
   blocks: PlanBlock[];
+  mode?: GenerationMode;
 }): SceneCanvas {
   const { width, height } = opts;
   const objects: FabricObject[] = [
@@ -342,7 +343,7 @@ export function buildScene(opts: {
   // Zone-anchored cover placement (TP.8): the canvas keeps its nominal size; the
   // artwork layer covers it, cropping the overflow away from the copy zones.
   if (opts.artworkW && opts.artworkH) {
-    const fit = fitCoverWithZones(opts.artworkW, opts.artworkH, width, height);
+    const fit = fitCoverWithZones(opts.artworkW, opts.artworkH, width, height, opts.mode ?? "clean-plate");
     objects.push({
       type: "Image", name: "artwork", origin: "generated",
       left: 0, top: 0, width: fit.cropW, height: fit.cropH,
@@ -618,6 +619,7 @@ export async function* runDesignerAgent(
         artworkW: img.width,
         artworkH: img.height,
         width, height,
+        mode,
         // blocks land on the first page only — per-page blocks wait for a real ask.
         blocks: pi === 0 && mode === "clean-plate" ? blocks : [],
       });
