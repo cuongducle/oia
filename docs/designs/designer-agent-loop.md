@@ -117,12 +117,6 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 
 ## TP / luật bị chạm
 
-## Defects do vòng lặp/săn asset phát hiện (2026-11-03)
-
-| # | Defect | Bằng chứng | Xử lý |
-|---|---|---|---|
-| DEF-1 | **`fitCoverWithZones` crop trái poster mode** — chính sách anchor-phải (viết cho clean-plate, chữ vùng top+right) bị áp cho poster (chữ nướng khắp ảnh): codex trả ảnh 4:5 (1122×1402) cho canvas 2:3 (1360×2048) → cropX=191 ăn mất "BL"/"GI"/"2"/"H" của banner ĐÃ render đúng (critic in-app transcribed "all four lines match" trên ảnh gốc). Critic không thể bắt vì nó chấm artifact TRƯỚC khi place. Mock không bao giờ dính (ảnh đúng ratio — branch crop không chạy), chỉ real pair lộ. | session record: cropX 190.98 + selfImprove issues; standalone critic v3 chấm canvas render bắt đúng từng dòng hỏng | **FIX**: `fitCoverWithZones` nhận `mode` — poster crop GIỮA, clean-plate giữ anchor (TP.8); regression test pin đúng số production (`copy-zones.test.ts`). Follow-up candidate (chưa làm): imagePrompt nêu đích danh aspect + safe-area ≥10% (giảm lệch ratio từ gốc), verify hậu-place. |
-
 - Hard rule 6 + G3: vòng lặp nằm trong 1 job metered; không concurrently; cancel an toàn.
 - G2: critic fail = dừng phụ trợ, không thiêu quota chính.
 - B7: DA-6 (verdict persist; bản thắng được giải thích).
@@ -134,6 +128,12 @@ Cùng lúc đó, điểm yếu đã biết của image model (chính是对 thủ
 ---
 
 *Cập nhật ledger:* dòng mới ở `SITEMAP.md`. Đối thủ không được nêu tên trong repo công khai theo precedent — tham chiếu qua `docs/private/` (file private, không publish).
+
+## Defects do vòng lặp/săn asset phát hiện (2026-11-03)
+
+| # | Defect | Bằng chứng | Xử lý |
+|---|---|---|---|
+| DEF-1 | **`fitCoverWithZones` crop trái poster mode** — chính sách anchor-phải (viết cho clean-plate, chữ vùng top+right) bị áp cho poster (chữ nướng khắp ảnh): codex trả ảnh 4:5 (1122×1402) cho canvas 2:3 (1360×2048) → cropX=191 ăn mất "BL"/"GI"/"2"/"H" của banner ĐÃ render đúng (critic in-app transcribed "all four lines match" trên ảnh gốc). Critic không thể bắt vì nó chấm artifact TRƯỚC khi place. Mock không bao giờ dính (ảnh đúng ratio — branch crop không chạy), chỉ real pair lộ. | session record: cropX 190.98 + selfImprove issues; standalone critic v3 chấm canvas render bắt đúng từng dòng hỏng | **FIX**: `fitCoverWithZones` nhận `mode` — poster crop GIỮA, clean-plate giữ anchor (TP.8); regression test pin đúng số production (`copy-zones.test.ts`). Follow-up candidate (chưa làm): imagePrompt nêu đích danh aspect + safe-area ≥10% (giảm lệch ratio từ gốc), verify hậu-place. |
 
 ## Ghi nhận teardown DA (2026-11-06, owner yêu cầu té code sau khi ship — 20 phát hiện, trả nợ trong ngày)
 
