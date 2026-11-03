@@ -185,13 +185,15 @@ if (!reduced){
       {pre:'halloween drop — ',      hi:'buy 2 get 1'},
       {pre:'livestream tonight — ',  hi:'free shipping'},
     ];
+    const staticFallback = tw.innerHTML; // any failure restores the shipped markup — never a frozen half-word
     const caret = document.createElement('span'); caret.className = 'tw-caret';
     const preNode = document.createTextNode('');
     const em = document.createElement('em');
-    tw.textContent = '';
-    tw.append(preNode, em, caret);
-    let pi = 0;
-    const schedule = (ms, fn) => setTimeout(fn, ms);
+    let pi = 0, dead = false;
+    const schedule = (ms, fn) => setTimeout(() => {
+      if (dead) return;
+      try { fn(); } catch { dead = true; tw.innerHTML = staticFallback; }
+    }, ms);
     const erase = () => {
       if (em.textContent) { em.textContent = em.textContent.slice(0, -1); return schedule(16, erase); }
       em.classList.remove('pop');
@@ -216,7 +218,11 @@ if (!reduced){
       }
       schedule(260, typeHi);
     };
-    schedule(900, typePre);
+    try {
+      tw.textContent = '';
+      tw.append(preNode, em, caret);
+      schedule(900, typePre);
+    } catch { tw.innerHTML = staticFallback; }
   }
 }
 
@@ -228,6 +234,7 @@ if (!reduced){
   const start = () => {
     if (started) return;
     started = true;
+    v.addEventListener('error', () => { v.removeAttribute('src'); v.load(); }, { once: true });
     v.querySelectorAll('source').forEach((s) => {
       if (!s.src) s.src = s.dataset.srcWebm || s.dataset.srcMp4 || '';
     });
@@ -255,13 +262,18 @@ if (!reduced){
     const r = ba.getBoundingClientRect();
     set(((e.clientX - r.left) / r.width) * 100);
   };
-  let dragging = false;
-  ba.addEventListener('pointerdown', (e) => { dragging = true; ba.setPointerCapture(e.pointerId); fromEvent(e); });
-  ba.addEventListener('pointermove', (e) => dragging && fromEvent(e));
-  ba.addEventListener('pointerup',    () => dragging = false);
-  ba.addEventListener('pointercancel',() => dragging = false);
+  let dragging = false, activePointer = null;
+  ba.addEventListener('pointerdown', (e) => {
+    dragging = true; activePointer = e.pointerId;
+    try { ba.setPointerCapture(e.pointerId); } catch { /* pointer already released — move events still track */ }
+    fromEvent(e);
+  });
+  ba.addEventListener('pointermove', (e) => { if (dragging && e.pointerId === activePointer) fromEvent(e); });
+  ba.addEventListener('pointerup',    (e) => { if (e.pointerId === activePointer) { dragging = false; activePointer = null; } });
+  ba.addEventListener('pointercancel',(e) => { if (e.pointerId === activePointer) { dragging = false; activePointer = null; } });
   handle.addEventListener('keydown', (e) => {
-    const cur = parseFloat(ba.style.getPropertyValue('--x')) || 50;
+    // computed style — correct wherever --x lives (inline today, stylesheet tomorrow)
+    const cur = parseFloat(getComputedStyle(ba).getPropertyValue('--x')) || 50;
     if (e.key === 'ArrowLeft')  { set(cur - 4); e.preventDefault(); }
     if (e.key === 'ArrowRight') { set(cur + 4); e.preventDefault(); }
   });
