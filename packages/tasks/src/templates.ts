@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { templateSchema, type Template } from "@oia/schema";
+import { templateSchema, templateCategorySchema, type Template } from "@oia/schema";
 import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /** BR-TPL store: publish designs as templates; paginated + featured listing; author tip credits. */
@@ -14,13 +14,15 @@ export class TemplateStore {
   }
 
 /** Publish: scene JSON stored intact (BR-TPL1) — thumbnail taken from the first Image object. */
-  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean }): Promise<Template> {
+  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean; category?: string }): Promise<Template> {
     const tpl = templateSchema.parse({
       id: `tpl_${Date.now().toString(36)}`,
       name: input.name.trim().slice(0, 120) || "Untitled template",
   authorName: input.authorName?.slice(0, 80) || "Anonymous",
       scene: input.scene,
       featured: input.featured ?? false,
+      // TPL-T1: the closed taxonomy is enforced HERE (the edge), so a junk id 400s instead of drifting into the store
+      ...(input.category ? { category: templateCategorySchema.parse(input.category) } : {}),
       tipCredits: 0,
       createdAt: Date.now(),
     });
@@ -29,11 +31,12 @@ export class TemplateStore {
     return tpl;
   }
 
-/** BR-TPL2: page/pageSize pagination + featured filter. */
-  list(q: { page?: number; pageSize?: number; featured?: boolean } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
+/** BR-TPL2: page/pageSize pagination + featured/category filters (TPL-T1). */
+  list(q: { page?: number; pageSize?: number; featured?: boolean; category?: string } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
-    const filtered = q.featured === undefined ? this.items : this.items.filter((t) => t.featured === q.featured);
+    let filtered = q.featured === undefined ? this.items : this.items.filter((t) => t.featured === q.featured);
+    if (q.category !== undefined) filtered = filtered.filter((t) => t.category === q.category);
     const start = (page - 1) * pageSize;
     return { items: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize };
   }

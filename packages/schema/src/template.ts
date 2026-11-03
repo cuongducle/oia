@@ -18,8 +18,29 @@ export const templateSchema = z.object({
 });
 export type Template = z.infer<typeof templateSchema>;
 
+/**
+ * TPL-T1 — the template taxonomy, single home. Ids match the Home composer's
+ * category chips (flash sale / new product / livestream / menu / social post /
+ * deck) so a chip can later route to matching templates; labels are UI EN (D8).
+ */
+export const TEMPLATE_CATEGORIES = [
+  { id: "flash-sale", label: "Flash sale" },
+  { id: "new-product", label: "New product" },
+  { id: "livestream", label: "Livestream" },
+  { id: "menu", label: "Menu" },
+  { id: "social-post", label: "Social post" },
+  { id: "deck", label: "Presentation" },
+  { id: "poster", label: "Poster" },
+  { id: "overlay", label: "Overlay" },
+] as const;
+export type TemplateCategoryId = (typeof TEMPLATE_CATEGORIES)[number]["id"];
+export const templateCategorySchema = z.enum(
+  TEMPLATE_CATEGORIES.map((c) => c.id) as [TemplateCategoryId, ...TemplateCategoryId[]],
+);
+
 export const templateListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   featured: z.coerce.boolean().optional(),
+  category: templateCategorySchema.optional(),
 });
