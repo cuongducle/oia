@@ -15,7 +15,7 @@ beforeAll(async () => {
 
 describe("BR-TPL community templates (Publish to Community)", () => {
   it("BR-TPL1: publish keeps scene JSON intact + takes the thumbnail from the first Image", async () => {
-    const t = await store.publish({ name: "Coffee poster", authorName: "Alex", scene });
+    const t = (await store.publish({ name: "Coffee poster", authorName: "Alex", scene })).template;
     expect(t.scene).toEqual(scene);
     expect(t.tipCredits).toBe(0);
   });
@@ -30,7 +30,7 @@ describe("BR-TPL community templates (Publish to Community)", () => {
     expect(feat.items.every((t) => t.featured)).toBe(true);
   });
   it("BR-TPL3: tipping increases tipCredits by the right amount", async () => {
-    const t = await store.publish({ name: "Tip me", scene });
+    const t = (await store.publish({ name: "Tip me", scene })).template;
     await store.tip(t.id, 3);
     await store.tip(t.id);
     expect(store.get(t.id)!.tipCredits).toBe(4);

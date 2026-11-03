@@ -70,9 +70,20 @@ describe("studio-ui: templates are real editable scenes", () => {
 });
 
 describe("studio-templates: the curated fallback ships real scenes", () => {
-  it("at least four distinct templates, every scene schema-valid with a clip artboard", () => {
+  it("at least four distinct templates, every scene schema-valid with a clip artboard", async () => {
     expect(STUDIO_TEMPLATES.length).toBeGreaterThanOrEqual(4);
     expect(new Set(STUDIO_TEMPLATES.map((t) => t.id)).size).toBe(STUDIO_TEMPLATES.length);
+    // TPL-T3 batch 1: every studio template carries a taxonomy category, an editable
+    // text layer (doctrine) and a bundled /studio artwork that exists on disk.
+    const { TEMPLATE_CATEGORIES } = await import("@oia/schema");
+    const ids = new Set(TEMPLATE_CATEGORIES.map((c) => c.id));
+    for (const t of STUDIO_TEMPLATES) {
+      expect(ids.has(t.category as never)).toBe(true);
+      expect(t.scene.objects.some((o) => o.type === "Textbox")).toBe(true);
+      const art = t.scene.objects.find((o) => o.type === "Image") as { src?: string };
+      expect(art?.src).toMatch(/^\/studio\/.+\.webp$/);
+      expect(existsSync(path.join(__dirname, "../src/renderer/public", art!.src!))).toBe(true);
+    }
     for (const tpl of STUDIO_TEMPLATES) {
       expect(() => sceneCanvasSchema.parse(tpl.scene)).not.toThrow();
       const clip = tpl.scene.objects.find((o) => o.name === "clip");

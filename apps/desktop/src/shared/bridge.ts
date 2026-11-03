@@ -80,7 +80,7 @@ export interface OiaBridge {
   removeProject: (id: string) => Promise<boolean>;
   /** Community templates from the local TemplateStore (published + shipped seeds). */
   listTemplates: () => Promise<Template[]>;
-  createTemplate: (t: { name: string; authorName?: string; scene: unknown }) => Promise<Template>;
+  createTemplate: (t: { name: string; authorName?: string; scene: unknown; category?: string }) => Promise<{ template: Template; warnings: string[] }>;
   listSessions: () => Promise<{ id: number; name: string; updatedAt: number }[]>;
   getSession: (id: number) => Promise<StoredChatSession | null>;
   /** Editor Assets panel / reference composer — bytes → LocalFileStore, canonical URL back. */

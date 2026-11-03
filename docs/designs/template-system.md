@@ -1,7 +1,7 @@
 # TPL — Template system: nghiên cứu đối thủ → làm giàu kho template của Oia
 
 **Ngày:** 2026-11-03
-**Trạng thái:** DRAFT — nghiên cứu xong, T1 đã làm, T2-T5 chờ owner duyệt (quota + scope).
+**Trạng thái:** T1 ✅ (kèm goldfish pass 1). **T3 batch 1 ✅ (2026-11-03, owner "bắt tay vào làm" = duyệt Q1-Q3):** 3 template thật (flash-sale / menu / social-post) — quota tiêu hao thật: **3 ảnh + 3 reads** (critic pass vòng 1 cả 3, không refine). Overlay KHÔNG sinh mới — nhóm "Livestream" của Editor (LIVESTREAM_TEMPLATES) đã phủ. **T4 soft ✅** (warnings trong publish result, Editor hiển thị "Published with notes"). T5 = sau (Q3). Batch 2 (new-product, deck, poster, holiday) chờ hiệu quả batch 1.
 **Nguồn nghiên cứu:** Canva growth case study (growthcasestudies.com, 11/2025), PosterMyWall template-authoring guide, Canva conversational onboarding (getperspective.ai 5/2026), SurgePix RE nội bộ (docs/private/surgepix-reverse-engineering.md).
 
 ## Nghiên cứu — 4 bài học lớn
@@ -62,8 +62,8 @@ Mỗi category 1 template: flash-sale (price-banner), new-product, livestream ov
 
 | # | Hỏi | Đề xuất |
 |---|---|---|
-| Q1 | Duyệt T3 starter pack (8-10 ảnh quota thật)? | LÀM theo đợt — 4 template đầu (flash-sale, menu, social, overlay) rồi đánh giá |
-| Q2 | T4 publish gate hard ngay hay soft-warning trước? | Soft 1 release, hard sau |
+| Q1 | Duyệt T3 starter pack (8-10 ảnh quota thật)? | **ĐÃ DUYỆT + làm batch 1 (2026-11-03)**: 3 run thật = 3 ảnh + 3 reads; overlay dùng LIVESTREAM_TEMPLATES sẵn có (0 quota). Batch 2 chờ đánh giá. |
+| Q2 | T4 publish gate hard ngay hay soft-warning trước? | **SOFT ĐÃ LÀM (2026-11-03)** — publish trả warnings[] (category thiếu / không có text layer / artwork inline), Editor hiện "Published with notes". Hard sau 1 release. |
 | Q3 | T5 site per-category pages (SEO loop) ưu tiên bao sớm? | Sau T3 — cần kho đủ dày thì category page mới không trống |
 
 ## Wire notes (G7, goldfish)

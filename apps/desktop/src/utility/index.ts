@@ -181,7 +181,7 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       // were silently dropped before; an absent input keeps the legacy first-page shape.
       return requireCtx().templates.list(templateListQuery.parse(req.input ?? {})).items;
     case "templates.create":
-      return requireCtx().templates.publish(req.input);
+      return requireCtx().templates.publish(req.input); // { template, warnings } — T4 soft gate rides the wire
 
     case "sessions.list":
       return requireCtx()

@@ -485,8 +485,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const snap = snapshotActive();
     if (!snap) return;
     try {
-      await oia().createTemplate({ name: projectName, authorName: "You", scene: snap.canvas });
-      setNotice("Published to your template library.");
+      const res = await oia().createTemplate({ name: projectName, authorName: "You", scene: snap.canvas });
+      setNotice(res.warnings.length
+        ? `Published with notes: ${res.warnings.join(" · ")}`
+        : "Published to your template library.");
     } catch (e) {
       setNotice(bridgeErrorMessage(e, "Could not publish the template. Please try again."));
     }
@@ -1017,7 +1019,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                   {tpl.name}
                 </button>
               ))}
-              <h5 className="tplGroup">Posters</h5>
+              <h5 className="tplGroup">Studio templates</h5>
               {STUDIO_TEMPLATES.map((tpl) => (
                 <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
                   {tpl.name}

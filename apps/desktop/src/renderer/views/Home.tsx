@@ -663,7 +663,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
               <div className="galleryThumb"><ScenePreview scene={tpl.scene} label={tpl.name} /></div>
               <div className="galleryMeta">
                 <strong>{tpl.name.split(" · ")[0]}</strong>
-                <span>{CATEGORY_LABELS[templateCategory(tpl.name)]} · {tpl.authorName}</span>
+                <span>{CATEGORY_LABELS[templateCategory(tpl.name, tpl.category)]} · {tpl.authorName}</span>
               </div>
             </button>
           ))}
