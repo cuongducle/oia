@@ -141,7 +141,7 @@ export function evalTotal(e: EvalRead): number {
  * The `textHandling` score covers both meanings; the prompt says which applies. */
 /** B7: stamped into every selfImprove record — the rubric shipped 3 versions in one day;
  * a verdict must name its judge. Bump when the rubric changes. */
-export const CRITIC_PROMPT_VERSION = "v3";
+export const CRITIC_PROMPT_VERSION = "v3.1";
 
 export function criticPrompt(o: {
   mode: GenerationMode;
@@ -167,7 +167,7 @@ export function criticPrompt(o: {
     `2. SQUINT at the image (the designer's squint test): when blurred, what registers first, second, third? That is the real hierarchy — it must match what the brief intends to lead.\n` +
     `3. Only then score. Every issue you report must be something you SAW, at a place you can name.\n` +
     `\nSCORE BANDS — same meaning for every criterion:\n` +
-    `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
+    `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend — a SINGLE tight-but-clean margin with everything else solid and no critical defect is exactly that: 7, not 6. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
     `When torn between two scores, take the LOWER one.\n` +
     `\nCRITERIA — the classic design-review dimensions (C.R.A.P. + Gestalt), weighted for AI image output:\n` +
     `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? " — every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the leading line stays legible at the size the design will actually be consumed. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable leading line." : " — the artwork leaves clean, uncluttered space where each overlay line lands (check figure-ground contrast against what sits behind it); any text painted INTO the image is a defect in this mode."}\n` +

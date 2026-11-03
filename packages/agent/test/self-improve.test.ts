@@ -94,6 +94,7 @@ describe("DA-3 helpers", () => {
     expect(poster).toContain("judge every rendered line against them");
     expect(poster).toContain("diacritics"); // D16/RE §7.1 — the #1 real defect class
     expect(poster).toContain("pass\" ONLY when every score is 7+");
+    expect(poster).toContain("7, not 6"); // v3.1 calibration — one tight margin alone never fails good work
     expect(poster).not.toContain("Overlay copy");
     expect(plate0).toContain("Overlay copy that will land on this page");
     expect(plate0).toContain("painted INTO the image is a defect");
@@ -171,7 +172,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.calls()).toBe(1); // no refine image was generated
     expect(out.map((e) => e.content).join("\n")).toContain("Auto refine check unavailable — keeping this version.");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.1", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (a2): critic throws (network/quota) → same G2 contract — keep, stop, no extra burn", async () => {
@@ -183,7 +184,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     };
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: throwingCritic, image: img.provider });
     expect(img.calls()).toBe(1);
-    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3.1", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (b): cancel mid-refine → the best already-generated image is still yielded (OC-4 semantics)", async () => {
@@ -227,7 +228,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: new MockLlmProvider(), image: img.provider });
     expect(img.calls()).toBe(2); // initial + refined
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3", rounds: 1, verdict: "pass" });
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.1", rounds: 1, verdict: "pass" });
     // the refined prompt rode the fixHint (mock refine honors REFINE_INSTRUCTION)
     expect(img.urls()[1]).toContain("refined");
     const timeline = out.find((e) => e.content.includes("<Result>"))!.renderData.taskMeta.map((t) => t.content);
