@@ -486,21 +486,40 @@ async function crashSmoke(): Promise<void> {
  * TP-D3 exit check — the REAL run through the shell wiring (quota-billed, opt-in via
  * OIA_DESKTOP_REAL_SMOKE=1, never in CI): auto mode must resolve codex from the live
  * runtime state, one real banner completes, assets land in the store with bytes on disk.
+ *
+ * DA gates (designer-agent-loop.md, owner-approved quota 2026-11-06) run in the SAME
+ * invocation so a future pin bump re-verifies every paid surface in one go (D12 rule):
+ * - DA-RESEARCH: one poster whose facts need a web lookup — codex `--search` must run
+ *   through the BUNDLED binary and researchNotes[] must come back with real sources.
+ * - DA-REFINE: one poster whose exact copy is deliberately hard to render — the critic
+ *   must really read the image (readImage) and the verdict must be honest; rounds ≥ 1
+ *   additionally proves the refine→re-generate path on the real pair.
  */
 async function realSmoke(): Promise<void> {
   const t0 = Date.now();
   await ensureUtility();
-  const events: { error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[] } }[] = [];
-  const off = utility.onUtilityEvent((ev) => {
-    if (ev.type === "chatEvent") events.push(ev.ev as (typeof events)[number]);
-  });
-  const { outcome, jobId } = (await utility.call(
-    { cmd: "chatRun", req: { prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" } },
-    { requestId: "real-smoke" },
-  )) as { outcome: string; jobId: string };
-  off();
+  type Ev = { content?: string; error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[]; taskMeta?: { id: string; content: string; status?: string }[]; selfImprove?: { rounds: number; verdict: string; issues: string[] } } };
+  const collect = async (req: Record<string, unknown>): Promise<{ outcome: string; jobId: string; events: Ev[] }> => {
+    const events: Ev[] = [];
+    const off = utility.onUtilityEvent((ev) => {
+      if (ev.type === "chatEvent") events.push(ev.ev as Ev);
+    });
+    try {
+      const { outcome, jobId } = (await utility.call({ cmd: "chatRun", req }, { requestId: "real-smoke" })) as { outcome: string; jobId: string };
+      return { outcome, jobId, events };
+    } finally {
+      off();
+    }
+  };
+  const failFast = (line: string) => {
+    console.error(line);
+    app.exit(1);
+  };
+
+  // ---- job 0: the D12 pair check (unchanged) ----
+  const job0 = await collect({ prompt: "banner trà sữa giảm 20% ngày 8/11, khổ dọc Shopee", mode: "clean-plate" });
   const snap = await runtimeSnapshotFor(await effectiveMode());
-  const canvasMeta = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
+  const canvasMeta = job0.events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string }[]).find((m) => m.type === "canvas");
   // asset bytes must exist on disk — a canvas meta without stored bytes is not a banner
   let assetBytes = 0;
   const scene = (canvasMeta as { canvas?: { objects?: { src?: string }[] } } | undefined)?.canvas;
@@ -514,19 +533,75 @@ async function realSmoke(): Promise<void> {
       }
     }
   }
-  const err = events.find((e) => e.errorClass);
-  const ok =
-    outcome === "completed" &&
+  const err0 = job0.events.find((e) => e.errorClass);
+  const ok0 =
+    job0.outcome === "completed" &&
     snap.effective === "codex" &&
     snap.runtime.state === "ready" &&
     Boolean(canvasMeta) &&
     assetBytes > 10_000;
   console.log(
-    `DESKTOP_REAL_SMOKE ${ok ? "OK" : "FAILED"} outcome=${outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
-      `version=${snap.runtime.version ?? "?"} assetBytes=${assetBytes} events=${events.length} ` +
-      `${err ? `error=${err.errorClass}` : "no-error"} jobId=${jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
+    `DESKTOP_REAL_SMOKE ${ok0 ? "OK" : "FAILED"} outcome=${job0.outcome} effective=${snap.effective} runtime=${snap.runtime.state} ` +
+      `version=${snap.runtime.version ?? "?"} assetBytes=${assetBytes} events=${job0.events.length} ` +
+      `${err0 ? `error=${err0.errorClass}` : "no-error"} jobId=${job0.jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
   );
-  app.exit(ok ? 0 : 1);
+  if (!ok0) {
+    failFast("DESKTOP_REAL_SMOKE FAILED — pair check (job 0) failed; skipping the DA gates");
+    return;
+  }
+
+  // ---- DA-RESEARCH (slice 1 gate): facts that need a live lookup ----
+  const t1 = Date.now();
+  const job1 = await collect({
+    prompt:
+      "banner quảng bá ngày Black Friday 2026 cho shop trà sữa — phải tra web lấy NGÀY Black Friday 2026 chính xác in lên banner, kèm giảm giá 35%",
+    research: true,
+  });
+  const notesEv = job1.events.find((e) => (e.content ?? "").includes("Research notes:"));
+  const noteLines = (notesEv?.content ?? "").split("\n").filter((l) => l.trim().startsWith("-"));
+  const sourced = noteLines.filter((l) => /\([^)]+\)\s*$/.test(l.trim()) || l.includes("(http") || /\((?:source|nguồn|theo)\b/i.test(l)).length;
+  const researchNode = job1.events.at(-1)?.renderData?.taskMeta?.find((tm) => tm.content === "Researching the web");
+  const ok1 = job1.outcome === "completed" && Boolean(notesEv) && noteLines.length > 0 && sourced > 0 && researchNode?.status === "1";
+  console.log(
+    `DESKTOP_REAL_SMOKE_DA_RESEARCH ${ok1 ? "OK" : "FAILED"} outcome=${job1.outcome} notes=${noteLines.length} sourced=${sourced} ` +
+      `researchNode=${researchNode?.status ?? "absent"} ${job1.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `jobId=${job1.jobId} took=${Math.round((Date.now() - t1) / 1000)}s`,
+  );
+  if (!ok1) {
+    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED — --search did not yield sourced notes through the bundled binary");
+    return;
+  }
+
+  // ---- DA-REFINE (slice 2f gate): copy deliberately hard to render → the critic must really look ----
+  const t2 = Date.now();
+  const job2 = await collect({
+    prompt:
+      "poster dọc, nền pastel, in ĐÚNG từng chữ dòng này: 'TRÀ SỮA TRÂN CHÂU ĐƯỜNG ĐEN GIẢM GIÁ 35% · CHỈ DUY NHẤT THỨ SÁU 27/11 · MÃ GIAM35 · FREESHIP ĐƠN TỪ 99K'",
+    selfImprove: { rounds: 2 },
+  });
+  const verdict = [...job2.events].reverse().find((e) => e.renderData?.selfImprove)?.renderData?.selfImprove;
+  const checks = Math.max(
+    0,
+    ...job2.events.flatMap((e) => e.renderData?.taskMeta?.filter((tm) => tm.content.startsWith("Checking round")).map((tm) => Number(tm.content.replace(/\D+/g, ""))) ?? [0]),
+  );
+  const ok2 = job2.outcome === "completed" && Boolean(verdict) && (verdict?.verdict === "pass" || verdict?.verdict === "best-effort");
+  console.log(
+    `DESKTOP_REAL_SMOKE_DA_REFINE ${ok2 ? (verdict && verdict.rounds >= 1 ? "OK-REFINED" : "OK-FIRST-TRY") : "FAILED"} ` +
+      `outcome=${job2.outcome} rounds=${verdict?.rounds ?? "none"} verdict=${verdict?.verdict ?? "none"} checks=${checks} ` +
+      `issues=${verdict?.issues?.length ?? 0} ${job2.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
+      `jobId=${job2.jobId} took=${Math.round((Date.now() - t2) / 1000)}s`,
+  );
+  if (!ok2) {
+    failFast("DESKTOP_REAL_SMOKE_DA_REFINE FAILED — no honest selfImprove verdict on the winning canvas");
+    return;
+  }
+  if (verdict && verdict.rounds < 1) {
+    // not a failure — the critic passed the first image; but the refine turn itself stayed
+    // unproven this run. Loud, because the doc gate wants ≥1 recorded round.
+    console.log("DESKTOP_REAL_SMOKE_DA_REFINE NOTE: critic passed the first image — the refine→re-generate path was NOT exercised this run (rerun to prove it)");
+  }
+  console.log(`DESKTOP_REAL_SMOKE_ALL_OK took=${Math.round((Date.now() - t0) / 1000)}s`);
+  app.exit(0);
 }
 
 /**

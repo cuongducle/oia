@@ -247,7 +247,10 @@ export class CodexBridge {
       // B1: the vision read attaches its image here too — an image is PROMPT INPUT,
       // not state; read-only sandbox still blocks every write.
       args.push("--sandbox", "read-only", "-C", scratchDir);
-      if (opts.search) args.push("--search");
+      // 0.166.0: --search is a TOP-LEVEL flag — it must precede the `exec`
+      // subcommand (`codex exec --search` exits non-zero instantly, classified
+      // `unknown`). Re-verify the position on every pin bump (D12).
+      if (opts.search) args.unshift("--search");
       if (opts.schemaFile) args.push("--output-schema", opts.schemaFile);
       if (opts.lastMessageFile) args.push("-o", opts.lastMessageFile);
       for (const img of opts.images ?? []) args.push("-i", img);
