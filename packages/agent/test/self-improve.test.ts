@@ -235,6 +235,12 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(timeline).toContain("Checking round 1");
     expect(timeline).toContain("Refining");
     expect(timeline).toContain("Checking round 2");
+    // wire contract: inner-loop steps are marked substep — the stepper keys on
+    // this flag (schema), never on the label text
+    const all = out.find((e) => e.content.includes("<Result>"))!.renderData.taskMeta;
+    for (const name of ["Checking round 1", "Refining", "Checking round 2"]) {
+      expect(all.find((t) => t.content === name)?.type).toBe("substep");
+    }
     // DA-6: the verdict rides the terminal events too (persistence + replay)
     expect(out.at(-1)!.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
   });

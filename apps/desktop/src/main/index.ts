@@ -25,6 +25,7 @@ import {
 import type { AgentJobFrame } from "../shared/bridge.js";
 import { utility } from "./utilityClient.js";
 import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
+import { runShotBusy } from "./shotBusy.js";
 import { buildServiceEnv } from "../shared/providers-mode.js";
 
 /**
@@ -61,7 +62,11 @@ function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
 async function contextEnv(): Promise<Record<string, string | undefined>> {
   const mode = await effectiveMode();
   const det = mode === "codex" ? await getProvisionerSafe() : null;
-  return buildServiceEnv(process.env, mode, det);
+  const env = buildServiceEnv(process.env, mode, det);
+  // shot-busy paces the mock pair so the mid-run UI stays photographable —
+  // registry-only knob (T3 pattern), injected here, never via process.env mutation.
+  if (smokeModeFromEnv(process.env, app.isPackaged) === "shot-busy") env.OIA_MOCK_STEP_DELAY_MS = "350";
+  return env;
 }
 
 /** Boot (or rebuild) the utility service context under the build lock.
@@ -2000,6 +2005,13 @@ app.whenReady().then(async () => {
   if (mode === "shot") {
     await shot().catch((err) => {
       console.error("[shot] FAILED:", err);
+      app.exit(1);
+    });
+    return;
+  }
+  if (mode === "shot-busy") {
+    await runShotBusy({ registerAssetProtocol, createWindow }).catch((err) => {
+      console.error("[shot-busy] FAILED:", err);
       app.exit(1);
     });
     return;

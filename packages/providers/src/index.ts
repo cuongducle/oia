@@ -1,5 +1,6 @@
 export * from "./types.js";
 export * from "./registry.js";
+export { parseMockStepDelayMs, holdMockPace, MOCK_STEP_DELAY_ENV, MOCK_STEP_DELAY_MAX_MS } from "./mockPace.js";
 export { MockImageProvider } from "./image/mock.js";
 export { OpenAiImageProvider } from "./image/openai.js";
 export { FalImageProvider } from "./image/fal.js";

@@ -12,6 +12,7 @@
     "smoke": "electron-vite build && cross-env OIA_DESKTOP_SMOKE=1 electron .",
     "crash-smoke": "electron-vite build && cross-env OIA_DESKTOP_CRASH_SMOKE=1 electron .",
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
+   "shot:busy": "electron-vite build && cross-env OIA_DESKTOP_SHOT_BUSY=1 electron .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "dist:mac": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac",

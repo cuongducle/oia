@@ -250,7 +250,7 @@ async function* refinePage(a: {
     if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta }; // DA-7: keep the best already-generated image
     const checkRound = candidates.length + 1;
     const checkId = randomUUID();
-    taskMeta = [...taskMeta, { id: checkId, content: `Checking round ${checkRound}`, type: "node", status: "0" }];
+    taskMeta = [...taskMeta, { id: checkId, content: `Checking round ${checkRound}`, type: "substep", status: "0" }];
     yield ev(`Checking round ${checkRound}…`);
     let evalRead: EvalRead | null = null;
     const bytes = decodeDataImage(img.url);
@@ -289,7 +289,7 @@ async function* refinePage(a: {
     // one refine turn: planner revises the prompt (text-only), then one image
     attemptsLeft -= 1;
     const refineId = randomUUID();
-    taskMeta = [...taskMeta, { id: refineId, content: "Refining", type: "node", status: "0" }];
+    taskMeta = [...taskMeta, { id: refineId, content: "Refining", type: "substep", status: "0" }];
     yield ev("Refining…");
     let revisedPrompt: string | null = null;
     try {
@@ -582,8 +582,16 @@ export async function* runDesignerAgent(
   }
 
   // ---- 2) Image Generator tool + progressive canvases ----
+  // Stepper honesty: phase transitions are ATOMIC — the planner node closes in
+  // the SAME taskMeta snapshot that opens the image tool. Flipping each phase
+  // at its own pace left gaps where every step read done while the job ran on
+  // (and open phases outliving their own substeps rendered done to the RIGHT
+  // of pending — the jumble the busy-shot caught live).
   const toolId = uuid32();
-  taskMeta = [...taskMeta, { id: toolId, content: "Image Generator", type: "tool", status: "0" }];
+  taskMeta = [
+    ...taskMeta.map((x: TaskMeta) => (x.id === nodeId ? { ...x, status: "1" } : x)),
+    { id: toolId, content: "Image Generator", type: "tool", status: "0" },
+  ];
   yield ev(`[[task::tool::${toolId}]]`);
 
   const pages: { canvasId: string; canvasMeta: { id: string; type: "canvas"; thumbnail: string; canvas: SceneCanvas } }[] = [];
@@ -667,19 +675,22 @@ export async function* runDesignerAgent(
   };
 
   // ---- 3) Tool done + done narrative ----
-  taskMeta = taskMeta.map((x) => (x.id === toolId ? { ...x, status: "1" } : x));
+  // Atomic again: the image tool closes in the same snapshot that opens the
+  // composing phase — no event may show an all-done track while the job runs.
+  const resultId = uuid32();
+  taskMeta = [
+    ...taskMeta.map((x: TaskMeta) => (x.id === toolId ? { ...x, status: "1" } : x)),
+    { id: resultId, content: "Manager Agent", type: "result", status: "0" },
+  ];
   if (pages.length > 1) yield ev(`Created ${pages.length} pages.`, { renderData: { msgMeta: [pages.at(-1)!.canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...verdictExtras } });
   yield ev(t.done(title.toLowerCase()), {
     renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...verdictExtras },
   });
 
   // ---- 4) Node done ----
-  taskMeta = taskMeta.map((x) => (x.id === nodeId ? { ...x, status: "1" } : x));
   yield ev("", { renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null } });
 
   // ---- 5) Manager Agent result + exportMeta ----
-  const resultId = uuid32();
-  taskMeta = [...taskMeta, { id: resultId, content: "Manager Agent", type: "result", status: "0" }];;;
   yield ev(`<Result>[[task::result::${resultId}]]`, {
     renderData: {
       msgMeta: [canvasMeta],

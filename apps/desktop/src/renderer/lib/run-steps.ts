@@ -14,19 +14,31 @@ const LABELS: Record<string, string> = {
   "Manager Agent": "Composing",
 };
 
+/** Timeline entries the renderer keeps: content, completion, and the wire's
+ *  `substep` marker (type field on taskMeta — schema contract, not a label). */
+export interface TimelineEntry {
+  content: string;
+  done: boolean;
+  /** True for inner-loop steps (auto-refine checks/refine turns): they narrate
+   *  in the feed but never join the linear stepper track. */
+  sub?: boolean;
+}
+
 export function stepLabel(agentName: string): string {
   return LABELS[agentName] ?? agentName;
 }
 
 /** taskMeta frames → steps. The first unfinished step runs; later ones wait. */
-export function stepsFromTimeline(timeline: { content: string; done: boolean }[]): RunStep[] {
+export function stepsFromTimeline(timeline: TimelineEntry[]): RunStep[] {
   let runningSeen = false;
-  return timeline.map((t) => {
-    if (t.done) return { label: stepLabel(t.content), state: "done" as const };
-    const state: StepState = runningSeen ? "pending" : "running";
-    runningSeen = true;
-    return { label: stepLabel(t.content), state };
-  });
+  return timeline
+    .filter((t) => !t.sub)
+    .map((t) => {
+      if (t.done) return { label: stepLabel(t.content), state: "done" as const };
+      const state: StepState = runningSeen ? "pending" : "running";
+      runningSeen = true;
+      return { label: stepLabel(t.content), state };
+    });
 }
 
 /**
