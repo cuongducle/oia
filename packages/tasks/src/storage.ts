@@ -116,17 +116,20 @@ export class LocalFileStore implements FileStore {
       for (const day of await readdir(dir)) {
         for (const f of await readdir(path.join(dir, day)).catch(() => [])) {
           const sha = f.match(/^([0-9a-f]{64})-/);
+          // Keys are WIRE URL parts (/api/files/<key>, oia://files/<key>) — POSIX
+          // separators only. path.join yields "\" on Windows and broke the contract
+          // after every restart (7f debt; listUploads already did it this way).
           if (sha) {
-            this.sha256Index.set(sha[1], path.join("uploads", day, f));
+            this.sha256Index.set(sha[1], `uploads/${day}/${f}`);
             continue;
           }
           const legacyFull = f.match(/^([0-9a-f]{32})-/);
           if (legacyFull) {
-            this.legacyFullMd5Index.set(legacyFull[1], path.join("uploads", day, f));
+            this.legacyFullMd5Index.set(legacyFull[1], `uploads/${day}/${f}`);
             continue;
           }
           const legacy = f.match(/^([0-9a-f]{8})-/);
-          if (legacy) this.legacyPrefixIndex.set(legacy[1], path.join("uploads", day, f));
+          if (legacy) this.legacyPrefixIndex.set(legacy[1], `uploads/${day}/${f}`);
         }
       }
     } catch { /* no data yet */ }

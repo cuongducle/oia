@@ -7,9 +7,9 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4 # pnpm version comes from packageManager in package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # pnpm version comes from packageManager in package.json
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -22,9 +22,9 @@ jobs:
   desktop-smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
       - run: pnpm install --frozen-lockfile
@@ -59,15 +59,30 @@ jobs:
         env:
           OIA_DESKTOP_SI_SMOKE: "1"
 
+  # 7f debt: `pnpm test` was red on Windows for @oia/tasks (backslash upload keys
+  # after hydrate + POSIX-only fs-mode tests) and @oia/providers (path parsing).
+  # The fix landed with the wire-key regression in storage.test.ts — this job keeps
+  # the whole unit suite honest on a real Windows runner from now on.
+  unit-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # turbo builds the dependencies first (test dependsOn ^build in turbo.json)
+      - run: pnpm exec turbo run test typecheck --filter=@oia/tasks --filter=@oia/providers
+
   # Reorg step 4 gate (review điểm 5): the smoke matrix runs on REAL Windows from
   # here on — not deferred to step 7. Same mock-pair gates as the ubuntu job; the
   # ratchet/audit live on ubuntu only (source-level, platform-independent).
   desktop-smoke-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -93,9 +108,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # workspace dist/types before the desktop build
@@ -105,14 +120,14 @@ jobs:
       - name: codex pin
         id: pin
         run: echo "tag=$(node -p "require('./apps/desktop/resources/codex-pin.json').tag")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/desktop/resources/codex
           key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-arm64
       - run: pnpm --filter @oia/desktop dist:mac
       - name: sha256
         run: shasum -a 256 apps/desktop/dist/*.dmg > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oia-macos-arm64
           path: |
@@ -126,9 +141,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -136,7 +151,7 @@ jobs:
         id: pin
         shell: bash
         run: echo "tag=$(node -p "require('./apps/desktop/resources/codex-pin.json').tag")" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/desktop/resources/codex
           key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-x64
@@ -148,7 +163,7 @@ jobs:
       - name: sha256
         shell: bash
         run: sha256sum apps/desktop/dist/*.exe > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: oia-windows-x64
           path: |

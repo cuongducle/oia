@@ -53,6 +53,7 @@ describe("BR-UP storage", () => {
     }
   });
   it("read rejects a symlink planted inside the tree that points outside the root", async () => {
+    if (process.platform === "win32") return; // symlinkSync needs admin/dev-mode on Windows — not a property of the code
     const parent = mkdtempSync(path.join(tmpdir(), "pf-symlink-parent-"));
     const root = path.join(parent, "store");
     const outside = path.join(parent, "outside.png");
@@ -75,6 +76,33 @@ describe("BR-UP storage", () => {
     const { key } = await s.put(bytes, "png"); // creates the root NOW
     expect(await s.read(key)).toEqual(bytes); // the poisoned-cache bug failed HERE
   });
+  it("hydrate keeps every lane's key URL-shaped — a wire key never contains a path separator (7f Windows fix)", async () => {
+    // seed one file per naming lane: sha256, legacy full-md5, legacy 8-char prefix
+    const dir2 = mkdtempSync(path.join(tmpdir(), "pf-store-keyshape-"));
+    const day = dayStamp();
+    mkdirSync(path.join(dir2, "uploads", day), { recursive: true });
+    const shaBytes = new Uint8Array([2, 7, 1, 8, 2, 8]);
+    const sha = createHash("sha256").update(shaBytes).digest("hex");
+    const fullMd5Bytes = new Uint8Array([1, 7, 3, 2]);
+    const fullMd5 = createHash("md5").update(fullMd5Bytes).digest("hex");
+    const prefixBytes = new Uint8Array([5, 5, 5]);
+    const prefix = createHash("md5").update(prefixBytes).digest("hex").slice(0, 8);
+    writeFileSync(path.join(dir2, `uploads/${day}/${sha}-k1.png`), shaBytes);
+    writeFileSync(path.join(dir2, `uploads/${day}/${fullMd5}-k2.png`), fullMd5Bytes);
+    writeFileSync(path.join(dir2, `uploads/${day}/${prefix}-k3.png`), prefixBytes);
+
+    const s = new LocalFileStore(dir2);
+    await s.hydrate();
+    // OLD code: hydrate stored path.join("uploads", day, f) — on Windows every
+    // dedupe hit then returned "uploads\\…" keys, breaking /api/files/<key> (7f)
+    for (const bytes of [shaBytes, fullMd5Bytes, prefixBytes]) {
+      const r = await s.put(bytes, "png");
+      expect(r.key).toMatch(/^uploads\/\d{8}\//);
+      expect(r.key).not.toContain("\\");
+      expect(r.url).toBe(`/api/files/${r.key}`);
+    }
+  });
+
   it("contentType maps correctly", () => {
     expect(store.contentType("png")).toBe("image/png");
     expect(store.contentType("pptx")).toContain("presentationml");

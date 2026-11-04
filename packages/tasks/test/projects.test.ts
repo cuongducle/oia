@@ -212,7 +212,7 @@ describe("per-project files (reorg step 5)", () => {
   });
 
   it("a FAILED quarantine never bricks the store — the other projects still load (blast radius stays per-file)", async () => {
-    if (process.getuid?.() === 0) return; // root ignores mode bits — the persistenceHealth precedent
+    if (process.getuid?.() === 0 || process.platform === "win32") return; // root ignores mode bits AND chmod is a no-op on Windows — the persistenceHealth precedent
     const dir = mkdtempSync(path.join(tmpdir(), "pf-quarantine-fail-"));
     mkdirSync(prjDir(dir), { recursive: true });
     writeProjectFile(dir, "prj_ok1");
@@ -231,7 +231,7 @@ describe("per-project files (reorg step 5)", () => {
   });
 
   it("an UNREADABLE file is skipped — the store still boots (per-file blast radius)", async () => {
-    if (process.getuid?.() === 0) return;
+    if (process.getuid?.() === 0 || process.platform === "win32") return; // chmod is a no-op on Windows
     const dir = mkdtempSync(path.join(tmpdir(), "pf-read-fail-"));
     mkdirSync(prjDir(dir), { recursive: true });
     writeProjectFile(dir, "prj_ok1");

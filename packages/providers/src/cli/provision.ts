@@ -147,8 +147,15 @@ export function envValue(env: NodeJS.ProcessEnv, name: string): string | undefin
 }
 
 async function canExecute(file: string, platform: NodeJS.Platform): Promise<boolean> {
+  // X_OK only means something when probing the REAL running OS. A simulated
+  // platform (tests cross-checking darwin layouts on a Windows runner) cannot
+  // borrow the host's X_OK semantics — on Windows fs.access(X_OK) is false for
+  // extension-less files regardless of what platform we pretend to probe, which
+  // broke every darwin-path test on the windows runner. Windows itself never
+  // needs X_OK (PATHEXT names are executable by construction).
+  const sameOs = platform === process.platform;
   try {
-    await access(file, platform === "win32" ? constants.F_OK : constants.F_OK | constants.X_OK);
+    await access(file, sameOs && platform !== "win32" ? constants.F_OK | constants.X_OK : constants.F_OK);
     return true;
   } catch {
     return false;
@@ -190,8 +197,12 @@ export async function resolveCodexBin(opts: DetectOptions = {}): Promise<Runtime
   }
 
   const pathVar = envValue(env, "PATH") ?? "";
+  // Split on the REAL OS delimiter, not the simulated platform's. In production
+  // platform always equals process.platform, so this changes nothing there — but a
+  // darwin simulation on a Windows runner would otherwise shred every `C:\…` dir
+  // at the drive-letter colon and find nothing (the windows-runner failures).
   const dirs = [
-    ...pathVar.split(isWin ? ";" : ":").filter(Boolean),
+    ...pathVar.split(path.delimiter).filter(Boolean),
     ...(opts.includeWellKnown === false ? [] : wellKnownBinDirs(platform, env)),
     ...(opts.extraPaths ?? []),
   ];
