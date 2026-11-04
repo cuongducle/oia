@@ -1728,8 +1728,11 @@ async function shot(): Promise<void> {
     const runner = Boolean(document.querySelector(".toolRunner"));
     const fileInput = Boolean(document.querySelector(".toolRunner input[type=file]"));
     const actionBtn = Boolean(document.querySelector(".toolRunner .primaryBtn"));
+    const dropzone = document.querySelector('.toolRunner [data-testid="file-dropzone"].empty');
+    const dropzonePainted = Boolean(dropzone) && dropzone.getBoundingClientRect().height >= 120;
+    const actionWaitsForFile = document.querySelector(".toolRunner .primaryBtn")?.disabled === true;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: runner && fileInput && actionBtn && !err, runner, fileInput, actionBtn, err };
+    return { ok: runner && fileInput && actionBtn && dropzonePainted && actionWaitsForFile && !err, runner, fileInput, actionBtn, dropzonePainted, actionWaitsForFile, err };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] tools runner verify:", JSON.stringify(toolsVerify));
   if (!toolOpened || !toolsVerify || !toolsVerify.ok) {
@@ -1738,6 +1741,33 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-tools.png");
+
+  // the picked file becomes a preview card with real decoded pixels, and unlocks the action
+  const toolsPicked = await win.webContents.executeJavaScript(`(async () => {
+    const input = document.querySelector(".toolRunner input[type=file]");
+    const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], "product-shot.png", { type: "image/png" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    for (let i = 0; i < 20; i++) {
+      const img = document.querySelector('.toolRunner [data-testid="file-dropzone"].filled img');
+      if (img && img.complete && img.naturalWidth > 0) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const img = document.querySelector('.toolRunner [data-testid="file-dropzone"].filled img');
+    const name = document.querySelector(".toolRunner .fileName")?.textContent;
+    const enabled = document.querySelector(".toolRunner .primaryBtn")?.disabled === false;
+    const decoded = Boolean(img && img.naturalWidth > 0);
+    return { ok: decoded && name === "product-shot.png" && enabled, decoded, name, enabled };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] tools file picked verify:", JSON.stringify(toolsPicked));
+  if (!toolsPicked || !toolsPicked.ok) {
+    console.error("DESKTOP_SHOT TOOLS VERIFY FAILED (file picker)");
+    app.exit(9);
+    return;
+  }
+  await snap(win, "desktop-tools-picked.png");
 
   // tool AI end-to-end through the REAL bridge (mock pair): submitTask → taskStore
   // → poll getTask → result image. This is the 4c gate "tool AI (mock pair)".

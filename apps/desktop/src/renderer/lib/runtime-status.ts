@@ -13,6 +13,7 @@ export function runtimeStatusLine(snap: RuntimeSnapshot, imageIsMock: boolean): 
   }
   const rt = snap.runtime;
   if (rt.state === "ready") {
+    if (rt.imageGen === "unavailable") return { tone: "warn", title: "Codex", detail: "no image generation on this plan" };
     const via = rt.loginMethod === "api-key" ? "API key" : "ChatGPT";
     return { tone: "ok", title: "Codex", detail: `ready · ${via}` };
   }

@@ -16,7 +16,14 @@ export interface RuntimeViewModel {
   headline: string;
   /** Version · login method · source — the diagnostics surface (TP.6 posture). */
   detail: string;
+  /** What to do about a degraded-but-signed-in state (D17). */
+  notice?: string;
   actions: RuntimeAction[];
+}
+
+function planLabel(planType: string | null | undefined): string {
+  if (!planType) return "plan";
+  return `${planType.charAt(0).toUpperCase()}${planType.slice(1)} plan`;
 }
 
 export function runtimeViewModel(
@@ -56,6 +63,19 @@ export function runtimeViewModel(
   // ready
   const loginLabel = runtime.loginMethod === "api-key" ? "API key" : "ChatGPT";
   const actions: RuntimeAction[] = ["logout"];
+  if (runtime.imageGen === "unavailable") {
+    // D17: signed in, but every image run would spend the planner and come back empty
+    return {
+      badge: "warn",
+      headline: "Signed in, but this ChatGPT plan can't generate images",
+      detail: [runtime.version ? `codex ${runtime.version}` : null, `ChatGPT ${planLabel(runtime.planType)}`, sourceLabel]
+        .filter(Boolean)
+        .join(" · "),
+      notice:
+        "Codex image generation needs ChatGPT Go or higher. Upgrade this account, or sign out and sign in with the account that has the plan. Text tools still work.",
+      actions,
+    };
+  }
   if (effective === "mock") actions.push("enableReal");
   return {
     badge: "ok",

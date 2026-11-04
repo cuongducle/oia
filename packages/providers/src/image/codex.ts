@@ -1,14 +1,16 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { cleanPlateZoneClause } from "@oia/schema";
 import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { ProviderError } from "../types.js";
 import {
   CodexBridge, classifyCodexFailure, findSessionImage, newestGeneratedImage, parseImagePath,
-  noteCancelledImageJob, waitForStableFile,
+  noteCancelledImageJob, waitForStableFile, imageToolUnavailable,
 } from "../codex/bridge.js";
 import { asciiUuid, createScratchDir, removeScratchDir } from "../cli/runtime.js";
+import { sniffImageExt } from "../llm/codex.js";
 
 /**
  * Codex `$imagegen` channel — the keyless artwork path over the user's ChatGPT login.
@@ -105,26 +107,30 @@ export function pngSize(buf: Buffer): { width: number; height: number } | undefi
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
 }
 
-/** Materialize a reference (data URL / http URL / absolute file path) into an ASCII-named temp file. */
-async function materializeReference(ref: string, dir: string): Promise<string> {
+/**
+ * Materialize a reference (data URL / http URL / file: URL / file path) into an
+ * ASCII-named temp file (TP.9) whose extension matches the real bytes.
+ * Local sources are COPIED, never passed through: the packaged renderer's own
+ * artwork lives inside app.asar, which only Electron can read — codex cannot.
+ * A file: URL must go through fileURLToPath; path.resolve on it glued the URL onto
+ * the cwd (`…\file:\C:\…\app.asar` on Windows — the first packaged real-codex run).
+ */
+export async function materializeReference(ref: string, dir: string): Promise<string> {
+  let bytes: Uint8Array;
   if (ref.startsWith("data:")) {
-    const b64 = ref.slice(ref.indexOf(",") + 1);
-    const file = path.join(dir, `${asciiUuid()}.png`);
-    await writeFile(file, Buffer.from(b64, "base64"));
-    return file;
-  }
-  if (/^https?:\/\//i.test(ref)) {
+    bytes = Buffer.from(ref.slice(ref.indexOf(",") + 1), "base64");
+  } else if (/^https?:\/\//i.test(ref)) {
     const res = await fetch(ref).catch(() => null);
     if (!res?.ok) throw new ProviderError("network", `could not fetch reference image (HTTP ${res?.status ?? "network"})`, { provider: "codex" });
-    const file = path.join(dir, `${asciiUuid()}.png`);
-    await writeFile(file, Buffer.from(await res.arrayBuffer()));
-    return file;
+    bytes = new Uint8Array(await res.arrayBuffer());
+  } else {
+    // a relative path resolves absolute — never an unwritten temp file (B1: that attached a 0-byte png to `-i`)
+    bytes = await readFile(ref.startsWith("file:") ? fileURLToPath(ref) : path.resolve(ref));
   }
-  // local file path: probe readability, resolve to ABSOLUTE — a relative path must never
-  // fall through to an unwritten temp file (B1: that attached a 0-byte png to `-i`)
-  const abs = path.resolve(ref);
-  await readFile(abs); // throws a clear fs error when unreadable
-  return abs;
+  if (bytes.length === 0) throw new Error("reference image is empty");
+  const file = path.join(dir, `${asciiUuid()}.${sniffImageExt(bytes)}`);
+  await writeFile(file, bytes);
+  return file;
 }
 
 /** A6 — format_drift watch: consecutive fallback-scan locates mean the documented output
@@ -200,6 +206,13 @@ export class CodexImageProvider implements ImageProvider {
       }
       if (!file) {
         await this.bridge.cleanup(res);
+        if (imageToolUnavailable(res.stdout)) {
+          throw new ProviderError(
+            "capability_unsupported",
+            "this ChatGPT plan has no image generation in Codex — sign in with a Go or higher plan",
+            { provider: "codex", detail: res.stdout.slice(-300) },
+          );
+        }
         throw new ProviderError("no_output", "codex produced no image file — run `codex exec` manually to inspect it", {
           provider: "codex",
           detail: res.stdout.slice(-300),

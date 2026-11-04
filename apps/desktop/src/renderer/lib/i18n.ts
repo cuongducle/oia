@@ -43,7 +43,7 @@ const en = {
     "error.format_drift": "The AI tool's output format changed — Oia needs an update.",
     "error.no_output": "No image was received from the AI tool. Please try again.",
     "error.plan_parse_failed": "The planning step returned an error. Please try again.",
-    "error.capability_unsupported": "The current provider does not support this feature.",
+    "error.capability_unsupported": "Not available with the current provider or account. Codex image generation needs ChatGPT Go or higher.",
     "error.persistence_failed": "Could not save your data. Check the disk, then try again.",
     "error.network": "Network error. Check your connection, then try again.",
     "error.cancelled": "Image generation was stopped at your request.",
