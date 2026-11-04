@@ -197,8 +197,12 @@ export async function resolveCodexBin(opts: DetectOptions = {}): Promise<Runtime
   }
 
   const pathVar = envValue(env, "PATH") ?? "";
+  // Split on the REAL OS delimiter, not the simulated platform's. In production
+  // platform always equals process.platform, so this changes nothing there — but a
+  // darwin simulation on a Windows runner would otherwise shred every `C:\…` dir
+  // at the drive-letter colon and find nothing (the windows-runner failures).
   const dirs = [
-    ...pathVar.split(isWin ? ";" : ":").filter(Boolean),
+    ...pathVar.split(path.delimiter).filter(Boolean),
     ...(opts.includeWellKnown === false ? [] : wellKnownBinDirs(platform, env)),
     ...(opts.extraPaths ?? []),
   ];
