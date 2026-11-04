@@ -53,6 +53,18 @@ shell.
 
 - **Use `path.join` — never assume `/` or `\`**, including in regexes that
   parse paths from CLI output (see above).
+- **Store keys are WIRE URL parts (`/api/files/<key>`, `oia://files/<key>`), not
+  disk paths.** They are ALWAYS `uploads/<day>/<file>` with forward slashes —
+  `path.join` yields `\` on Windows and once poisoned the dedupe indexes so every
+  hit after a restart broke the contract (and `safeKey` rejected the store's own
+  keys). Use `path.join` for the disk side, template literals for the key side
+  (see `LocalFileStore.hydrate()` vs `put()`).
+- **Platform SIMULATION in tests must not borrow platform-specific fs semantics.**
+  X_OK (`fs.access`) is a property of the REAL OS — false for extension-less
+  files on Windows no matter which platform you pretend to probe — and PATH must
+  be split on the REAL OS delimiter or every `C:\…` dir gets shredded at the
+  drive-letter colon. Detect helpers take a `platform` param for layout/naming
+  decisions; execution-semantics checks must consult `process.platform`.
 - **Renames fail transiently on Windows.** Antivirus and indexers hold files
   mid-rename (`EPERM`/`EBUSY`/`EACCES`). All persisted state goes through
   `atomicWriteJson` (`packages/tasks/src/atomic.ts`): temp + rename with retry
