@@ -53,15 +53,19 @@ export const STUDIO_TEMPLATES: Template[] = [
   // planner itself produced — caught at packaging; menu blocks authored by hand
   // because that run emitted none). Canvas = the artwork's exact 2:3, no stretch. ----
   template("flashsale", "Weekend flash sale", "#1c120c", "flashsale", [
-    text("WEEKEND\nFLASH SALE", 430, 96, 540, 96, "#fff6e8", { fontWeight: 800, lineHeight: 0.95 }),
-    text("30%\nOFF", 520, 460, 450, 168, "#ffd23e", { fontWeight: 800, lineHeight: 0.9 }),
-    text("SAT—SUN · 7AM–5PM", 520, 860, 450, 40, "#fff6e8", { charSpacing: 30 }),
-    text("GRIND & GLORY", 520, 930, 450, 30, "#d8c9b4", { charSpacing: 60 }),
+    // visual-QA: all right-column blocks hang off ONE right axis (x+w = 970) — the first
+    // pass had the headline bleeding the right trim and the brand line too gray.
+    text("WEEKEND\nFLASH SALE", 470, 96, 500, 84, "#fff6e8", { fontWeight: 800, lineHeight: 0.95, textAlign: "right" }),
+    text("30%\nOFF", 520, 440, 450, 168, "#ffd23e", { fontWeight: 800, lineHeight: 0.9, textAlign: "right" }),
+    text("SAT—SUN · 7AM–5PM", 520, 848, 450, 40, "#fff6e8", { charSpacing: 30, textAlign: "right" }),
+    text("GRIND & GLORY", 520, 918, 450, 30, "#f0e3cd", { charSpacing: 60, textAlign: "right" }),
   ], { category: "flash-sale", w: 1024, h: 1536 }),
   template("menuboard", "Bakery menu board", "#e8d9bf", "menuboard", [
     text("BAKERY\n& BREW", 470, 100, 480, 92, "#3a2a1c", { fontWeight: 800, lineHeight: 0.95 }),
     text("Espresso — 35\nCappuccino — 45\nCold Brew — 49\nButter Croissant — 38\nSourdough Loaf — 55", 470, 400, 480, 40, "#3a2a1c", { lineHeight: 1.85 }),
-    text("BAKED BEFORE SUNRISE", 470, 1060, 480, 26, "#7a6248", { charSpacing: 50 }),
+    // visual-QA: the tagline crossed the wall/table shadow strip at its old spot —
+    // anchored under the menu block on clean wall, a step darker for contrast.
+    text("BAKED BEFORE SUNRISE", 470, 1000, 480, 26, "#5d4632", { charSpacing: 50 }),
   ], { category: "menu", w: 1024, h: 1536 }),
   template("serum", "Serum launch post", "#ded2c2", "serum", [
     text("MEET YOUR\nDAILY RITUAL", 60, 90, 900, 88, "#3d3428", { fontWeight: 800, lineHeight: 0.98 }),
@@ -74,8 +78,10 @@ export const STUDIO_TEMPLATES: Template[] = [
   template("sneaker", "Product drop", "#23262c", "sneaker", [
     text("VELOCE ONE", 60, 92, 900, 92, "#ffffff", { fontWeight: 800, charSpacing: 40 }),
     text("RUN LIGHTER.\nLAND SOFTER.", 60, 210, 640, 40, "#c9ccd4" ),
-    text("THE DROP — 12.12", 470, 1290, 500, 52, "#ffb347", { fontWeight: 800, textAlign: "right" }),
-    text("Limited first run · members early access", 470, 1370, 500, 26, "#9aa0ab", { textAlign: "right" }),
+    // visual-QA: the caption nearly melted into the light gradient — near-white now;
+    // the date (the actionable line) bumped to rival the tagline.
+    text("THE DROP — 12.12", 470, 1284, 500, 60, "#ffb347", { fontWeight: 800, textAlign: "right" }),
+    text("Limited first run · members early access", 470, 1368, 500, 26, "#e8eaee", { textAlign: "right" }),
   ], { category: "new-product", w: 1024, h: 1536 }),
   template("holiday", "Year-end blowout", "#0d2b1e", "holiday", [
     text("YEAR-END\nBLOWOUT", 60, 110, 640, 120, "#f5e9c8", { fontWeight: 800, lineHeight: 0.95 }),
