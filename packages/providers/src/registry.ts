@@ -8,6 +8,7 @@ import { OpenAiLlmProvider } from "./llm/openai.js";
 import { CodexLlmProvider } from "./llm/codex.js";
 import { CodexBridge } from "./codex/bridge.js";
 import { OPENAI_IMAGE_MODEL_DEFAULT } from "./wire/openai-images.js";
+import { MOCK_STEP_DELAY_ENV, parseMockStepDelayMs } from "./mockPace.js";
 
 /** Positive integer from env, or the fallback. Registry-only knob parsing (T3). */
 function envInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
@@ -31,6 +32,7 @@ function envInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
  * ride a real generation channel).
  */
 export function getImageProvider(env: NodeJS.ProcessEnv = process.env): ImageProvider {
+  const mockPaceMs = parseMockStepDelayMs(env[MOCK_STEP_DELAY_ENV]);
   switch (env.IMAGE_PROVIDER) {
     case "openai":
       return new OpenAiImageProvider(env.OPENAI_API_KEY ?? "", env.OPENAI_IMAGE_MODEL ?? OPENAI_IMAGE_MODEL_DEFAULT);
@@ -40,10 +42,11 @@ export function getImageProvider(env: NodeJS.ProcessEnv = process.env): ImagePro
       return new CodexImageProvider(new CodexBridge({ bin: env.CODEX_BIN ?? "codex" }), {
         timeoutMs: envInt(env, "CODEX_IMAGE_TIMEOUT_MS", 300_000),
       });
-    default: return new MockImageProvider();
+    default: return new MockImageProvider(mockPaceMs);
   }
 }
 export function getLlmProvider(env: NodeJS.ProcessEnv = process.env): LlmProvider {
+  const mockPaceMs = parseMockStepDelayMs(env[MOCK_STEP_DELAY_ENV]);
   switch (env.LLM_PROVIDER) {
     case "openai":
       return new OpenAiLlmProvider(env.OPENAI_API_KEY ?? "", env.OPENAI_LLM_MODEL ?? "gpt-4o-mini");
@@ -51,7 +54,7 @@ export function getLlmProvider(env: NodeJS.ProcessEnv = process.env): LlmProvide
       return new CodexLlmProvider(new CodexBridge({ bin: env.CODEX_BIN ?? "codex" }), {
         timeoutMs: envInt(env, "CODEX_PLANNER_TIMEOUT_MS", 120_000),
       });
-    default: return new MockLlmProvider();
+    default: return new MockLlmProvider(mockPaceMs);
   }
 }
 

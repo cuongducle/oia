@@ -52,3 +52,8 @@ body.page{font-size:15.5px}
 .pageFooter a{font-size:13px;color:var(--muted)}
 .pageFooter a:hover{color:var(--paper)}
 .ctaRow{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+
+.catNav{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 6px}
+.catNav a{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:6px 12px;text-decoration:none}
+.catNav a:hover{color:var(--paper);border-color:var(--accent)}
+.catNav a[aria-current="page"]{color:#8ef0a6;border-color:rgba(142,240,166,.4)}

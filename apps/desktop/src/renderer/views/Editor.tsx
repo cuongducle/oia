@@ -133,7 +133,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
   useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean }[]>([]);
+  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean; sub?: boolean }[]>([]);
   const aiJobRef = useRef<string | null>(null);
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
@@ -257,7 +257,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         const p = presentErrorEn(ev.errorClass);
         setAiError({ message: p.message, actionLabel: p.actionLabel });
       }
-      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
+      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1", sub: tm.type === "substep" })));
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {
@@ -485,8 +485,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const snap = snapshotActive();
     if (!snap) return;
     try {
-      await oia().createTemplate({ name: projectName, authorName: "You", scene: snap.canvas });
-      setNotice("Published to your template library.");
+      const res = await oia().createTemplate({ name: projectName, authorName: "You", scene: snap.canvas });
+      setNotice(res.warnings.length
+        ? `Published with notes: ${res.warnings.join(" · ")}`
+        : "Published to your template library.");
     } catch (e) {
       setNotice(bridgeErrorMessage(e, "Could not publish the template. Please try again."));
     }
@@ -1017,7 +1019,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                   {tpl.name}
                 </button>
               ))}
-              <h5 className="tplGroup">Posters</h5>
+              <h5 className="tplGroup">Studio templates</h5>
               {STUDIO_TEMPLATES.map((tpl) => (
                 <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
                   {tpl.name}

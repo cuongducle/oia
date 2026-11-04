@@ -10,14 +10,21 @@ export function sceneSize(scene: { objects: { type?: string | null; name?: strin
   return { width: typeof w === "number" && Number.isFinite(w) && w > 0 ? w : 1360, height: typeof h === "number" && Number.isFinite(h) && h > 0 ? h : 2048 };
 }
 export type StudioCategory = "all" | "poster" | "social" | "presentation" | "other";
-export function templateCategory(name: string): StudioCategory {
+/** TPL-T3: prefer the template's own taxonomy category; the name regex stays as
+ *  the fallback for user-published templates without one (D14 read-side). */
+const FIELD_CATEGORY: Record<string, StudioCategory> = {
+  "flash-sale": "poster", "new-product": "social", "livestream": "other", "menu": "poster",
+  "social-post": "social", "deck": "presentation", "poster": "poster", "overlay": "other",
+};
+export function templateCategory(name: string, category?: string): StudioCategory {
+  if (category && FIELD_CATEGORY[category]) return FIELD_CATEGORY[category];
   if (/presentation|review|deck|slide/i.test(name)) return "presentation";
   if (/instagram|social|carousel/i.test(name)) return "social";
   if (/poster|matcha|festival|menu/i.test(name)) return "poster";
   return "other";
 }
-export function filterTemplates<T extends Pick<Template, "name">>(templates: readonly T[], category: StudioCategory): T[] {
-  return category === "all" ? [...templates] : templates.filter(t => templateCategory(t.name) === category);
+export function filterTemplates<T extends Pick<Template, "name" | "category">>(templates: readonly T[], category: StudioCategory): T[] {
+  return category === "all" ? [...templates] : templates.filter(t => templateCategory(t.name, t.category) === category);
 }
 export function imageSource(src: unknown): string | null {
   return typeof src === "string" && /^(https?:\/\/|data:image\/|\/(?!\/))/.test(src) ? src : null;

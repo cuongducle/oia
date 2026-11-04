@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { templateSchema, type Template } from "@oia/schema";
+import { templateSchema, templateCategorySchema, type Template } from "@oia/schema";
 import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /** BR-TPL store: publish designs as templates; paginated + featured listing; author tip credits. */
@@ -14,26 +14,29 @@ export class TemplateStore {
   }
 
 /** Publish: scene JSON stored intact (BR-TPL1) — thumbnail taken from the first Image object. */
-  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean }): Promise<Template> {
+  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean; category?: string }): Promise<{ template: Template; warnings: string[] }> {
     const tpl = templateSchema.parse({
       id: `tpl_${Date.now().toString(36)}`,
       name: input.name.trim().slice(0, 120) || "Untitled template",
   authorName: input.authorName?.slice(0, 80) || "Anonymous",
       scene: input.scene,
       featured: input.featured ?? false,
+      // TPL-T1: the closed taxonomy is enforced HERE (the edge), so a junk id 400s instead of drifting into the store
+      ...(input.category ? { category: templateCategorySchema.parse(input.category) } : {}),
       tipCredits: 0,
       createdAt: Date.now(),
     });
     this.items.unshift(tpl);
     await this.save();
-    return tpl;
+    return { template: tpl, warnings: templatePublishWarnings(tpl) };
   }
 
-/** BR-TPL2: page/pageSize pagination + featured filter. */
-  list(q: { page?: number; pageSize?: number; featured?: boolean } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
+/** BR-TPL2: page/pageSize pagination + featured/category filters (TPL-T1). */
+  list(q: { page?: number; pageSize?: number; featured?: boolean; category?: string } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
-    const filtered = q.featured === undefined ? this.items : this.items.filter((t) => t.featured === q.featured);
+    let filtered = q.featured === undefined ? this.items : this.items.filter((t) => t.featured === q.featured);
+    if (q.category !== undefined) filtered = filtered.filter((t) => t.category === q.category);
     const start = (page - 1) * pageSize;
     return { items: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize };
   }
@@ -53,8 +56,25 @@ export class TemplateStore {
    *  Existing ids are refused (desktop data wins), returns false. */
   async addImported(tpl: Template): Promise<boolean> {
     if (this.items.some((t) => t.id === tpl.id)) return false;
+    // G4 (goldfish): legacy free-text categories enter as undefined — the closed
+    // taxonomy is forward-looking; imports never silently match a filter they don't mean.
+    if (tpl.category !== undefined && !templateCategorySchema.safeParse(tpl.category).success) {
+      tpl = { ...tpl, category: undefined };
+    }
     this.items.unshift(tpl);
     await this.save();
     return true;
   }
+}
+
+/** TPL-T4 (soft, owner Q2 2026-11-03): doctrine notes ride the publish result —
+ *  PosterMyWall rejects at publish; we warn first release, harden later. */
+export function templatePublishWarnings(tpl: Template): string[] {
+  const warnings: string[] = [];
+  if (!tpl.category) warnings.push("no category — the template will not surface in category filters");
+  if (!tpl.scene.objects.some((o) => o.type === "Textbox")) warnings.push("no editable text layer — buyers can only swap the artwork, not the copy");
+  const art = tpl.scene.objects.find((o) => o.type === "Image");
+  if (!art || typeof (art as { src?: unknown }).src !== "string" || (art as { src: string }).src.startsWith("data:"))
+    warnings.push("artwork is missing or inline — set a stored /studio or /api/files source");
+  return warnings;
 }

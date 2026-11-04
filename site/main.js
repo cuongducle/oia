@@ -1,3 +1,17 @@
+/* ---- Direct download: OS-detected installer, releases page as fallback ---- */
+(() => {
+  const V = "0.4.0";
+  const BASE = `https://github.com/cuongducle/oia/releases/download/v${V}/`;
+  const mac = navigator.userAgent.includes("Mac");
+  const win = navigator.userAgent.includes("Windows");
+  if (!mac && !win) return; // unknown OS: keep the releases-page link
+  const file = mac ? `Oia-${V}-arm64.dmg` : `Oia-${V}-win-x64.exe`;
+  document.querySelectorAll("a[data-dl]").forEach((a) => {
+    a.href = BASE + file; // direct file — the browser handles the download
+    a.title = `Download ${file}`;
+  });
+})();
+
 /* activate motion styling only when GSAP actually loaded (CDN ok) */
 if (!window.gsap){ document.documentElement.classList.remove('js'); }
 else {
@@ -135,14 +149,6 @@ if (!reduced && !mobile){
   });
 }
 
-/* ---- Gallery curtain reveal + column parallax ---- */
-document.querySelectorAll('.gtile').forEach(el=>{
-  ScrollTrigger.create({trigger:el,start:'top 88%',onEnter:()=>el.classList.add('in'),once:true});
-});
-if (!reduced && !mobile){
-  gsap.to('.gtile:nth-child(odd)',{yPercent:-8,ease:'none',scrollTrigger:{trigger:'.gallery-grid',start:'top bottom',end:'bottom top',scrub:true}});
-  gsap.to('.gtile:nth-child(even)',{yPercent:8,ease:'none',scrollTrigger:{trigger:'.gallery-grid',start:'top bottom',end:'bottom top',scrub:true}});
-}
 
 /* ---- Editor frames: curtain + hover tilt ---- */
 document.querySelectorAll('.editor-frame').forEach(ef=>{

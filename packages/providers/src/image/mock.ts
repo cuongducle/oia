@@ -1,5 +1,6 @@
 import { deflateSync } from "node:zlib";
 import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
+import { holdMockPace } from "../mockPace.js";
 
 /**
  * Default provider — needs no key and NEVER calls the network (tests stay stable offline).
@@ -98,7 +99,9 @@ const MOCK_CAPABILITIES: ProviderCapabilities = {
 export class MockImageProvider implements ImageProvider {
   readonly name = "mock";
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
+  constructor(private readonly paceMs = 0) {}
   async generate(input: ImageGenInput): Promise<ImageGenResult> {
+    await holdMockPace(this.paceMs); // shot-busy only — 0 in every other mode
     return { url: placeholderPng(input.prompt ?? ""), provider: "mock", model: "placeholder-offline", width: 8, height: 8 };
   }
   async isAvailable(): Promise<ProviderDiagnostic> {

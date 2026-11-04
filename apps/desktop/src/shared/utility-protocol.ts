@@ -30,7 +30,9 @@ export type UtilityCommand =
   | { cmd: "projects.list" }
   | { cmd: "projects.save"; id: string; patch: { name?: string; pages?: unknown } }
   | { cmd: "projects.remove"; id: string }
-  | { cmd: "templates.list" }
+  /** G1 (goldfish T1 review): the list query rides input — page/pageSize/featured/category
+   * through templateListQuery at the handler. Optional: absent = legacy first-page shape. */
+  | { cmd: "templates.list"; input?: { page?: number; pageSize?: number; featured?: boolean; category?: string } }
   | { cmd: "templates.create"; input: { name: string; authorName?: string; scene: unknown } }
   | { cmd: "sessions.list" }
   | { cmd: "sessions.get"; id: number }

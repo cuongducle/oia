@@ -6,8 +6,9 @@ import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
 import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
-import { RunSteps, CostHint } from "../components/RunSteps.js";
-import { costHintText, stepsFromTimeline } from "../lib/run-steps.js";
+import { CostHint } from "../components/RunSteps.js";
+import { RunPanel } from "../components/RunPanel.js";
+import { costHintText, stepsFromTimeline, type TimelineEntry } from "../lib/run-steps.js";
 import { SIZE_GROUPS, sizeDims } from "../lib/composer-sizes.js";
 import { QUICK_TOOLS } from "../lib/tools-registry.js";
 import { Dialog } from "../components/Dialog.js";
@@ -92,7 +93,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [prompt, setPrompt] = useState(initialPrompt);
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<{ content: string; done: boolean }[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [narrative, setNarrative] = useState("");
   const [canvasMeta, setCanvasMeta] = useState<CanvasMsgMeta | null>(null);
   const [error, setError] = useState("");
@@ -134,6 +135,13 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
   const startedAtRef = useRef<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null); // mirror of the ref — RunPanel's timer needs a render
+  /** One setter for both clocks — the ref feeds the ✓-summary math, the state
+   *  feeds the elapsed timer; writing them anywhere else invites drift. */
+  function markRunStart(ms: number | null): void {
+    startedAtRef.current = ms;
+    setStartedAt(ms);
+  }
   // explicit open/close for the AI notes block — no key-remount tricks; a new run reopens it
   const [notesOpen, setNotesOpen] = useState(false);
   const activeJobRef = useRef<string | null>(null);
@@ -185,7 +193,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         setRetryable(p.actionKind === "retry");
       }
       if (ev.renderData?.taskMeta?.length) {
-        setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
+        setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1", sub: tm.type === "substep" })));
       }
       if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
       // DA-6: the badge pairs with the canvas it describes — canvas events only.
@@ -251,7 +259,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     if (!prompt.trim() || busy || uploading) return;
     setBusy(true);
     setNotesOpen(true); // stream feedback: show the planner's live text while it works
-    startedAtRef.current = retryOf ? startedAtRef.current : Date.now();
+    if (!retryOf) markRunStart(Date.now());
     if (!retryOf) setGenSeconds(null);
     activeJobRef.current = retryOf ? null : activeJobRef.current;
     if (!retryOf) activeJobRef.current = null;
@@ -315,7 +323,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     pendingOutlineRef.current = null;
     setBusy(true);
     setNotesOpen(true);
-    startedAtRef.current = Date.now();
+    markRunStart(Date.now());
     setGenSeconds(null);
     activeJobRef.current = null;
     setError("");
@@ -593,14 +601,15 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           )}
         </div>
       )}
-      {busy && <RunSteps steps={timeline.length ? stepsFromTimeline(timeline) : [{ label: "Planning", state: "running" }]} />}
-      {genSeconds !== null && !busy && <p className="genSummary" role="status">✓ Generated in {genSeconds}s</p>}
-      {narrative && (
-        <details className="aiNotes" open={notesOpen} onToggle={(e) => setNotesOpen(e.currentTarget.open)}>
-          <summary>{busy ? "Assistant working…" : "AI notes"}</summary>
-          <div>{narrative.trim()}</div>
-        </details>
-      )}
+      <RunPanel
+        busy={busy}
+        steps={timeline.length ? stepsFromTimeline(timeline) : [{ label: "Planning", state: "running" }]}
+        narrative={narrative}
+        notesOpen={notesOpen}
+        onToggleNotes={setNotesOpen}
+        startedAt={startedAt}
+        summarySeconds={!busy ? genSeconds : null}
+      />
 
       {canvasMeta && (
         <ResultCard
@@ -663,7 +672,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
               <div className="galleryThumb"><ScenePreview scene={tpl.scene} label={tpl.name} /></div>
               <div className="galleryMeta">
                 <strong>{tpl.name.split(" · ")[0]}</strong>
-                <span>{CATEGORY_LABELS[templateCategory(tpl.name)]} · {tpl.authorName}</span>
+                <span>{CATEGORY_LABELS[templateCategory(tpl.name, tpl.category)]} · {tpl.authorName}</span>
               </div>
             </button>
           ))}

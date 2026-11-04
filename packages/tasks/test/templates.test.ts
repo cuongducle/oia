@@ -15,7 +15,7 @@ beforeAll(async () => {
 
 describe("BR-TPL community templates (Publish to Community)", () => {
   it("BR-TPL1: publish keeps scene JSON intact + takes the thumbnail from the first Image", async () => {
-    const t = await store.publish({ name: "Coffee poster", authorName: "Alex", scene });
+    const t = (await store.publish({ name: "Coffee poster", authorName: "Alex", scene })).template;
     expect(t.scene).toEqual(scene);
     expect(t.tipCredits).toBe(0);
   });
@@ -30,7 +30,7 @@ describe("BR-TPL community templates (Publish to Community)", () => {
     expect(feat.items.every((t) => t.featured)).toBe(true);
   });
   it("BR-TPL3: tipping increases tipCredits by the right amount", async () => {
-    const t = await store.publish({ name: "Tip me", scene });
+    const t = (await store.publish({ name: "Tip me", scene })).template;
     await store.tip(t.id, 3);
     await store.tip(t.id);
     expect(store.get(t.id)!.tipCredits).toBe(4);
@@ -43,6 +43,31 @@ describe("BR-TPL community templates (Publish to Community)", () => {
 });
 
 /** T2 regression — corrupt templates.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TPL-T1 — category taxonomy rides the store + the boundary query", () => {
+  it("templateListQuery parses a known category and rejects junk (the taxonomy is closed)", async () => {
+    const { templateListQuery, templateCategorySchema } = await import("@oia/schema");
+    expect(templateListQuery.safeParse({ category: "flash-sale" }).success).toBe(true);
+    expect(templateListQuery.safeParse({ category: "vibes" }).success).toBe(false);
+    expect(templateCategorySchema.safeParse("livestream").success).toBe(true);
+  });
+  it("addImported sanitizes junk categories (G4): the template imports, the category does not", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "pf-tpl-cat-"));
+    const st = new TemplateStore(path.join(dir, "tpl.json"));
+    await st.load();
+    await st.publish({ name: "A", scene, category: "flash-sale" });
+    await st.publish({ name: "B", scene, category: "menu" });
+    await st.publish({ name: "legacy", scene });
+    const ok = await st.addImported({ id: "tpl_legacy1", name: "old", scene, featured: false, tipCredits: 0, createdAt: 1, category: "flyers" as never });
+    expect(ok).toBe(true);
+    expect(st.get("tpl_legacy1")?.category).toBeUndefined();
+    const only = st.list({ category: "flash-sale" });
+    expect(only.total).toBe(1);
+    expect(only.items[0].name).toBe("A");
+    const all = st.list({});
+    expect(all.total).toBe(4); // unfiltered sees everything — published + the sanitized import
+  });
+});
+
 describe("TP.7 durable load — TemplateStore", () => {
   it("corrupt file → quarantined; publish works on the fresh file", async () => {
     const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
