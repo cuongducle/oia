@@ -309,36 +309,6 @@ describe("buildServiceEnv (T3 pure builder)", () => {
     expect(env.IMAGE_PROVIDER).toBe("mock");
     expect(env.CODEX_BIN).toBe("/user/exported/bin"); // not deleted, not overwritten
   });
-
-  it("D18: api-key login pins API models (gpt-6-luna does not resolve on API keys)", async () => {
-    const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
-    const env = buildServiceEnv({}, "codex", "/bin/codex", "api-key");
-    expect(env.CODEX_LLM_MODEL).toBe("gpt-5.5");
-    expect(env.CODEX_IMAGE_MODEL).toBe("gpt-5.5");
-  });
-  it("D18: chatgpt login / unknown / mock NEVER pin models (the default pair stays)", async () => {
-    const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
-    expect(buildServiceEnv({}, "codex", "/bin/codex", "chatgpt").CODEX_LLM_MODEL).toBeUndefined();
-    expect(buildServiceEnv({}, "codex", "/bin/codex", null).CODEX_LLM_MODEL).toBeUndefined();
-    expect(buildServiceEnv({}, "codex").CODEX_LLM_MODEL).toBeUndefined();
-    expect(buildServiceEnv({}, "mock").CODEX_LLM_MODEL).toBeUndefined();
-  });
-  it("D18: a user-set model env WINS over the api-key default", async () => {
-    const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
-    const env = buildServiceEnv({ CODEX_LLM_MODEL: "gpt-5.4" }, "codex", "/bin/codex", "api-key");
-    expect(env.CODEX_LLM_MODEL).toBe("gpt-5.4");
-  });
-});
-
-describe("runtimeLoginApiKeySchema (D18 — paste-mistake gate before any subprocess)", () => {
-  it("accepts classic and project keys, rejects garbage and overlong input", async () => {
-    const { runtimeLoginApiKeySchema } = await import("../src/shared/ipc.js");
-    expect(runtimeLoginApiKeySchema.safeParse({ key: "sk-abcdef0123456789" }).success).toBe(true);
-    expect(runtimeLoginApiKeySchema.safeParse({ key: "sk-proj-abcdefghij0123456789ABCDEFGHIJ" }).success).toBe(true);
-    expect(runtimeLoginApiKeySchema.safeParse({ key: "not-a-key" }).success).toBe(false);
-    expect(runtimeLoginApiKeySchema.safeParse({ key: "" }).success).toBe(false);
-    expect(runtimeLoginApiKeySchema.safeParse({ key: `sk-${"a".repeat(300)}` }).success).toBe(false);
-  });
 });
 
 describe("web .data import — the error lane survives the wire (self-review follow-up)", () => {

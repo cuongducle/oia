@@ -116,9 +116,6 @@ export interface OiaBridge {
   runtimeStatus: () => Promise<RuntimeSnapshot>;
   runtimeInstall: () => Promise<{ runtime: RuntimeStatus }>;
   runtimeLogin: () => Promise<{ ok: boolean; runtime: RuntimeStatus }>;
-  /** D18 — BYOK: sign in with an OpenAI API key instead of a ChatGPT plan.
-   *  The key crosses IPC exactly once, into main; no response echoes it back. */
-  runtimeLoginApiKey: (key: string) => Promise<{ ok: boolean; runtime: RuntimeStatus }>;
   runtimeLogout: () => Promise<{ runtime: RuntimeStatus }>;
   runtimeSetMode: (mode: RuntimeModeChoice) => Promise<RuntimeSnapshot>;
   /** Cancel the in-flight install/login (warned: interrupting login logs the user out). */

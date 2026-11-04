@@ -22,7 +22,6 @@ export default function RuntimePanel({ onModeChanged }: Props) {
   const [installText, setInstallText] = useState<string | null>(null);
   const [loginNote, setLoginNote] = useState<string | null>(null);
   const [loginUrl, setLoginUrl] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState("");
   const busyRef = useRef(false);
   const onModeChangedRef = useRef(onModeChanged);
@@ -84,16 +83,6 @@ export default function RuntimePanel({ onModeChanged }: Props) {
         await oia().runtimeLogin();
       } else if (action === "logout") {
         await oia().runtimeLogout();
-      } else if (action === "loginApiKey") {
-        // D18 — BYOK: one-shot send; the field is wiped whether the login works or not.
-        const key = apiKey.trim();
-        setApiKey("");
-        setLoginNote("Signing in with your API key…");
-        try {
-          await oia().runtimeLoginApiKey(key);
-        } finally {
-          setLoginNote(null); // also on failure — the error row carries the news instead
-        }
       } else if (action === "enableReal") {
         await oia().runtimeSetMode("codex");
       }
@@ -118,7 +107,6 @@ export default function RuntimePanel({ onModeChanged }: Props) {
     login: "Sign in with ChatGPT",
     logout: snap.runtime.imageGen === "unavailable" ? "Sign out to switch account" : "Sign out",
     enableReal: "Use real Codex",
-    loginApiKey: "Use API key",
   };
   const cancellable = busy === "install" || busy === "login";
   // healthy state = nothing to do: render as a quiet status strip instead of a card
@@ -183,31 +171,6 @@ export default function RuntimePanel({ onModeChanged }: Props) {
               {busy === a ? "Working…" : labels[a]}
             </button>
           ))}
-        </div>
-      )}
-      {snap.runtime.state === "not_logged_in" && (
-        <div className="runtimeRow apikey">
-          <span className="apikeyHint">No ChatGPT plan? Paste an OpenAI API key — every request is billed to your OpenAI account.</span>
-          <input
-            type="password"
-            className="apiKeyInput"
-            value={apiKey}
-            placeholder="sk-…"
-            maxLength={300}
-            aria-label="OpenAI API key"
-            autoComplete="off"
-            disabled={busy !== null}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <button
-            type="button"
-            className="runtimeBtn"
-            disabled={busy !== null || !apiKey.trim().startsWith("sk-")}
-            onClick={() => act("loginApiKey")}
-            title="Sign codex in with an OpenAI API key — billed per request, no ChatGPT plan needed"
-          >
-            {busy === "loginApiKey" ? "Signing in…" : labels.loginApiKey}
-          </button>
         </div>
       )}
     </section>

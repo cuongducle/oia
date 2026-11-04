@@ -27,7 +27,6 @@ import { utility } from "./utilityClient.js";
 import { initRuntimeController, registerRuntimeIpc, effectiveMode, runtimeSnapshotFor } from "./runtime.js";
 import { runShotBusy } from "./shotBusy.js";
 import { buildServiceEnv } from "../shared/providers-mode.js";
-import type { RuntimeStatus } from "@oia/providers";
 
 /**
  * D11 (reorg step 4a) — the Electron MAIN process owns windows, menus, dialogs,
@@ -62,11 +61,8 @@ function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
  *  process.env (the old set-then-restore CODEX_BIN dance leaked global state). */
 async function contextEnv(): Promise<Record<string, string | undefined>> {
   const mode = await effectiveMode();
-  if (mode !== "codex") return buildServiceEnv(process.env, mode);
-  // status (not detect): the env needs loginMethod too — D18 pins API models under
-  // API-key auth. Cached + in-flight-deduped in the provisioner; rebuilds are cold paths.
-  const st = await getProvisionerSafe();
-  const env = buildServiceEnv(process.env, mode, st?.bin ?? null, st?.loginMethod ?? null);
+  const det = mode === "codex" ? await getProvisionerSafe() : null;
+  const env = buildServiceEnv(process.env, mode, det);
   // shot-busy paces the mock pair so the mid-run UI stays photographable —
   // registry-only knob (T3 pattern), injected here, never via process.env mutation.
   if (smokeModeFromEnv(process.env, app.isPackaged) === "shot-busy") env.OIA_MOCK_STEP_DELAY_MS = "350";
@@ -98,13 +94,9 @@ async function rebuildContext(): Promise<void> {
 }
 
 /** detect() without side effects — no status probe, no login round trip. */
-async function getProvisionerSafe(): Promise<RuntimeStatus | null> {
+async function getProvisionerSafe(): Promise<string | null> {
   const { getProvisioner } = await import("./runtime.js");
-  try {
-    return await getProvisioner().status();
-  } catch {
-    return null; // a broken probe must not block boot — mock posture keeps the app alive
-  }
+  return (await getProvisioner().detect()).bin;
 }
 
 /** Friendly rejections: zod/ProviderConfig errors become stable names the renderer maps. */

@@ -46,7 +46,6 @@ const api: OiaBridge = {
   runtimeStatus: () => ipcRenderer.invoke(IPC.runtimeStatus),
   runtimeInstall: () => ipcRenderer.invoke(IPC.runtimeInstall),
   runtimeLogin: () => ipcRenderer.invoke(IPC.runtimeLogin),
-  runtimeLoginApiKey: (key) => ipcRenderer.invoke(IPC.runtimeLoginApiKey, { key }),
   runtimeLogout: () => ipcRenderer.invoke(IPC.runtimeLogout),
   runtimeSetMode: (mode) => ipcRenderer.invoke(IPC.runtimeSetMode, { mode }),
   runtimeCancel: () => ipcRenderer.invoke(IPC.runtimeCancel),

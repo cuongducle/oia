@@ -544,10 +544,6 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .runtimeRow.progress { color: var(--muted); }
 .runtimeRow.error { color: var(--danger); }
 .runtimeRow.notice { display: block; font-size: 12.5px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, #f59e0b 12%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 35%, transparent); }
-/* D18 — BYOK row (API-key alternative when not signed in) */
-.runtimeRow.apikey { align-items: center; }
-.runtimeRow.apikey .apikeyHint { flex: 1 1 100%; color: var(--muted); font-size: 12px; }
-.apiKeyInput { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font: inherit; font-size: 13px; min-width: 0; flex: 1 1 220px; background: var(--surface); color: var(--ink); }
 .runtimeHead { display: inline-flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
 .runtimeDetail { color: var(--muted); font-size: 12px; }
 .dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; }

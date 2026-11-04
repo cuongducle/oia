@@ -94,9 +94,3 @@ export const runtimeSetModeSchema = z.object({
   mode: z.enum(["auto", "mock", "codex"]),
 });
 export type RuntimeModeChoice = z.infer<typeof runtimeSetModeSchema>["mode"];
-
-/** D18 — BYOK: sign codex in with an OpenAI API key. Format gate is cheap
- * fail-fast for paste mistakes; the CLI stays the authority on validity. */
-export const runtimeLoginApiKeySchema = z.object({
-  key: z.string().regex(/^sk-[A-Za-z0-9_-]{10,200}$/, "expected an OpenAI API key (sk-…)"),
-});

@@ -81,15 +81,8 @@ export function buildServiceEnv(
   base: Record<string, string | undefined>,
   mode: "mock" | "codex",
   codexBin?: string | null,
-  /** D18 — under API-key auth the ChatGPT-plan model aliases (gpt-6-luna) do
-   * not resolve; the API model set is pinned instead. A user-set env wins. */
-  loginMethod?: "chatgpt" | "api-key" | null,
 ): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = { ...base, IMAGE_PROVIDER: mode, LLM_PROVIDER: mode };
   if (mode === "codex" && codexBin) env.CODEX_BIN = codexBin;
-  if (mode === "codex" && loginMethod === "api-key") {
-    env.CODEX_LLM_MODEL = base.CODEX_LLM_MODEL ?? "gpt-5.5";
-    env.CODEX_IMAGE_MODEL = base.CODEX_IMAGE_MODEL ?? "gpt-5.5";
-  }
   return env;
 }
