@@ -3,7 +3,11 @@
 </p>
 
 <p align="center">
-  <strong>Open image agent. Generate artwork. Edit the composition. Make it yours.</strong>
+  <strong>Generate the image. Keep the control.</strong>
+</p>
+
+<p align="center">
+  <sub><b>FREE &amp; OPEN SOURCE</b> ◆ <b>MIT</b> ◆ <b>SELF-HOSTED</b> ◆ <b>BYO PROVIDER</b> ◆ <b>MAC + WINDOWS</b></sub>
 </p>
 
 <p align="center">
@@ -14,21 +18,24 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick start</a> ·
   <a href="#the-60-second-tour">Tour</a> ·
-  <a href="#what-editable-actually-means">How layers work</a> ·
+  <a href="#the-image-and-the-design-are-different-things">Layers</a> ·
+  <a href="#what-your-quota-buys">Gallery</a> ·
+  <a href="#a-studio-around-your-image-model">Workflow</a> ·
+  <a href="#quick-start">Quick start</a> ·
   <a href="#bring-your-own-provider">Providers</a> ·
-  <a href="#build-it-into-your-workflow">API & agent skills</a> ·
+  <a href="#build-it-into-your-workflow">Agent API</a> ·
+  <a href="#questions-sellers-ask">FAQ</a> ·
   <a href="https://cuongducle.github.io/oia/">Landing page</a>
 </p>
 
 ---
 
-## Good images are a starting point. Finished designs need control.
-
 A campaign headline changes. An event date moves. A client wants the logo larger. Those are layout and copy edits — not reasons to pay for a whole new image.
 
 **Oia is a free, open-source desktop app (macOS + Windows) that pairs AI image generation with a real, layer-based canvas.** Generate the artwork, then edit the design: rewrite text, move objects, swap images, add pages — without regenerating what already works. Everything runs on your machine, on your own provider, under your control.
+
+<p><sub><b>TOUR</b></sub></p>
 
 ## The 60-second tour
 
@@ -44,14 +51,13 @@ A campaign headline changes. An event date moves. A client wants the logo larger
   <br><sub><b>Studio templates.</b> Real generated scenes, published as editable community templates — open one and make it yours.</sub>
 </p>
 
-<p align="center">
-  <img src="site/assets/price-repaint.webp" width="88%" alt="Two real generations of the same milk-tea banner: 20% OFF TODAY on the left, 30% OFF TODAY on the right — identical glossy typography, drinks and lighting; one repaint apart.">
-  <br><sub><b>Change the price, keep the style.</b> Ask for “30% off today” and the repaint preserves the design language — the same banner, one edit apart.</sub>
-</p>
+<p><sub><b>LAYERS, NOT MAGIC</b></sub></p>
 
-## What editable actually means
+## The image and the design are different things.
 
-**The image and the design are different things.** An Oia document contains separate canvas objects:
+An Oia document is separate canvas objects, not a flat picture:
+
+`text` · `images` · `shapes` · `your uploads` · `layers panel` · `safe zones` · `multi-page` · `undo · autosave`
 
 | Object | What you can change |
 | :--- | :--- |
@@ -60,33 +66,86 @@ A campaign headline changes. An event date moves. A client wants the logo larger
 | **Shapes & additions** | Add graphic elements, tables, drawings, and more text |
 | **Artboard** | Set document dimensions independently for each page |
 
-Move a native headline without moving the photograph. Fix its wording without calling an image model. Duplicate a page and adapt the copy for another placement. Undo changes and let autosave preserve the project.
+Move a native headline without moving the photograph. Fix its wording without calling an image model. Duplicate a page and adapt the copy for another placement.
 
 > **Text in the image, by default (D16).** Generations render the copy into the artwork with the image model's typography (best-looking results). Two paths keep text editable: flip **“Editable text right away”** in the composer before generating (clean-plate artwork + native text layers), or — on any baked design — select the artwork and click **“Make text editable”** (reads the text with your provider, ≈ 1 image + 1 read, rebuilds each line as a layer). Text already embedded in an imported image is pixels until you run the same command.
 
-## A studio around your image model
+> **Non-destruction guarantee.** AI refinement never deletes your own layers. Objects you add (uploads, product photos, hand-placed text, tables) are stamped `origin: "user"` and survive every AI refinement on top of the regenerated scene — position intact. Layer objects without provenance (legacy projects) default to the same protection. Removing them is a manual, explicit act.
 
-### 01 — Generate a starting point
+<p><sub><b>THE PREMIUM FEATURES</b></sub></p>
 
-Describe the visual, choose dimensions and page count, and follow the streamed generation progress. Use a supported image provider for real artwork, or explore the editor with the keyless mock provider and bundled templates.
+## What your quota buys.
 
-Two agent loops run on top of your provider. **Research the web** (on by default where the provider supports it) lets the planner look up current facts — dates, prices, trends — before designing, and shows each finding with its source. **Auto refine** (on by default) checks every generated image against the brief — spelling and language of rendered text first — and re-generates when the critic finds a fixable defect, bounded and priced up front (`up to N images + N reads`). Both switches remember your choice.
+Every image below is a real generation from a real run — no mockups, no stock. Web research checks current facts before designing; auto refine checks the result against your brief; the full price is shown before you run.
 
-### 02 — Make the design yours
+<p align="center">
+  <img src="site/assets/price-repaint.webp" width="88%" alt="Two real generations of the same milk-tea banner: 20% OFF TODAY on the left, 30% OFF TODAY on the right — identical glossy typography, drinks and lighting; one repaint apart.">
+  <br><sub><b>Repaint keeps the style.</b> Same banner, one edit apart.</sub>
+</p>
 
-Edit native objects directly on the Fabric.js canvas. Add your own images and copy, adjust the stacking order, use undo/redo, and work across pages with different dimensions. Save projects locally through the app, reopen them, or publish an editable template.
+<p align="center">
+  <img src="site/assets/laborday.webp" width="31%" alt="Labor Day cold-brew flash-sale poster, researched and auto-refined in a real Codex run" />
+  <img src="site/assets/sneaker.webp" width="31%" alt="Sneaker drop template with editable product name and drop date" />
+  <img src="site/assets/serum.webp" width="31%" alt="Serum launch social post template with editable headline and CTA" />
+  <br><sub><b>Real runs.</b> Researched posters, rendered typography, published as editable templates.</sub>
+</p>
 
-Brand Kit stores brand information; its written guidance is passed to the generation planner. It is a prompt aid, not a guarantee that every font, logo, or color will be applied automatically.
+<p align="center"><strong>0</strong> surprises — every loop is priced before you run it (<code>up to N images + N reads</code>).</p>
 
-### 03 — Take it into production
+<p><sub><b>WORKFLOW</b></sub></p>
 
-Export **PNG, JPG, PDF, PPTX, or a ZIP of page images**. PDF preserves mixed page sizes. PPTX places rendered artwork on slides; it does **not** convert canvas layers into native PowerPoint text and shapes.
+## A studio around your image model.
 
-The Toolbox also brings together format conversion, image resizing, chart creation, and provider-backed image tasks.
+### 01 — Describe it
+
+Describe the visual, choose dimensions and page count, follow the streamed progress. Two agent loops run on top of your provider, both on by default, both remember your choice:
+
+- **Research the web** — the planner looks up current facts (dates, prices, trends) before designing, and shows each finding with its source.
+- **Auto refine** — every generated image is checked against the brief — spelling and language of the rendered text first — and re-generated when the critic finds a fixable defect. Bounded and priced up front: `up to N images + N reads`.
+
+Use a supported image provider for real artwork, or explore with the keyless mock provider and bundled templates.
+
+### 02 — Approve the outline
+
+Multi-page plans land as an outline first — see the pages before they're painted. Editing the outline is text-only and costs no images.
+
+### 03 — Make it yours
+
+Edit native objects directly on the Fabric.js canvas: rewrite copy, move and reorder objects, add your own images, work across pages with different dimensions. Change the price → the repaint keeps the style. Preview AI edits first and apply only what you keep. Undo/redo and autosave throughout. Brand Kit stores brand information and passes its written guidance to the generation planner — a prompt aid, not a guarantee that every font, logo, or color will be applied automatically.
+
+### 04 — Produce
+
+Export **PNG, JPG, PDF, PPTX, or a ZIP of page images**. PDF preserves mixed page sizes. PPTX places rendered artwork on slides; it does **not** convert canvas layers into native PowerPoint text and shapes. Marketplace presets (Shopee / Lazada / TikTok Shop), livestream overlays, posters, and 16:9 decks. The Toolbox also brings format conversion, image resizing, chart creation, and provider-backed image tasks.
+
+<p align="center">
+  <img src="site/assets/demo-loop-poster.webp" width="92%" alt="Real Oia run on Codex: the agent researches the web, checks its own artwork, refines round 1, and ships with an auto-refined badge.">
+  <br><sub>real codex run · research → check → refine → <b>auto-refined</b></sub>
+</p>
+
+<p align="center">
+  <sub><b>no account</b> ◆ <b>local-first</b> ◆ <b>priced up front</b> ◆ <b>export anywhere</b></sub>
+</p>
+
+<p><sub><b>TEXT IN IMAGE</b></sub></p>
+
+## Change the price. Keep the style.
+
+Ask for “make it 30% off today” — the repaint re-generates the banner (≈ 1 image) while the design language stays: same glossy typography, same drinks, same lighting.
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="site/assets/price-20.webp" width="92%" alt="Before — the milk-tea banner reading 20% OFF TODAY"><br><sub><b>before · 20% off</b></sub></td>
+    <td align="center" width="50%"><img src="site/assets/price-30.webp" width="92%" alt="After — the same banner regenerated reading 30% OFF TODAY, identical style"><br><sub><b>after · 30% off</b></sub></td>
+  </tr>
+</table>
+
+Need movable letters instead? **“Make text editable”** rebuilds the copy as native layers — ≈ 1 image + 1 read. Or flip **“Editable text right away”** before generating to get clean-plate artwork plus live text objects from the start.
+
+<p><sub><b>SCOPE</b></sub></p>
 
 ## When to use this instead of an image chat
 
-**Use an image chat when the image itself is the deliverable. Use Oia when you also need to assemble, revise, and reuse a design.** It adds a workflow around image models—not a claim of a better underlying model.
+**Use an image chat when the image itself is the deliverable. Use Oia when you also need to assemble, revise, and reuse a design.** It adds a workflow around image models — not a claim of a better underlying model.
 
 | Your task | With an image-only result | With Oia |
 | :--- | :--- | :--- |
@@ -96,8 +155,6 @@ The Toolbox also brings together format conversion, image resizing, chart creati
 | Reuse a layout | Rebuild it or reuse a flattened image | Save and share an editable scene as a template |
 | Deliver files | Convert and assemble them elsewhere | Export images, PDF, PPTX, and ZIP from the editor |
 | Automate recurring tasks | Depends on the service and its API | Use the local agent API and coding-agent skills |
-
-**Non-destruction guarantee:** AI refinement never deletes your own layers. Objects you add (uploads, product photos, hand-placed text, tables) are stamped `origin: "user"` and survive every AI refinement on top of the regenerated scene — position intact. Layer objects without provenance (legacy projects) default to the same protection. Removing them is a manual, explicit act.
 
 ## Quick start
 
@@ -128,13 +185,15 @@ Start with a bundled **Sample** project (seeded on first run) to try real text a
 >
 > The builds are unsigned (deliberate — no signing budget yet). On macOS, a build **downloaded** from GitHub carries a quarantine flag, so on first open right-click the app → **Open** → **Open** (or System Settings → Privacy & Security → "Open Anyway") to pass Gatekeeper. On Windows, SmartScreen shows "Windows protected your PC" → **More info** → **Run anyway**. The Windows installer puts the app in `%LOCALAPPDATA%\Programs\Oia`; projects live in `%APPDATA%\Oia` and survive uninstall and upgrade. There is no auto-update channel until signing exists — pick up new versions from the releases page.
 
+<p><sub><b>NO LOCK-IN</b></sub></p>
+
 ## Bring your own provider
 
 The **provider registry** implements:
 
 | Role | Provider | Setup |
 | :--- | :--- | :--- |
-| Image | `mock` | Default when no runtime is ready; no credentials (labeled **"Chế độ thử nghiệm"** in the UI) |
+| Image | `mock` | Default when no runtime is ready; no credentials (labeled **“Chế độ thử nghiệm”** in the UI) |
 | Image | `codex` | Bundled CLI with image generation available and an authenticated ChatGPT login |
 | Image | `openai` | `OPENAI_API_KEY` (generations **and** edits with reference images; one pinned model) |
 | Image | `fal` | `FAL_KEY` |
@@ -147,6 +206,8 @@ A mixed mock/real pair (for example a mock planner feeding the real Codex image 
 For Vietnamese sellers this enables the banner loop end to end: describe the banner in Vietnamese → the planner reads price/date/name out of the request (editable text blocks, font Be Vietnam Pro) → clean-plate artwork (no baked text) is generated through your ChatGPT plan quota → attach the real product photo as a **reference image** (`codex exec -i`) so the scene is built around the actual product → export at marketplace sizes (Shopee / Lazada / TikTok Shop presets).
 
 Codex image generation depends on CLI support and account access, and consumes the applicable account allowance. Other paid providers bill through your own account. **Local does not mean generation is free.** Provider names beyond the implemented registry should not be treated as working integrations.
+
+<p><sub><b>AGENT-READY</b></sub></p>
 
 ## Build it into your workflow
 
@@ -167,6 +228,71 @@ The default submission returns a task ID; poll `GET /api/tasks/{id}` for the res
 Quota is protected: at most one metered generation in flight, per-key rate limits on submissions, and every agent-created job is labeled in the app's job feed so you can see who is spending your quota.
 
 Installable instructions for coding agents live in [`packages/skills/skills`](packages/skills/skills).
+
+<p><sub><b>FAQ</b></sub></p>
+
+## Questions sellers ask.
+
+<details>
+<summary><strong>Is Oia really free?</strong></summary>
+
+Yes — MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, or plug in your OpenAI/fal API key. Local does not mean generation is free — your provider's quota and pricing still apply.
+
+</details>
+
+<details>
+<summary><strong>Can I edit the text in a generated image?</strong></summary>
+
+By default the copy is rendered <em>into</em> the artwork for the best-looking typography. Change it by asking — “make it 30% off today” — and the repaint keeps the style. Need movable letters instead? Flip <em>Editable text right away</em> before generating, or run <em>Make text editable</em> on any design.
+
+</details>
+
+<details>
+<summary><strong>What do Research and Auto refine do?</strong></summary>
+
+Two agent loops that run over your provider. <em>Research the web</em> (on by default where supported) lets the planner look up current facts — dates, prices, trends — before designing, and shows every finding with its source. <em>Auto refine</em> checks each generated image against your brief — spelling and language of the rendered text first — and re-generates when the critic finds a fixable defect. Bounded, and the full price is shown before you run (e.g. <em>up to 2 images + 2 reads</em>). Both switches remember your choice.
+
+</details>
+
+<details>
+<summary><strong>Do I need an API key?</strong></summary>
+
+No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Keys are optional (OpenAI, fal).
+
+</details>
+
+<details>
+<summary><strong>Mac or Windows?</strong></summary>
+
+Both — native builds for macOS (Apple Silicon) and Windows. Your projects live on your machine.
+
+</details>
+
+<details>
+<summary><strong>Where do my designs live?</strong></summary>
+
+On your machine — projects, assets, and conversations are stored locally in the app's data directory. Nothing is uploaded to us (there is no “us” server). Prompts and images used for generation still go to the provider you configure.
+
+</details>
+
+<p><sub><b>OPEN SOURCE</b></sub></p>
+
+## Yours to run. Yours to keep.
+
+<p align="center">
+  <sub><b>MIT license</b> ◆ <b>self-hosted</b> ◆ <b>BYO provider</b> ◆ <b>agent-ready</b></sub>
+</p>
+
+Oia is released under the [MIT license](LICENSE). Explore the code, adapt the studio to your workflow, and contribute through [issues](https://github.com/cuongducle/oia/issues) or pull requests.
+
+<p><sub><b>KNOWN LIMITS</b></sub></p>
+
+## Current boundaries
+
+- **Local storage.** Projects and assets live in the app's data directory as per-project files (atomic writes; a corrupt file never takes the whole library). Import from a legacy web-app `.data` folder via Workspace → **Import from web app**.
+- **Artwork remains raster.** Object-level canvas edits do not edit pixels inside the underlying image. Reference-image support also varies by provider.
+- **Some tools need extra setup or are unfinished.** Background removal requires `rembg`. PPT Translator is a landing page; the translation task is not implemented yet.
+- **Your provider remains involved.** Prompts and images used for generation go to the configured provider. Running locally does not make external model calls private to your machine.
 
 <details>
 <summary><strong>Development, tests, and project structure</strong></summary>
@@ -194,25 +320,6 @@ packages/skills      Coding-agent instructions (consumer of the loopback API)
 site/                Landing page (static; deployed to GitHub Pages)
 ```
 
+The landing page lives in [`site/`](site/) and is deployed at **[cuongducle.github.io/oia](https://cuongducle.github.io/oia/)** — no build step (`index.html` + `styles.css` + `main.js`); pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
+
 </details>
-
-## Landing page
-
-The marketing site lives in [`site/`](site/) and is deployed at **[cuongducle.github.io/oia](https://cuongducle.github.io/oia/)**.
-
-```bash
-cd site && python3 -m http.server 8765    # → http://localhost:8765
-```
-
-No build step: `index.html` + `styles.css` + `main.js`. Pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
-
-## Current boundaries
-
-- **Local storage.** Projects and assets live in the app's data directory as per-project files (atomic writes; a corrupt file never takes the whole library). Import from a legacy web-app `.data` folder via Workspace → **Import from web app**.
-- **Artwork remains raster.** Object-level canvas edits do not edit pixels inside the underlying image. Reference-image support also varies by provider.
-- **Some tools need extra setup or are unfinished.** Background removal requires `rembg`. PPT Translator is a landing page; the translation task is not implemented yet.
-- **Your provider remains involved.** Prompts and images used for generation go to the configured provider. Running locally does not make external model calls private to your machine.
-
-## Open source
-
-Oia is released under the [MIT license](LICENSE). Explore the code, adapt the studio to your workflow, and contribute through [issues](https://github.com/cuongducle/oia/issues) or pull requests.
