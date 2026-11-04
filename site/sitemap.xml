@@ -30,4 +30,11 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <url><loc>https://cuongducle.github.io/oia/templates/flash-sale/</loc></url>
+  <url><loc>https://cuongducle.github.io/oia/templates/menu/</loc></url>
+  <url><loc>https://cuongducle.github.io/oia/templates/social-post/</loc></url>
+  <url><loc>https://cuongducle.github.io/oia/templates/new-product/</loc></url>
+  <url><loc>https://cuongducle.github.io/oia/templates/poster/</loc></url>
+  <url><loc>https://cuongducle.github.io/oia/templates/deck/</loc></url>
 </urlset>

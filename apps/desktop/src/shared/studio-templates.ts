@@ -68,4 +68,19 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("A fresh start for your skin", 62, 300, 700, 36, "#6b5d4c" ),
     text("SHOP THE LAUNCH — 20% OFF", 60, 1396, 900, 38, "#3d3428", { fontWeight: 700, charSpacing: 30, textAlign: "center" }),
   ], { category: "social-post", w: 1024, h: 1536 }),
+  // ---- TPL-T3 batch 2 (2026-11-04): new-product + a second flash-sale look.
+  // Placement per plate QA: sneaker copy goes top + bottom-right (light type on
+  // the darker gradient); holiday copy top-left (right side carries bokeh). ----
+  template("sneaker", "Product drop", "#23262c", "sneaker", [
+    text("VELOCE ONE", 60, 92, 900, 92, "#ffffff", { fontWeight: 800, charSpacing: 40 }),
+    text("RUN LIGHTER.\nLAND SOFTER.", 60, 210, 640, 40, "#c9ccd4" ),
+    text("THE DROP — 12.12", 470, 1290, 500, 52, "#ffb347", { fontWeight: 800, textAlign: "right" }),
+    text("Limited first run · members early access", 470, 1370, 500, 26, "#9aa0ab", { textAlign: "right" }),
+  ], { category: "new-product", w: 1024, h: 1536 }),
+  template("holiday", "Year-end blowout", "#0d2b1e", "holiday", [
+    text("YEAR-END\nBLOWOUT", 60, 110, 640, 120, "#f5e9c8", { fontWeight: 800, lineHeight: 0.95 }),
+    text("UP TO 50% OFF", 60, 430, 560, 64, "#e2b653", { fontWeight: 800, charSpacing: 30 }),
+    text("ENDS DEC 31 · ONLINE & IN-STORE", 60, 540, 560, 28, "#cdd8cd", { charSpacing: 40 }),
+    text("Wrap up the year\nwith everything\nyou missed", 60, 660, 520, 44, "#f5e9c8", { lineHeight: 1.3 }),
+  ], { category: "flash-sale", w: 1024, h: 1536 }),
 ];
