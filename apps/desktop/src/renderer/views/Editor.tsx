@@ -133,7 +133,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
   useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean }[]>([]);
+  const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean; sub?: boolean }[]>([]);
   const aiJobRef = useRef<string | null>(null);
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
@@ -257,7 +257,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         const p = presentErrorEn(ev.errorClass);
         setAiError({ message: p.message, actionLabel: p.actionLabel });
       }
-      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
+      if (ev.renderData?.taskMeta?.length) setAiTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1", sub: tm.type === "substep" })));
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {

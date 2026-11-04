@@ -2,20 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import type { RunStep } from "../lib/run-steps.js";
 import { RunSteps } from "./RunSteps.js";
 
-/**
- * UI v1.1 R3 pass 2 — the run-progress sheet: stepper + streaming notes live in
- * ONE raised card (the same sheet language as the composer), so the mid-run
- * state reads as a designed moment instead of two floating fragments. While
- * busy: centered steps + an open, auto-following notes feed with a live dot and
- * an honest elapsed timer (design-direction: neutral "working" language, never
- * result verbs). After the run: the ✓ summary line + the notes one click away.
- */
 /** Streamed events may each end with their own newline — collapse the pile-ups
  *  so the feed keeps one quiet blank line between entries, not two. */
 function normalizeFeed(text: string): string {
   return text.trim().replace(/\n{3,}/g, "\n\n");
 }
 
+/** Below this distance from the bottom (px) the feed follows new lines; further
+ *  up, the reader scrolled away on purpose and owns the position. */
+const FOLLOW_MARGIN_PX = 48;
+
+/**
+ * UI v1.1 R3 pass 2 — the run-progress sheet: stepper + streaming notes live in
+ * ONE raised card (the same sheet language as the composer), so the mid-run
+ * state reads as a designed moment instead of two floating fragments. While
+ * busy: centered steps + a live-following notes feed with a live dot and an
+ * honest elapsed timer (design-direction: neutral "working" language, never
+ * result verbs). After the run: the ✓ summary line + the notes one click away.
+ */
 export function RunPanel(props: {
   busy: boolean;
   steps: RunStep[];
@@ -25,11 +29,12 @@ export function RunPanel(props: {
   onToggleNotes: (open: boolean) => void;
   /** Run start (ms epoch) — drives the elapsed seconds while busy. */
   startedAt: number | null;
-  /** The ✓ summary replaces the stepper once the result has landed (exact gate text). */
-  summary: string | null;
+  /** Generation wall-time once the result has landed; null before/while busy. */
+  summarySeconds: number | null;
 }) {
-  const { busy, steps, narrative, notesOpen, onToggleNotes, startedAt, summary } = props;
+  const { busy, steps, narrative, notesOpen, onToggleNotes, startedAt, summarySeconds } = props;
   const bodyRef = useRef<HTMLDivElement>(null);
+  const followRef = useRef(true);
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -39,19 +44,34 @@ export function RunPanel(props: {
     return () => clearInterval(t);
   }, [busy, startedAt]);
 
-  // live-follow the feed while it streams; once idle the user owns the scroll
+  // follow the feed only while the reader is at the tail — scrolling up to read
+  // must win over the stream yanking the position back down
   useEffect(() => {
-    if (busy && bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    const el = bodyRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      followRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < FOLLOW_MARGIN_PX;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [narrative]);
+
+  useEffect(() => {
+    if (busy && followRef.current && bodyRef.current) {
+      bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+    }
   }, [busy, narrative]);
 
-  if (!busy && !narrative && !summary) return null;
+  if (!busy && !narrative && summarySeconds == null) return null;
 
   return (
     <section className={`runPanel${narrative ? " hasNotes" : ""}`} aria-label="Run progress" data-testid="run-panel">
       {busy ? (
         <RunSteps steps={steps} />
       ) : (
-        summary && <p className="genSummary" role="status">{summary}</p>
+        summarySeconds != null && (
+          <p className="genSummary" role="status">✓ Generated in {summarySeconds}s</p>
+        )
       )}
       {narrative && (
         <details className="aiNotes" open={notesOpen} onToggle={(e) => onToggleNotes(e.currentTarget.open)}>
@@ -61,7 +81,7 @@ export function RunPanel(props: {
             <span className="aiNotesLabel">{busy ? "Assistant working" : "AI notes"}</span>
             {busy && startedAt && <span className="aiNotesTimer" title="Elapsed time">{elapsed}s</span>}
           </summary>
-          <div className="aiNotesBody" ref={bodyRef}>{normalizeFeed(narrative)}</div>
+          <div className="aiNotesBody" ref={bodyRef} aria-live="polite">{normalizeFeed(narrative)}</div>
         </details>
       )}
     </section>

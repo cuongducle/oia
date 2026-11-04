@@ -8,7 +8,7 @@ import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
 import { CostHint } from "../components/RunSteps.js";
 import { RunPanel } from "../components/RunPanel.js";
-import { costHintText, stepsFromTimeline } from "../lib/run-steps.js";
+import { costHintText, stepsFromTimeline, type TimelineEntry } from "../lib/run-steps.js";
 import { SIZE_GROUPS, sizeDims } from "../lib/composer-sizes.js";
 import { QUICK_TOOLS } from "../lib/tools-registry.js";
 import { Dialog } from "../components/Dialog.js";
@@ -93,7 +93,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [prompt, setPrompt] = useState(initialPrompt);
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<{ content: string; done: boolean }[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [narrative, setNarrative] = useState("");
   const [canvasMeta, setCanvasMeta] = useState<CanvasMsgMeta | null>(null);
   const [error, setError] = useState("");
@@ -135,7 +135,13 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
   const startedAtRef = useRef<number | null>(null);
-  const [startedAt, setStartedAt] = useState<number | null>(null); // re-render twin of the ref — RunPanel's elapsed timer reads it
+  const [startedAt, setStartedAt] = useState<number | null>(null); // mirror of the ref — RunPanel's timer needs a render
+  /** One setter for both clocks — the ref feeds the ✓-summary math, the state
+   *  feeds the elapsed timer; writing them anywhere else invites drift. */
+  function markRunStart(ms: number | null): void {
+    startedAtRef.current = ms;
+    setStartedAt(ms);
+  }
   // explicit open/close for the AI notes block — no key-remount tricks; a new run reopens it
   const [notesOpen, setNotesOpen] = useState(false);
   const activeJobRef = useRef<string | null>(null);
@@ -187,7 +193,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         setRetryable(p.actionKind === "retry");
       }
       if (ev.renderData?.taskMeta?.length) {
-        setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1" })));
+        setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1", sub: tm.type === "substep" })));
       }
       if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
       // DA-6: the badge pairs with the canvas it describes — canvas events only.
@@ -253,8 +259,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     if (!prompt.trim() || busy || uploading) return;
     setBusy(true);
     setNotesOpen(true); // stream feedback: show the planner's live text while it works
-    startedAtRef.current = retryOf ? startedAtRef.current : Date.now();
-    if (!retryOf) setStartedAt(startedAtRef.current);
+    if (!retryOf) markRunStart(Date.now());
     if (!retryOf) setGenSeconds(null);
     activeJobRef.current = retryOf ? null : activeJobRef.current;
     if (!retryOf) activeJobRef.current = null;
@@ -318,8 +323,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     pendingOutlineRef.current = null;
     setBusy(true);
     setNotesOpen(true);
-    startedAtRef.current = Date.now();
-    setStartedAt(startedAtRef.current);
+    markRunStart(Date.now());
     setGenSeconds(null);
     activeJobRef.current = null;
     setError("");
@@ -604,7 +608,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         notesOpen={notesOpen}
         onToggleNotes={setNotesOpen}
         startedAt={startedAt}
-        summary={!busy && genSeconds !== null ? `✓ Generated in ${genSeconds}s` : null}
+        summarySeconds={!busy ? genSeconds : null}
       />
 
       {canvasMeta && (

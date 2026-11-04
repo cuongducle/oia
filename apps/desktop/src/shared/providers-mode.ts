@@ -13,6 +13,7 @@ import type { RuntimeModeChoice } from "./ipc.js";
  */
 
 export interface DesktopProvidersEnv {
+  [key: string]: string | undefined;
   OIA_DESKTOP_SMOKE?: string;
   OIA_DESKTOP_SHOT?: string;
   OIA_DESKTOP_SHOT_BUSY?: string;
@@ -20,6 +21,11 @@ export interface DesktopProvidersEnv {
   /** Owner's explicit opt-in real run (OIA_DESKTOP_REAL_SMOKE) — counts as consent. */
   OIA_DESKTOP_REAL_SMOKE?: string;
 }
+
+/** Env keys that may select a real provider even though they live under the
+ *  OIA_DESKTOP_ prefix: the owner's explicit real-run flag and the explicit
+ *  provider pin. Everything else under that prefix is a TEST MODE — default-deny. */
+const REAL_ALLOWED_FLAGS = new Set(["OIA_DESKTOP_REAL_SMOKE", "OIA_DESKTOP_PROVIDERS"]);
 
 /** The persisted runtime settings (settings.json in userData) — TP-D3/D13. */
 export interface ProvidersSettings {
@@ -51,7 +57,13 @@ export function resolveEffectiveMode(input: {
   env: DesktopProvidersEnv;
 }): "mock" | "codex" {
   const { env } = input;
-  if (env.OIA_DESKTOP_SMOKE === "1" || env.OIA_DESKTOP_SHOT === "1" || env.OIA_DESKTOP_SHOT_BUSY === "1") return "mock";
+  // Default-deny (quota lesson 2026-11-03): ANY OIA_DESKTOP_* test flag forces the
+  // mock pair unless explicitly allowlisted. The old enumerated list (SMOKE, SHOT)
+  // let a NEW flag fall through to real codex and burned quota three times before
+  // anyone noticed — a prefix rule cannot forget the next flag.
+  for (const [key, value] of Object.entries(env)) {
+    if (key.startsWith("OIA_DESKTOP_") && value === "1" && !REAL_ALLOWED_FLAGS.has(key)) return "mock";
+  }
   if (env.OIA_DESKTOP_PROVIDERS === "mock" || env.OIA_DESKTOP_PROVIDERS === "codex") return env.OIA_DESKTOP_PROVIDERS;
   if (input.choice === "auto") {
     const consent = input.consent || env.OIA_DESKTOP_REAL_SMOKE === "1"; // explicit owner run

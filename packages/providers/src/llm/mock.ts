@@ -1,4 +1,5 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
+import { holdMockPace } from "../mockPace.js";
 import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA } from "@oia/schema";
 
 /**
@@ -37,6 +38,7 @@ function instructedCount(system: string, template: (n: number) => string): numbe
 export class MockLlmProvider implements LlmProvider {
   readonly name = "mock";
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
+  constructor(private readonly paceMs = 0) {}
   /** DA-3 mock critic: per JOB (keyed by opts.jobId), the FIRST check fails and
    * every later one passes — one deterministic refine round per run, whatever
    * ran before it (teardown #9: an instance-lifetime counter made shot gates
@@ -53,6 +55,7 @@ export class MockLlmProvider implements LlmProvider {
     return n;
   }
   async chat(messages: LlmMessage[], _opts?: LlmChatOpts): Promise<string> {
+    await holdMockPace(this.paceMs); // shot-busy only — 0 in every other mode
     const user = messages.filter((m) => m.role === "user").at(-1)?.content ?? "";
     const system = [...messages].reverse().find((m) => m.role === "system")?.content ?? "";
     const pageOutlineN = instructedCount(system, PLANNER_INSTRUCTIONS.pageOutline);
@@ -106,6 +109,7 @@ export class MockLlmProvider implements LlmProvider {
    * constant (reword the prompt and the matcher follows, PLANNER_INSTRUCTIONS
    * pattern). Bytes are ignored: the mock proves wiring, not eyesight. */
   async readImage(prompt: string, _image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA, opts: LlmChatOpts = {}): Promise<string> {
+    await holdMockPace(this.paceMs); // shot-busy only — 0 in every other mode
     if (prompt.includes(EVAL_READ_MARKER)) {
       // DA-3 mock critic — deterministic fail→pass per job (see #evalSeen)
       const fail = this.#evalSeen(opts.jobId) === 0;

@@ -14,7 +14,11 @@ export const taskMetaSchema = z.object({
   content: z.string(),
   styleId: z.string().optional(),
   status: z.string().optional(),
-  type: z.enum(["node", "tool", "result"]),
+  /** "substep" = an inner loop step (auto-refine check/refine turns): it opens
+   *  and closes INSIDE its enclosing phase. Steppers must not lay these on the
+   *  linear track — a closed substep to the right of an open phase reads as
+   *  out-of-order. This field IS the wire contract (stable name), not the label. */
+  type: z.enum(["node", "tool", "result", "substep"]),
 });
 
 export const canvasMsgMetaSchema = z

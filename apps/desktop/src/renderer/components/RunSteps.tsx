@@ -1,18 +1,18 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment } from "react";
 import type { RunStep } from "../lib/run-steps.js";
 
 /** Done steps keep their icon slot filled — a check reads "finished" at a glance
- *  where the old same-shape dots made done vs running a hue-guessing game. */
+ *  where same-shape dots made done vs running a hue-guessing game. */
 const CheckIcon = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
 );
 
 /**
  * UI v1.1 R3 — the single progress line every metered flow shows: Planning ›
- * Painting › Composing, plus Stop. Quota is money (AGENTS.md): a running paid
- * step is always next to the control that cancels it.
+ * Painting › Composing. Quota is money (AGENTS.md): the control that cancels a
+ * running paid step lives in the composer right above this line, never in it.
  */
-export function RunSteps({ steps, onStop, stopIcon }: { steps: RunStep[]; onStop?: () => void; stopIcon?: ReactNode }) {
+export function RunSteps({ steps }: { steps: RunStep[] }) {
   return (
     <div className="runSteps" role="status" aria-label="Progress" data-testid="run-steps">
       {steps.map((s, i) => (
@@ -20,7 +20,7 @@ export function RunSteps({ steps, onStop, stopIcon }: { steps: RunStep[]; onStop
           {i > 0 && (
             <span className={`runStepTrack ${steps[i - 1].state === "done" ? "done" : ""}`} aria-hidden="true" />
           )}
-          <span className={`runStep ${s.state}`}>
+          <span className={`runStep ${s.state}`} aria-current={s.state === "running" ? "step" : undefined}>
             <span className="runStepIcon" aria-hidden="true">
               {s.state === "done" ? CheckIcon : <span className="runStepDot" />}
             </span>
@@ -28,9 +28,6 @@ export function RunSteps({ steps, onStop, stopIcon }: { steps: RunStep[]; onStop
           </span>
         </Fragment>
       ))}
-      {onStop && (
-        <button className="runStepsStop" onClick={onStop}>{stopIcon}Stop</button>
-      )}
     </div>
   );
 }

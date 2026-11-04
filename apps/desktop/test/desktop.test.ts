@@ -221,9 +221,15 @@ describe("resolveEffectiveMode (quota consent: a brew-installed codex never auto
     expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SMOKE: "1" } })).toBe("mock");
     expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SHOT: "1" } })).toBe("mock");
     expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SHOT_BUSY: "1" } })).toBe("mock");
+    // test flags beat the explicit provider pin (unchanged precedence)
+    expect(resolveEffectiveMode({ choice: "auto", consent: true, runtimeState: "ready", env: { OIA_DESKTOP_SMOKE: "1", OIA_DESKTOP_PROVIDERS: "codex" } })).toBe("mock");
     expect(resolveEffectiveMode({ choice: "auto", consent: false, runtimeState: "ready", env: { OIA_DESKTOP_PROVIDERS: "codex" } })).toBe("codex");
     expect(resolveEffectiveMode({ choice: "auto", consent: false, runtimeState: "ready", env: { OIA_DESKTOP_REAL_SMOKE: "1" } })).toBe("codex"); // explicit owner run
     expect(resolveEffectiveMode({ choice: "codex", consent: false, runtimeState: null, env: {} })).toBe("codex");
+  });
+  it("default-deny: a FUTURE OIA_DESKTOP_* test flag is mock too — the quota trap cannot recur", () => {
+    expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_HYPOTHETICAL_FUTURE_MODE: "1" } })).toBe("mock");
+    expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SI_SMOKE: "1" } })).toBe("mock"); // was unpinned before the prefix rule
   });
 });
 

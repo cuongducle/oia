@@ -14,21 +14,25 @@ const LABELS: Record<string, string> = {
   "Manager Agent": "Composing",
 };
 
-/** DA-3's inner critic loop narrates INSIDE the Painting phase — the feed
- *  streams "Checking round N…/Refining…" live. As stepper rows they rendered
- *  done-to-the-right-of-pending (the loop nodes close while the enclosing
- *  phase is still open), so they never join the linear track. */
-const INNER_LOOP = /^(Checking round \d+|Refining)$/;
+/** Timeline entries the renderer keeps: content, completion, and the wire's
+ *  `substep` marker (type field on taskMeta — schema contract, not a label). */
+export interface TimelineEntry {
+  content: string;
+  done: boolean;
+  /** True for inner-loop steps (auto-refine checks/refine turns): they narrate
+   *  in the feed but never join the linear stepper track. */
+  sub?: boolean;
+}
 
 export function stepLabel(agentName: string): string {
   return LABELS[agentName] ?? agentName;
 }
 
 /** taskMeta frames → steps. The first unfinished step runs; later ones wait. */
-export function stepsFromTimeline(timeline: { content: string; done: boolean }[]): RunStep[] {
+export function stepsFromTimeline(timeline: TimelineEntry[]): RunStep[] {
   let runningSeen = false;
   return timeline
-    .filter((t) => !INNER_LOOP.test(t.content))
+    .filter((t) => !t.sub)
     .map((t) => {
       if (t.done) return { label: stepLabel(t.content), state: "done" as const };
       const state: StepState = runningSeen ? "pending" : "running";
