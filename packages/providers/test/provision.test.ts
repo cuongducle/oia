@@ -18,6 +18,7 @@ import {
   ProviderError,
 } from "../src/index.js";
 import { readdir } from "node:fs/promises";
+import { writeRunnableCli } from "./fakeCli.js";
 
 /** Shallow walk — test-only replacement for the removed production export. */
 async function listFiles(root: string): Promise<string[]> {
@@ -499,10 +500,16 @@ describe("CliRuntime.onStderrLine flushes the trailing partial line", () => {
   it("delivers a final line without a newline terminator", async () => {
     const scriptDir = path.join(dir, "flush");
     mkdirSync(scriptDir, { recursive: true });
-    writeFileSync(path.join(scriptDir, "codex"), "#!/bin/sh\nprintf 'line one\\nno trailing newline' >&2\n", { mode: 0o755 });
+    const flushBin = writeRunnableCli(
+      scriptDir,
+      "stderr-flush",
+      `import process from "node:process";
+process.stderr.write("line one\\nno trailing newline");
+`,
+    );
     const rt = new CliRuntime();
     const lines: string[] = [];
-    const res = await rt.run({ bin: path.join(scriptDir, "codex"), args: [], timeoutMs: 5_000, onStderrLine: (l) => lines.push(l) });
+    const res = await rt.run({ bin: flushBin, args: [], timeoutMs: 5_000, onStderrLine: (l) => lines.push(l) });
     expect(res.code).toBe(0);
     expect(lines).toEqual(["line one", "no trailing newline"]);
   });

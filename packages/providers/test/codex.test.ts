@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { readFileSync } from "node:fs";
-import { chmodSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { describe, expect, it, afterAll } from "vitest";
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { writeRunnableCli } from "./fakeCli.js";
 import {
   CodexImageProvider,
   CodexLlmProvider,
@@ -144,21 +144,18 @@ describe("TP.3 mode-aware prompt templates", () => {
 describe("CliRuntime with a fake binary (resolution / timeout / abort / stdin)", () => {
   const fakeDir = path.join(tmpdir(), `oia-fake-bin-${Date.now()}`);
   mkdirSync(fakeDir, { recursive: true });
-  const fakeBin = path.join(fakeDir, "fakecodex");
-
-  beforeAll(() => {
-    // echoes args + stdin, then exits 0 — lets tests pin the bridge invariants
-    writeFileSync(
-      fakeBin,
-      `#!/bin/sh
-echo "ARGS:$@"
-echo "STDIN_BEGIN"
-cat
-echo "STDIN_END"
+  // echoes args + stdin, then exits 0 — lets tests pin the bridge invariants
+  // (portable node fake — see fakeCli.ts; sh scripts cannot run on Windows)
+  const fakeBin = writeRunnableCli(
+    fakeDir,
+    "fakecodex",
+    `import process from "node:process";
+process.stdout.write("ARGS:" + process.argv.slice(2).join(" ") + "\\n");
+process.stdout.write("STDIN_BEGIN\\n");
+process.stdin.pipe(process.stdout);
+process.stdin.on("end", () => process.stdout.write("STDIN_END\\n"));
 `,
-    );
-    chmodSync(fakeBin, 0o755);
-  });
+  );
   afterAll(() => rmSync(fakeDir, { recursive: true, force: true }));
 
   it("spawns, passes args, and pipes the prompt via stdin (never argv)", async () => {
@@ -178,9 +175,7 @@ echo "STDIN_END"
   });
 
   it("timeout kills the child and reports timedOut", async () => {
-    const sleepy = path.join(fakeDir, "sleepy");
-    writeFileSync(sleepy, "#!/bin/sh\nsleep 30\n");
-    chmodSync(sleepy, 0o755);
+    const sleepy = writeRunnableCli(fakeDir, "sleepy", "setTimeout(() => {}, 30000);\n");
     const rt = new CliRuntime();
     const res = await rt.run({ bin: sleepy, args: [], timeoutMs: 300 });
     expect(res.timedOut).toBe(true);
@@ -188,9 +183,7 @@ echo "STDIN_END"
   });
 
   it("AbortSignal kills the child and reports aborted", async () => {
-    const sleepy = path.join(fakeDir, "sleepy2");
-    writeFileSync(sleepy, "#!/bin/sh\nsleep 30\n");
-    chmodSync(sleepy, 0o755);
+    const sleepy = writeRunnableCli(fakeDir, "sleepy2", "setTimeout(() => {}, 30000);\n");
     const rt = new CliRuntime();
     const ac = new AbortController();
     setTimeout(() => ac.abort(), 200);
@@ -260,21 +253,17 @@ echo "STDIN_END"
     const scratch = path.join(tmpdir(), `oia-badplan-${Date.now()}`);
     mkdirSync(scratch, { recursive: true });
     writeFileSync(path.join(scratch, "plan.json"), "this is not json");
-    const fakeBin2 = path.join(fakeDir, "planwriter");
-    // writes plan.json into the io scratch dir passed via -o, mimicking codex
-    writeFileSync(
-      fakeBin2,
-      `#!/bin/sh
-OUT=""
-while [ $# -gt 0 ]; do
-  if [ "$1" = "-o" ]; then OUT="$2"; fi
-  shift
-done
-echo '{"type":"thread.started","thread_id":"t123"}'
-printf 'this is not json' > "$OUT"
+    const fakeBin2 = writeRunnableCli(
+      fakeDir,
+      "planwriter",
+      // writes plan.json into the io scratch dir passed via -o, mimicking codex
+      `import { writeFileSync } from "node:fs";
+import process from "node:process";
+const i = process.argv.indexOf("-o");
+process.stdout.write('{"type":"thread.started","thread_id":"t123"}\\n');
+if (i >= 0) writeFileSync(process.argv[i + 1], "this is not json");
 `,
     );
-    chmodSync(fakeBin2, 0o755);
     const provider = new CodexLlmProvider(new CodexBridge({ bin: fakeBin2 }), { timeoutMs: 5_000 });
     await expect(provider.chat([{ role: "user", content: "banner trà sữa" }], { json: true })).rejects.toMatchObject({
       name: "ProviderError",
@@ -419,9 +408,12 @@ describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
   function fakeBin2(): string {
     const d = path.join(tmpdir(), `oia-fake-echo-${Date.now()}`);
     mkdirSync(d, { recursive: true });
-    const b = path.join(d, "echo-bin");
-    writeFileSync(b, "#!/bin/sh\necho '{\"type\":\"thread.started\",\"thread_id\":\"t\"}'\n");
-    chmodSync(b, 0o755);
-    return b;
+    return writeRunnableCli(
+      d,
+      "echo-bin",
+      `import process from "node:process";
+process.stdout.write('{"type":"thread.started","thread_id":"t"}\\n');
+`,
+    );
   }
 });
