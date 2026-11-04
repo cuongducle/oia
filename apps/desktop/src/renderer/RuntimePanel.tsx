@@ -105,7 +105,7 @@ export default function RuntimePanel({ onModeChanged }: Props) {
   const labels: Record<RuntimeAction, string> = {
     install: "Install Codex",
     login: "Sign in with ChatGPT",
-    logout: "Sign out",
+    logout: snap.runtime.imageGen === "unavailable" ? "Sign out to switch account" : "Sign out",
     enableReal: "Use real Codex",
   };
   const cancellable = busy === "install" || busy === "login";
@@ -138,6 +138,11 @@ export default function RuntimePanel({ onModeChanged }: Props) {
           ))}
         </div>
       </div>
+      {vm.notice && (
+        <div className="runtimeRow notice" role="status" data-testid="runtime-notice">
+          {vm.notice}
+        </div>
+      )}
       {(installText || loginNote) && (
         <div className="runtimeRow progress" role="status">
           <span>{installText ?? loginNote}</span>

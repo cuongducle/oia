@@ -4,6 +4,7 @@ import type { ToolKind } from "../lib/tools-registry.js";
 import { oia } from "../lib/bridge.js";
 import { toDisplayUrl } from "../../shared/assets.js";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { FileDropzone } from "./FileDropzone.js";
 
 /**
  * reorg step 4c — the web ToolRunner (app/tools/[slug]/runner.tsx) ported to the
@@ -16,6 +17,7 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProject: (id: string) => void }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [picked, setPicked] = useState<File | null>(null);
   const [savedPath, setSavedPath] = useState<string | null>(null);
   const [w, setW] = useState(1080);
   const [busy, setBusy] = useState(false);
@@ -332,14 +334,14 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     <div className="toolRunner">
       {(kind === "convert-image" || kind === "image-to-pdf" || kind === "resize") && (
         <>
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg" />
+          <FileDropzone inputRef={fileRef} accept="image/png,image/jpeg" formats="PNG or JPG" label="Image to convert" disabled={busy} onChange={setPicked} />
           {kind === "resize" && (
             <div className="toolRow">
               <label htmlFor="resize-width">Width (px): </label>
               <input id="resize-width" type="number" value={w} min={16} max={4096} onChange={(e) => setW(Number(e.target.value))} style={{ width: 100, padding: 6 }} />
             </div>
           )}
-          <button className="primaryBtn" disabled={busy} onClick={() => kind === "convert-image" ? runConvert() : kind === "image-to-pdf" ? runToPdf() : runResize()}>
+          <button className="primaryBtn" disabled={busy || !picked} onClick={() => kind === "convert-image" ? runConvert() : kind === "image-to-pdf" ? runToPdf() : runResize()}>
             {busy ? "Processing…" : "Convert & save"}
           </button>
         </>
@@ -347,8 +349,8 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
 
       {(kind === "heic-to-png" || kind === "heic-to-pdf") && (
         <>
-          <input ref={fileRef} type="file" accept="image/heic,image/heif,.heic,.heif" />
-          <button className="primaryBtn" disabled={busy} onClick={() => runHeic(kind === "heic-to-png" ? "png" : "pdf")}>
+          <FileDropzone inputRef={fileRef} accept="image/heic,image/heif,.heic,.heif" formats="HEIC or HEIF photos (from iPhone)" label="HEIC photo" disabled={busy} onChange={setPicked} />
+          <button className="primaryBtn" disabled={busy || !picked} onClick={() => runHeic(kind === "heic-to-png" ? "png" : "pdf")}>
             {busy ? "Converting…" : kind === "heic-to-png" ? "HEIC → PNG" : "HEIC → PDF"}
           </button>
         </>
@@ -356,8 +358,8 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
 
       {kind === "pdf-to-jpg" && (
         <>
-          <input ref={fileRef} type="file" accept="application/pdf" />
-          <button className="primaryBtn" disabled={busy} onClick={runPdfToJpg}>
+          <FileDropzone inputRef={fileRef} accept="application/pdf,.pdf" formats="PDF · up to 10 pages are exported" label="PDF document" disabled={busy} onChange={setPicked} />
+          <button className="primaryBtn" disabled={busy || !picked} onClick={runPdfToJpg}>
             {busy ? "Rendering…" : "PDF to JPG (up to 10 pages, ZIP)"}
           </button>
         </>
@@ -365,7 +367,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
 
       {(kind === "ai-generate" || kind === "ai-edit") && (
         <>
-          {kind === "ai-edit" && <input ref={fileRef} type="file" accept="image/*" />}
+          {kind === "ai-edit" && <FileDropzone inputRef={fileRef} accept="image/png,image/jpeg,image/webp" formats="A clear front-facing photo · PNG, JPG or WebP" label="Your photo" disabled={busy} onChange={setPicked} />}
           <textarea value={aiPrompt} rows={3} onChange={(e) => setAiPrompt(e.target.value)}
             placeholder={kind === "ai-generate" ? "Describe your design, e.g. a coffee review channel, warm colors, THE DAILY BREW" : "Describe the hairstyle you would like to try, e.g. short curls or an undercut"} />
           <div className="toolRow">

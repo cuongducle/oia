@@ -21,6 +21,7 @@ export {
   findSessionImage,
   newestGeneratedImage,
   classifyCodexFailure,
+  imageToolUnavailable,
   noteCancelledImageJob,
   waitForStableFile,
   CODEX_DEFAULT_MODEL,
@@ -47,6 +48,14 @@ export {
   type ProvisionerOptions,
   type DetectOptions,
 } from "./cli/provision.js";
+export {
+  readCodexAccount,
+  planTypeFromAuthJson,
+  imageGenAccessForPlan,
+  codexHomeDir,
+  type CodexAccount,
+  type ImageGenAccess,
+} from "./cli/codex-account.js";
 export {
   openAiImages,
   trueRatioSize,

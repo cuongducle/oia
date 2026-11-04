@@ -7,7 +7,7 @@ import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, 
 import { ProviderError } from "../types.js";
 import {
   CodexBridge, classifyCodexFailure, findSessionImage, newestGeneratedImage, parseImagePath,
-  noteCancelledImageJob, waitForStableFile,
+  noteCancelledImageJob, waitForStableFile, imageToolUnavailable,
 } from "../codex/bridge.js";
 import { asciiUuid, createScratchDir, removeScratchDir } from "../cli/runtime.js";
 import { sniffImageExt } from "../llm/codex.js";
@@ -206,6 +206,13 @@ export class CodexImageProvider implements ImageProvider {
       }
       if (!file) {
         await this.bridge.cleanup(res);
+        if (imageToolUnavailable(res.stdout)) {
+          throw new ProviderError(
+            "capability_unsupported",
+            "this ChatGPT plan has no image generation in Codex — sign in with a Go or higher plan",
+            { provider: "codex", detail: res.stdout.slice(-300) },
+          );
+        }
         throw new ProviderError("no_output", "codex produced no image file — run `codex exec` manually to inspect it", {
           provider: "codex",
           detail: res.stdout.slice(-300),

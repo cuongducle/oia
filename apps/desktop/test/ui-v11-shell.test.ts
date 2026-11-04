@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeSnapshot } from "../src/shared/bridge.js";
 import { runtimeStatusLine } from "../src/renderer/lib/runtime-status.js";
+import { acceptsFile, formatBytes } from "../src/renderer/lib/file-accept.js";
 import { costHintText, stepsFromTimeline } from "../src/renderer/lib/run-steps.js";
 import { SIZE_GROUPS, sizeDims } from "../src/renderer/lib/composer-sizes.js";
 import { readAutoRefinePref, writeAutoRefinePref, readResearchPref, writeResearchPref } from "../src/renderer/lib/composer-prefs.js";
@@ -26,9 +27,31 @@ describe("runtimeStatusLine", () => {
     expect(runtimeStatusLine(snap("ready", "codex"), true).title).toBe("Trial mode"); // provider says mock even if the snapshot lags
   });
 
+  it("D17: a Free plan login is not 'ready' — it says images are unavailable", () => {
+    const s = snap("ready", "codex");
+    const free: RuntimeSnapshot = { ...s, runtime: { ...s.runtime, planType: "free", imageGen: "unavailable" } };
+    expect(runtimeStatusLine(free, false)).toEqual({ tone: "warn", title: "Codex", detail: "no image generation on this plan" });
+  });
+
   it("a broken runtime names what is missing", () => {
     expect(runtimeStatusLine(snap("not_logged_in", "codex"), false)).toEqual({ tone: "bad", title: "Codex", detail: "sign in needed" });
     expect(runtimeStatusLine(snap("missing", "codex"), false)).toEqual({ tone: "bad", title: "Codex", detail: "not installed" });
+  });
+});
+
+describe("Tools file drop — a drop bypasses the native accept filter, so the app enforces it", () => {
+  it("matches exact mimes, wildcards, and extensions (HEIC often arrives with an empty type)", () => {
+    expect(acceptsFile("image/png,image/jpeg", { name: "a.png", type: "image/png" })).toBe(true);
+    expect(acceptsFile("image/png,image/jpeg", { name: "a.gif", type: "image/gif" })).toBe(false);
+    expect(acceptsFile("image/*", { name: "a.webp", type: "image/webp" })).toBe(true);
+    expect(acceptsFile("image/heic,image/heif,.heic,.heif", { name: "IMG_0001.HEIC", type: "" })).toBe(true);
+    expect(acceptsFile("application/pdf,.pdf", { name: "deck.pdf", type: "application/pdf" })).toBe(true);
+    expect(acceptsFile("application/pdf,.pdf", { name: "notes.txt", type: "text/plain" })).toBe(false);
+  });
+  it("sizes read like a person would say them", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(48_000)).toBe("47 KB");
+    expect(formatBytes(3_250_000)).toBe("3.1 MB");
   });
 });
 

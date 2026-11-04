@@ -178,6 +178,22 @@ describe("runtimeViewModel (the panel action matrix, Q11 English copy)", () => {
     const st: RuntimeStatus = { state: "ready", source: "path", bin: "/x/codex", loggedIn: true, loginMethod: "api-key" };
     expect(runtimeViewModel(st, "codex", "codex").actions).toEqual(["logout"]);
   });
+  it("D17: ready on a Free ChatGPT plan → warn badge + notice, never 'Codex is ready'", () => {
+    const st: RuntimeStatus = { state: "ready", source: "bundled", bin: "/x/codex", version: "0.166.0", loggedIn: true, loginMethod: "chatgpt", planType: "free", imageGen: "unavailable" };
+    const vm = runtimeViewModel(st, "auto", "codex");
+    expect(vm.badge).toBe("warn");
+    expect(vm.headline).not.toContain("Codex is ready");
+    expect(vm.detail).toContain("ChatGPT Free plan");
+    expect(vm.notice).toMatch(/Go or higher/);
+    // enableReal would only route the seller into runs that come back empty
+    expect(runtimeViewModel(st, "auto", "mock").actions).toEqual(["logout"]);
+  });
+  it("D17: an unknown plan never warns", () => {
+    const st: RuntimeStatus = { state: "ready", source: "bundled", bin: "/x/codex", loggedIn: true, loginMethod: "chatgpt", planType: null, imageGen: "unknown" };
+    const vm = runtimeViewModel(st, "auto", "codex");
+    expect(vm.badge).toBe("ok");
+    expect(vm.notice).toBeUndefined();
+  });
   it("install phases localize (Q11 English) with the percentage threaded through", () => {
     expect(installPhaseText("download", 42)).toBe("Downloading Codex… 42%");
     expect(installPhaseText("checksum")).toBe("Verifying checksum…");

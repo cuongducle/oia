@@ -169,6 +169,14 @@ export async function newestGeneratedImage(withinMs = 10 * 60_000, rootOverride?
   return best?.file ?? null;
 }
 
+/**
+ * D17 — codex exits 0 and only SAYS the image tool is missing (Free plan, live
+ * 2026-11-04: "the built-in image generation tool isn't available").
+ */
+export function imageToolUnavailable(stdout: string): boolean {
+  return /image[ _-]?gen(?:eration)?(?: tool)?[^.\n"]{0,40}(?:isn['’]t|is not|not|un)\s*available/i.test(stdout);
+}
+
 /** Map codex exec failure output to the stable error classes. */
 export function classifyCodexFailure(res: { code: number | null; stdout: string; stderr: string; timedOut: boolean; aborted: boolean }): ProviderError {
   const text = `${res.stdout}\n${res.stderr}`;

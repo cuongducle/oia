@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { ProviderError } from "../types.js";
 import { CliRuntime } from "./runtime.js";
+import { codexHomeDir, readCodexAccount, type ImageGenAccess } from "./codex-account.js";
 
 /**
  * TP-D3 — RuntimeProvisioner: zero-terminal Codex runtime management.
@@ -54,6 +55,10 @@ export interface RuntimeStatus {
   version?: string;
   loggedIn?: boolean;
   loginMethod?: LoginMethod | null;
+  /** D17 — ChatGPT plan claim of the signed-in account (null: unreadable / API key). */
+  planType?: string | null;
+  /** D17 — whether that plan can run `$imagegen`; "unknown" never warns. */
+  imageGen?: ImageGenAccess;
   detail?: string;
 }
 
@@ -225,6 +230,8 @@ export interface ProvisionerOptions {
   managedDir: string;
   /** D12 — codex shipped inside the app package; probed before PATH (see DetectOptions). */
   bundledDir?: string;
+  /** D17 — where codex keeps auth.json; defaults to $CODEX_HOME or ~/.codex. */
+  codexHome?: string;
   env?: NodeJS.ProcessEnv;
   runtime?: CliRuntime;
   fetchImpl?: typeof fetch;
@@ -295,6 +302,10 @@ export class RuntimeProvisioner {
       /* binary exists but would not run — surfaced via login probe below */
     }
     const login = await this.probeLogin(det.bin);
+    const account =
+      login.loggedIn && login.method === "chatgpt"
+        ? await readCodexAccount(this.opts.codexHome ?? codexHomeDir(this.opts.env ?? process.env))
+        : null;
     const status: RuntimeStatus = {
       state: login.loggedIn ? "ready" : "not_logged_in",
       source: det.source,
@@ -302,6 +313,7 @@ export class RuntimeProvisioner {
       version,
       loggedIn: login.loggedIn,
       loginMethod: login.method,
+      ...(account ? { planType: account.planType, imageGen: account.imageGen } : {}),
       detail: login.detail,
     };
     this.statusCache = { at: Date.now(), status };
