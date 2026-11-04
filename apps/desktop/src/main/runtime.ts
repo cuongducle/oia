@@ -3,7 +3,7 @@ import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { RuntimeProvisioner, type RuntimeStatus } from "@oia/providers";
 import { IPC } from "../shared/channels.js";
-import { runtimeSetModeSchema } from "../shared/ipc.js";
+import { runtimeSetModeSchema, runtimeLoginApiKeySchema } from "../shared/ipc.js";
 import type { RuntimeEvent, RuntimeSnapshot } from "../shared/bridge.js";
 import { resolveEffectiveMode, normalizeProvidersSettings, type ProvidersSettings } from "../shared/providers-mode.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
@@ -164,6 +164,23 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
         },
         { signal: activeAbort.signal },
       );
+      if (ok) await markConsent();
+      await rebuildIfAuto();
+      return { ok, runtime: status };
+    } catch (err) {
+      ipcRuntimeError(err);
+    } finally {
+      activeAbort = null;
+    }
+  });
+
+  // D18 — BYOK. The key is parsed by schema (paste-mistake gate), rides stdin into
+  // `codex login --with-api-key`, and never appears in any response or log line.
+  handle(IPC.runtimeLoginApiKey, async (_e, raw: unknown) => {
+    try {
+      const { key } = runtimeLoginApiKeySchema.parse(raw);
+      activeAbort = new AbortController();
+      const { ok, status } = await getProvisioner().loginApiKey(key, { signal: activeAbort.signal });
       if (ok) await markConsent();
       await rebuildIfAuto();
       return { ok, runtime: status };

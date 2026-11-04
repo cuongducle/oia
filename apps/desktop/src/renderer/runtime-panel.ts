@@ -8,7 +8,7 @@ import type { RuntimeModeChoice } from "../shared/ipc.js";
  * mapping are testable without Electron.
  */
 
-export type RuntimeAction = "install" | "login" | "logout" | "enableReal";
+export type RuntimeAction = "install" | "login" | "logout" | "enableReal" | "loginApiKey";
 
 export interface RuntimeViewModel {
   badge: "ok" | "warn" | "err";

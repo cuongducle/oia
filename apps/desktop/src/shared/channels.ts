@@ -38,6 +38,7 @@ export const IPC = {
   runtimeStatus: "runtime:status",
   runtimeInstall: "runtime:install",
   runtimeLogin: "runtime:login",
+  runtimeLoginApiKey: "runtime:loginApiKey", // D18 — BYOK (codex login --with-api-key)
   runtimeLogout: "runtime:logout",
   runtimeSetMode: "runtime:setMode",
   runtimeCancel: "runtime:cancel",

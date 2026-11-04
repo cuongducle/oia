@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import path from "node:path";
 import { getImageProvider, getLlmProvider } from "../src/registry.js";
 
 /**
@@ -66,5 +67,30 @@ describe("registry env isolation (T3)", () => {
   it("mock remains the default for an empty env", () => {
     expect(getImageProvider({}).capabilities.isMock).toBe(true);
     expect(getLlmProvider({}).capabilities.isMock).toBe(true);
+  });
+
+  // D18/T3: the model used to be an import-time process.env read — dead through the
+  // init RPC env object. It must thread construction-time now: API-key auth pins
+  // API models via exactly this knob.
+  it("D18: CODEX_LLM_MODEL from the env object reaches the exec argv (-m), default stays gpt-6-luna", async () => {
+    const { mkdirSync, writeFileSync, readFileSync, chmodSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const argvFile = path.join(tmpdir(), `oia-d17-argv-${Date.now()}.txt`);
+    const binDir = path.join(tmpdir(), `oia-d17-bin-${Date.now()}`);
+    mkdirSync(binDir, { recursive: true });
+    const fake = path.join(binDir, "codex");
+    writeFileSync(
+      fake,
+      `#!/bin/sh\nprintf '%s' "$*" > '${argvFile}'\necho '{"type":"thread.started","thread_id":"t1"}'\n`,
+      { mode: 0o755 },
+    );
+    chmodSync(fake, 0o755);
+    const run = async (env: NodeJS.ProcessEnv): Promise<string> => {
+      const llm = getLlmProvider({ LLM_PROVIDER: "codex", CODEX_BIN: fake, ...env });
+      await llm.chat([{ role: "user", content: "x" }], { json: true }).catch(() => {}); // plan_parse_failed is fine — argv is already recorded
+      return readFileSync(argvFile, "utf8");
+    };
+    expect(await run({ CODEX_LLM_MODEL: "gpt-5.5" })).toContain("-m gpt-5.5");
+    expect(await run({})).toContain("-m gpt-6-luna"); // the ChatGPT-login default pair
   });
 });

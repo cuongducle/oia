@@ -390,6 +390,51 @@ export class RuntimeProvisioner {
     };
   }
 
+  /**
+   * D18 — BYOK login: `codex login --with-api-key` reads the key from STDIN
+   * (verified flag of the pinned rust-v0.166.0), so the secret never enters
+   * argv/`ps` — the same invariant the bridge applies to prompts. Shares the
+   * in-flight slot with login(): both flows rewrite auth.json, two concurrent
+   * logins would race each other's session swap.
+   */
+  loginApiKey(
+    key: string,
+    opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+  ): Promise<{ ok: boolean; status: RuntimeStatus; detail?: string }> {
+    this.loginInFlight ??= this.doLoginApiKey(key.trim(), opts).finally(() => {
+      this.loginInFlight = null;
+    });
+    return this.loginInFlight;
+  }
+
+  private async doLoginApiKey(
+    key: string,
+    opts: { timeoutMs?: number; signal?: AbortSignal },
+  ): Promise<{ ok: boolean; status: RuntimeStatus; detail?: string }> {
+    const det = await this.detect();
+    if (!det.bin) throw new ProviderError("provider_missing", "codex binary not found — install first");
+    const res = await this.runtime.run({
+      bin: det.bin,
+      args: ["login", "--with-api-key"],
+      stdin: `${key}\n`, // the CLI reads one stdin line; printenv | codex sends a trailing newline
+      timeoutMs: opts.timeoutMs ?? 60_000,
+      signal: opts.signal,
+      jobId: `codex-login-key-${randomUUID().slice(0, 8)}`,
+    });
+    const status = await this.status({ force: true });
+    if (res.aborted) {
+      throw new ProviderError("cancelled", "codex API-key login was cancelled", { detail: res.stderr.slice(0, 300) });
+    }
+    if (res.timedOut) {
+      throw new ProviderError("timeout", "codex API-key login timed out", { detail: res.stderr.slice(0, 300) });
+    }
+    return {
+      ok: res.code === 0 && status.loggedIn === true,
+      status,
+      detail: res.code === 0 ? undefined : res.stderr.trim().split("\n").slice(-1)[0] || undefined,
+    };
+  }
+
   async logout(): Promise<RuntimeStatus> {
     const det = await this.detect();
     if (!det.bin) throw new ProviderError("provider_missing", "codex binary not found");

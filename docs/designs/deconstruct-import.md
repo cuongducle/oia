@@ -105,6 +105,14 @@ Kèm 1 sửa kịch bản shot: fixture phải là PNG THẬT (đọc từ shotO
 
 ## Còn treo (đã biết, không "phát hiện lại")
 
+### Ghi nhận owner 2026-11-07 (từ vòng thảo luận viral/free-tier)
+
+- **BỎ ý tưởng "né pha inpaint bằng che nền phẳng không quota"** (sample màu quanh box → Rect che khi nền phẳng, chỉ inpaint khi texture). Owner chốt thẳng: **không né được, đừng làm** — inpaint là đường chính, không mở lane cover thủ công. Ghi ở đây để không ai "phát hiện lại" như ý tưởng mới.
+- **MỞ candidates v2 — reconstruction giàu thông tin** (owner: "font cố định xấu, sai chỗ, sai size, sai màu" — mở lại đúng chỗ v1 đã cắt theo DC-6 "fontSize ước lượng, seller tự tinh chỉnh"):
+  1. **Pixel sampling (renderer, deterministic, 0 quota):** (a) màu mực chữ = cụm pixel tương phản cao trong bbox trên ảnh GỐC (không hỏi model — model đoán màu tệ) → thay `fill: TEXT_FILL` hardcode; (b) tighten box bằng ink-scan (quét biên pixel mực thực trong box → crop về khối chữ, đúng chỗ hơn); (c) căn lề left/center/right theo vị trí mực trong box.
+  2. **Fit fontSize hai chiều:** min(theo boxH như hiện tại, theo boxW / chiều dài chuỗi) — hết lệch size trên chữ dài/short.
+  3. **Read schema v2 (additive optional — luật D14):** `weight` (bold/300-900), `italic?`, `category` (display/sans/serif/script) → map sang bộ font bundled nhỏ (cần kiểm giấy phép OFL + hỗ trợ dấu tiếng Việt: Montserrat, Oswald...). Thứ tự làm nếu triển khai: pixel sampling trước (hiệu quả thị giác lớn nhất/chi phí thấp nhất) → fit hai chiều → schema v2 + font.
+
 - ~~SPIKE THẬT~~ **ĐÃ CHẠY & PASS (2026-10-31, owner duyệt — đốt đúng 1 lượt đọc + 1 ảnh theo cam kết):**
   - **Pha đọc — 10,6 giây:** (a) planner model NHẬN ảnh qua `-i` trong exec mode ✅; (b) JSON trả đúng `DECONSTRUCT_JSON_SCHEMA` (2 dòng, fraction hợp lệ) ✅; (c) **bbox khít 100%** — overlay đỏ vẽ theo fraction được vision xác nhận từng cạnh ô chạm đúng chữ, không sót/chệch ✅.
   - **Pha inpaint — 37,9 giây:** xóa toàn bộ chữ, giữ nguyên mọi shape pastel + paper texture, không smudge/seam/artifact, đúng khổ 1024×1536 ✅ (vision-verify trên file thật).

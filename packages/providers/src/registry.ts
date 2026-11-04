@@ -39,9 +39,13 @@ export function getImageProvider(env: NodeJS.ProcessEnv = process.env): ImagePro
     case "fal":
       return new FalImageProvider(env.FAL_KEY ?? "", env.FAL_MODEL);
     case "codex":
-      return new CodexImageProvider(new CodexBridge({ bin: env.CODEX_BIN ?? "codex" }), {
-        timeoutMs: envInt(env, "CODEX_IMAGE_TIMEOUT_MS", 300_000),
-      });
+    case "codex":
+      return new CodexImageProvider(
+        new CodexBridge({ bin: env.CODEX_BIN ?? "codex", model: env.CODEX_LLM_MODEL, imageModel: env.CODEX_IMAGE_MODEL }),
+        {
+          timeoutMs: envInt(env, "CODEX_IMAGE_TIMEOUT_MS", 300_000),
+        },
+      );
     default: return new MockImageProvider(mockPaceMs);
   }
 }
@@ -51,9 +55,13 @@ export function getLlmProvider(env: NodeJS.ProcessEnv = process.env): LlmProvide
     case "openai":
       return new OpenAiLlmProvider(env.OPENAI_API_KEY ?? "", env.OPENAI_LLM_MODEL ?? "gpt-4o-mini");
     case "codex":
-      return new CodexLlmProvider(new CodexBridge({ bin: env.CODEX_BIN ?? "codex" }), {
-        timeoutMs: envInt(env, "CODEX_PLANNER_TIMEOUT_MS", 120_000),
-      });
+    case "codex":
+      return new CodexLlmProvider(
+        new CodexBridge({ bin: env.CODEX_BIN ?? "codex", model: env.CODEX_LLM_MODEL, imageModel: env.CODEX_IMAGE_MODEL }),
+        {
+          timeoutMs: envInt(env, "CODEX_PLANNER_TIMEOUT_MS", 120_000),
+        },
+      );
     default: return new MockLlmProvider(mockPaceMs);
   }
 }

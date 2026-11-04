@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -257,6 +258,71 @@ describe("login() — S6 wrapper over the REAL captured stderr (fixtures/login-s
     const rt = new FakeRuntime(() => ({ stdout: "", stderr: "", code: 0, timedOut: false, aborted: false, durationMs: 1 }));
     const p = new RuntimeProvisioner({ managedDir: path.join(dir, "none2"), runtime: rt, env: { PATH: "" }, platform: "darwin", arch: "arm64", includeWellKnown: false });
     await expect(p.login()).rejects.toMatchObject({ errorClass: "provider_missing" });
+  });
+});
+
+describe("loginApiKey() — D18 BYOK (the key rides stdin, never argv)", () => {
+  const KEY = "sk-test-abcdef0123456789xyz";
+  const ok = (extra: Partial<CliRunResult> = {}): CliRunResult => ({ stdout: "", stderr: "", code: 0, timedOut: false, aborted: false, durationMs: 1, ...extra });
+
+  function makeProvisioner(behaviour: (o: CliRunOptions) => CliRunResult) {
+    const binDir = path.join(dir, `lgk-${randomUUID().slice(0, 6)}`);
+    mkdirSync(binDir, { recursive: true });
+    writeFileSync(path.join(binDir, "codex"), "#!/bin/sh\n", { mode: 0o755 });
+    const seen: CliRunOptions[] = [];
+    const rt = new FakeRuntime((o) => {
+      seen.push(o);
+      return behaviour(o);
+    });
+    const p = new RuntimeProvisioner({ managedDir: path.join(dir, "none"), runtime: rt, env: { PATH: binDir }, platform: "darwin", arch: "arm64", includeWellKnown: false });
+    return { p, seen };
+  }
+
+  it("sends --with-api-key with the key on STDIN and reports the api-key login", async () => {
+    const { p, seen } = makeProvisioner((o) => {
+      if (o.args.join(" ") === "login --with-api-key") return ok();
+      if (o.args[0] === "--version") return ok({ stdout: "codex-cli 0.166.0\n" });
+      return ok({ stdout: "Logged in using API key\n" }); // probeLogin: /using API key/i
+    });
+    const { ok: okRes, status } = await p.loginApiKey(KEY);
+    expect(okRes).toBe(true);
+    expect(status.loggedIn).toBe(true);
+    expect(status.loginMethod).toBe("api-key");
+    const keyCall = seen.find((o) => o.args.includes("--with-api-key"));
+    expect(keyCall).toBeDefined();
+    expect(keyCall!.args).toEqual(["login", "--with-api-key"]); // argv NEVER carries the key
+    expect(keyCall!.stdin).toBe(`${KEY}\n`);
+    expect(JSON.stringify(keyCall!.args)).not.toContain(KEY);
+  });
+
+  it("a rejected key (nonzero exit) is ok:false with the CLI's last stderr line", async () => {
+    const { p } = makeProvisioner((o) => {
+      if (o.args.join(" ") === "login --with-api-key")
+        return ok({ code: 1, stderr: "error: invalid api key\nsecond line\n" });
+      return ok({ stdout: "Not logged in\n" });
+    });
+    const res = await p.loginApiKey(KEY);
+    expect(res.ok).toBe(false);
+    expect(res.status.state).toBe("not_logged_in");
+    expect(res.detail).toBe("second line");
+  });
+
+  it("cancelled mid-login is a ProviderError (cancelled)", async () => {
+    const { p } = makeProvisioner((o) => {
+      if (o.args.join(" ") === "login --with-api-key") return ok({ code: null, aborted: true });
+      return ok();
+    });
+    await expect(p.loginApiKey(KEY)).rejects.toMatchObject({ name: "ProviderError", errorClass: "cancelled" });
+  });
+
+  it("shares the in-flight slot with login() — concurrent calls serialize", async () => {
+    const { p, seen } = makeProvisioner((o) => {
+      if (o.args.join(" ") === "login --with-api-key") return ok();
+      if (o.args[0] === "--version") return ok({ stdout: "codex-cli 0.166.0\n" });
+      return ok({ stdout: "Logged in using API key\n" });
+    });
+    await Promise.all([p.loginApiKey(KEY), p.loginApiKey(KEY)]);
+    expect(seen.filter((o) => o.args.includes("--with-api-key"))).toHaveLength(1);
   });
 });
 

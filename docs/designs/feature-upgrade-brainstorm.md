@@ -127,6 +127,16 @@ Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + te
 
 **E1. Brand kit ràng buộc cả chuỗi** *(candidate — chưa chốt, xem lại cùng dữ liệu D10)*: (a) pill chọn kit ngay composer (chứa không chỉ ở advanced), (b) khi generate: palette/logo từ kit đi vào reference prompt, (c) text layers sinh ra dùng font của kit + copy zones nhận màu kit, (d) canvas card hiển thị "Brand: <tên kit>". Oia đã có store brand kit đầy đủ — phần thiếu là **tác động thực** của kit lên kết quả, đúng nghĩa "binding" của đối thủ.
 
+### Nhóm F — Viral & phân phối (mở 2026-11-07 sau phân tích Surgepix, owner yêu cầu)
+
+*Ngữ cảnh: phân tích surgepix.ai ngày 2026-11-07 (đọc toàn bộ site công khai) — đối thủ đánh bằng 4 đòn: giá mở màn 0,99 USD/tháng, credit all-inclusive (nuốt chi phí model — triệt tiêu friction BYOK), use case Live Commerce Graphics (overlay TikTok Shop/Douyin), và phễu programmatic SEO (hàng chục tool free + gallery cộng đồng + niêm yết mọi directory). Kiến trúc sản phẩm của họ trùng Oia gần như từng mục (planner agent → GPT-Image-2 → layer separation → conversational edit → brand binding). Tệp Plus/Go của Oia đã được phục vụ tốt qua codex; nhóm F nhắm đúng đỉnh phễu — người chưa chịu trả gì.*
+
+**F1. Live Commerce overlay lane** *(candidate — owner yêu cầu 2026-11-07)*: upload ảnh sản phẩm → banner/overlay PNG đúng khổ nền tảng (TikTok Shop 1080×1920, Shopee 500×500…), đổi giá/đổi mẫu bằng hội thoại. Mở rộng tự nhiên của C3 (live-overlay presets ĐÃ SHIP) + tools lane: thêm một lane "live commerce" với khổ nền tảng làm first-class, preset giá/giảm giá như building blocks. **Đối chiếu mục 5:** không xung đột — use case trong app, không cần server.
+
+**F2. Programmatic SEO funnel + gallery cộng đồng** *(candidate — owner yêu cầu 2026-11-07; ĐANG XUNG ĐỘT mục 5, cần quyết định mới)*: mục 5 từng loại "SEO tool footer" (không phải sản phẩm) và "explore gallery hosted" (cần server). Xét lại nghiêm túc theo hướng: (a) funnel là **marketing web property tách khỏi app desktop** (web rời dùng để kéo traffic, redirect tải app — không phải đưa tool vào app); (b) gallery là **showcase tĩnh sinh từ corpus template có sẵn** (không cần tài khoản người dùng, không UGC ban đầu). Vẫn cần người/budget riêng cho content + directory listing. Ràng buộc D-series desktop-only giữ nguyên cho sản phẩm.
+
+**F3. Đường ảnh FREE cho đỉnh phễu (bài toán "API free để viral")** *(nghiên cứu 2026-11-07, chưa chốt)* — landscape kiểm chứng tháng 11/2026: Gemini free tier = KHÔNG có model ảnh nào (Nano Banana全系 "Not available", 2.5 Flash Image đã shutdown 10/2026, Imagen đóng); OpenAI = không có free image API; Pollinations giờ **bắt buộc key**, số dư "Pollen" nhỏ, không uptime guarantee; Hugging Face = 0,10 USD/tháng + ZeroGPU Space xếp hàng; Stability = 25 credit một lần; Magnific = 5 euro một lần. **Đường free đệ quy duy nhất còn sống: Cloudflare Workers AI** (10k neurons/ngày free, cần tài khoản Cloudflare free không cần thẻ) — nhưng model là SDXL/Flux: **không render chữ trong ảnh**, tức phải ghép cặp với chế độ clean-plate + text layer native (số phúc của Oia: đây đúng kiến trúc pre-D16, vẫn còn trong schema TP.3). Hai đường khả thi: (a) **BYOK Cloudflare free** — provider `cloudflare` mới trong registry, user tự đăng ký Cloudflare free, 0 đồng mãi mãi, không server cho Oia, chất lượng background/poster-art ổn nhưng typography đi đường native layer; (b) **Sponsored quota kiểu Surgepix** — Oia tự đốt token cho N banner/ngày/user (chi phí ~0,01–0,04 USD/ảnh, cần backend + chống lạm dụng — mâu thuẫn desktop-only D1, là quyết định kinh doanh chứ không phải kỹ thuật, owner cân nhắc kỹ trước khi mở). Khuyến nghị bản draft: làm (a) trước — đúng triết lý BYOK, không rủi ro chi phí; (b) chỉ mở khi có số liệu D10 chứng minh đỉnh phễu là nút thắt thật.
+
 ## 5. Không mượn gì, và tại sao
 
 * **Credits/subscription, upsell badge, fabricated reviews** — vi phạm nguyên tắc BYOK và "no invented users/ratings" (design-direction.md).
@@ -141,7 +151,8 @@ Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + te
 | --- | --- | --- |
 | P0 | A1 preview-apply · C1 outline gate | Nâng chất loop đã validate mà không cần năng lực mới; C1 là khác biệt hóa đối thủ (chi phí đoán được) |
 | P1 | A3 selection-bound · E1 brand binding · C3 live overlay presets · D1 recipe library | Giá trị seller rõ, chi phí vừa, không đụng provider |
-| P2 | B1+B2 deconstruct import · C2 long-image | B1 đã chốt kiến trúc (Q4) nhưng phụ thuộc spike vị trí; làm sau khi loop chính chắc |
+| P2 | B1+B2 deconstruct import · C2 long-image · B1-v2 reconstruction (xem deconstruct-import.md, mở 2026-11-07) | B1 đã chốt kiến trúc (Q4) nhưng phụ thuộc spike vị trí; làm sau khi loop chính chắc |
+| P3 | F1 live-commerce lane · F2 SEO funnel · F3 BYOK Cloudflare | Mở 2026-11-07 sau phân tích Surgepix — F1 mở rộng C3 sẵn có; F2 cần quyết định lại mục 5 + budget marketing riêng; F3 chờ chốt (a)/(b) của owner |
 
 ## 7. Câu hỏi đã chốt
 
@@ -154,5 +165,7 @@ Bộ preset export mới cho seller livestream (TikTok Shop/Shopee Live VN) + te
 ## 8. Nguồn
 
 * Trang công khai của đối thủ tham chiếu — đọc toàn bộ 2026-10-31 (reader) + 6 ảnh minh họa tính năng & 1 slide deck mẫu phân tích vision.
+* **surgepix.ai — đọc toàn bộ 2026-11-07** (pricing/g6 tính năng/use case/đuôi SEO tool) — nguồn trực tiếp cho nhóm F; giá: 0,99 USD/tháng × 3 tháng đầu rồi 9,90 USD (~130 ảnh/tháng), Pro 24,90 USD (~750 ảnh); credit model all-inclusive.
+* Landscape API ảnh free (cho F3) — kiểm chứng 2026-11-07: aistudio.google.com/docs/pricing (Nano Banana全系 không có free tier), apiframe.ai/blog/free-ai-image-generation-api-2026 (Pollinations bắt key, HF 0,10 USD/tháng, Stability 25 credit, Magnific 5 euro), blog.laozhang.ai (Cloudflare Workers AI = free image API đệ quy cuối cùng còn sống).
 * RE nội bộ của owner (private, 2026-10-27, mức UI + protocol SSE + bản đồ tính năng đầy đủ) — tham chiếu các mục §; không tái phân phối trong repo công khai theo precedent bảo mật đối thủ.
 * `docs/reference/design-product-ui-2026.md` (gap table P0–P2, 7 luật DNA) và `docs/designs/design-direction.md` (nguyên tắc sản phẩm) — ràng buộc mọi đề xuất ở đây.
