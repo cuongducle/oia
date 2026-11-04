@@ -14,8 +14,9 @@ import { persistenceWriteFailures } from "../src/persistenceHealth.js";
  */
 
 const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
-/** chmod-based EACCES does not stop root (some CI containers) — skip honestly. */
-const itNonRoot = asRoot ? it.skip : it;
+/** chmod-based EACCES does not stop root (some CI containers), and fs mode bits
+ *  are a NO-OP on Windows (cross-platform battle log) — skip honestly. */
+const itPosixOnly = asRoot || process.platform === "win32" ? it.skip : it;
 
 async function flushWrite(): Promise<void> {
   // the fire-and-forget save runs on the microtask + fs thread pool — give it a beat
@@ -29,7 +30,7 @@ function fixture(): { dir: string; file: string; store: ChatSessionStore } {
 }
 
 describe("B7 persistence health — write failures are recorded, recovery clears them", () => {
-  itNonRoot("fire-and-forget save (create) — EACCES is recorded, no unhandled rejection, session still works in memory", async () => {
+  itPosixOnly("fire-and-forget save (create) — EACCES is recorded, no unhandled rejection, session still works in memory", async () => {
     const { dir, file, store } = fixture();
     onTestFinished(() => chmodSync(dir, 0o700)); // never leave a locked dir behind
     await store.load();
@@ -46,7 +47,7 @@ describe("B7 persistence health — write failures are recorded, recovery clears
     // the test completing at all is the no-unhandled-rejection gate
   });
 
-  itNonRoot("awaited save (append) — rejects to the caller AND lands in the same registry", async () => {
+  itPosixOnly("awaited save (append) — rejects to the caller AND lands in the same registry", async () => {
     const { dir, file, store } = fixture();
     onTestFinished(() => chmodSync(dir, 0o700));
     await store.load();
@@ -63,7 +64,7 @@ describe("B7 persistence health — write failures are recorded, recovery clears
     expect(mine?.code).toBe("EACCES");
   });
 
-  itNonRoot("recovery — one successful write clears the file's entry (health shows CURRENT failures only)", async () => {
+  itPosixOnly("recovery — one successful write clears the file's entry (health shows CURRENT failures only)", async () => {
     const { dir, file, store } = fixture();
     onTestFinished(() => chmodSync(dir, 0o700));
     await store.load();
