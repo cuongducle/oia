@@ -166,3 +166,40 @@ Nguồn: https://github.com/OSideMedia/higgsfield-ai-prompt-skill (MIT).
 - Quyết định + follow-up ghi trong DA-11 (`docs/designs/designer-agent-loop.md`)
 
 A/B thực nghiệm ghi nhận: bản rules v1 (12 luật) thắng blind-review 7/10 vs 5,5/10 so với không rules (05-11, n=1 mỗi bên — bằng chứng định hướng, khớp cơ chế từng luật).
+
+## Kết quả A/B blind — ảnh bằng chứng
+
+Mỗi cặp cùng user prompt, cùng model planner, chỉ khác planner system prompt.
+Judge là vision model KHÔNG biết bên nào là bản mới (blind — đúng thứ tự mà critic
+DA-8 sẽ chấm khi Auto refine bật). Prompt đầy đủ của từng ảnh: [`ab-prompts.md`](ab-prompts.md).
+
+### Vòng 1 — không rules (A) vs IMAGE_CRAFT_RULES v1 (B)
+
+![A/B round 1: A — không rules, B — rules v1](assets/ab-round1-no-rules-vs-v1.jpg)
+
+Verdict blind: **B thắng rõ 7/10 vs 5,5/10**. Judge gọi A là “flat, frontal,
+ring-light-style illumination… wax figure finish”; khen B đúng các trục luật dạy —
+key light có hướng (luật lighting), flyaway hair + skin micro-detail (luật skin),
+“one palette, three values” (luật 60/30/10), “GIẢM 20% as the undisputed hero”
+(khung hierarch). Chữ tiếng Việt đúng dấu cả hai bên.
+
+### Vòng 2 — rules v1 (A) vs v2 (+ orientation language + zone skeleton) — dọc
+
+![A/B round 2 portrait: A — v1, B — v2](assets/ab-round2-v1-vs-v2-portrait.jpg)
+
+Verdict blind: **B thắng rõ 8,5/10 vs 6/10**. Judge: A là “a lifestyle stock photo
+with text stamped on top — no CTA, no feature line”; B có đủ 5 zone
+(headline → offer → product → benefits → CTA — đúng khung 40/45/15) và dải khói
+vàng nối ly trà lên badge bị khen “smart connective device” — chính “dynamic
+element connecting the zones” trong instruction.
+
+### Vòng 2 — v1 (A) vs v2 (B) — ngang (đường landscape flow)
+
+![A/B round 2 landscape: A — v1, B — v2](assets/ab-round2-v1-vs-v2-landscape.jpg)
+
+Verdict blind: **B thắng clear về craft** — “heavy product anchor on the left
+third, right-aligned copy stack, eye sweeps left-to-right” (đúng flow trái-phải
+được dạy); A bị chấm “the eye zigzags… looks like a template”. Đánh giá trung
+thực kèm: A giữ được điểm thương mại (dòng “CỬA HÀNG ĐIỆN THOẠI” + accent màu
+cho offer) — v2 thắng craft, chưa chắc thắng thông điệp; n=1 mỗi bên.
+

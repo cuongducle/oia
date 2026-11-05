@@ -28,3 +28,6 @@ apps/desktop/resources/codex/
 # tesseract lang cache from ad-hoc node probes run in this cwd
 apps/desktop/*.traineddata
 .idea/
+
+# A/B harness working output (evidence copies live in docs/research/assets)
+packages/agent/out/
