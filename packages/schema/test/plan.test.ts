@@ -144,15 +144,21 @@ describe("DA — Auto refine bounds + eval contract", () => {
     expect(AUTO_REFINE_MAX_ROUNDS_CAP).toBe(2);
   });
   it("evalReadSchema: a full read parses; wrong verdicts/garbage fail", () => {
-    const good = evalReadSchema.parse({ verdict: "fail", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["typo"], fixHints: ["fix it"] });
+    const good = evalReadSchema.parse({ verdict: "fail", scope: "localized", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: ["typo"], fixHints: ["fix it"] });
     expect(good.verdict).toBe("fail");
-    expect(() => evalReadSchema.parse({ verdict: "maybe", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow();
+    expect(good.scope).toBe("localized");
+    expect(() => evalReadSchema.parse({ verdict: "maybe", scope: "global", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: [], fixHints: [] })).toThrow();
+    expect(() => evalReadSchema.parse({ verdict: "pass", scope: "global", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow(); // v3.2: realism required
+    expect(() => evalReadSchema.parse({ verdict: "pass", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: [], fixHints: [] })).toThrow(); // v3.2: scope required
     expect(() => evalReadSchema.parse("not json")).toThrow();
-    expect(() => evalReadSchema.parse({ verdict: "pass", scores: { textHandling: 11, brand: 8, fidelity: 7, composition: 7 }, issues: [], fixHints: [] })).toThrow(); // 0..10
+    expect(() => evalReadSchema.parse({ verdict: "pass", scope: "global", scores: { textHandling: 11, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: [], fixHints: [] })).toThrow(); // 0..10
   });
-  it("selfImproveResultSchema: the persisted verdict (DA-6)", () => {
+  it("selfImproveResultSchema: the persisted verdict (DA-6) + refinePath (DA-3.1, additive)", () => {
     const r = selfImproveResultSchema.parse({ rounds: 1, verdict: "pass", issues: [] });
     expect(r.rounds).toBe(1);
+    const withPath = selfImproveResultSchema.parse({ rounds: 1, verdict: "pass", issues: [], refinePath: "edit" });
+    expect(withPath.refinePath).toBe("edit"); // the record says HOW it was fixed
+    expect(() => selfImproveResultSchema.parse({ rounds: 1, verdict: "pass", issues: [], refinePath: "magic" })).toThrow();
     expect(() => selfImproveResultSchema.parse({ rounds: 1, verdict: "maybe", issues: [] })).toThrow();
     expect(() => selfImproveResultSchema.parse({ rounds: -1, verdict: "pass", issues: [] })).toThrow();
   });

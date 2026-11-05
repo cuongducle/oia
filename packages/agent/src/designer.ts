@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ChatEvent, SceneCanvas, FabricObject, PlanBlock, PlanPage, GenerationMode, PlannerPlan, EvalRead, SelfImproveResult, TaskMeta } from "@oia/schema";
 import {
   parsePlannerPlan, normalizeBlocks, nextMsgId, SCENE_VERSION, PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION,
-  EVAL_JSON_SCHEMA, EVAL_READ_MARKER, evalReadSchema, STYLE_PRESETS } from "@oia/schema";
+  EVAL_JSON_SCHEMA, EVAL_READ_MARKER, evalReadSchema, STYLE_PRESETS, IMAGE_CRAFT_RULES, cleanPlateZoneClause } from "@oia/schema";
 import type { ImageProvider, LlmProvider, ImageGenResult } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
 import { placeBlocks, fitCoverWithZones } from "./copy-zones.js";
@@ -125,9 +125,38 @@ export function parseEvalRead(raw: string): EvalRead | null {
   }
 }
 
-/** Best-effort ranking: mean of the four criteria (DA-3). */
+/** Best-effort ranking: mean of the five criteria (DA-3; realism joined v3.2). */
 export function evalTotal(e: EvalRead): number {
-  return (e.scores.textHandling + e.scores.brand + e.scores.fidelity + e.scores.composition) / 4;
+  const s = e.scores;
+  return (s.textHandling + s.brand + s.fidelity + s.composition + s.realism) / 5;
+}
+
+/** DA-3.1 — surgical-edit instruction for a LOCALIZED critic fail: the current
+ * artwork is reference Image 1 and everything not named stays put (astorie.ai:
+ * one edit from the clean source beats chaining; the pattern mirrors the
+ * A3-lite edit contract that shipped live 2026-11-02). */
+export function surgicalEditPrompt(issues: string[], mode: GenerationMode): string {
+  return (
+    `Edit Image 1 (the current artwork). Fix ONLY these defects:\n` +
+    issues.map((s, i) => `${i + 1}. ${s}`).join("\n") +
+    `\nReturn the result at the exact same dimensions as Image 1, same aspect and framing.` +
+    ` Change nothing else: preserve composition, framing, camera angle, lighting, colors, materials, and every element and text line not named above.` +
+    (mode === "clean-plate"
+      ? ` Do not add any new text or lettering.`
+      : ` Corrected text lines keep their exact wording, style and position.`)
+  );
+}
+
+/** DA-3.1 — variance vs broken prompt (higgsfield § Before You Iterate): when
+ * consecutive fails complain about DIFFERENT things, the prompt is right and
+ * the dice were wrong → re-roll beats a planner turn. Shared keywords of 5+
+ * chars (punctuation stripped) mean the same defect came back → systematic. */
+export function isStochasticMiss(prev: EvalRead | null, current: EvalRead): boolean {
+  if (!prev || !prev.issues.length || !current.issues.length) return false;
+  const keywords = (issues: string[]) =>
+    new Set(issues.join(" ").toLowerCase().split(/[^a-zà-ỹ0-9]+/).filter((w) => w.length >= 5));
+  const a = keywords(prev.issues);
+  return ![...keywords(current.issues)].some((w) => a.has(w));
 }
 
 /** DA-8 — mode-aware critic criteria live in ONE place, versioned with the
@@ -140,8 +169,9 @@ export function evalTotal(e: EvalRead): number {
  * (page 0 carries the blocks; later pages carry none — teardown #3).
  * The `textHandling` score covers both meanings; the prompt says which applies. */
 /** B7: stamped into every selfImprove record — the rubric shipped 3 versions in one day;
- * a verdict must name its judge. Bump when the rubric changes. */
-export const CRITIC_PROMPT_VERSION = "v3.1";
+ * a verdict must name its judge. Bump when the rubric changes. v3.2 (2026-11-05):
+ * +REALISM criterion +scope routing (research: docs/research/image-prompt-craft.md). */
+export const CRITIC_PROMPT_VERSION = "v3.2";
 
 export function criticPrompt(o: {
   mode: GenerationMode;
@@ -174,6 +204,7 @@ export function criticPrompt(o: {
     overlays + `\n` +
     `BRAND: adherence to the brand rules above (10 only when none were given).\n` +
     `FIDELITY: everything the brief named — subject, style, mood, aspect and platform context; anything named that is absent or wrong is a defect.\n` +
+    `REALISM — the anti-"AI slop" axes: light has a direction and DOES something to the objects (a flat, even, shadowless wash is a defect); skin, fabric and product surfaces show real texture — pores, weave, wear — instead of plastic gloss; the piece reads as a DESIGNED commercial asset, not a stock photo with text stamped on. Score 4-6 when the content is correct but the look is generic AI output.\n` +
     `COMPOSITION — judge like a designer, whatever the design type (poster, menu, slide, overlay, social post):\n` +
     `- Hierarchy: one clear focal order — primary message/subject first, then secondary, then supporting; the squint-test order must match the brief's intent.\n` +
     `- Contrast & figure-ground: text and subject separate cleanly from the background; contrast is deliberate, never accidental blending.\n` +
@@ -181,6 +212,7 @@ export function criticPrompt(o: {
     `- Repetition & consistency: recurring styles, colors and type treatments stay consistent where the brief implies them.\n` +
     `- Balance, negative space, crop: no accidental crowding or dead zones; nothing important clipped or within ~5% of any edge.\n` +
     `\nVERDICT: "pass" ONLY when every score is 7+ AND no critical defect exists. Anything fixable that you would revise yourself means "fail" — do not grade effort, grade the artifact.\n` +
+    `scope: "localized" when the image is right overall and only the listed details are wrong (one bad line, one small area — a surgical edit can fix it); "global" when the problems come from the layout, lighting or overall treatment.\n` +
     `issues[]: one entry per defect, evidence-first — what you saw and where, e.g. rendered 'GIAM SÓC' top center while the brief says 'GIẢM SỐC' (diacritics missing).\n` +
     `fixHints[]: imperative edits to the IMAGE PROMPT only — change exactly what is broken, keep everything that worked, specific enough that one regeneration fixes it.\n` +
     EVAL_READ_MARKER
@@ -229,6 +261,10 @@ async function* refinePage(a: {
   let img = a.img;
   let pagePrompt = a.prompt;
   let selfImprove: SelfImproveResult | null = null;
+  /** DA-3.1: which medicine the LAST successful round administered — rides the
+   *  record (B7) so a verdict can say HOW it was fixed, not just that it was. */
+  let refinePath: "edit" | "reroll" | "regen" | null = null;
+  const withPath = (r: SelfImproveResult): SelfImproveResult => (refinePath ? { ...r, refinePath } : r);
   const ev = (content: string, extra?: Partial<ChatEvent>): ChatEvent => ({
     msgId: a.msgId,
     content,
@@ -277,20 +313,57 @@ async function* refinePage(a: {
     }
     candidates.push({ img, prompt: pagePrompt, evalRead });
     if (evalRead.verdict === "pass") {
-      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "pass", issues: evalRead.issues };
+      selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "pass", issues: evalRead.issues });
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
     if (attemptsLeft <= 0) {
       // DA-3: no pass within budget → the best-scoring candidate wins (best-effort)
       const best = candidates.reduce((x, y) => (evalTotal(x.evalRead) >= evalTotal(y.evalRead) ? x : y));
-      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: best.evalRead.issues };
+      selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: best.evalRead.issues });
       return { img: best.img, prompt: best.prompt, selfImprove, taskMeta };
     }
-    // one refine turn: planner revises the prompt (text-only), then one image
+    // DA-3.1 (2026-11-05, docs/research/image-prompt-craft.md): route the fix by
+    // evidence instead of always re-planning — stochastic (consecutive fails
+    // complain about DIFFERENT things) → re-roll the SAME prompt (variance, and
+    // the planner turn is saved); localized → surgical edit of the CURRENT
+    // image (astorie.ai: one edit from the current artwork keeps what already
+    // works); otherwise → planner-revised regeneration (the original DA-3 path).
+    const prevRead = candidates.length >= 2 ? candidates[candidates.length - 2].evalRead : null;
+    const path: "edit" | "reroll" | "regen" = isStochasticMiss(prevRead, evalRead)
+      ? "reroll"
+      : evalRead.scope === "localized"
+        ? "edit"
+        : "regen";
     attemptsLeft -= 1;
     const refineId = randomUUID();
     taskMeta = [...taskMeta, { id: refineId, content: "Refining", type: "substep", status: "0" }];
     yield ev("Refining…");
+    if (path !== "regen") {
+      // no planner turn on these paths — the fix targets pixels, not words
+      try {
+        img = path === "edit"
+          ? await deps.image.generate({
+              prompt: surgicalEditPrompt(evalRead.issues, mode), width, height, mode,
+              referenceImages: [img.url],
+              signal, jobId,
+            })
+          : await deps.image.generate({
+              prompt: pagePrompt, width, height, mode,
+              referenceImages: a.referenceImages,
+              signal, jobId,
+            });
+        refinePath = path;
+        roundsRun += 1;
+      } catch (err) {
+        if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta };
+        const cls = ProviderError.from(err, deps.image.name).errorClass;
+        yield ev(`Auto refine ${path === "edit" ? "edit" : "re-roll"} failed (${cls}) — keeping this version.`);
+        selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
+        return { img, prompt: pagePrompt, selfImprove, taskMeta };
+      }
+      flip(refineId);
+      continue;
+    }
     let revisedPrompt: string | null = null;
     try {
       const refined = parsePlannerPlan(await deps.llm.chat(
@@ -309,7 +382,7 @@ async function* refinePage(a: {
       // teardown #5/#6: the burned planner turn is ANNOUNCED — a quota cost with
       // no round and no note is a record that lies
       yield ev("Auto refine could not revise the prompt (planner returned no usable plan) — keeping this version.");
-      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
+      selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
     try {
@@ -319,13 +392,14 @@ async function* refinePage(a: {
         signal, jobId,
       });
       pagePrompt = revisedPrompt;
+      refinePath = "regen";
       roundsRun += 1; // teardown #5: a round = a re-generation that produced an image
     } catch (err) {
       if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta };
       // teardown #6: the note names the class — "failed" alone hides quota_exceeded
       const cls = ProviderError.from(err, deps.image.name).errorClass;
       yield ev(`Auto refine regeneration failed (${cls}) — keeping this version.`);
-      selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues };
+      selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
   }
@@ -402,6 +476,10 @@ export async function* runDesignerAgent(
   const brandId = input.brandId ?? 0;
   const width = input.width ?? 1360;
   const height = input.height ?? 2048;
+  /** DA-11: orientation drives the layout grammar below — a bare ratio number
+   *  is frequently ignored by the image channel (OpenAI vertical-orientation
+   *  threads; Xiaohongshu cover guides put format + layout in sentence one). */
+  const portrait = height >= width;
   const lang = (input.language as NarrativeLang) ?? detectLanguage(input.prompt);
   const mode: GenerationMode = input.mode ?? "poster";
   const t = NARRATIVE;
@@ -478,8 +556,15 @@ export async function* runDesignerAgent(
             + (input.approvedOutline?.length ? `\nThe user APPROVED this page outline — implement each page faithfully; do NOT merge, add, drop or reorder pages:\n${input.approvedOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n")}` : "")
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
-              ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].`
-              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ratio ${(width / height).toFixed(2)}): state this aspect explicitly in every imagePrompt and demand ALL text inside a safe area — at least 10% clear of every edge — or the crop will cut edge-hugging lines.`
+              ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].` +
+                ` The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ${portrait ? "portrait" : "landscape"}).` +
+                ` Open every imagePrompt with the orientation in LAYOUT language — e.g. ${portrait ? '"Vertical poster, portrait orientation"' : '"Wide banner, landscape orientation"'} — a bare ratio number is often ignored.` +
+                ` Compose the artwork as zones with the hero subject given room to breathe: ${cleanPlateZoneClause()} The calm zones are where editable copy lands later — artwork detail there must stay quiet enough for overlaid text to read.`
+              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ${portrait ? "portrait" : "landscape"}).` +
+              (portrait
+                ? ` Open every imagePrompt with the orientation in LAYOUT language — e.g. "Vertical poster, portrait orientation, top-to-bottom layout" — a bare ratio number is often ignored. Describe the poster as construction zones, not a photograph: top ~40% typography zone (headline + offer + badge), middle ~45% the product/subject STAGE (props and containers around the hero — not a close-up — plus one dynamic element such as steam, light or reflection connecting the zones), bottom ~15% support strip (short selling points + call to action); adapt the percentages to the request but always NAME each zone and what sits in it.`
+                : ` Open every imagePrompt with the orientation in LAYOUT language — e.g. "Wide banner, landscape orientation, left-to-right flow" — a bare ratio number is often ignored. Describe the layout as zones with a left-to-right visual flow: the subject anchoring one third, the copy on the opposite side, deliberate negative space between them.`) +
+              ` Demand ALL text inside a safe area — at least 10% clear of every edge, checked on the long axis first — or the crop will cut edge-hugging lines.`
             )
             +
             `\nStyle vocabulary — when the request names or implies a style, spell the CONCRETE phrases into imagePrompt, never the label alone ` +
@@ -488,10 +573,11 @@ export async function* runDesignerAgent(
             `vintage=collage-style, organic layered graphics, retro print alignment; ` +
             `minimalist=Swiss grid, maximum whitespace, typography-centered; ` +
             `bold=oversized typography, dynamic text layering, high impact (e-commerce promos); ` +
-            `creative=freeform composition, cinematic balance, atmospheric negative space; ` +
+            `creative=freeform composition, asymmetric editorial balance, floating objects, atmospheric negative space; ` +
             `3d=floating glossy 3D objects, layered digital interface, Y2K typography; ` +
             `hand-drawn=illustration-led, organic strokes, playful hand-lettered typography; ` +
             `business-promo=product-centered, large promotional headline, layered badges, clear CTA.`
+            + `\n${IMAGE_CRAFT_RULES}`
             + (input.style
               ? `\nStyle preset selected by the user — '${input.style}': ${(STYLE_PRESETS.find((p) => p.id === input.style) ?? STYLE_PRESETS[0]).phrases}. Weave these exact qualities into every imagePrompt.`
               : "")

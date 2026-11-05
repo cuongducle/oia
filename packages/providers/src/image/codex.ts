@@ -75,6 +75,9 @@ export function referenceClauses(referenceImages: string[]): string {
   return (
     ` References: ${described} is a reference. Use the reference image(s) as the visual subject of the scene: ` +
     `keep the product, camera angle, lighting, and proportions consistent with the reference; preserve the product's own packaging and printed labels exactly; ` +
+    // DA-11 (cookbook pattern): a reference dropped into a new scene reads pasted-in unless the
+    // prompt forces it into the scene's own light — shadows and color temperature included.
+    `integrate the product into the scene's own lighting, shadows and color temperature so it reads photographed in place, never pasted on; ` +
     `build the composition around the actual product.` + (referenceImages.length > 1 ? ` Image 1 is the primary subject.` : "")
   );
 }

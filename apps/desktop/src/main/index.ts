@@ -503,7 +503,7 @@ async function crashSmoke(): Promise<void> {
 async function realSmoke(): Promise<void> {
   const t0 = Date.now();
   await ensureUtility();
-  type Ev = { content?: string; error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[]; taskMeta?: { id: string; content: string; status?: string }[]; selfImprove?: { rounds: number; verdict: string; issues: string[] } } };
+  type Ev = { content?: string; error?: string; errorClass?: string; renderData?: { msgMeta?: unknown[]; taskMeta?: { id: string; content: string; status?: string }[]; selfImprove?: { rounds: number; verdict: string; issues: string[]; refinePath?: string } } };
   const collect = async (req: Record<string, unknown>): Promise<{ outcome: string; jobId: string; events: Ev[] }> => {
     const events: Ev[] = [];
     const off = utility.onUtilityEvent((ev) => {
@@ -606,7 +606,7 @@ async function realSmoke(): Promise<void> {
     job2.outcome === "completed" && Boolean(verdict) && (verdict?.verdict === "pass" || verdict?.verdict === "best-effort") && refineAssetBytes > 10_000;
   console.log(
     `DESKTOP_REAL_SMOKE_DA_REFINE ${ok2 ? (verdict && verdict.rounds >= 1 ? "OK-REFINED" : "OK-FIRST-TRY") : "FAILED"} ` +
-      `outcome=${job2.outcome} rounds=${verdict?.rounds ?? "none"} verdict=${verdict?.verdict ?? "none"} checks=${checks} ` +
+      `outcome=${job2.outcome} rounds=${verdict?.rounds ?? "none"} verdict=${verdict?.verdict ?? "none"} path=${verdict?.refinePath ?? "-"} checks=${checks} ` +
       `issues=${verdict?.issues?.length ?? 0} assetBytes=${refineAssetBytes} ` +
       `${job2.events.find((e) => e.errorClass)?.errorClass ?? "no-error"} ` +
       `jobId=${job2.jobId} took=${Math.round((Date.now() - t2) / 1000)}s`,

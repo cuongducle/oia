@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runDesignerAgent, decodeDataImage, parseEvalRead, criticPrompt, type DesignerAgentDeps } from "../src/index.js";
+import { runDesignerAgent, decodeDataImage, parseEvalRead, criticPrompt, surgicalEditPrompt, isStochasticMiss, type DesignerAgentDeps } from "../src/index.js";
 import { REFINE_INSTRUCTION, RESEARCH_INSTRUCTION, EVAL_READ_MARKER, evalReadSchema } from "@oia/schema";
 import type { ImageProvider, LlmProvider, LlmChatOpts, ImageGenInput } from "@oia/providers";
 import { MockLlmProvider } from "@oia/providers";
@@ -20,24 +20,27 @@ const caps = (extra: Partial<ProviderCapabilities> = {}): ProviderCapabilities =
   ...extra,
 });
 
-const evalJson = (verdict: "pass" | "fail", textHandling = 9) =>
-  JSON.stringify({ verdict, scores: { textHandling, brand: 8, fidelity: 8, composition: 8 }, issues: verdict === "fail" ? ["mock issue"] : [], fixHints: verdict === "fail" ? ["mock hint"] : [] });
+const evalJson = (verdict: "pass" | "fail", textHandling = 9, scope: "localized" | "global" = "global", issues: string[] = verdict === "fail" ? ["mock issue"] : []) =>
+  JSON.stringify({ verdict, scope, scores: { textHandling, brand: 8, fidelity: 8, composition: 8, realism: 8 }, issues, fixHints: verdict === "fail" ? ["mock hint"] : [] });
 
 /** One data-URL image per call — the critic needs decodable pixels. */
 const png1x1 = () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-function countingImage(): { provider: ImageProvider; calls: () => number; urls: () => string[] } {
+function countingImage(): { provider: ImageProvider; calls: () => number; urls: () => string[]; inputs: () => ImageGenInput[] } {
   let n = 0;
   const urls: string[] = [];
+  const inputs: ImageGenInput[] = [];
   return {
     calls: () => n,
     urls: () => urls,
+    inputs: () => inputs,
     provider: {
       name: "counting", capabilities: caps(), async isAvailable() { return { ok: true }; },
       async generate(i: ImageGenInput) {
         n += 1;
+        inputs.push({ ...i });
         const url = png1x1();
-        urls.push(url + `#call-${n}-${i.prompt.includes("(refined") ? "refined" : "initial"}`);
+        urls.push(url + `#call-${n}-${i.prompt.includes("(refined") ? "refined" : i.prompt.includes("Edit Image 1") ? "edit" : "initial"}`);
         return { url: urls.at(-1)!, provider: "counting", model: "x", width: 8, height: 8 };
       },
     },
@@ -74,6 +77,13 @@ describe("DA-3 helpers", () => {
     const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "poster with 'SALE 20%'", overlayCopy: [] });
     const plate0 = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: ["SALE 20%"] });
     const plateN = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: [] });
+    // v3.2 (2026-11-05): realism axis + scope routing — the anti-slop axes a
+    // blind A/B proved a vision judge can score (docs/research/image-prompt-craft.md)
+    for (const p of [poster, plate0, plateN]) {
+      expect(p).toContain("REALISM");
+      expect(p).toContain("stock photo with text stamped on");
+      expect(p).toContain('scope: "localized"');
+    }
     // v2 (2026-11-03): anchors, transcribe-first, anti-leniency
     for (const p of [poster, plate0, plateN]) {
       expect(p).toContain("SCORE BANDS");
@@ -101,6 +111,29 @@ describe("DA-3 helpers", () => {
     expect(plateN).toContain("NO overlay copy (purely visual plate)");
     expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE — inside the prompt line it belongs to
     for (const p of [poster, plate0, plateN]) expect(p.endsWith(EVAL_READ_MARKER)).toBe(true);
+  });
+
+  it("surgicalEditPrompt: numbered defects + preserve-everything contract, mode-aware (DA-3.1)", () => {
+    const poster = surgicalEditPrompt(["typo in 'GIAM SÓC'", "logo squashed"], "poster");
+    expect(poster).toContain("Edit Image 1");
+    expect(poster).toContain("1. typo in 'GIAM SÓC'");
+    expect(poster).toContain("2. logo squashed");
+    expect(poster).toContain("exact same dimensions");
+    expect(poster).toContain("keep their exact wording");
+    const plate = surgicalEditPrompt(["top band too busy"], "clean-plate");
+    expect(plate).toContain("Do not add any new text");
+  });
+
+  it("isStochasticMiss: same defect returns → systematic; disjoint defects → variance (DA-3.1)", () => {
+    const read = (issues: string[]) => ({
+      verdict: "fail" as const, scope: "global" as const,
+      scores: { textHandling: 5, brand: 5, fidelity: 5, composition: 5, realism: 5 },
+      issues, fixHints: [],
+    });
+    expect(isStochasticMiss(read(["headline typo again"]), read(["headline typo again"]))).toBe(false);
+    expect(isStochasticMiss(read(["headline typo again"]), read(["background clutter everywhere"]))).toBe(true);
+    expect(isStochasticMiss(null, read(["anything"]))).toBe(false);
+    expect(isStochasticMiss(read(["garbled price text"]), read(["price text misaligned"]))).toBe(false); // "price" (5 chars) is shared → the same defect came back
   });
 });
 
@@ -172,7 +205,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.calls()).toBe(1); // no refine image was generated
     expect(out.map((e) => e.content).join("\n")).toContain("Auto refine check unavailable — keeping this version.");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.1", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.2", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (a2): critic throws (network/quota) → same G2 contract — keep, stop, no extra burn", async () => {
@@ -184,7 +217,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     };
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: throwingCritic, image: img.provider });
     expect(img.calls()).toBe(1);
-    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3.1", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3.2", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (b): cancel mid-refine → the best already-generated image is still yielded (OC-4 semantics)", async () => {
@@ -223,14 +256,21 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(out.map((e) => e.content).join("\n")).toContain("could not revise the prompt");
   });
 
-  it("happy loop (mock pair): fail → refine → pass — 2 images, verdict persisted, timeline narrates both checks", async () => {
+  it("happy loop (mock pair): fail → SURGICAL EDIT of the current image → pass — 2 images, no planner turn, verdict persisted", async () => {
     const img = countingImage();
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: new MockLlmProvider(), image: img.provider });
-    expect(img.calls()).toBe(2); // initial + refined
+    expect(img.calls()).toBe(2); // initial + edited
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.1", rounds: 1, verdict: "pass" });
-    // the refined prompt rode the fixHint (mock refine honors REFINE_INSTRUCTION)
-    expect(img.urls()[1]).toContain("refined");
+    // mock critic fails LOCALIZED (a typo) → DA-3.1 edit path, recorded honestly (B7)
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.2", rounds: 1, verdict: "pass", refinePath: "edit" });
+    // the edit targets the CURRENT artwork: references carry image 1, instruction is fix-only
+    const edit = img.inputs()[1];
+    expect(edit.prompt).toContain("Edit Image 1");
+    expect(edit.prompt).toContain("Fix ONLY these defects");
+    expect(edit.prompt).toContain("mock issue: headline rendered with a typo");
+    expect(edit.referenceImages?.[0]).toBe(img.urls()[0]); // the CURRENT artwork is reference Image 1
+    // the planner refine turn never ran — no "(refined" prompt ever reached the image channel
+    expect(img.urls()[1]).toContain("edit");
     const timeline = out.find((e) => e.content.includes("<Result>"))!.renderData.taskMeta.map((t) => t.content);
     expect(timeline).toContain("Checking round 1");
     expect(timeline).toContain("Refining");
@@ -243,6 +283,33 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     }
     // DA-6: the verdict rides the terminal events too (persistence + replay)
     expect(out.at(-1)!.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
+  });
+
+  it("DA-3.1 stochastic: DIFFERENT defects across rounds → re-roll the SAME prompt, planner refine never runs", async () => {
+    const img = countingImage();
+    let reads = 0;
+    const llm: LlmProvider = {
+      name: "stub", capabilities: caps(), async isAvailable() { return { ok: true }; },
+      async chat(m) {
+        if (m[0].content.includes(REFINE_INSTRUCTION)) throw new Error("planner refine must NOT run while misses stay stochastic");
+        return plan;
+      },
+      async readImage() {
+        reads += 1;
+        // round 1: localized → surgical edit; round 2: DISJOINT defects → the
+        // prompt was right, the dice were wrong → re-roll; round 3: pass
+        if (reads === 1) return evalJson("fail", 6, "localized", ["headline rendered with a heavy typo"]);
+        if (reads === 2) return evalJson("fail", 6, "global", ["background clutter behind the product stage"]);
+        return evalJson("pass", 9);
+      },
+    };
+    const out = await run({ prompt: "banner", selfImprove: { rounds: 2 } }, { llm, image: img.provider });
+    expect(img.calls()).toBe(3);
+    // the re-roll reused the ORIGINAL page prompt verbatim — variance harvesting, not re-planning
+    expect(img.inputs()[2].prompt).toBe(img.inputs()[0].prompt);
+    expect(img.inputs()[2].prompt).not.toContain("Edit Image 1");
+    const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.2", rounds: 2, verdict: "pass", refinePath: "reroll" });
   });
 
   it("DA-3 best-effort: all checks fail → the best-scoring candidate wins and the record says best-effort", async () => {
@@ -396,7 +463,14 @@ describe("teardown #5/#6 — failed refine attempts announce their burn, rounds 
         return { url: png1x1(), provider: "flaky", model: "x", width: 8, height: 8 };
       },
     };
-    const out = await run({ prompt: "banner", selfImprove: { rounds: 1 }, jobId: "regen-fail" }, { llm: new MockLlmProvider(), image: flaky });
+    // scope "global" forces the full re-plan path (DA-3.1) — the planner refine
+    // turn runs, then the regeneration throws: the burn must be ANNOUNCED (teardown #5/#6)
+    const llm: LlmProvider = {
+      name: "stub", capabilities: caps(), async isAvailable() { return { ok: true }; },
+      async chat() { return plan; },
+      async readImage() { return evalJson("fail", 5, "global"); },
+    };
+    const out = await run({ prompt: "banner", selfImprove: { rounds: 1 }, jobId: "regen-fail" }, { llm, image: flaky });
     expect(out.map((e) => e.content).join("\n")).toContain("Auto refine regeneration failed (unknown)");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
     expect(canvasEv.renderData.selfImprove).toMatchObject({ rounds: 0, verdict: "best-effort" });

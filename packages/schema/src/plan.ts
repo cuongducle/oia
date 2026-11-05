@@ -69,6 +69,40 @@ export const REFINE_INSTRUCTION =
   "You are refining a previously generated design after a critic found defects. Revise imagePrompt so the next render fixes every listed issue while keeping everything that already worked. Return the same plan JSON shape as before (designer.refine.v1).";
 
 /**
+ * DA-11 — anti-"AI slop" image-craft rules, injected into every planner system
+ * prompt. Sources cross-checked 2026-11-05 over three passes: OSideMedia/
+ * higgsfield-ai-prompt-skill (anti-slop vocabulary, negative-constraints,
+ * style § CGI Material Contract + One Style Anchor, gpt-image-2 § realism
+ * framing, image-shots framing, vocab § 60/30/10); EN practitioners (OpenAI
+ * Cookbook + image-prompting guide, r/ChatGPT GPT-Image guide, community
+ * threads, r/midjourney); CN practitioners (@xpg0970 塑料感 counter-methods
+ * — causal lighting + air/lens-flaw touch, xiaohu.ai poster skeleton,
+ * Zhihu 去除AI味); ordering verified via TikTok Effect House docs (earlier
+ * words carry more influence). Palette rule follows arXiv 2603.13547 (hex
+ * specs fragment — describe colors by name). A shared constant so tests and
+ * future gates can key on it verbatim (C1 pattern).
+ */
+export const IMAGE_CRAFT_RULES =
+  "Image-craft rules for every imagePrompt (kill the generic 'AI slop' look):\n" +
+  "- Name the deliverable FIRST — 'ad poster', 'product photo', 'social post', 'menu design': the model picks composition defaults and polish level from that word.\n" +
+  "- Write the prompt like a creative brief, not a tech spec: who the audience is, what the brand feels like, what the campaign vibe is — then the exact copy — and let the model make taste-driven decisions inside those boundaries.\n" +
+  "- Front-load the prompt: deliverable + subject + the primary visual in the first sentence, constraints at the end — words placed earlier carry more influence (vendor-verified), so the load-bearing content rides up front.\n" +
+  "- Ban empty quality words — beautiful, stunning, amazing, 'high quality', '4K', cinematic alone. Replace each with the concrete visual it claims to name: a lighting setup, an optics spec, a designer or film referent, an exact palette.\n" +
+  "- ALWAYS name the lighting — source + direction + quality ('single warm side-light from camera left, soft shadows' / 'overcast daylight, even and shadowless' / 'golden-hour backlight, long shadows'). A prompt with no lighting line renders flat and generic.\n" +
+  "- Light must DO something to a named object — 'harsh sunlight casting the window frame's shadow across the peeling wall', 'neon reflecting on the oily puddles' — bare nouns placed side by side (sunlight, wall) render as disconnected stickers.\n" +
+  "- Name surfaces and materials the camera touches (product on raw concrete, matte paper stock, brushed metal, linen weave) — unspecified surfaces render glossy and cheap.\n" +
+  "- People: natural skin texture with subtle imperfections, stray hair strands, real fabric weave — never smooth plastic skin.\n" +
+  "- Never write 'photorealistic' or 'hyperrealistic' when people are in frame — GPT-family image models turn faces plasticky on realism flags; frame realism as film photography instead ('35mm film photograph', 'editorial portrait', 'direct flash photo', film grain).\n" +
+  "- Product/CGI surfaces carry 2-4 material properties (base: ceramic/metal/fabric; finish: matte/satin/glossy; wear: hairline scratches, dust, patina; edge: beveled/soft) — unspecified surfaces default to plastic sheen.\n" +
+  "- Style anchor discipline: ONE primary style anchor plus at most two supporting tokens ('anamorphic, subtle grain, muted palette') — stacking five style adjectives dilutes attention and renders generic.\n" +
+  "- Palette: one dominant color plus one secondary and one accent (60/30/10), never five competing hues.\n" +
+  "- Artwork showing a subject in a scene leads with framing — shot size (macro / close-up / medium / wide) + camera angle (eye-level / low / overhead / flat-lay); an unframed subject defaults to a boring centered medium shot.\n" +
+  "- Depth of field names the plane that stays sharp ('subject in sharp focus, background falling into soft bokeh' or 'sharp focus throughout, deep depth of field') — never a bare 'blurry background'.\n" +
+  "- Imperfection belongs to the subject, never the rendering: a crooked poster on the wall, a chipped mug, light reaching only one cheek. No trailing 'film grain', 'soft focus', 'dreamy' — they soften the whole frame.\n" +
+  "- Break the vacuum, lightly: when the image should read as photographed, add ONE airborne medium (dust motes, steam, haze catching the light) and at most ONE small lens flaw (subtle vignette, faint halation) — a light touch; stacking them reads as forced.\n" +
+  "- Phrase constraints positively ('flat-lay overhead, locked-off frame' / 'bright evenly lit overcast daylight') — image channels have no negative prompt, negations do nothing.";
+
+/**
  * Art-direction style presets (phrases adapted from SurgePix agent-skills, MIT).
  * A preset maps the label a seller actually says to the concrete phrases the
  * image model needs. The mapping is deterministic CODE riding the planner
@@ -79,7 +113,7 @@ export const STYLE_PRESETS = [
   { id: "vintage", label: "Vintage", phrases: "collage-style, organic layered graphics, retro print alignment", useCases: "creative events, themed campaigns" },
   { id: "minimalist", label: "Minimalist", phrases: "Swiss grid, maximum whitespace, minimal elements, typography-centered", useCases: "art exhibitions, design events" },
   { id: "bold", label: "Bold", phrases: "oversized typography, dynamic text layering, high impact", useCases: "e-commerce promos, flash sales, music festivals" },
-  { id: "creative", label: "Creative", phrases: "freeform composition, cinematic balance, floating objects, atmospheric negative space", useCases: "concept launches, art exhibitions" },
+  { id: "creative", label: "Creative", phrases: "freeform composition, asymmetric editorial balance, floating objects, atmospheric negative space", useCases: "concept launches, art exhibitions" },
   { id: "3d", label: "3D", phrases: "floating glossy 3D objects, layered digital interface, Y2K typography", useCases: "tech product launches, gaming" },
   { id: "hand-drawn", label: "Hand-drawn", phrases: "illustration-led, organic strokes, warm textures, playful hand-lettered typography", useCases: "product promotions, community events" },
   { id: "business-promo", label: "Business promo", phrases: "product-centered composition, large promotional headline, layered badges, clear CTA", useCases: "e-commerce marketing, limited-time campaigns" },
@@ -246,18 +280,28 @@ export const AUTO_REFINE_MAX_ROUNDS_CAP = 2;
 /** DA-3 — one critic read returns this shape (scores 0..10 per criterion).
  * `textHandling` is the mode's #1 text-related criterion under ONE name:
  * poster = rendered-text fidelity (spelling/language); clean-plate = copy-zone
- * headroom. The critic prompt says which meaning applies (teardown #12). */
+ * headroom. The critic prompt says which meaning applies (teardown #12).
+ * v3.2 (2026-11-05, research docs/research/image-prompt-craft.md): `realism`
+ * judges the anti-slop axes (lighting direction, texture vs plastic, designed
+ * vs stock-photo look) that blind A/B rounds proved a vision judge can score;
+ * `scope` routes the refine path — localized defects get a surgical edit of
+ * the current image (astorie.ai evidence), global ones a full re-plan. */
 export const criticScoresSchema = z.object({
   textHandling: z.number().min(0).max(10),
   brand: z.number().min(0).max(10),
   fidelity: z.number().min(0).max(10),
   composition: z.number().min(0).max(10),
+  realism: z.number().min(0).max(10),
 });
 export type CriticScores = z.infer<typeof criticScoresSchema>;
+
+export const criticScopeSchema = z.enum(["localized", "global"]);
+export type CriticScope = z.infer<typeof criticScopeSchema>;
 
 export const evalReadSchema = z.object({
   verdict: z.enum(["pass", "fail"]),
   scores: criticScoresSchema,
+  scope: criticScopeSchema,
   issues: z.array(z.string().max(500)).max(20),
   fixHints: z.array(z.string().max(500)).max(20),
 });
@@ -267,20 +311,22 @@ export type EvalRead = z.infer<typeof evalReadSchema>;
 export const EVAL_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["verdict", "scores", "issues", "fixHints"],
+  required: ["verdict", "scores", "scope", "issues", "fixHints"],
   properties: {
     verdict: { type: "string", enum: ["pass", "fail"], description: "pass when the image is good enough to ship; fail when a fixable defect was found." },
     scores: {
       type: "object",
       additionalProperties: false,
-      required: ["textHandling", "brand", "fidelity", "composition"],
+      required: ["textHandling", "brand", "fidelity", "composition", "realism"],
       properties: {
         textHandling: { type: "number", minimum: 0, maximum: 10, description: "Poster: rendered-text fidelity (spelling, language). Clean-plate: copy-zone headroom." },
         brand: { type: "number", minimum: 0, maximum: 10, description: "Brand guidance adherence." },
         fidelity: { type: "number", minimum: 0, maximum: 10, description: "Match to the request and reference image." },
         composition: { type: "number", minimum: 0, maximum: 10, description: "Layout, balance, crop." },
+        realism: { type: "number", minimum: 0, maximum: 10, description: "Professional production feel vs generic AI look: light direction, real texture vs plastic, designed commercial asset vs stock photo with text stamped on." },
       },
     },
+    scope: { type: "string", enum: ["localized", "global"], description: "localized = the image is right overall, only the listed details are wrong (surgical edit target); global = the problems come from layout, lighting or overall treatment (needs a re-plan)." },
     issues: { type: "array", items: { type: "string", maxLength: 500 }, maxItems: 20, description: "Concrete defects found." },
     fixHints: { type: "array", items: { type: "string", maxLength: 500 }, maxItems: 20, description: "Actionable edits for the image prompt." },
   },
@@ -300,5 +346,10 @@ export const selfImproveResultSchema = z.object({
   /** B7: which critic rubric judged this artifact — the prompt has shipped in
    * multiple versions; a record must be able to say WHO failed the work. */
   criticVersion: z.string().max(40).optional(),
+  /** DA-3.1 (2026-11-05): how the LAST refine round fixed the image —
+   * "edit" (surgical edit of the current artwork), "reroll" (same prompt,
+   * variance harvesting) or "regen" (planner-revised prompt). Records must
+   * not lie about which medicine was administered. */
+  refinePath: z.enum(["edit", "reroll", "regen"]).optional(),
 });
 export type SelfImproveResult = z.infer<typeof selfImproveResultSchema>;

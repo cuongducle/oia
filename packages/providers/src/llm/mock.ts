@@ -115,8 +115,8 @@ export class MockLlmProvider implements LlmProvider {
       const fail = this.#evalSeen(opts.jobId) === 0;
       return JSON.stringify(
         fail
-          ? { verdict: "fail", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7 }, issues: ["mock issue: headline rendered with a typo"], fixHints: ["fix the headline spelling"] }
-          : { verdict: "pass", scores: { textHandling: 9, brand: 9, fidelity: 9, composition: 9 }, issues: [], fixHints: [] },
+          ? { verdict: "fail", scope: "localized", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: ["mock issue: headline rendered with a typo"], fixHints: ["fix the headline spelling"] }
+          : { verdict: "pass", scope: "global", scores: { textHandling: 9, brand: 9, fidelity: 9, composition: 9, realism: 9 }, issues: [], fixHints: [] },
       );
     }
     if (!prompt.includes(DECONSTRUCT_READ_MARKER)) {
