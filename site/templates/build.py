@@ -110,9 +110,9 @@ PAGE = """<!doctype html>
 <meta property="og:type" content="website">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
-<meta property="og:image" content="https://cuongducle.github.io/oia/assets/og-hero.png">
-<meta property="og:url" content="https://cuongducle.github.io/oia/templates/{slug}/">
-<link rel="canonical" href="https://cuongducle.github.io/oia/templates/{slug}/">
+<meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
+<meta property="og:url" content="https://oia.solutions/templates/{slug}/">
+<link rel="canonical" href="https://oia.solutions/templates/{slug}/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">

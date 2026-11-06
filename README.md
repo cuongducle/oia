@@ -26,7 +26,7 @@
   <a href="#bring-your-own-provider">Providers</a> ·
   <a href="#build-it-into-your-workflow">Agent API</a> ·
   <a href="#questions-sellers-ask">FAQ</a> ·
-  <a href="https://cuongducle.github.io/oia/">Landing page</a>
+  <a href="https://oia.solutions/">Landing page</a>
 </p>
 
 ---
@@ -320,6 +320,6 @@ packages/skills      Coding-agent instructions (consumer of the loopback API)
 site/                Landing page (static; deployed to GitHub Pages)
 ```
 
-The landing page lives in [`site/`](site/) and is deployed at **[cuongducle.github.io/oia](https://cuongducle.github.io/oia/)** — no build step (`index.html` + `styles.css` + `main.js`); pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
+The landing page lives in [`site/`](site/) and is deployed at **[oia.solutions](https://oia.solutions/)** — no build step (`index.html` + `styles.css` + `main.js`); pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
 
 </details>
