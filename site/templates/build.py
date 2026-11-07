@@ -185,4 +185,126 @@ for slug, m in MANIFEST.items():
     with open(os.path.join(out, "index.html"), "w") as f:
         f.write(html)
     print("wrote", slug)
+
+# ---- SC-4 + SC-5 (social-card-style-presets.md): style facet pages + pack pages.
+# Packs are the SEO differentiator: every AI-plated card shows the exact prompt
+# that grew it (provenance from apps/desktop/src/shared/template-provenance.ts).
+
+STYLES = {
+  "editorial": {
+    "title": "Editorial Templates — magazine-style cafés, menus & boutiques | Oia",
+    "desc": "Editorial magazine-style templates: serif display type, italic decks, textured warm paper. Café menus, street-food posters, boutique posts — every line editable. Free & open source.",
+    "h1": "Editorial templates",
+    "lede": "The magazine look, minus the magazine budget: serif headlines, quiet italic decks, warm textured paper. Built for cafés, restaurants and boutiques that want to look considered.",
+    "templates": [
+      ("../../assets/ed-menu3.webp", "Weekend brunch", "Photographic plate + Georgia serif, prices as text"),
+      ("../../assets/ed-menu.webp", "Café menu · kraft paper", "Procedural kraft grain, Vietnamese-ready type"),
+      ("../../assets/ed-street.webp", "Morning phở", "Street-food poster, Vietnamese sample copy"),
+      ("../../assets/ed-fashion.webp", "The linen edit", "Boutique post, right text column"),
+      ("../../assets/ed-product2.webp", "First light serum", "Still life on travertine"),
+      ("../../assets/ed-holiday2.webp", "Candlelit gift", "Dark editorial for year-end sets"),
+      ("../../assets/ed-poster2.webp", "Thrown by hand", "Atelier poster, sunlit wall"),
+      ("../../assets/ed-feature.webp", "Field notes", "Quiet statement card on dune paper"),
+    ],
+    "faqs": [
+      ("What makes a template “editorial”?", "Three laws the design system enforces: a serif display headline with a quiet italic subhead, a warm paper background with real texture (never flat), and restrained color. A critic inside the app scores generated images against these laws."),
+      ("Can the editorial look carry Vietnamese text?", "Yes — the app ships Be Vietnam Pro with full diacritics, and several templates already carry Vietnamese sample copy (phở poster, café menu)."),
+    ],
+  },
+  "swiss": {
+    "title": "Swiss Style Templates — product launches & data statements | Oia",
+    "desc": "Swiss International style templates: strict grids, very large light type, one accent color. Product spec sheets, drop announcements, data statements — every number editable. Free & open source.",
+    "h1": "Swiss style templates",
+    "lede": "One accent, hairline rules, type so large it has to be light. The engineered look for product launches and statements that need to feel decided.",
+    "templates": [
+      ("../../assets/swiss-sneaker.webp", "Veloce Two", "Klein blue field, one yellow accent"),
+      ("../../assets/swiss-bottle.webp", "Everyday bottle", "Lemon field, spec rows, blue price"),
+      ("../../assets/swiss-spec.webp", "Product spec sheet", "Spec rows on hairline rails"),
+      ("../../assets/swiss-flashsale.webp", "Clearance 50%", "Light display type, struck old price"),
+      ("../../assets/swiss-statement.webp", "Post consistently", "16:9 statement card with stats"),
+    ],
+    "faqs": [
+      ("What are the Swiss style rules?", "Exactly one saturated accent used in one place; display type is very large and very light; flat surfaces only — no gradients, shadows or rounded corners. The app's critic enforces these on generated images."),
+      ("Which sizes do Swiss templates ship in?", "Square 1:1, portrait 4:5 and 16:9 — all three are built-in size presets in the editor."),
+    ],
+  },
+}
+
+PACKS = {
+  "cafe-restaurant": {
+    "title": "Café & Restaurant Pack — menu, brunch & street-food templates | Oia",
+    "desc": "A curated pack for cafés and restaurants: menu boards, brunch posts, street-food posters and a year-end gift set — with the exact AI prompts that grew each plate. Free & open source.",
+    "h1": "Café & restaurant pack",
+    "lede": "Six templates covering a season of service: the menu board that survives price changes, the brunch post, the street-food hero, the gift set. Swap dishes and prices as text layers — never redesign.",
+    "templates": [
+      ("../../assets/menuboard.webp", "Bakery menu board", "Items + prices as document-like text"),
+      ("../../assets/ed-menu3.webp", "Weekend brunch", "AI plate + editorial type"),
+      ("../../assets/ed-menu.webp", "Café menu · kraft", "Warm paper, VN-ready"),
+      ("../../assets/ed-street.webp", "Morning phở", "Street poster, VN copy"),
+      ("../../assets/ed-holiday2.webp", "Candlelit gift set", "Dark editorial, order-by date layer"),
+    ],
+    "prompts": [
+      ("Weekend brunch", "a tight cluster of cafe breakfast items ALL confined to the BOTTOM THIRD, the entire TOP TWO THIRDS plain warm terracotta backdrop…"),
+      ("Morning phở", "a steaming bowl of pho on a worn wooden stool at golden hour, food in the BOTTOM THIRD, plain cement-grey above…"),
+      ("Candlelit gift", "holiday still life on dark midnight background, candlelight from the left, empty lower third for text…"),
+    ],
+    "faqs": [
+      ("What is a pack, exactly?", "A curated bundle: templates that share a niche, plus the provenance — the real generation prompt behind every AI plate, so you can rerun the look on your own dishes."),
+      ("Can I regenerate a plate with MY food?", "Yes — copy the provenance prompt into the composer, describe your dish where the prompt names the plate's subject, and pick the editorial style preset."),
+    ],
+  },
+  "product-launch": {
+    "title": "Product Launch Pack — drop posts, spec sheets & debut cards | Oia",
+    "desc": "A curated pack for product launches: drop announcements, spec sheets, debut posts in two styles — with the exact AI prompts that grew each plate. Free & open source.",
+    "h1": "Product launch pack",
+    "lede": "Six templates for launch week: the drop post, the spec sheet, the statement card, the serum still life. Names, dates and prices are layers; the plates grow from recorded prompts.",
+    "templates": [
+      ("../../assets/sneaker.webp", "Product drop", "Name, drop date, early access"),
+      ("../../assets/swiss-sneaker.webp", "Veloce Two · Swiss", "Klein blue, one accent"),
+      ("../../assets/swiss-spec.webp", "Spec sheet · Swiss", "Hairline spec rails"),
+      ("../../assets/swiss-bottle.webp", "Everyday bottle · Swiss", "Lemon field, blue price"),
+      ("../../assets/ed-product2.webp", "First light serum", "Editorial still life"),
+      ("../../assets/serum.webp", "Serum launch", "Headline + CTA layers"),
+    ],
+    "prompts": [
+      ("Veloce Two", "a single white sneaker floating on a completely flat Klein blue background, one hard diagonal shadow, top two thirds pure flat blue…"),
+      ("Everyday bottle", "a matte white cosmetic bottle on a completely flat lemon yellow background, one hard vertical shadow…"),
+      ("First light serum", "skincare serum bottle on warm travertine stone, one green leaf shadow, large empty left half…"),
+    ],
+    "faqs": [
+      ("Do the packs cost anything?", "No — the app and every template are free and open source. The pack pages exist so launch-week has one link with everything in order."),
+      ("How do I reuse a plate's look for my product?", "Each AI plate lists its provenance prompt. Paste it into the composer, swap the subject (sneaker → your product), keep the composition clauses, and pick the same style preset."),
+    ],
+  },
+}
+
+PROMPT_SECTION = """
+  <div class="faq" style="margin-top:48px">
+    <h2 class="catH" style="margin-top:0">Grown from real prompts</h2>
+    <p class="lede" style="font-size:15px">These plates are not stock. Each grew from a recorded prompt — rerun it on your own subject:</p>
+{prompt_items}
+  </div>
+"""
+
+for base, manifest in (("styles", STYLES), ("packs", PACKS)):
+    for slug, m in manifest.items():
+        cards = "\n".join(
+            f'    <div class="tplCard"><img loading="lazy" src="{img}" alt="{name} template" width="300" height="450"><div class="body"><h3>{name}</h3><p>{note}</p></div></div>'
+            for img, name, note in m["templates"])
+        faqs = "\n".join(f'    <details><summary>{q}</summary><p>{a}</p></details>' for q, a in m["faqs"])
+        prompts = ""
+        if "prompts" in m:
+            items = "\n".join(
+                f'    <details><summary>{name} — provenance prompt</summary><p><code>{p}</code></p></details>'
+                for name, p in m["prompts"])
+            prompts = PROMPT_SECTION.format(prompt_items=items)
+        html = PAGE.format(slug=f"{base}/{slug}", label=m.get("h1", slug), title=m["title"], desc=m["desc"],
+                           h1=m["h1"], lede=m["lede"], cards=cards, faqs=faqs, nav=nav_html(""), prompts="") 
+        html = html.replace('<main class="pageMain">', '<main class="pageMain">' + prompts) if prompts else html
+        out = os.path.join(ROOT, base, slug)
+        os.makedirs(out, exist_ok=True)
+        with open(os.path.join(out, "index.html"), "w") as f:
+            f.write(html)
+        print("wrote", base + "/" + slug)
+
 print("done")

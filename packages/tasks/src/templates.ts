@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { templateSchema, templateCategorySchema, templateStyleSchema, type Template } from "@oia/schema";
+import { templateSchema, templateCategorySchema, templateStyleSchema, templatePackSchema, type Template } from "@oia/schema";
 import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /** BR-TPL store: publish designs as templates; paginated + featured listing; author tip credits. */
@@ -14,7 +14,7 @@ export class TemplateStore {
   }
 
 /** Publish: scene JSON stored intact (BR-TPL1) — thumbnail taken from the first Image object. */
-  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean; category?: string; style?: string }): Promise<{ template: Template; warnings: string[] }> {
+  async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean; category?: string; style?: string; pack?: string }): Promise<{ template: Template; warnings: string[] }> {
     const tpl = templateSchema.parse({
       id: `tpl_${Date.now().toString(36)}`,
       name: input.name.trim().slice(0, 120) || "Untitled template",
@@ -25,6 +25,8 @@ export class TemplateStore {
       ...(input.category ? { category: templateCategorySchema.parse(input.category) } : {}),
       // SC-2: same edge enforcement for the style family
       ...(input.style ? { style: templateStyleSchema.parse(input.style) } : {}),
+      // SC-5: same edge enforcement for pack membership
+      ...(input.pack ? { pack: templatePackSchema.parse(input.pack) } : {}),
       tipCredits: 0,
       createdAt: Date.now(),
     });
@@ -33,13 +35,14 @@ export class TemplateStore {
     return { template: tpl, warnings: templatePublishWarnings(tpl) };
   }
 
-/** BR-TPL2: page/pageSize pagination + featured/category/style filters (TPL-T1, SC-2). */
-  list(q: { page?: number; pageSize?: number; featured?: boolean; category?: string; style?: string } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
+/** BR-TPL2: page/pageSize pagination + featured/category/style/pack filters (TPL-T1, SC-2, SC-5). */
+  list(q: { page?: number; pageSize?: number; featured?: boolean; category?: string; style?: string; pack?: string } = {}): { items: Template[]; total: number; page: number; pageSize: number } {
     const page = Math.max(1, q.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, q.pageSize ?? 20));
     let filtered = q.featured === undefined ? this.items : this.items.filter((t) => t.featured === q.featured);
     if (q.category !== undefined) filtered = filtered.filter((t) => t.category === q.category);
     if (q.style !== undefined) filtered = filtered.filter((t) => t.style === q.style);
+    if (q.pack !== undefined) filtered = filtered.filter((t) => t.pack === q.pack);
     const start = (page - 1) * pageSize;
     return { items: filtered.slice(start, start + pageSize), total: filtered.length, page, pageSize };
   }
@@ -67,6 +70,10 @@ export class TemplateStore {
     // SC-2: legacy imports with unknown styles land unfiltered (same G4 rationale)
     if (tpl.style !== undefined && !templateStyleSchema.safeParse(tpl.style).success) {
       tpl = { ...tpl, style: undefined };
+    }
+    // SC-5: same for packs
+    if (tpl.pack !== undefined && !templatePackSchema.safeParse(tpl.pack).success) {
+      tpl = { ...tpl, pack: undefined };
     }
     this.items.unshift(tpl);
     await this.save();

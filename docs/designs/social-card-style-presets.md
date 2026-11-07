@@ -39,8 +39,8 @@ Bản làm việc nằm NGOÀI repo: `/Users/cuong/orca/projects/Misc/guizang-in
 
 **QA log (visual-template-qa.py + vision):** 5 vòng — bắt được: script ép canvas 1024×1536 làm méo mọi card không 2:3 (artifact); weight 200 không render vì trục variable font là [Weight, Width] (đã vá, đo pixel xác nhận nét 6px vs 11px @100px); 2 lỗi vị trí thật (chữ đè lưới ×, chấm đè hairline); 1 lỗi patch nhầm file (sửa plate mà ghi vào studio-templates.ts — python replace no-op âm thầm, plate giữ vị trí cũ) — tất cả đã vá, PASS 3/3 items vòng cuối. Gates: build 8/8, test 16/16, typecheck 15/15, shot exit 0 (probe oia:// files FAIL là pre-existing test-dir noise, đã đối chiếu mã nguồn probe).
 
-### SC-4 — Site facet theo style (sau, pattern T5)
-`/templates/` thêm facet `?style=editorial|swiss` + trang style riêng (SEO loop bản OSS). Chỉ làm sau khi SC-3 có ≥4 template thật.
+### SC-4 — Site facet theo style (SAI KỲ LỆCH — ĐÃ LÀM 2026-11-07)
+Thay vì `?style=` query (không index tốt bằng trang riêng), làm 2 trang style tĩnh theo pattern T5: `/templates/styles/editorial/` + `/templates/styles/swiss/` (8 + 5 card, FAQ riêng từng style nhắc đúng luật critic v3.3). Hub `/templates/` thêm 4 link (2 style + 2 pack); sitemap +4 URL.
 
 ### SC-5 — Preset packs cho gen ảnh (chờ duyệt, mới 2026-11-06)
 
@@ -51,6 +51,13 @@ Bản làm việc nằm NGOÀI repo: `/Users/cuong/orca/projects/Misc/guizang-in
 **Phân phối (đúng bài mượn kênh):** trang SEO per-pack (pattern T5 đã ship cho category), creator publish preset nhận tip (mô hình SurgePix — đã research trong TPL), pack theo ngách ICP làm landing riêng ("Tết sale pack", "menu quán pack", "US dropship pack") — KHÔNG làm kho generic "300 presets" (bài học bão hòa Lightroom market; cái thắng là niche + brand như Tezza).
 
 **Slices khi duyệt:** (1) schema `packId` optional trên Template + list theo pack (additive D14); (2) seed 2 pack theo 2 style của SC-3 (gộp quota với SC-3 — không tốn thêm); (3) site `/templates/packs/<slug>` (generator mở rộng của T5); (4) provenance ghi prompt gốc vào seed. **Moat note:** preset đơn lẻ copy được; kho + taxonomy + số liệu dùng nhiều + creator network mới là tài sản cộng dồn — quyết định đầu tư theo đó.
+
+**ĐÃ THỰC THI SC-5 (2026-11-07, cùng SC-4):**
+- (1) `TEMPLATE_PACKS` (cafe-restaurant, product-launch) + `Template.pack` + list filter compose với style/category — edge parse (junk 400), import sanitize; test suite mirror SC-2
+- (2) 11 template gắn pack (5 quán ăn + 6 launch) — **0 quota** (tái dùng template SC-3)
+- (4) `template-provenance.ts`: prompt gốc của 9 plate AI (mode/style/ngày), test ghim mọi entry ánh xạ đúng template + mọi plate AI có provenance + prompt thật (chứa "no text", >80 ký tự — không placeholder)
+- (3) Site: `/templates/packs/{cafe-restaurant,product-launch}/` — mỗi pack có mục "Grown from real prompts" (provenance prompt hiển thị dạng collapsible) — điểm khác biệt SEO: template kèm công thức tái tạo look trên sản phẩm của người dùng; FAQ hướng dẫn rerun prompt với subject riêng
+- Gates: build 8/8, test 16/16, typecheck 15/15, shot exit 0
 
 ## Quyết định owner (chờ)
 

@@ -94,7 +94,10 @@ describe("TP.7 durable load — TemplateStore", () => {
 describe("SC-2 template style — store edge + filter + legacy sanitize", () => {
   it("publish parses the closed style set at the edge; junk style 400s", async () => {
     const { TemplateStore } = await import("../src/templates.js");
-    const st = new TemplateStore(`style-edge-${Date.now()}.json`);
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const st = new TemplateStore(mkdtempSync(pathMod.join(tmpdir(), "sc2-edge-")) + "/templates.json");
     await st.load();
     await st.publish({ name: "Editorial menu", scene: { version: "7.3.1", objects: [] }, category: "menu", style: "editorial" });
     await st.publish({ name: "Swiss spec", scene: { version: "7.3.1", objects: [] }, category: "new-product", style: "swiss" });
@@ -105,7 +108,10 @@ describe("SC-2 template style — store edge + filter + legacy sanitize", () => 
   });
   it("legacy import with a free-text style lands unfiltered, not broken", async () => {
     const { TemplateStore } = await import("../src/templates.js");
-    const st = new TemplateStore(`style-legacy-${Date.now()}.json`);
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const st = new TemplateStore(mkdtempSync(pathMod.join(tmpdir(), "sc2-legacy-")) + "/templates.json");
     await st.load();
     const ok = await st.addImported({
       id: "tpl_stylelegacy", name: "old import", authorName: "x", featured: false, tipCredits: 0, createdAt: 0,
@@ -114,5 +120,36 @@ describe("SC-2 template style — store edge + filter + legacy sanitize", () => 
     expect(ok).toBe(true);
     expect(st.get("tpl_stylelegacy")?.style).toBeUndefined();
     expect(st.list({ style: "editorial" }).total).toBe(0);
+  });
+});
+
+/** SC-5 — pack membership: same edge/loose pattern as category+style. */
+describe("SC-5 template pack — store edge + filter + legacy sanitize", () => {
+  it("publish parses the closed pack set; junk pack 400s; list filters by pack", async () => {
+    const { TemplateStore } = await import("../src/templates.js");
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const st = new TemplateStore(mkdtempSync(pathMod.join(tmpdir(), "sc5-edge-")) + "/templates.json");
+    await st.load();
+    await st.publish({ name: "Café menu", scene: { version: "7.3.1", objects: [] }, category: "menu", style: "editorial", pack: "cafe-restaurant" });
+    await st.publish({ name: "Drop", scene: { version: "7.3.1", objects: [] }, category: "new-product", style: "swiss", pack: "product-launch" });
+    await expect(st.publish({ name: "bad", scene: { version: "7.3.1", objects: [] }, pack: "mystery-box" })).rejects.toThrow();
+    expect(st.list({ pack: "cafe-restaurant" }).total).toBe(1);
+    expect(st.list({ pack: "product-launch", style: "swiss" }).total).toBe(1); // filters compose
+    expect(st.list({ pack: "product-launch", style: "editorial" }).total).toBe(0);
+  });
+  it("legacy import with an unknown pack lands unfiltered", async () => {
+    const { TemplateStore } = await import("../src/templates.js");
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const pathMod = await import("node:path");
+    const st = new TemplateStore(mkdtempSync(pathMod.join(tmpdir(), "sc5-legacy-")) + "/templates.json");
+    await st.load();
+    await st.addImported({
+      id: "tpl_packlegacy", name: "old", authorName: "x", featured: false, tipCredits: 0, createdAt: 0,
+      scene: { version: "7.3.1", objects: [] }, pack: "winter-2025",
+    });
+    expect(st.get("tpl_packlegacy")?.pack).toBeUndefined();
   });
 });

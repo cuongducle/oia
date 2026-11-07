@@ -12,11 +12,12 @@ const W = 900, H = 1200;
 function text(value: string, x: number, y: number, width: number, size: number, color: string, extra: Record<string, unknown> = {}): FabricObject {
   return { type: "Textbox", text: value, left: x, top: y, width, fontSize: size, fill: color, fontFamily: "Be Vietnam Pro", lineHeight: 0.98, fontWeight: 500, ...extra };
 }
-function template(id: string, name: string, color: string, artwork: string, objects: FabricObject[], opts: { category?: string; style?: string; w?: number; h?: number } = {}): Template {
+function template(id: string, name: string, color: string, artwork: string, objects: FabricObject[], opts: { category?: string; style?: string; pack?: string; w?: number; h?: number } = {}): Template {
   const w = opts.w ?? W, h = opts.h ?? H;
   return { id: `studio-${id}`, name, authorName: "Oia Studio", featured: true, tipCredits: 0, createdAt: 0,
     ...(opts.category ? { category: opts.category } : {}),
     ...(opts.style ? { style: opts.style } : {}),
+    ...(opts.pack ? { pack: opts.pack } : {}),
     scene: { version: "6.9.1", objects: [
       { type: "Rect", name: "clip", width: w, height: h, left: 0, top: 0, fill: color, selectable: false },
       { type: "Image", name: "artwork", src: `/studio/${artwork}.webp`, left: 0, top: 0, width: w, height: h, crossOrigin: "anonymous" },
@@ -67,12 +68,12 @@ export const STUDIO_TEMPLATES: Template[] = [
     // visual-QA: the tagline crossed the wall/table shadow strip at its old spot —
     // anchored under the menu block on clean wall, a step darker for contrast.
     text("BAKED BEFORE SUNRISE", 470, 1000, 480, 26, "#5d4632", { charSpacing: 50 }),
-  ], { category: "menu", w: 1024, h: 1536 }),
+  ], { category: "menu", pack: "cafe-restaurant", w: 1024, h: 1536 }),
   template("serum", "Serum launch post", "#ded2c2", "serum", [
     text("MEET YOUR\nDAILY RITUAL", 60, 90, 900, 88, "#3d3428", { fontWeight: 800, lineHeight: 0.98 }),
     text("A fresh start for your skin", 62, 300, 700, 36, "#6b5d4c" ),
     text("SHOP THE LAUNCH — 20% OFF", 60, 1396, 900, 38, "#3d3428", { fontWeight: 700, charSpacing: 30, textAlign: "center" }),
-  ], { category: "social-post", w: 1024, h: 1536 }),
+  ], { category: "social-post", pack: "product-launch", w: 1024, h: 1536 }),
   // ---- TPL-T3 batch 2 (2026-11-04): new-product + a second flash-sale look.
   // Placement per plate QA: sneaker copy goes top + bottom-right (light type on
   // the darker gradient); holiday copy top-left (right side carries bokeh). ----
@@ -83,7 +84,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     // the date (the actionable line) bumped to rival the tagline.
     text("THE DROP — 12.12", 470, 1284, 500, 60, "#ffb347", { fontWeight: 800, textAlign: "right" }),
     text("Limited first run · members early access", 470, 1368, 500, 26, "#e8eaee", { textAlign: "right" }),
-  ], { category: "new-product", w: 1024, h: 1536 }),
+  ], { category: "new-product", pack: "product-launch", w: 1024, h: 1536 }),
   template("holiday", "Year-end blowout", "#0d2b1e", "holiday", [
     text("YEAR-END\nBLOWOUT", 60, 110, 640, 120, "#f5e9c8", { fontWeight: 800, lineHeight: 0.95 }),
     text("UP TO 50% OFF", 60, 430, 560, 64, "#e2b653", { fontWeight: 800, charSpacing: 30 }),
@@ -121,7 +122,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("1.490.000₫", 420, 768, 600, 26, "#0a0a0a", { fontWeight: 600, textAlign: "right" }),
     { type: "Rect", name: "rule", left: 60, top: 840, width: 960, height: 1, fill: "#d4d4d2" },
     text("IN STORES NOW — HCMC · HANOI", 60, 986, 960, 24, "#0a0a0a", { charSpacing: 60 }),
-  ], { category: "new-product", style: "swiss", w: 1080, h: 1080 }),
+  ], { category: "new-product", style: "swiss", pack: "product-launch", w: 1080, h: 1080 }),
   template("swiss-statement", "Post consistently · Swiss", "#fafaf8", "swiss-statement", [
     text("CONTENT PACK / 01", 100, 64, 640, 22, "#737373", { charSpacing: 80 }),
     text("SHOP LEDGER", 1160, 64, 340, 22, "#737373", { charSpacing: 80, textAlign: "right" }),
@@ -150,7 +151,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("55.000₫", 680, 804, 340, 30, "#3a2a1c", { textAlign: "right" }),
     { type: "Rect", name: "rule", left: 60, top: 890, width: 960, height: 1, fill: "#a4835a" },
     text("OPEN DAILY 7–17 · 12 LÊ LẠI, D.1", 60, 1240, 960, 24, "#5d4632", { charSpacing: 60 }),
-  ], { category: "menu", style: "editorial", w: 1080, h: 1350 }),
+  ], { category: "menu", style: "editorial", pack: "cafe-restaurant", w: 1080, h: 1350 }),
   template("ed-feature", "Field notes · Editorial", "#eee4d2", "ed-feature", [
     text("FIELD NOTES · 07", 60, 64, 600, 22, "#7a6a4e", { charSpacing: 80 }),
     text("THE JOURNAL", 760, 64, 260, 22, "#7a6a4e", { charSpacing: 80, textAlign: "right" }),
@@ -184,7 +185,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("Brunch board, two", 60, 606, 560, 34, "#2e1a10", { fontFamily: "Georgia" }),
     text("96.000₫", 620, 610, 400, 28, "#2e1a10", { textAlign: "right" }),
     text("SAT—SUN 8–14 · WALK-INS ONLY", 60, 716, 960, 22, "#3d1f14", { charSpacing: 60 }),
-  ], { category: "menu", style: "editorial", w: 1080, h: 1350 }),
+  ], { category: "menu", style: "editorial", pack: "cafe-restaurant", w: 1080, h: 1350 }),
   template("ed-product2", "First light serum · Editorial", "#e8ded0", "ed-product2", [
     text("THE DAILY RITUAL", 60, 400, 520, 22, "#7a6a4e", { charSpacing: 80 }),
     text("First\nLight", 60, 460, 520, 96, "#3a3222", { fontFamily: "Georgia", lineHeight: 1.06 }),
@@ -192,7 +193,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     { type: "Rect", name: "rule", left: 60, top: 736, width: 520, height: 1, fill: "#b09c74" },
     text("890.000₫ — 30 ml", 60, 766, 520, 30, "#3a3222" ),
     text("SHOP THE LAUNCH", 60, 916, 400, 22, "#7a6a4e", { charSpacing: 60 }),
-  ], { category: "new-product", style: "editorial", w: 1080, h: 1080 }),
+  ], { category: "new-product", style: "editorial", pack: "product-launch", w: 1080, h: 1080 }),
   template("ed-holiday2", "Candlelit gift · Editorial dark", "#171512", "ed-holiday2", [
     text("MIDNIGHT EDIT", 560, 330, 460, 24, "#d4a04a", { charSpacing: 90 }),
     text("Wrapped\nin Gold", 560, 400, 480, 88, "#f5e9c8", { fontFamily: "Georgia", lineHeight: 1.06 }),
@@ -200,7 +201,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     { type: "Rect", name: "rule", left: 560, top: 692, width: 460, height: 1, fill: "#6b5a3e" },
     text("GIFT SET — 590.000₫", 560, 722, 460, 30, "#f5e9c8" ),
     text("ORDER BY DEC 22", 560, 858, 460, 22, "#d4a04a", { charSpacing: 70 }),
-  ], { category: "poster", style: "editorial", w: 1080, h: 1350 }),
+  ], { category: "poster", style: "editorial", pack: "cafe-restaurant", w: 1080, h: 1350 }),
   template("ed-poster2", "Thrown by hand · Editorial", "#d9bfa4", "ed-poster2", [
     text("THE ATELIER JOURNAL", 520, 120, 500, 22, "#7a5b3e", { charSpacing: 80 }),
     text("Thrown\nby Hand", 520, 180, 500, 92, "#3d2a1a", { fontFamily: "Georgia", lineHeight: 1.06 }),
@@ -218,7 +219,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("Đầu bò · nước trong", 500, 530, 520, 30, "#2e2620", { fontFamily: "Georgia" }),
     text("49.000₫", 500, 588, 520, 26, "#b3552e", { fontWeight: 700, textAlign: "right" }),
     text("MỞ 6–11H · 12 NGUYỄN TRÃI", 500, 660, 520, 22, "#6b5f50", { charSpacing: 60 }),
-  ], { category: "poster", style: "editorial", w: 1080, h: 1350 }),
+  ], { category: "poster", style: "editorial", pack: "cafe-restaurant", w: 1080, h: 1350 }),
   template("ed-fashion", "The linen edit · Editorial", "#d9cbb8", "ed-fashion", [
     text("THE LINEN EDIT", 670, 90, 360, 22, "#7a6a52", { charSpacing: 80 }),
     text("Soft\nStructure", 670, 148, 370, 78, "#3a3226", { fontFamily: "Georgia", lineHeight: 1.05 }),
@@ -240,7 +241,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("heel-toe drop", 400, 548, 300, 20, "#c9d2ee", { charSpacing: 40 }),
     text("499.000₫", 740, 480, 280, 54, "#FFD500", { fontWeight: 600 }),
     text("first run — dec 12", 740, 548, 280, 20, "#c9d2ee", { charSpacing: 40 }),
-  ], { category: "new-product", style: "swiss", w: 1080, h: 1080 }),
+  ], { category: "new-product", style: "swiss", pack: "product-launch", w: 1080, h: 1080 }),
   template("swiss-bottle", "Everyday bottle · Swiss", "#FFD500", "swiss-bottle", [
     text("NEW / 002", 60, 64, 400, 22, "#141414", { charSpacing: 80 }),
     text("ATELIER BASIC", 460, 64, 400, 22, "#141414", { charSpacing: 80, textAlign: "right" }),
@@ -253,7 +254,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("PRICE", 60, 650, 200, 20, "#5c5200", { charSpacing: 70 }),
     text("390.000₫", 320, 646, 260, 26, "#002FA7", { fontWeight: 600, textAlign: "right" }),
     text("IN STORES NOW", 60, 1230, 520, 24, "#141414", { charSpacing: 60 }),
-  ], { category: "new-product", style: "swiss", w: 1080, h: 1350 }),
+  ], { category: "new-product", style: "swiss", pack: "product-launch", w: 1080, h: 1350 }),
   template("ed-deck", "The quiet season · Editorial", "#e5dcc9", "ed-deck", [
     text("QUARTERLY LOOKBOOK", 60, 110, 620, 22, "#7a6a4e", { charSpacing: 80 }),
     text("The Quiet\nSeason", 60, 168, 640, 92, "#3a3222", { fontFamily: "Georgia", lineHeight: 1.05 }),

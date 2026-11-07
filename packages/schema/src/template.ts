@@ -20,6 +20,8 @@ export const templateSchema = z.object({
   /** SC-2 — style family (social-card-style-presets.md). Same loose-on-read /
    * closed-at-edges pattern as category (G6, D14). */
   style: z.string().trim().min(1).max(40).optional(),
+  /** SC-5 — curated pack membership (niche bundles). Loose read / edge-enforced. */
+  pack: z.string().trim().min(1).max(60).optional(),
   createdAt: z.number(),
 });
 export type Template = z.infer<typeof templateSchema>;
@@ -35,6 +37,20 @@ export const TEMPLATE_STYLES = [
 export type TemplateStyleId = (typeof TEMPLATE_STYLES)[number]["id"];
 export const templateStyleSchema = z.enum(
   TEMPLATE_STYLES.map((s) => s.id) as [TemplateStyleId, ...TemplateStyleId[]],
+);
+
+/**
+ * SC-5 — preset packs: curated bundles by seller niche (a pack bundles templates
+ * + the prompts that grew them; see social-card-style-presets.md). Same
+ * closed-at-edges pattern as category/style.
+ */
+export const TEMPLATE_PACKS = [
+  { id: "cafe-restaurant", label: "Café & restaurant" },
+  { id: "product-launch", label: "Product launch" },
+] as const;
+export type TemplatePackId = (typeof TEMPLATE_PACKS)[number]["id"];
+export const templatePackSchema = z.enum(
+  TEMPLATE_PACKS.map((p) => p.id) as [TemplatePackId, ...TemplatePackId[]],
 );
 
 /**
@@ -63,4 +79,5 @@ export const templateListQuery = z.object({
   featured: z.coerce.boolean().optional(),
   category: templateCategorySchema.optional(),
   style: templateStyleSchema.optional(),
+  pack: templatePackSchema.optional(),
 });
