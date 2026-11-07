@@ -2,7 +2,7 @@
 
 **Ngày:** 2026-11-03
 **Trạng thái:** T1 ✅ · **T3 batch 1+2 ✅** (7 studio templates, 8/8 taxonomy categories có phủ — quota cộng dồn: **5 ảnh + 5 reads**) · T4 soft ✅ · **T5 ✅ (2026-11-04)**: hub /templates/ theo category + 6 trang category SEO (generator tái tạo được `site/templates/build.py`, sitemap +6 URL, download data-dl). T1 ✅ (kèm goldfish pass 1). **T3 batch 1 ✅ (2026-11-03, owner "bắt tay vào làm" = duyệt Q1-Q3):** 3 template thật (flash-sale / menu / social-post) — quota tiêu hao thật: **3 ảnh + 3 reads** (critic pass vòng 1 cả 3, không refine). Overlay KHÔNG sinh mới — nhóm "Livestream" của Editor (LIVESTREAM_TEMPLATES) đã phủ. **T4 soft ✅** (warnings trong publish result, Editor hiển thị "Published with notes"). T5 = sau (Q3). Batch 2 (new-product, deck, poster, holiday) chờ hiệu quả batch 1.
-**Nguồn nghiên cứu:** Canva growth case study (growthcasestudies.com, 11/2025), PosterMyWall template-authoring guide, Canva conversational onboarding (getperspective.ai 5/2026), SurgePix RE nội bộ (docs/private/surgepix-reverse-engineering.md).
+**Nguồn nghiên cứu:** Canva growth case study (growthcasestudies.com, 11/2025), PosterMyWall template-authoring guide, Canva conversational onboarding (getperspective.ai 5/2026), SurgePix RE nội bộ (docs/private/surgepix-reverse-engineering.md). Lớp STYLE (Editorial × Swiss + cặp font + size quốc tế) tách ra doc riêng: [social-card-style-presets.md](social-card-style-presets.md).
 
 ## Nghiên cứu — 4 bài học lớn
 
