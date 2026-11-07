@@ -56,7 +56,7 @@ for m in matches:
     d = ImageDraw.Draw(im)
     for t in texts:
         try:
-            f = ImageFont.truetype(FONTS["default"] if t.get("georgia") is None else FONTS.get("Georgia-italic" if t.get("italic") else "Georgia", FONTS["default"]), int(t["size"]))
+            f = ImageFont.truetype(FONTS["default"] if not t.get("georgia") else FONTS.get("Georgia-italic" if t.get("italic") else "Georgia", FONTS["default"]), int(t["size"]))
             try:
                 # Archivo variable: axes [wdth, wght] — honor light display weights
                 f.set_variation_by_axes([max(100, min(900, int(t["bold"]))), 100])
