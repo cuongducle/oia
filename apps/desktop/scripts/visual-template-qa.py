@@ -64,7 +64,19 @@ for m in matches:
                 pass
         except Exception:
             f = ImageFont.load_default()
-        lines = t["text"].split("\n")
+        raw_lines = t["text"].split("\n")
+        lines = []
+        for rl in raw_lines:
+            words = rl.split(" ")
+            cur = ""
+            for wd in words:
+                trial = (cur + " " + wd).strip()
+                tw = sum(d.textlength(c, font=f) + t["spacing"] * t["size"] / 1000 for c in trial)
+                if tw > t["w"] and cur:
+                    lines.append(cur); cur = wd
+                else:
+                    cur = trial
+            lines.append(cur)
         y = t["y"]
         for ln in lines:
             # charSpacing approximated by drawing per-char

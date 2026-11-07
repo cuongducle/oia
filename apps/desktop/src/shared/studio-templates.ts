@@ -170,4 +170,40 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("890.000₫ — wrapped free", 60, 736, 700, 28, "#d8c9a8" ),
     text("ORDER BY DEC 22", 60, 1160, 960, 26, "#d4a04a", { charSpacing: 70 }),
   ], { category: "poster", w: 1080, h: 1350 }),
+  // ---- SC-3 AI batch (2026-11-07): real codex clean-plate runs (4 images, 0
+  // reads — research off, refine off via the temp harvest patch, reverted after).
+  // Text zones placed per plate QA (vision-mapped empty areas), never over art. ----
+  template("ed-menu3", "Weekend brunch · Editorial", "#c4634a", "ed-menu3", [
+    text("CORNER CAFÉ · WEEKEND SET", 60, 96, 900, 22, "#3d1f14", { charSpacing: 80 }),
+    text("Slow\nWeekends", 60, 160, 960, 112, "#331a10", { fontFamily: "Georgia", lineHeight: 1.05 }),
+    text("Cardamom buns, flat whites, nowhere to be.", 60, 430, 860, 30, "#f9efdf", { fontFamily: "Georgia", fontStyle: "italic" }),
+    { type: "Rect", name: "rule", left: 60, top: 502, width: 960, height: 1, fill: "#7a3d28" },
+    text("Bun + flat white", 60, 534, 560, 34, "#2e1a10", { fontFamily: "Georgia" }),
+    text("72.000₫", 620, 538, 400, 28, "#2e1a10", { textAlign: "right" }),
+    text("Brunch board, two", 60, 606, 560, 34, "#2e1a10", { fontFamily: "Georgia" }),
+    text("96.000₫", 620, 610, 400, 28, "#2e1a10", { textAlign: "right" }),
+    text("SAT—SUN 8–14 · WALK-INS ONLY", 60, 716, 960, 22, "#3d1f14", { charSpacing: 60 }),
+  ], { category: "menu", w: 1080, h: 1350 }),
+  template("ed-product2", "First light serum · Editorial", "#e8ded0", "ed-product2", [
+    text("THE DAILY RITUAL", 60, 400, 520, 22, "#7a6a4e", { charSpacing: 80 }),
+    text("First\nLight", 60, 460, 520, 96, "#3a3222", { fontFamily: "Georgia", lineHeight: 1.06 }),
+    text("Four ingredients, nothing else.", 60, 676, 520, 30, "#5f5238", { fontFamily: "Georgia", fontStyle: "italic" }),
+    { type: "Rect", name: "rule", left: 60, top: 736, width: 520, height: 1, fill: "#b09c74" },
+    text("890.000₫ — 30 ml", 60, 766, 520, 30, "#3a3222" ),
+    text("SHOP THE LAUNCH", 60, 916, 400, 22, "#7a6a4e", { charSpacing: 60 }),
+  ], { category: "new-product", w: 1080, h: 1080 }),
+  template("ed-holiday2", "Candlelit gift · Editorial dark", "#171512", "ed-holiday2", [
+    text("MIDNIGHT EDIT", 560, 330, 460, 24, "#d4a04a", { charSpacing: 90 }),
+    text("Wrapped\nin Gold", 560, 400, 480, 88, "#f5e9c8", { fontFamily: "Georgia", lineHeight: 1.06 }),
+    text("One box, warm hours, someone you thought of.", 560, 600, 480, 28, "#d8c9a8", { fontFamily: "Georgia", fontStyle: "italic" }),
+    { type: "Rect", name: "rule", left: 560, top: 692, width: 460, height: 1, fill: "#6b5a3e" },
+    text("GIFT SET — 590.000₫", 560, 722, 460, 30, "#f5e9c8" ),
+    text("ORDER BY DEC 22", 560, 858, 460, 22, "#d4a04a", { charSpacing: 70 }),
+  ], { category: "poster", w: 1080, h: 1350 }),
+  template("ed-poster2", "Thrown by hand · Editorial", "#d9bfa4", "ed-poster2", [
+    text("THE ATELIER JOURNAL", 520, 120, 500, 22, "#7a5b3e", { charSpacing: 80 }),
+    text("Thrown\nby Hand", 520, 180, 500, 92, "#3d2a1a", { fontFamily: "Georgia", lineHeight: 1.06 }),
+    text("Small batches of terracotta, dried in afternoon light.", 520, 396, 500, 28, "#6b4a2f", { fontFamily: "Georgia", fontStyle: "italic" }),
+    text("OPEN SAT—SUN · 34 THÁI HÀ", 520, 496, 500, 22, "#7a5b3e", { charSpacing: 60 }),
+  ], { category: "poster", w: 1080, h: 1350 }),
 ];
