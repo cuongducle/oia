@@ -30,9 +30,9 @@ describe("seedSampleProjects — the happy lane", () => {
     await store.load();
     const seeded = await seedSampleProjects({ dataDir, projects: store });
     expect(seeded).toBe(STUDIO_TEMPLATES.length);
-    const names = store.recent().map((p) => p.name);
+    const names = store.recent(STUDIO_TEMPLATES.length).map((p) => p.name);
     expect(names).toEqual(STUDIO_TEMPLATES.map((t) => `Sample · ${t.name}`)); // curated order
-    for (const p of store.recent()) {
+    for (const p of store.recent(STUDIO_TEMPLATES.length)) {
       expect(p.sample).toBe(true);
       expect(p.id.startsWith("prj_sample_studio-")).toBe(true);
       expect(p.pages[0].canvas.objects.some((o) => o.name === "clip")).toBe(true);
@@ -45,8 +45,8 @@ describe("seedSampleProjects — the happy lane", () => {
     await store.load();
     await seedSampleProjects({ dataDir, projects: store });
     const reopened = await boot(dataDir); // fresh store, disk only
-    expect(reopened.recent()).toHaveLength(STUDIO_TEMPLATES.length);
-    for (const p of reopened.recent()) expect(p.sample).toBe(true);
+    expect(reopened.recent(STUDIO_TEMPLATES.length)).toHaveLength(STUDIO_TEMPLATES.length);
+    for (const p of reopened.recent(STUDIO_TEMPLATES.length)) expect(p.sample).toBe(true);
     const onDisk = JSON.parse(readFileSync(path.join(dataDir, "projects", "prj_sample_studio-matcha.json"), "utf8"));
     expect(onDisk.sample).toBe(true);
   });
@@ -57,7 +57,7 @@ describe("seedSampleProjects — the guard lanes", () => {
     const { dataDir, store } = makeStore();
     await store.load();
     await seedSampleProjects({ dataDir, projects: store });
-    for (const p of store.recent()) await store.remove(p.id); // the user deletes them all
+    for (const p of store.recent(STUDIO_TEMPLATES.length)) await store.remove(p.id); // the user deletes them all (recent() caps at 20 — ask for the full set)
     const second = await boot(dataDir);
     expect(await seedSampleProjects({ dataDir, projects: second })).toBe(0);
     expect(second.recent()).toHaveLength(0); // deletion is permanent — samples do not haunt
@@ -84,8 +84,8 @@ describe("seedSampleProjects — the guard lanes", () => {
     });
     const seeded = await seedSampleProjects({ dataDir, projects: store });
     expect(seeded).toBe(STUDIO_TEMPLATES.length - 1); // only the missing ones landed
-    expect(store.recent()).toHaveLength(STUDIO_TEMPLATES.length); // complete set, no duplicate
-    expect(store.recent().filter((p) => p.id === `prj_sample_${STUDIO_TEMPLATES[0].id}`)).toHaveLength(1);
+    expect(store.recent(STUDIO_TEMPLATES.length)).toHaveLength(STUDIO_TEMPLATES.length); // complete set, no duplicate (recent() caps at 20 by default)
+    expect(store.recent(STUDIO_TEMPLATES.length).filter((p) => p.id === `prj_sample_${STUDIO_TEMPLATES[0].id}`)).toHaveLength(1);
     expect(existsSync(path.join(dataDir, "samples-seeded.json"))).toBe(true); // marker now written
   });
 });
