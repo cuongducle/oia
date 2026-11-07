@@ -117,6 +117,10 @@ export const STYLE_PRESETS = [
   { id: "3d", label: "3D", phrases: "floating glossy 3D objects, layered digital interface, Y2K typography", useCases: "tech product launches, gaming" },
   { id: "hand-drawn", label: "Hand-drawn", phrases: "illustration-led, organic strokes, warm textures, playful hand-lettered typography", useCases: "product promotions, community events" },
   { id: "business-promo", label: "Business promo", phrases: "product-centered composition, large promotional headline, layered badges, clear CTA", useCases: "e-commerce marketing, limited-time campaigns" },
+  /** SC-2 (social-card-style-presets.md) — the two Guizang-derived style systems,
+   * same plumbing as the other presets; the critic turns these into hard checks. */
+  { id: "editorial", label: "Editorial", phrases: "magazine-feature feel, serif display headline, quiet italic subhead, warm paper tones with visible grain or soft ink wash, generous margins, hairline rules", useCases: "cafés, menus, boutiques, journals, gift sets" },
+  { id: "swiss", label: "Swiss", phrases: "strict left-aligned grid, extreme size contrast with very large LIGHT-weight type, hairline rules, exactly one saturated accent color used once, flat surfaces, no gradients, no shadows, no rounded corners", useCases: "tech launches, product specs, data statements" },
 ] as const;
 export type StylePresetId = (typeof STYLE_PRESETS)[number]["id"];
 export const stylePresetIdSchema = z.enum(

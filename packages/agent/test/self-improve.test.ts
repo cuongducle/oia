@@ -205,7 +205,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.calls()).toBe(1); // no refine image was generated
     expect(out.map((e) => e.content).join("\n")).toContain("Auto refine check unavailable — keeping this version.");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.2", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.3", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (a2): critic throws (network/quota) → same G2 contract — keep, stop, no extra burn", async () => {
@@ -217,7 +217,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     };
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: throwingCritic, image: img.provider });
     expect(img.calls()).toBe(1);
-    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3.2", rounds: 0, verdict: "best-effort", issues: [] });
+    expect(out.find((e) => e.renderData.msgMeta.length)!.renderData.selfImprove).toEqual({ criticVersion: "v3.3", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
   it("GATE (b): cancel mid-refine → the best already-generated image is still yielded (OC-4 semantics)", async () => {
@@ -262,7 +262,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.calls()).toBe(2); // initial + edited
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
     // mock critic fails LOCALIZED (a typo) → DA-3.1 edit path, recorded honestly (B7)
-    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.2", rounds: 1, verdict: "pass", refinePath: "edit" });
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.3", rounds: 1, verdict: "pass", refinePath: "edit" });
     // the edit targets the CURRENT artwork: references carry image 1, instruction is fix-only
     const edit = img.inputs()[1];
     expect(edit.prompt).toContain("Edit Image 1");
@@ -309,7 +309,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.inputs()[2].prompt).toBe(img.inputs()[0].prompt);
     expect(img.inputs()[2].prompt).not.toContain("Edit Image 1");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
-    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.2", rounds: 2, verdict: "pass", refinePath: "reroll" });
+    expect(canvasEv.renderData.selfImprove).toMatchObject({ criticVersion: "v3.3", rounds: 2, verdict: "pass", refinePath: "reroll" });
   });
 
   it("DA-3 best-effort: all checks fail → the best-scoring candidate wins and the record says best-effort", async () => {
@@ -474,5 +474,25 @@ describe("teardown #5/#6 — failed refine attempts announce their burn, rounds 
     expect(out.map((e) => e.content).join("\n")).toContain("Auto refine regeneration failed (unknown)");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
     expect(canvasEv.renderData.selfImprove).toMatchObject({ rounds: 0, verdict: "best-effort" });
+  });
+});
+
+/** SC-2 — style-aware critic rubric (v3.3): hard laws ride the prompt only when a style is selected. */
+describe("SC-2 critic style laws", () => {
+  const base = { mode: "poster" as const, title: "t", pagePrompt: "p", overlayCopy: [] };
+  it("no style → no STYLE criterion", () => {
+    const p = criticPrompt(base);
+    expect(p).toContain("Critic rubric v3.3");
+    expect(p).not.toContain("STYLE (");
+  });
+  it("swiss → one-accent + light-display + flat-surface laws with a score cap", () => {
+    const p = criticPrompt({ ...base, style: "swiss" });
+    expect(p).toContain("STYLE (swiss)");
+    expect(p).toContain("exactly ONE saturated accent");
+    expect(p).toContain("cap this score at 4");
+  });
+  it("editorial → serif + textured-paper law; other presets get the generic clause", () => {
+    expect(criticPrompt({ ...base, style: "editorial" })).toContain("STYLE (editorial)");
+    expect(criticPrompt({ ...base, style: "vintage" })).toContain("STYLE (vintage)");
   });
 });

@@ -791,7 +791,7 @@ async function shot(): Promise<void> {
     return;
   }
 
-  // ---- Style preset (surgepix pattern): the select ships 8 presets + Auto,
+  // ---- Style preset (surgepix pattern): the select ships 10 presets + Auto (SC-2 added editorial/swiss),
   // the choice persists, and Auto cleans the key back out ------------------------
   const styleGate = await win.webContents.executeJavaScript(`(async () => {
     if (!document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
@@ -810,7 +810,7 @@ async function shot(): Promise<void> {
     // restore the panel-closed state the next gate (C1) expects from daOff
     if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
     await new Promise((r) => setTimeout(r, 100));
-    return { ok: opts.length === 9 && stored === "bold" && shown === "bold" && localStorage.getItem("oia.style") === null, options: opts.length, stored, shown, cleared: localStorage.getItem("oia.style") === null };
+    return { ok: opts.length === 11 && stored === "bold" && shown === "bold" && localStorage.getItem("oia.style") === null, options: opts.length, stored, shown, cleared: localStorage.getItem("oia.style") === null };
   })()`, true);
   console.log("[shot] style preset:", JSON.stringify(styleGate));
   if (!styleGate || !styleGate.ok) {

@@ -89,3 +89,30 @@ describe("TP.7 durable load — TemplateStore", () => {
     expect(Array.isArray(JSON.parse(readFileSync(file, "utf8")))).toBe(true);
   });
 });
+
+/** SC-2 — style family: same edge/loose pattern as category (social-card-style-presets.md). */
+describe("SC-2 template style — store edge + filter + legacy sanitize", () => {
+  it("publish parses the closed style set at the edge; junk style 400s", async () => {
+    const { TemplateStore } = await import("../src/templates.js");
+    const st = new TemplateStore(`style-edge-${Date.now()}.json`);
+    await st.load();
+    await st.publish({ name: "Editorial menu", scene: { version: "7.3.1", objects: [] }, category: "menu", style: "editorial" });
+    await st.publish({ name: "Swiss spec", scene: { version: "7.3.1", objects: [] }, category: "new-product", style: "swiss" });
+    await expect(st.publish({ name: "bad", scene: { version: "7.3.1", objects: [] }, style: "vaporwave" })).rejects.toThrow();
+    expect(st.list({ style: "editorial" }).total).toBe(1);
+    expect(st.list({ style: "swiss" }).items[0].name).toBe("Swiss spec");
+    expect(st.list({}).total).toBe(2);
+  });
+  it("legacy import with a free-text style lands unfiltered, not broken", async () => {
+    const { TemplateStore } = await import("../src/templates.js");
+    const st = new TemplateStore(`style-legacy-${Date.now()}.json`);
+    await st.load();
+    const ok = await st.addImported({
+      id: "tpl_stylelegacy", name: "old import", authorName: "x", featured: false, tipCredits: 0, createdAt: 0,
+      scene: { version: "7.3.1", objects: [] }, style: "y2k-neon",
+    });
+    expect(ok).toBe(true);
+    expect(st.get("tpl_stylelegacy")?.style).toBeUndefined();
+    expect(st.list({ style: "editorial" }).total).toBe(0);
+  });
+});

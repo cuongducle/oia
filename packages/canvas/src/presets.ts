@@ -31,6 +31,9 @@ export type ShapeKind = (typeof SHAPES)[number];
  *  route through the zone-anchored crop path (TP.8). */
 export const SIZE_PRESETS = {
   "Instagram Post (1:1)": { width: 1080, height: 1080 },
+  "Instagram Portrait (4:5)": { width: 1080, height: 1350 },
+  "Pinterest (2:3)": { width: 1000, height: 1500 },
+  "X / Twitter (16:9)": { width: 1600, height: 900 },
   "Facebook Post (1.91:1)": { width: 1200, height: 630 },
   "YouTube Banner (16:9)": { width: 1920, height: 1080 },
   "YouTube Thumbnail (16:9)": { width: 2560, height: 1440 },

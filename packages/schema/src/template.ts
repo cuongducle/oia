@@ -17,9 +17,25 @@ export const templateSchema = z.object({
    * on read (D14); the CLOSED taxonomy (templateCategorySchema) is enforced at write edges
    * (TemplateStore.publish) and sanitized on import lanes (addImported). */
   category: z.string().trim().min(1).max(40).optional(),
+  /** SC-2 — style family (social-card-style-presets.md). Same loose-on-read /
+   * closed-at-edges pattern as category (G6, D14). */
+  style: z.string().trim().min(1).max(40).optional(),
   createdAt: z.number(),
 });
 export type Template = z.infer<typeof templateSchema>;
+
+/**
+ * SC-2 — the template style families. Two systems, each with font pairing and
+ * the laws the critic enforces (docs/designs/social-card-style-presets.md).
+ */
+export const TEMPLATE_STYLES = [
+  { id: "editorial", label: "Editorial", fontPair: "Georgia + Be Vietnam Pro", laws: "serif display headline, italic deck, textured paper background (never flat), hairline rules, restrained warm palette" },
+  { id: "swiss", label: "Swiss", fontPair: "Be Vietnam Pro (display weight 200)", laws: "one saturated accent used exactly once, very large light-weight display type, hairline dividers, flat surfaces — no gradients, no shadows, no rounded corners" },
+] as const;
+export type TemplateStyleId = (typeof TEMPLATE_STYLES)[number]["id"];
+export const templateStyleSchema = z.enum(
+  TEMPLATE_STYLES.map((s) => s.id) as [TemplateStyleId, ...TemplateStyleId[]],
+);
 
 /**
  * TPL-T1 — the template taxonomy, single home. Ids match the Home composer's
@@ -46,4 +62,5 @@ export const templateListQuery = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   featured: z.coerce.boolean().optional(),
   category: templateCategorySchema.optional(),
+  style: templateStyleSchema.optional(),
 });

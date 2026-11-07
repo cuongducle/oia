@@ -12,10 +12,11 @@ const W = 900, H = 1200;
 function text(value: string, x: number, y: number, width: number, size: number, color: string, extra: Record<string, unknown> = {}): FabricObject {
   return { type: "Textbox", text: value, left: x, top: y, width, fontSize: size, fill: color, fontFamily: "Be Vietnam Pro", lineHeight: 0.98, fontWeight: 500, ...extra };
 }
-function template(id: string, name: string, color: string, artwork: string, objects: FabricObject[], opts: { category?: string; w?: number; h?: number } = {}): Template {
+function template(id: string, name: string, color: string, artwork: string, objects: FabricObject[], opts: { category?: string; style?: string; w?: number; h?: number } = {}): Template {
   const w = opts.w ?? W, h = opts.h ?? H;
   return { id: `studio-${id}`, name, authorName: "Oia Studio", featured: true, tipCredits: 0, createdAt: 0,
     ...(opts.category ? { category: opts.category } : {}),
+    ...(opts.style ? { style: opts.style } : {}),
     scene: { version: "6.9.1", objects: [
       { type: "Rect", name: "clip", width: w, height: h, left: 0, top: 0, fill: color, selectable: false },
       { type: "Image", name: "artwork", src: `/studio/${artwork}.webp`, left: 0, top: 0, width: w, height: h, crossOrigin: "anonymous" },
@@ -103,7 +104,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     { type: "Rect", name: "rule", left: 60, top: 884, width: 960, height: 1, fill: "#d4d4d2" },
     text("ENDS SUNDAY 23:59", 60, 916, 480, 26, "#0a0a0a", { charSpacing: 60 }),
     text("ALL SIZES · NO CODE", 540, 916, 480, 26, "#737373", { charSpacing: 60, textAlign: "right" }),
-  ], { category: "flash-sale", w: 1080, h: 1350 }),
+  ], { category: "flash-sale", style: "swiss", w: 1080, h: 1350 }),
   template("swiss-spec", "Product spec sheet · Swiss", "#fafaf8", "swiss-spec", [
     text("NEW ARRIVAL / 001", 60, 64, 640, 22, "#737373", { charSpacing: 80 }),
     text("AERIS STUDIO", 760, 64, 260, 22, "#737373", { charSpacing: 80, textAlign: "right" }),
@@ -120,7 +121,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("1.490.000₫", 420, 768, 600, 26, "#0a0a0a", { fontWeight: 600, textAlign: "right" }),
     { type: "Rect", name: "rule", left: 60, top: 840, width: 960, height: 1, fill: "#d4d4d2" },
     text("IN STORES NOW — HCMC · HANOI", 60, 986, 960, 24, "#0a0a0a", { charSpacing: 60 }),
-  ], { category: "new-product", w: 1080, h: 1080 }),
+  ], { category: "new-product", style: "swiss", w: 1080, h: 1080 }),
   template("swiss-statement", "Post consistently · Swiss", "#fafaf8", "swiss-statement", [
     text("CONTENT PACK / 01", 100, 64, 640, 22, "#737373", { charSpacing: 80 }),
     text("SHOP LEDGER", 1160, 64, 340, 22, "#737373", { charSpacing: 80, textAlign: "right" }),
@@ -133,7 +134,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("formats in rotation", 566, 778, 300, 22, "#737373", { charSpacing: 40 }),
     text("15m", 1032, 684, 300, 92, "#0a0a0a", { fontWeight: 600 }),
     text("per post, start to finish", 1032, 778, 460, 22, "#737373", { charSpacing: 40 }),
-  ], { category: "social-post", w: 1600, h: 900 }),
+  ], { category: "social-post", style: "swiss", w: 1600, h: 900 }),
   template("ed-menu", "Café menu · Editorial", "#e8d6b6", "ed-menu", [
     text("CORNER CAFÉ", 60, 64, 600, 22, "#5d4632", { charSpacing: 80 }),
     text("SPRING · № 04", 720, 64, 300, 22, "#5d4632", { charSpacing: 80, textAlign: "right" }),
@@ -149,7 +150,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("55.000₫", 680, 804, 340, 30, "#3a2a1c", { textAlign: "right" }),
     { type: "Rect", name: "rule", left: 60, top: 890, width: 960, height: 1, fill: "#a4835a" },
     text("OPEN DAILY 7–17 · 12 LÊ LẠI, D.1", 60, 1240, 960, 24, "#5d4632", { charSpacing: 60 }),
-  ], { category: "menu", w: 1080, h: 1350 }),
+  ], { category: "menu", style: "editorial", w: 1080, h: 1350 }),
   template("ed-feature", "Field notes · Editorial", "#eee4d2", "ed-feature", [
     text("FIELD NOTES · 07", 60, 64, 600, 22, "#7a6a4e", { charSpacing: 80 }),
     text("THE JOURNAL", 760, 64, 260, 22, "#7a6a4e", { charSpacing: 80, textAlign: "right" }),
@@ -159,7 +160,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("Fewer, better tools. Shorter lists. Longer walks.\nThe inbox can wait — the good ideas can't.", 60, 600, 900, 30, "#4a4030", { lineHeight: 1.5 }),
     text("READ ON — 6 MIN", 60, 940, 480, 22, "#7a6a4e", { charSpacing: 60 }),
     text("@studio.journal", 540, 940, 480, 22, "#7a6a4e", { charSpacing: 60, textAlign: "right" }),
-  ], { category: "social-post", w: 1080, h: 1080 }),
+  ], { category: "social-post", style: "editorial", w: 1080, h: 1080 }),
   template("ed-holiday", "Gilded nights · Editorial", "#1e1b16", "ed-holiday", [
     text("YEAR END · GIFT SET № 1", 60, 64, 700, 22, "#a08a5f", { charSpacing: 80 }),
     text("HOLIDAY EDIT", 760, 64, 260, 22, "#a08a5f", { charSpacing: 80, textAlign: "right" }),
@@ -169,7 +170,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("CORNER CAFÉ GIFT SET", 60, 680, 800, 36, "#f5e9c8", { fontFamily: "Georgia" }),
     text("890.000₫ — wrapped free", 60, 736, 700, 28, "#d8c9a8" ),
     text("ORDER BY DEC 22", 60, 1160, 960, 26, "#d4a04a", { charSpacing: 70 }),
-  ], { category: "poster", w: 1080, h: 1350 }),
+  ], { category: "poster", style: "editorial", w: 1080, h: 1350 }),
   // ---- SC-3 AI batch (2026-11-07): real codex clean-plate runs (4 images, 0
   // reads — research off, refine off via the temp harvest patch, reverted after).
   // Text zones placed per plate QA (vision-mapped empty areas), never over art. ----
@@ -183,7 +184,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("Brunch board, two", 60, 606, 560, 34, "#2e1a10", { fontFamily: "Georgia" }),
     text("96.000₫", 620, 610, 400, 28, "#2e1a10", { textAlign: "right" }),
     text("SAT—SUN 8–14 · WALK-INS ONLY", 60, 716, 960, 22, "#3d1f14", { charSpacing: 60 }),
-  ], { category: "menu", w: 1080, h: 1350 }),
+  ], { category: "menu", style: "editorial", w: 1080, h: 1350 }),
   template("ed-product2", "First light serum · Editorial", "#e8ded0", "ed-product2", [
     text("THE DAILY RITUAL", 60, 400, 520, 22, "#7a6a4e", { charSpacing: 80 }),
     text("First\nLight", 60, 460, 520, 96, "#3a3222", { fontFamily: "Georgia", lineHeight: 1.06 }),
@@ -191,7 +192,7 @@ export const STUDIO_TEMPLATES: Template[] = [
     { type: "Rect", name: "rule", left: 60, top: 736, width: 520, height: 1, fill: "#b09c74" },
     text("890.000₫ — 30 ml", 60, 766, 520, 30, "#3a3222" ),
     text("SHOP THE LAUNCH", 60, 916, 400, 22, "#7a6a4e", { charSpacing: 60 }),
-  ], { category: "new-product", w: 1080, h: 1080 }),
+  ], { category: "new-product", style: "editorial", w: 1080, h: 1080 }),
   template("ed-holiday2", "Candlelit gift · Editorial dark", "#171512", "ed-holiday2", [
     text("MIDNIGHT EDIT", 560, 330, 460, 24, "#d4a04a", { charSpacing: 90 }),
     text("Wrapped\nin Gold", 560, 400, 480, 88, "#f5e9c8", { fontFamily: "Georgia", lineHeight: 1.06 }),
@@ -199,11 +200,11 @@ export const STUDIO_TEMPLATES: Template[] = [
     { type: "Rect", name: "rule", left: 560, top: 692, width: 460, height: 1, fill: "#6b5a3e" },
     text("GIFT SET — 590.000₫", 560, 722, 460, 30, "#f5e9c8" ),
     text("ORDER BY DEC 22", 560, 858, 460, 22, "#d4a04a", { charSpacing: 70 }),
-  ], { category: "poster", w: 1080, h: 1350 }),
+  ], { category: "poster", style: "editorial", w: 1080, h: 1350 }),
   template("ed-poster2", "Thrown by hand · Editorial", "#d9bfa4", "ed-poster2", [
     text("THE ATELIER JOURNAL", 520, 120, 500, 22, "#7a5b3e", { charSpacing: 80 }),
     text("Thrown\nby Hand", 520, 180, 500, 92, "#3d2a1a", { fontFamily: "Georgia", lineHeight: 1.06 }),
     text("Small batches of terracotta, dried in afternoon light.", 520, 396, 500, 28, "#6b4a2f", { fontFamily: "Georgia", fontStyle: "italic" }),
     text("OPEN SAT—SUN · 34 THÁI HÀ", 520, 496, 500, 22, "#7a5b3e", { charSpacing: 60 }),
-  ], { category: "poster", w: 1080, h: 1350 }),
+  ], { category: "poster", style: "editorial", w: 1080, h: 1350 }),
 ];

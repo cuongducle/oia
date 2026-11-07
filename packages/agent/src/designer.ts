@@ -170,8 +170,10 @@ export function isStochasticMiss(prev: EvalRead | null, current: EvalRead): bool
  * The `textHandling` score covers both meanings; the prompt says which applies. */
 /** B7: stamped into every selfImprove record — the rubric shipped 3 versions in one day;
  * a verdict must name its judge. Bump when the rubric changes. v3.2 (2026-11-05):
- * +REALISM criterion +scope routing (research: docs/research/image-prompt-craft.md). */
-export const CRITIC_PROMPT_VERSION = "v3.2";
+ * +REALISM criterion +scope routing (research: docs/research/image-prompt-craft.md).
+ * v3.3 (2026-11-07, SC-2): +STYLE criterion — when a style preset is selected the
+ * critic enforces that style's hard laws (editorial/swiss, social-card-style-presets.md). */
+export const CRITIC_PROMPT_VERSION = "v3.3";
 
 export function criticPrompt(o: {
   mode: GenerationMode;
@@ -180,7 +182,15 @@ export function criticPrompt(o: {
   /** Clean-plate ONLY: the overlay copy this page must leave room for. */
   overlayCopy: string[];
   brandGuidance?: string;
+  /** SC-2 — selected style preset id; editorial/swiss carry hard laws below. */
+  style?: string;
 }): string {
+  const styleLaw = !o.style ? "" :
+    o.style === "swiss"
+      ? `STYLE (swiss): exactly ONE saturated accent color, used in one place; display type is very large AND very light (thin strokes); flat surfaces only — a gradient, drop shadow or rounded corner is a defect; hairline dividers, left-aligned grid. Multiple accents, heavy display strokes or soft shadows cap this score at 4.`
+      : o.style === "editorial"
+        ? `STYLE (editorial): serif display headline with a quiet italic subhead; warm paper palette with visible texture (grain/ink wash — a flat untextured background is a defect); restrained color, generous margins, hairline rules. A flat beige background, heavy sans display or saturated multi-color palette caps this score at 4.`
+        : `STYLE (${o.style}): the image must express the selected style preset's concrete phrases; a style label with none of its qualities showing is a defect.`;
   const overlays = o.mode === "clean-plate"
     ? o.overlayCopy.length
       ? `Overlay copy that will land on this page (the artwork must leave clean, uncluttered room exactly where each line sits): ${o.overlayCopy.join(" | ")}`
@@ -205,6 +215,7 @@ export function criticPrompt(o: {
     `BRAND: adherence to the brand rules above (10 only when none were given).\n` +
     `FIDELITY: everything the brief named — subject, style, mood, aspect and platform context; anything named that is absent or wrong is a defect.\n` +
     `REALISM — the anti-"AI slop" axes: light has a direction and DOES something to the objects (a flat, even, shadowless wash is a defect); skin, fabric and product surfaces show real texture — pores, weave, wear — instead of plastic gloss; the piece reads as a DESIGNED commercial asset, not a stock photo with text stamped on. Score 4-6 when the content is correct but the look is generic AI output.\n` +
+    (styleLaw ? styleLaw + `\n` : ``) +
     `COMPOSITION — judge like a designer, whatever the design type (poster, menu, slide, overlay, social post):\n` +
     `- Hierarchy: one clear focal order — primary message/subject first, then secondary, then supporting; the squint-test order must match the brief's intent.\n` +
     `- Contrast & figure-ground: text and subject separate cleanly from the background; contrast is deliberate, never accidental blending.\n` +
@@ -245,6 +256,8 @@ async function* refinePage(a: {
   signal?: AbortSignal;
   jobId?: string;
   brandGuidance?: string;
+  /** SC-2 — selected style preset id; the critic enforces editorial/swiss hard laws. */
+  style?: string;
   brandId: number;
   msgId: number;
   referenceImages?: string[];
@@ -293,7 +306,7 @@ async function* refinePage(a: {
     if (bytes && deps.llm.readImage) {
       try {
         const raw = await deps.llm.readImage(
-          criticPrompt({ mode, title, pagePrompt, overlayCopy: a.blockTexts, brandGuidance: a.brandGuidance }),
+          criticPrompt({ mode, title, pagePrompt, overlayCopy: a.blockTexts, brandGuidance: a.brandGuidance, style: a.style }),
           bytes, EVAL_JSON_SCHEMA, { signal, jobId },
         );
         evalRead = parseEvalRead(raw);
@@ -576,7 +589,9 @@ export async function* runDesignerAgent(
             `creative=freeform composition, asymmetric editorial balance, floating objects, atmospheric negative space; ` +
             `3d=floating glossy 3D objects, layered digital interface, Y2K typography; ` +
             `hand-drawn=illustration-led, organic strokes, playful hand-lettered typography; ` +
-            `business-promo=product-centered, large promotional headline, layered badges, clear CTA.`
+            `business-promo=product-centered, large promotional headline, layered badges, clear CTA; ` +
+            `editorial=magazine-feature feel, serif display headline, quiet italic subhead, warm paper tones with visible grain or soft ink wash, generous margins, hairline rules; ` +
+            `swiss=strict left-aligned grid, very large LIGHT-weight type, hairline rules, exactly one saturated accent used once, flat surfaces — no gradients, no shadows, no rounded corners.`
             + `\n${IMAGE_CRAFT_RULES}`
             + (input.style
               ? `\nStyle preset selected by the user — '${input.style}': ${(STYLE_PRESETS.find((p) => p.id === input.style) ?? STYLE_PRESETS[0]).phrases}. Weave these exact qualities into every imagePrompt.`
@@ -705,6 +720,7 @@ export async function* runDesignerAgent(
           img, prompt: pagePrompt, rounds: refineRounds,
           deps, signal: input.signal, jobId: input.jobId,
           brandGuidance: input.brandGuidance, brandId, msgId,
+          style: input.style,
           referenceImages: pi === 0 ? input.referenceImages : undefined,
           mode, title,
           // teardown #3: only page 0 carries overlay blocks — later pages are
