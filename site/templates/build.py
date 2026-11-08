@@ -278,6 +278,32 @@ PACKS = {
   },
 }
 
+PACKS["tet-sale"] = {
+    "title": "Tết Sale Pack — flash sale, quà Tết & voucher templates | Oia",
+    "desc": "A complete Tết pack: crimson flash sales, gift-basket posters, bánh chưng menu boards, lì xì vouchers — Vietnamese copy, real prompts. Free & open source.",
+    "h1": "Tết sale pack",
+    "lede": "Sáu mẫu cho cả mùa Tết: giảm giá đầu xuân, giỏ quà, menu bếp xuân, thiệp chúc, voucher lì xì. Đổi giá và ngày hạn bằng text layer — thiết kế giữ nguyên.",
+    "templates": [
+      ("../../assets/tet-flashsale.webp", "Tết sale 40%", "Crimson editorial, struck old price"),
+      ("../../assets/tet-gift.webp", "Giỏ quà Tết", "Dark editorial, gold light"),
+      ("../../assets/tet-menu.webp", "Bếp xuân", "Bánh chưng menu, VN prices"),
+      ("../../assets/tet-greeting.webp", "Chúc xuân", "Mai blossom, serif greeting"),
+      ("../../assets/tet-red.webp", "Tết sale 50% · Swiss", "Flat đỏ, one gold accent"),
+      ("../../assets/tet-gold.webp", "Lì xì voucher · Swiss", "Flat vàng, red code"),
+    ],
+    "prompts": [
+      ("Tết sale 40%", "red and gold lucky money envelopes with a kumquat tree, ALL objects in the BOTTOM THIRD, plain deep crimson above…"),
+      ("Giỏ quà Tết", "woven basket with tea, dried fruits and a red ribbon, warm golden light, basket in the BOTTOM RIGHT quarter…"),
+      ("Bếp xuân", "banh chung cakes tied with bamboo strings on a wooden tray, food in the BOTTOM THIRD, plain warm cream above…"),
+      ("Chúc xuân", "a single branch of yellow apricot blossom in a ceramic vase, vase in the BOTTOM RIGHT quarter…"),
+    ],
+    "faqs": [
+      ("Mẫu Tết có dựng sẵn chữ tiếng Việt chưa?", "Có — toàn bộ copy mẫu là tiếng Việt đầy đủ dấu, chỉnh sửa như tài liệu. Font Be Vietnam Pro đi kèm app."),
+      ("Tôi làm quà Tết riêng, dùng lại look này thế nào?", "Mỗi plate AI kèm provenance prompt — dán vào composer, thay mô tả giỏ quà bằng sản phẩm của bạn, giữ nguyên các mệnh đề bố cục (đồ ở dưới, sạch phía trên), chọn style Editorial."),
+      ("Pack này có thu phí không?", "Không — app và toàn bộ template miễn phí, mã nguồn mở."),
+    ],
+  }
+
 PROMPT_SECTION = """
   <div class="faq" style="margin-top:48px">
     <h2 class="catH" style="margin-top:0">Grown from real prompts</h2>

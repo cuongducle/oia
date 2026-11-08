@@ -85,4 +85,68 @@ export const TEMPLATE_PROVENANCE: readonly TemplateProvenance[] = [
     style: "swiss",
     generatedAt: "2026-11-07",
   },
-];
+  {
+    templateId: "studio-tet-flashsale",
+    prompt:
+      "Tet festival sale hero: red and gold lucky money envelopes stacked with a small kumquat tree, ALL objects confined to the BOTTOM THIRD, the entire TOP TWO THIRDS is a completely plain deep crimson backdrop with only a very soft light gradient, no objects or shadows above, generous negative space for large text, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-gift",
+    prompt:
+      "Tet gift basket editorial still life on dark background: a woven basket with tea, dried fruits and a red ribbon, warm golden light from the left, the basket occupies the BOTTOM RIGHT quarter, the top-left two thirds is plain dark charcoal paper with subtle grain, generous negative space for a title block, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-menu",
+    prompt:
+      "Vietnamese Tet food photography: banh chung square sticky rice cakes tied with bamboo strings on a wooden tray with spring flowers, ALL food confined to the BOTTOM THIRD, the entire TOP TWO THIRDS is a completely plain warm cream paper backdrop with a soft light gradient, no objects above, generous negative space for large text, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-greeting",
+    prompt:
+      "Tet greeting editorial: a single branch of yellow apricot blossom in a ceramic vase, the vase sits in the BOTTOM RIGHT quarter, the entire top-left two thirds is plain warm beige paper with subtle grain and soft shadow, no other objects, generous negative space for a greeting text block, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-flashsale",
+    prompt:
+      "Tet festival sale hero: red and gold lucky money envelopes stacked with a small kumquat tree, ALL objects confined to the BOTTOM THIRD, the entire TOP TWO THIRDS is a completely plain deep crimson backdrop with only a very soft light gradient, no objects or shadows above, generous negative space for large text, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-gift",
+    prompt:
+      "Tet gift basket editorial still life on dark background: a woven basket with tea, dried fruits and a red ribbon, warm golden light from the left, the basket occupies the BOTTOM RIGHT quarter, the top-left two thirds is plain dark charcoal paper with subtle grain, generous negative space for a title block, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-menu",
+    prompt:
+      "Vietnamese Tet food photography: banh chung square sticky rice cakes tied with bamboo strings on a wooden tray with spring flowers, ALL food confined to the BOTTOM THIRD, the entire TOP TWO THIRDS is a completely plain warm cream paper backdrop with a soft light gradient, no objects above, generous negative space for large text, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+  {
+    templateId: "studio-tet-greeting",
+    prompt:
+      "Tet greeting editorial: a single branch of yellow apricot blossom in a ceramic vase, the vase sits in the BOTTOM RIGHT quarter, the entire top-left two thirds is plain warm beige paper with subtle grain and soft shadow, no other objects, generous negative space for a greeting text block, no text anywhere",
+    mode: "clean-plate",
+    style: "editorial",
+    generatedAt: "2026-11-08",
+  },
+]

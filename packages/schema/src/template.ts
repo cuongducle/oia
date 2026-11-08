@@ -47,6 +47,7 @@ export const templateStyleSchema = z.enum(
 export const TEMPLATE_PACKS = [
   { id: "cafe-restaurant", label: "Café & restaurant" },
   { id: "product-launch", label: "Product launch" },
+  { id: "tet-sale", label: "Tết sale" },
 ] as const;
 export type TemplatePackId = (typeof TEMPLATE_PACKS)[number]["id"];
 export const templatePackSchema = z.enum(

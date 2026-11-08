@@ -126,4 +126,20 @@ d = ImageDraw.Draw(img, "RGBA")
 hairline_h(img, 60, 1020, 1252, (110, 90, 60), 1)
 save(img, "ed-holiday")
 
-print("done — 6 plates, 0 quota")
+
+# ---------- TẾT pack plates (SC-5 full-pack build, 2026-11-07) ----------
+# swiss-tet: flat Tết red field + sparse gold-cap dots bottom-right
+img = new(1080, 1350, (200, 16, 46))
+d = ImageDraw.Draw(img, "RGBA")
+for i, r in enumerate(range(80, 320, 44)):
+    d.ellipse([880 - r, 240 - r * 0.5, 880 + r, 240 + r * 0.5], outline=(212, 175, 55, 14), width=2)
+hairline_h(img, 60, 1020, 1290, (244, 214, 124), 1)
+save(img, "tet-red")
+
+# tet-gold: flat gold field + red hairlines (for lì xì / voucher card)
+img = new(1080, 1080, (250, 208, 44))
+hairline_h(img, 60, 1020, 1014, (178, 24, 34), 1)
+save(img, "tet-gold")
+
+print("tết plates done — 0 quota")
+

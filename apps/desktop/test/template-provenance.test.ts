@@ -12,7 +12,7 @@ describe("SC-5 template provenance", () => {
   });
   it("every AI-plated template has provenance (programmatic plates exempt)", () => {
     const prov = new Set(TEMPLATE_PROVENANCE.map((p) => p.templateId));
-    const aiPlated = ["ed-menu3", "ed-product2", "ed-holiday2", "ed-poster2", "ed-street", "ed-fashion", "ed-deck", "swiss-sneaker", "swiss-bottle"].map((s) => `studio-${s}`);
+    const aiPlated = ["ed-menu3", "ed-product2", "ed-holiday2", "ed-poster2", "ed-street", "ed-fashion", "ed-deck", "swiss-sneaker", "swiss-bottle", "tet-flashsale", "tet-gift", "tet-menu", "tet-greeting"].map((s) => `studio-${s}`);
     for (const id of aiPlated) expect(prov.has(id)).toBe(true);
   });
   it("prompts are real prompts, not placeholders", () => {
