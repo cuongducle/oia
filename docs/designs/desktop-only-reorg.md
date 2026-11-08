@@ -322,3 +322,9 @@ Owner: "update codex version lên trước đi" + "dùng codex đi" (sau khi xá
   - **P1 GIF: KHÔNG** — $imagegen từ chối tường minh trên pin sau-2.6; GIF giữ API-only.
   - **P3 markup edit PASS một phần** — ellipse đỏ flatten + chỉ dẫn chữ: model hiểu vùng, tự dọn marker, sửa đúng (lỗi glyph ₫ duy nhất — critic bắt được) → [markup-edit.md](markup-edit.md) cập nhật: ship được trên CẢ HAI lane, codex = flatten-mode.
 - Quota cả đợt: 2 ảnh (1 REAL_SMOKE pin + 1 P3). GIF/complexity (IM26-4/6) giữ chờ key.
+
+## Ghi nhận re-certify toàn bộ feature cũ trên pin 0.167.0 (2026-11-08, owner "chạy luôn, quota nhiều")
+
+- **REAL_SMOKE FULL PASS trên 0.167.0**: job0 OK (version=0.167.0, assetBytes 1,82 MB, 51s) · **DA_RESEARCH OK** (--search qua binary đóng kèm, 1 sourced note, 152s) · **DA_REFINE OK-REFINED** (rounds=2, verdict best-effort, critic bắt 4 lỗi, 236s) · **ALL_OK 439s**. Mọi feature cũ có bề mặt tính tiền đều có bằng chứng thật trên cặp đang ship: generation, research, auto refine (kể cả vòng sinh lại), reference edit (probe P3 hôm trước).
+- **ĐÍNH CHÍNH BẢN GHI (records must not lie):** 2 lần "REAL_SMOKE OK" tôi ghi 7/11 (IM26-2 + note pin 0.167) là **smoke mock bị đọc nhầm** — `pnpm --filter @oia/desktop smoke` tự set `OIA_DESKTOP_SMOKE=1`, và `smokeModeFromEnv` check cờ này TRƯỚC `OIA_DESKTOP_REAL_SMOKE` → mode hạ xuống mock im lặng dù env real được set ngoài ngoài. Đã sửa cả 2 chỗ ghi (codex-pin.json CORRECTION + images-2.6-upgrade.md). Bài học vận hành: real smoke phải chạy trực tiếp `OIA_DESKTOP_REAL_SMOKE=1 pnpm exec electron .` sau `electron-vite build`, không qua script `smoke`. (Lỗ hổng này không đốt quota — ngược lại: 2 lần tưởng là real mà thật ra mock, tiết kiệm dở.)
+- Quota đợt này: 3 job thật trong 1 real smoke (job0 + research + refine 2 vòng).
