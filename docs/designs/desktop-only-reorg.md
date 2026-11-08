@@ -300,3 +300,14 @@ OpenAI phát hành Images 2.6 ngày 4/11/2026 (ChatGPT + **Codex** + API, mọi 
 - **Feature lớn nhất: markup edit "khoanh để sửa"** (IM26-3) — đúng DNA layers của Oia; cần design doc con nếu owner duyệt hướng.
 
 Không đụng wire contract nào trong đợt ghi nhận này — chỉ docs. Site landing chưa claim gì về 2.6 (chờ bằng chứng thật, Q6).
+
+## Ghi nhận vòng thực thi IM26 (2026-11-07, owner "Duyệt hết")
+
+Workstream [images-2.6-upgrade.md](images-2.6-upgrade.md) chạy slice đầu trong ngày, kèm 1 phát hiện correction scope:
+
+- **IM26-0:** giá chính thức 2.6 = $8/1M image tokens + $5/1M text tokens (ngang 2.5). **Phát hiện: lane BYO không tồn tại trong UI desktop** — `buildServiceEnv` chỉ dựng mock/codex, không có chỗ nhập OpenAI/fal key (đúng thực trạng sau khi D18 rút) → Q2 (model picker UI) giải theo thực tế: giữ env override `OPENAI_IMAGE_MODEL`, không làm UI; IM26-5 SVG + IM26-6 complexity cũng chờ lane BYO.
+- **IM26-1:** `OPENAI_IMAGE_MODEL_DEFAULT` → `gpt-image-2.6-sunburst` + pin test mới trong `registry-env.test.ts` (default là quyết định — bump sau này phải chạm test + doc).
+- **IM26-2:** REAL_SMOKE trên pin rust-v0.166.0 **OK (events=10, completed)** — lane generation khoẻ sau 2.6 rollout; output không expose model id → "model nào sau chatgpt-imagegen" không đo được từ phía app, không bump pin, không claim marketing (Q6 chốt: landing/README không nói "Images 2.6" cho đường plan).
+- **IM26-3:** design doc con [markup-edit.md](markup-edit.md) — "khoanh để sửa", 5 slice ME-1…5, code chưa bắt đầu.
+- **IM26-4:** quan sát từ smoke — đường codex vẫn trả PNG (không GIF); probe GIF/SVG API hoãn đến khi có key.
+- Gates vòng này: packages build 7/7, providers test 113 pass + 1 skip (kể cả pin test mới), full `pnpm build` + `typecheck` xanh; quota tiêu: đúng 1 ảnh thật (REAL_SMOKE IM26-2).

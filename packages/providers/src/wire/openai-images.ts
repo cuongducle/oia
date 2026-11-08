@@ -5,13 +5,14 @@ import { ProviderError } from "../types.js";
  * TP.9/TP.11 — shared wire module for the OpenAI Images protocol (generations + edits).
  * Thin adapters delegate transport here; copying this per provider is forbidden (drift).
  *
- * Both calls pin one configured model (default `gpt-image-2.5-sunburst`, the verified
- * server default at design time) — omitting the model lets a server-side default change
- * silently invalidate declared capabilities and split the two paths onto different models.
+ * Both calls pin one configured model (default `gpt-image-2.6-sunburst`, IM26-1 —
+ * Images 2.6 shipped 2026-11-04 at 2.5-parity pricing; see docs/designs/images-2.6-upgrade.md)
+ * — omitting the model lets a server-side default change silently invalidate declared
+ * capabilities and split the two paths onto different models.
  * `OPENAI_IMAGE_MODEL` remains the override.
  */
 
-export const OPENAI_IMAGE_MODEL_DEFAULT = "gpt-image-2.5-sunburst"; // env override threaded by the registry (T3) — no import-time env reads
+export const OPENAI_IMAGE_MODEL_DEFAULT = "gpt-image-2.6-sunburst"; // env override threaded by the registry (T3) — no import-time env reads
 
 export const OPENAI_IMAGE_CAPABILITIES: ProviderCapabilities = {
   referenceImages: true,

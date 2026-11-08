@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { getImageProvider, getLlmProvider } from "../src/registry.js";
+import { OPENAI_IMAGE_MODEL_DEFAULT } from "../src/index.js";
 
 /**
  * T3 — the env OBJECT passed to the registry is the single config source.
@@ -42,6 +43,11 @@ describe("registry env isolation (T3)", () => {
   it("openai image: the key from the env object IS used when present", async () => {
     const p = getImageProvider({ IMAGE_PROVIDER: "openai", OPENAI_API_KEY: "from-the-env-object" });
     expect((await p.isAvailable()).ok).toBe(true);
+  });
+
+  // IM26-1: the pinned default is a decision, not an accident — a bump must touch this line (and the plan doc).
+  it("openai image: model default stays pinned to the approved Images 2.6 model", () => {
+    expect(OPENAI_IMAGE_MODEL_DEFAULT).toBe("gpt-image-2.6-sunburst");
   });
 
   it("fal image: same isolation", async () => {
