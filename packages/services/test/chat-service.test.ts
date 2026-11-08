@@ -309,6 +309,14 @@ describe("D2 remediation: chatRequestSchema is the single boundary schema", () =
     if (ok.success) expect(ok.data).not.toHaveProperty("future");
     expect(chatRequestSchema.safeParse({ prompt: "x", width: Number("abc") }).success).toBe(false);
   });
+  it("ME: editMode.markup accepts exactly \"flatten\" — anything else is a boundary rejection", async () => {
+    const { chatRequestSchema } = await import("../src/index.js");
+    const ok = chatRequestSchema.safeParse({ prompt: "clean this", editMode: { markup: "flatten", targetName: "artwork" } });
+    expect(ok.success).toBe(true);
+    if (ok.success) expect(ok.data.editMode?.markup).toBe("flatten");
+    expect(chatRequestSchema.safeParse({ prompt: "x", editMode: { markup: "field" } }).success).toBe(false);
+    expect(chatRequestSchema.safeParse({ prompt: "x", editMode: { markup: true } }).success).toBe(false);
+  });
   it("refusals are distinguishable without event sniffing", async () => {
     // (typed outcome union: refused-rate-limited | refused-unavailable — compile-time,
     //  exercised at runtime by the guard/preflight tests above)

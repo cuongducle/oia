@@ -34,6 +34,9 @@ describe("F2 smoke/test modes are dev-build only", () => {
   it("flags set to anything but \"1\" are inert", () => {
     expect(smokeModeFromEnv({ OIA_DESKTOP_SMOKE: "yes" }, false)).toBeNull();
   });
+  it("REAL wins when the pnpm smoke script's OIA_DESKTOP_SMOKE=1 coexists with an outer OIA_DESKTOP_REAL_SMOKE=1 (2026-11-07 false-record lesson)", () => {
+    expect(smokeModeFromEnv({ OIA_DESKTOP_SMOKE: "1", OIA_DESKTOP_REAL_SMOKE: "1" }, false)).toBe("real");
+  });
 });
 
 describe("F2 menu — no DevTools or Reload in the release View menu", () => {

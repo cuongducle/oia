@@ -38,7 +38,7 @@ export interface DesignerAgentInput {
   style?: string;
   /** A3-lite: referenceImages[0] is the edit target — clauses are welded HERE
    *  (deterministic, planner-proof), never in the renderer's prompt string. */
-  editMode?: { targetName?: string; textLayerOverlays?: boolean };
+  editMode?: { targetName?: string; textLayerOverlays?: boolean; markup?: "flatten" };
   /** TP.3 — generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
   mode?: GenerationMode;
   /** DA-1 — run the planner turn with live web search. Capability-gated: a
@@ -91,11 +91,17 @@ export function foldAscii(s: string): string {
 /** A3-lite edit contract — one place, deterministic, planner-proof (the live
  *  experiments of 2026-11-02 verified each clause: target declaration kills
  *  wrong-image edits, the dimension lock kills ratio-mismatch warnings, the
- *  lettering ban stops a plate growing text that would double after apply). */
-export function buildEditClauses(edit: { targetName?: string; textLayerOverlays?: boolean }): string {
+ *  lettering ban stops a plate growing text that would double after apply).
+ *  ME "flatten" clause (2026-11-08): probe P3 verified the channel reads a
+ *  flattened red-circle annotation as the edit region and removes the marker
+ *  when told to — the wording below is the probe's working instruction. */
+export function buildEditClauses(edit: { targetName?: string; textLayerOverlays?: boolean; markup?: "flatten" }): string {
   const target = ` Edit Image 1${edit.targetName ? ` (the ${edit.targetName} layer)` : ""} only, and return the result at the exact same dimensions as Image 1.`;
   const noText = edit.textLayerOverlays ? " Do not add any text or lettering — copy is added as separate layers." : "";
-  return target + noText;
+  const markup = edit.markup === "flatten"
+    ? " The red markings drawn on Image 1 are an annotation overlay, not part of the design: treat them as marking where the edit applies, and remove every marking completely from the result."
+    : "";
+  return target + noText + markup;
 }
 
 /** DA-3..DA-8 — Auto refine helpers. The loop itself lives inline in the page

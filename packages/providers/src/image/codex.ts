@@ -36,6 +36,10 @@ const IMAGE_CAPABILITIES: ProviderCapabilities = {
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: true },
   transparentBg: false,
   isMock: false,
+  // ME — markup edit via the flatten variant: probe P3 (2026-11-08, pin 0.167.0)
+  // proved the channel understands a flattened red-circle annotation as the
+  // edit region AND removes the marker from the result.
+  markupEdit: "flatten",
 };
 
 /** TP.3 — poster mode: text renders in the artwork, fidelity-guarded (today's behavior). */

@@ -1264,6 +1264,107 @@ async function shot(): Promise<void> {
   }
   console.log("[shot] A1 preview-apply OK (deduped cards + untouched canvas + exact-one-src swap + session pinning + dismiss)");
 
+  // ---- ME (markup-edit.md): Circle-to-edit — capability-gated toolbar button,
+  // annotate overlay strokes, ask panel, dispatched edit → 3rd variant card, and
+  // the C3-lesson pin: the annotation NEVER enters the scene JSON. ----
+  const meEntry = await win.webContents.executeJavaScript(`(async () => {
+    const c = (window).__oiaCanvas;
+    const img = c.getObjects().find((o) => o.src && o.name !== "clip");
+    if (!img) return { ok: false, why: "no image layer" };
+    c.setActiveObject(img);
+    c.requestRenderAll();
+    await new Promise((r) => setTimeout(r, 250));
+    const btn = document.querySelector('[data-testid="ctx-circle-edit"]');
+    if (!btn) return { ok: false, why: "no circle button — markup capability not wired" };
+    btn.click();
+    await new Promise((r) => setTimeout(r, 200));
+    return { ok: Boolean(document.querySelector('[data-testid="markup-overlay"]') && document.querySelector('[data-testid="markup-bar"]')) };
+  })()`, true);
+  if (!meEntry || meEntry.ok !== true) {
+    console.error(`DESKTOP_SHOT ME FAILED — annotate session did not open (${JSON.stringify(meEntry)})`);
+    app.exit(30);
+    return;
+  }
+  const meDrew = await win.webContents.executeJavaScript(`(async () => {
+    const ov = document.querySelector('[data-testid="markup-overlay"]');
+    if (!ov) return { ok: false, why: "overlay gone" };
+    const r = ov.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const base = { bubbles: true, cancelable: true, pointerId: 7, isPrimary: true, pointerType: "mouse" };
+    ov.dispatchEvent(new PointerEvent("pointerdown", { ...base, clientX: cx - 70, clientY: cy }));
+    for (let i = 0; i <= 10; i++) {
+      ov.dispatchEvent(new PointerEvent("pointermove", { ...base, clientX: cx - 70 + i * 14, clientY: cy + Math.sin(i) * 8 }));
+    }
+    ov.dispatchEvent(new PointerEvent("pointerup", { ...base, clientX: cx + 70, clientY: cy }));
+    await new Promise((res) => setTimeout(res, 150));
+    const done = document.querySelector('[data-testid="markup-bar"] button:not([disabled])');
+    // pixel truth: is the fabric canvas still painted, and did the overlay actually draw red?
+    const sample = (cnv) => { const t = document.createElement("canvas"); t.width = 64; t.height = 64; const tc = t.getContext("2d"); tc.drawImage(cnv, 0, 0, 64, 64); return tc.getImageData(0, 0, 64, 64).data; };
+    const fc = (window).__oiaCanvas;
+    const upper = fc.lowerCanvasEl.parentElement.querySelector("canvas.upper-canvas") ?? fc.lowerCanvasEl;
+    const fd = sample(upper);
+    let painted = 0;
+    for (let i = 0; i < fd.length; i += 4) { if (fd[i] < 245 || fd[i+1] < 245 || fd[i+2] < 245) painted++; }
+    const od = sample(ov);
+    let red = 0;
+    for (let i = 0; i < od.length; i += 4) { if (od[i] > 180 && od[i+1] < 90 && od[i+2] < 90) red++; }
+    return { ok: Boolean(done), doneLabel: done ? done.textContent : null, painted, red,
+             };
+  })()`, true);
+  if (!meDrew || meDrew.ok !== true || meDrew.doneLabel !== "Done circling" || meDrew.painted < 40 || meDrew.red < 3) {
+    console.error(`DESKTOP_SHOT ME FAILED — stroke did not arm Done / paint truth failed (${JSON.stringify(meDrew)})`);
+    app.exit(30);
+    return;
+  }
+  console.log(`[shot] ME draw pixels: fabric painted=${meDrew.painted}/4096 overlay red=${meDrew.red}/4096`);
+  await snap(win, "desktop-editor-markup.png"); // the artifact must show the red circle
+  const meSent = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('[data-testid="markup-bar"] button:not([disabled])').click();
+    await new Promise((r) => setTimeout(r, 150));
+    const ask = document.querySelector('[data-testid="markup-ask"]');
+    if (!ask) return { ok: false, why: "ask panel missing" };
+    const ta = ask.querySelector("textarea");
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+    setter.call(ta, "make the circled area cleaner");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    const c = (window).__oiaCanvas;
+    (window).__oiaShotBefore2 = JSON.stringify(c.toObject().objects.map((o) => o.src ?? null));
+    const run = [...ask.querySelectorAll("button")].find((b) => b.textContent.includes("Run"));
+    if (!run || run.disabled) return { ok: false, why: "run missing/disabled" };
+    run.click();
+    return { ok: true, costHiddenInMock: !ask.querySelector(".mono") };
+  })()`, true);
+  if (!meSent || meSent.ok !== true || meSent.costHiddenInMock !== true) {
+    console.error(`DESKTOP_SHOT ME FAILED — ask/run flow wrong (${JSON.stringify(meSent)})`);
+    app.exit(30);
+    return;
+  }
+  if (!(await waitCards(1))) {
+    const meDbg = await win.webContents.executeJavaScript(`(() => ({
+      err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" "),
+      timeline: document.querySelector("[data-testid='ai-timeline'], .aiNotes")?.textContent?.slice(0, 300) ?? null,
+      ask: Boolean(document.querySelector('[data-testid="markup-ask"]')),
+      overlay: Boolean(document.querySelector('[data-testid="markup-overlay"]')),
+    }))()`, true);
+    console.error(`DESKTOP_SHOT ME FAILED — the markup edit never produced a variant card (${JSON.stringify(meDbg)})`);
+    app.exit(30);
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  const mePurity = await win.webContents.executeJavaScript(`(() => {
+    const c = (window).__oiaCanvas;
+    const now = JSON.stringify(c.toObject().objects.map((o) => o.src ?? null));
+    const overlayGone = !document.querySelector('[data-testid="markup-overlay"]');
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { sceneUntouched: now === (window).__oiaShotBefore2, overlayGone, err };
+  })()`, true);
+  if (!mePurity || mePurity.sceneUntouched !== true || mePurity.overlayGone !== true || mePurity.err) {
+    console.error(`DESKTOP_SHOT ME FAILED — scene purity broken (${JSON.stringify(mePurity)})`);
+    app.exit(30);
+    return;
+  }
+  console.log("[shot] ME circle-to-edit OK (button gated by capability · stroke → ask → 3rd card · annotation never in the scene)");
+
   // ---- Workspace view: projects list + recent conversations over IPC -------------
   console.log("[shot] opening Workspace…");
   const wentBack = await win.webContents.executeJavaScript(`(() => {

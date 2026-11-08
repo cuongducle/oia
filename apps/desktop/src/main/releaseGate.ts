@@ -20,10 +20,14 @@ export type SmokeMode = "smoke" | "crash" | "real" | "shot" | "shot-busy" | "si"
  */
 export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): SmokeMode | null {
   if (isPackaged) return null;
+  // REAL wins over mock modes even when both are set: `pnpm smoke` exports
+  // OIA_DESKTOP_SMOKE=1 itself, which used to silently swallow an outer
+  // OIA_DESKTOP_REAL_SMOKE=1 — two "real" runs on 2026-11-07 were recorded
+  // that way and were actually mock (pin-comment CORRECTION, D12 ledger).
+  if (env.OIA_DESKTOP_REAL_SMOKE === "1") return "real";
   if (env.OIA_DESKTOP_SI_SMOKE === "1") return "si";
   if (env.OIA_DESKTOP_SMOKE === "1") return "smoke";
   if (env.OIA_DESKTOP_CRASH_SMOKE === "1") return "crash";
-  if (env.OIA_DESKTOP_REAL_SMOKE === "1") return "real";
   if (env.OIA_DESKTOP_SHOT === "1") return "shot";
   if (env.OIA_DESKTOP_SHOT_BUSY === "1") return "shot-busy";
   return null;

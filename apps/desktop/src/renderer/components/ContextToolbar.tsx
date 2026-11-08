@@ -16,9 +16,11 @@ interface Props {
   onDuplicate: () => void;
   /** D16: poster-mode edit path — deconstruct this page's baked text into layers. */
   onMakeTextEditable?: () => void;
+  /** ME: markup edit — circle a region on the selected image, then describe the edit. */
+  onCircleEdit?: () => void;
 }
 
-export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplicate, onMakeTextEditable }: Props) {
+export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplicate, onMakeTextEditable, onCircleEdit }: Props) {
   useCanvasRev(canvas, true);
   const fileRef = useRef<HTMLInputElement>(null);
   const active = canvas?.getActiveObject();
@@ -73,6 +75,7 @@ export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplica
           <button onClick={() => fileRef.current?.click()}>Replace</button>
           <input ref={fileRef} type="file" accept="image/*" hidden aria-label="Replacement image file" onChange={(e) => { if (e.target.files?.[0]) onReplaceImage(e.target.files[0]); e.target.value = ""; }} />
           <button className="ctxAi" data-testid="ctx-edit-ai" onClick={onEditWithAi}>✦ Edit with AI</button>
+          {onCircleEdit && <button data-testid="ctx-circle-edit" title="Circle the part to change, then say what to do" onClick={onCircleEdit}>◎ Circle to edit</button>}
           {onMakeTextEditable && <button data-testid="ctx-make-text-editable" title="Read the text in this artwork and rebuild it as editable layers" onClick={onMakeTextEditable}>Make text editable</button>}
           <span className="ctxSep" />
         </>

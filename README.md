@@ -320,6 +320,6 @@ packages/skills      Coding-agent instructions (consumer of the loopback API)
 site/                Landing page (static; deployed to GitHub Pages)
 ```
 
-The landing page lives in [`site/`](site/) and is deployed at **[oia.solutions](https://oia.solutions/)** — no build step (`index.html` + `styles.css` + `main.js`); pushes to `main` that touch `site/**` redeploy automatically via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml). Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
+The landing page lives in [`site/`](site/) and is deployed at **[oia.solutions](https://oia.solutions/)** — no build step (`index.html` + `styles.css` + `main.js`). The domain's real origin is a **static-assets Cloudflare Worker** (`twilight-sun-6b7b`, Tien's account) — deploy it with `wrangler deploy` from the repo root (config: [`wrangler.toml`](wrangler.toml); needs a `wrangler login` with Workers access to that account). Pushes to `main` that touch `site/**` ALSO redeploy the github.io copy via [`.github/workflows/landing-pages.yml`](.github/workflows/landing-pages.yml) — keep both in sync until the infra is unified. Design references and the QA ledger are kept in [`concept/SPEC.md`](concept/SPEC.md) and [`docs/designs/collage-references.md`](docs/designs/collage-references.md).
 
 </details>

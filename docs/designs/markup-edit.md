@@ -1,7 +1,7 @@
 # ME — Markup edit "khoanh để sửa": sửa ảnh bằng bút vẽ, không bằng câu chữ
 
 **Ngày:** 2026-11-07 (tốt nghiệp từ [images-2.6-upgrade.md](images-2.6-upgrade.md) IM26-3, owner duyệt hướng trong đợt "Duyệt hết")
-**Trạng thái:** DRAFT thiết kế — code chưa bắt đầu; slice đầu tiên chờ owner thấy doc này xong gật.
+**Trạng thái:** **ME-1…ME-5 SHIP 2026-11-08 (flatten-mode, mock-verified)** — schema/capability/clauses + Editor annotate overlay + ask panel + shot gate với pixel-truth. Field-mode (wire OpenAI) hoãn theo lane BYO. Còn mở: 1 lần chạy thật qua UI (đã được chứng minh ở mức kênh bởi probe P3).
 **Tác giả:** cuongducle + agent
 **Liên quan:** [variant-preview-apply.md](variant-preview-apply.md) (khay preview — kết quả markup edit đi đúng khay này), [deconstruct-import.md](deconstruct-import.md) (B1 cùng endpoint /edits), [designer-agent-loop.md](designer-agent-loop.md) (capability gating mẫu của `--search`).
 
@@ -50,11 +50,11 @@ UI hiện nút khi provider khai `markupEdit` với mode bất kỳ ("flatten" c
 
 ## Slices
 
-- **ME-1 — schema + capability + mock** (0 quota): field `markup`, cờ capability, mock provider trả ảnh "đã sửa" deterministic; test lỗi-path (dims, size, unsupported).
-- **ME-2 — wire openai** (0 quota): gửi markup field đúng spec; guard dims client-side; test bằng fake server (giống pattern test wire hiện có). **Generation thật verify: 1 ảnh, chờ owner duyệt riêng lần đó.**
-- **ME-3 — overlay annotate trong Editor** (0 quota): view-layer vẽ tự do, inverse-transform rasterize, nút disabled khi transform phi tuyến; annotation KHÔNG persist vào project.
-- **ME-4 — UI flow + khay preview** (0 quota): nút ContextToolbar, hộp prompt + cost label, kết quả vào khay A1.
-- **ME-5 — gates**: shot scenario mới (annotate → preview tray xuất hiện); test pin "annotation không bao giờ nằm trong scene JSON" (bytes/structure check — bài học C3).
+- **ME-1 — schema + capability + mock ✅ (2026-11-08):** `markupEdit: "flatten" | "field"` (optional, D14) trên ProviderCapabilities; codex + mock khai `flatten`; `ChatRequest.editMode.markup: literal("flatten")`; clause marker-removal trong `buildEditClauses` (đúng ngôn từ probe P3). Test: clause chỉ xuất hiện khi markup; schema reject `field`/boolean ở boundary.
+- **ME-2 — flatten wire ✅ (2026-11-08):** composite chạy client-side (`markupComposite` — crossOrigin anonymous như fabric, chống canvas-taint treo promise); provider nhận referenceImages[0] bình thường — không code provider mới. Field-mode wire hoãn (không lane BYO — knip sẽ bắt code chết).
+- **ME-3 — overlay annotate ✅ (2026-11-08):** lib thuần `markup-annotate.ts` (viewportToNatural/naturalToViewport + composite; 8 unit test toán); overlay rAF vẽ lại mỗi frame (pan/zoom an toàn); CSS `width/height:100%` — bài học death-spiral canvas không-CSS-size; skew layer → từ chối thẳng; object lock trong phiên, Esc thoát 0 quota; annotation KHÔNG BAO GIỜ vào scene JSON.
+- **ME-4 — UI flow ✅ (2026-11-08):** nút "◎ Circle to edit" trên ContextToolbar (capability-gated); draw → "Done circling" → ask panel (≈ 1 image edit, ẩn trên mock theo luật DA-5) → dispatchAiEdit dùng chung với edit thường → variant tray A1.
+- **ME-5 — gates ✅ (2026-11-08):** shot scenario ME (exit 30): nút chỉ hiện khi capability, stroke synthetic arms Done, pixel-truth (fabric vẽ + overlay đỏ), card mới về sau khi dismiss-all, purity pin scene JSON, artifact `desktop-editor-markup.png`. Desktop 202 test xanh.
 
 ## Câu hỏi còn mở (không chặn ME-1/2)
 

@@ -94,6 +94,9 @@ const MOCK_CAPABILITIES: ProviderCapabilities = {
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: true,
+  // ME — the whole markup UI flow must run on mock pairs (CI + offline gates);
+  // the payload is accepted and ignored like every other reference input.
+  markupEdit: "flatten",
 };
 
 export class MockImageProvider implements ImageProvider {

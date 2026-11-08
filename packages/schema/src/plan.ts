@@ -205,6 +205,12 @@ export const providerCapabilitiesSchema = z.object({
   /** DA-2 — the planner channel can run with live web search. Optional so every
    * legacy declaration parses unchanged (undefined ⇒ treat as false). */
   webSearch: z.boolean().optional(),
+  /** ME (markup-edit.md) — markup-guided editing. "flatten" = the annotation is
+   * composited onto the target client-side and marker-removal clauses ride the
+   * prompt (codex — probe P3, 2026-11-08, evidence in docs/research/im26-probes);
+   * "field" = a separate markup layer on the wire (OpenAI, when a BYO lane
+   * returns). Undefined ⇒ no markup editing on this channel. */
+  markupEdit: z.enum(["flatten", "field"]).optional(),
 });
 export type ProviderCapabilities = z.infer<typeof providerCapabilitiesSchema>;
 

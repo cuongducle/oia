@@ -265,6 +265,16 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it warmer", editMode: { targetName: "artwork" } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
     expect(gotPrompt).not.toContain("Edit Image 1");
   });
+  it("ME flatten: markup editMode welds the marker-removal clause — and ONLY then", async () => {
+    let withMarkup = ""; let without = "";
+    const spy = (set: (s: string) => void): ImageProvider => ({ name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { set(i.prompt); return { url: "https://x/y.png", provider: "s", model: "m" }; } });
+    for await (const _ of runDesignerAgent({ prompt: "clean this up", referenceImages: ["https://r/1.png"], editMode: { targetName: "artwork", markup: "flatten" } }, { llm: stubLlmReturning(plan), image: spy((s) => { withMarkup = s; }) })) void _;
+    expect(withMarkup).toContain("annotation overlay");
+    expect(withMarkup).toContain("remove every marking completely");
+    expect(withMarkup).toContain("Edit Image 1 (the artwork layer) only");
+    for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://r/1.png"], editMode: { targetName: "artwork" } }, { llm: stubLlmReturning(plan), image: spy((s) => { without = s; }) })) void _;
+    expect(without).not.toContain("annotation overlay");
+  });
   it("the skill hint reaches the planner system prompt", async () => {
     let sys = "";
     const llmSpy: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat(m) { sys = m[0].content; return planSpy; } };

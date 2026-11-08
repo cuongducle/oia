@@ -59,7 +59,7 @@ export interface OiaBridge {
   onChatEvent: (cb: (ev: ChatEvent) => void) => () => void;
   cancelChat: (jobId: string) => Promise<boolean>;
   providerStatus: () => Promise<{
-    image: { name: string; capabilities: { isMock: boolean; referenceImages: boolean } };
+    image: { name: string; capabilities: { isMock: boolean; referenceImages: boolean; markupEdit?: "flatten" | "field" } };
     llm: { name: string; capabilities: { isMock: boolean } };
     quota: { day: string; planner: number; image: number; limitHits: number; session: { planner: number; image: number }; limits: { planner: number | null; image: number | null } };
     /** B7 — stores whose LAST disk write failed (basename only). Empty = all durable. */

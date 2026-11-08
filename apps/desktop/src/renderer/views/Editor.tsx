@@ -23,7 +23,9 @@ import { stepsFromTimeline } from "../lib/run-steps.js";
 import { deconstructScene } from "../lib/deconstruct-scene.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
+import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
 import { dataUrlBytes } from "../lib/data-url.js";
+import type { ChatRequest } from "@oia/services";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { clampZoom } from "../lib/zoom.js";
 import { presentErrorEn } from "../lib/errors.js";
@@ -138,6 +140,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
   const [refCapable, setRefCapable] = useState(true);
+  const [markupCapable, setMarkupCapable] = useState(false); // ME — the Circle-to-edit button only on markup-capable channels
   const [aiRefs, setAiRefs] = useState<string[]>([]); // explicit AI-dock attachments (canonical)
   const [aiUploading, setAiUploading] = useState(false);
   const [aiNarrative, setAiNarrative] = useState("");
@@ -182,6 +185,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   useEffect(() => {
     void oia().providerStatus().then((s) => {
       setRefCapable(Boolean(s.image.capabilities.referenceImages));
+      setMarkupCapable(s.image.capabilities.markupEdit === "flatten");
       setImageMock(Boolean(s.image.capabilities.isMock));
     }).catch(() => {});
   }, []);
@@ -706,40 +710,46 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
 
   async function runAiEdit() {
     if (aiBusy || !aiPrompt.trim()) return;
+    const c = fabricRef.current;
+    const scene = c?.toObject() as SceneCanvas | undefined;
+    // A3-lite (selection-bound edit), hardened by the 2026-11-02 live experiment:
+    // sending the whole ref set made the image model repaint the FLATTEST reference
+    // (it invented sale text into a clean plate). The edit target must be the ONLY
+    // image the model can act on: selected image layer → that image alone; no image
+    // selection → the flattened page (what the seller sees) leads as before.
+    const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string }) | undefined;
+    // teardown #1: the live selection leads, but if fabric dropped it mid-flow the
+    // LAST image the user picked still targets the edit (resolveEditTarget ignores stale names)
+    const target = resolveEditTarget(active, (scene?.objects ?? []) as { src?: string; name?: string }[], aiLastImageRef.current);
+    const activeSrc = target ? toCanonicalUrl(target.src) : null;
+    const hasText = (scene?.objects ?? []).some((o) => o.type === "Textbox");
+    let refs: string[] | undefined;
+    if (refCapable) {
+      if (activeSrc) {
+        refs = [activeSrc, ...aiRefs].slice(0, 4); // the target, plus anything explicitly attached
+      } else {
+        const canvasRefs = (scene?.objects ?? [])
+          .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
+          .filter((u): u is string => u !== null);
+        refs = [...aiRefs, ...canvasRefs].slice(0, 4);
+      }
+    }
+    // A3-lite: the edit contract is STRUCTURED now — referenceImages[0] is the
+    // target; the agent layer welds the clauses (target declaration, dimension
+    // lock, lettering ban). The renderer no longer concatenates prose.
+    const aiTargetName = target?.name;
+    const editMode = { ...(aiTargetName ? { targetName: aiTargetName } : {}), ...(hasText ? { textLayerOverlays: true } : {}) };
+    aiTargetRef.current = aiTargetName ?? null;
+    await dispatchAiEdit(aiPrompt, refs, editMode);
+  }
+
+  /** Shared send path for every AI edit (plain + ME markup) — busy state, session
+   *  pinning, error surface and the event subscription all behave identically. */
+  async function dispatchAiEdit(prompt: string, refs: string[] | undefined, editMode: Record<string, unknown>) {
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
     try {
-      const c = fabricRef.current;
-      const scene = c?.toObject() as SceneCanvas | undefined;
-      // A3-lite (selection-bound edit), hardened by the 2026-11-02 live experiment:
-      // sending the whole ref set made the image model repaint the FLATTEST reference
-      // (it invented sale text into a clean plate). The edit target must be the ONLY
-      // image the model can act on: selected image layer → that image alone; no image
-      // selection → the flattened page (what the seller sees) leads as before.
-      const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string }) | undefined;
-      // teardown #1: the live selection leads, but if fabric dropped it mid-flow the
-      // LAST image the user picked still targets the edit (resolveEditTarget ignores stale names)
-      const target = resolveEditTarget(active, (scene?.objects ?? []) as { src?: string; name?: string }[], aiLastImageRef.current);
-      const activeSrc = target ? toCanonicalUrl(target.src) : null;
-      const hasText = (scene?.objects ?? []).some((o) => o.type === "Textbox");
-      let refs: string[] | undefined;
-      if (refCapable) {
-        if (activeSrc) {
-          refs = [activeSrc, ...aiRefs].slice(0, 4); // the target, plus anything explicitly attached
-        } else {
-          const canvasRefs = (scene?.objects ?? [])
-            .map((o) => (typeof o.src === "string" ? toCanonicalUrl(o.src) : null))
-            .filter((u): u is string => u !== null);
-          refs = [...aiRefs, ...canvasRefs].slice(0, 4);
-        }
-      }
-      // A3-lite: the edit contract is STRUCTURED now — referenceImages[0] is the
-      // target; the agent layer welds the clauses (target declaration, dimension
-      // lock, lettering ban). The renderer no longer concatenates prose.
-      const aiTargetName = target?.name;
-      const editMode = { ...(aiTargetName ? { targetName: aiTargetName } : {}), ...(hasText ? { textLayerOverlays: true } : {}) };
-      aiTargetRef.current = aiTargetName ?? null;
       // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
-      const res = await oia().chatRun({ prompt: aiPrompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}), editMode });
+      const res = await oia().chatRun({ prompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}), editMode: editMode as ChatRequest["editMode"] });
       setAiSessionId(res.sessionId);
       // events stream in through the onChatEvent subscription; wait for the job to settle
       await res;
@@ -751,6 +761,171 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   async function stopAiEdit() {
     if (aiJobRef.current) await oia().cancelChat(aiJobRef.current).catch(() => {});
   }
+
+  // ===== ME — markup edit "Circle to edit" (markup-edit.md, flatten mode) =====
+  // Strokes live in the layer's NATURAL pixel space (markup-annotate.ts) so pan/
+  // zoom never distorts them; the object is interaction-locked for the session so
+  // the captured object matrix stays valid. Nothing here ever enters the scene
+  // JSON — the annotation is composited onto a throwaway copy for the edit call.
+  interface MarkupSession {
+    phase: "draw" | "ask";
+    src: string;
+    name?: string;
+    objW: number;
+    objH: number;
+    natW: number;
+    natH: number;
+    objectMatrix: number[];
+    restore: () => void;
+  }
+  const [markup, setMarkup] = useState<MarkupSession | null>(null);
+  const markupRef = useRef<MarkupSession | null>(null);
+  useEffect(() => { markupRef.current = markup; }, [markup]);
+  const [markupPrompt, setMarkupPrompt] = useState("");
+  const [markupStrokeCount, setMarkupStrokeCount] = useState(0);
+  const markupStrokesRef = useRef<Stroke[]>([]);
+  const markupOverlayRef = useRef<HTMLCanvasElement | null>(null);
+  const markupLiveRef = useRef<Stroke | null>(null);
+
+  function beginMarkupEdit() {
+    const c = fabricRef.current;
+    // SAFETY: fabric.Image carries getElement/skew; the cast names exactly those.
+    const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string; skewX?: number; skewY?: number; getElement?: () => HTMLImageElement }) | undefined;
+    if (!c || !active || !active.src) return;
+    if ((active.skewX ?? 0) !== 0 || (active.skewY ?? 0) !== 0) {
+      setAiError({ message: "Straighten the layer first — skewed layers cannot be circled accurately." });
+      return;
+    }
+    const el = active.getElement?.();
+    const prev = { selectable: active.selectable, evented: active.evented };
+    active.set({ selectable: false, evented: false });
+    c.discardActiveObject();
+    c.requestRenderAll();
+    markupStrokesRef.current = [];
+    markupLiveRef.current = null;
+    setMarkupPrompt("");
+    setMarkupStrokeCount(0);
+    setMarkup({
+      phase: "draw",
+      // DISPLAY form (oia://…) — what the renderer can actually load for the composite;
+      // the composite itself goes to the wire as a data: URL, so canonical form never matters here.
+      src: toDisplayUrl(active.src),
+      name: active.name,
+      objW: active.width,
+      objH: active.height,
+      natW: el?.naturalWidth || active.width,
+      natH: el?.naturalHeight || active.height,
+      objectMatrix: active.calcTransformMatrix() as number[],
+      restore: () => { active.set({ selectable: prev.selectable, evented: prev.evented }); c.requestRenderAll(); },
+    });
+  }
+
+  function endMarkupEdit() {
+    markupRef.current?.restore();
+    markupStrokesRef.current = [];
+    markupLiveRef.current = null;
+    setMarkup(null);
+    setMarkupStrokeCount(0);
+  }
+
+  /** Screen point → natural px for the captured session (viewport-relative to the
+   *  fabric lower canvas, exactly what viewportToNatural expects). */
+  function markupPoint(clientX: number, clientY: number): { x: number; y: number } | null {
+    const c = fabricRef.current;
+    const m = markupRef.current;
+    if (!c || !m) return null;
+    const rect = c.lowerCanvasEl.getBoundingClientRect();
+    return viewportToNatural(
+      { x: clientX - rect.left, y: clientY - rect.top },
+      c.viewportTransform as number[],
+      m.objectMatrix,
+      m.objW,
+      m.objH,
+      m.natW,
+      m.natH,
+    );
+  }
+
+  async function runMarkupEdit() {
+    const m = markupRef.current;
+    if (!m || aiBusy || !markupPrompt.trim() || !markupStrokesRef.current.length) return;
+    let composite: string;
+    try {
+      composite = await markupComposite(m.src, markupStrokesRef.current, m.natW, m.natH);
+    } catch {
+      setAiError({ message: "Could not prepare the circled image. Try again." });
+      return;
+    }
+    const prompt = markupPrompt;
+    const name = m.name;
+    endMarkupEdit();
+    setAiOpen(true);
+    setRightTab("ai");
+    // No textLayerOverlays here: a markup edit may legitimately rewrite baked copy
+    // (probe P3 changed a price) — the marker clause + dimension lock carry the contract.
+    await dispatchAiEdit(prompt, refCapable ? [composite, ...aiRefs].slice(0, 4) : undefined, {
+      ...(name ? { targetName: name } : {}),
+      markup: "flatten",
+    });
+  }
+
+  // Redraw the annotation every frame while drawing — pan/zoom mid-session stays
+  // correct because strokes project back from natural px each frame.
+  useEffect(() => {
+    if (markup?.phase !== "draw") return;
+    let raf = 0;
+    const draw = () => {
+      const ov = markupOverlayRef.current;
+      const c = fabricRef.current;
+      const m = markupRef.current;
+      if (ov && c && m) {
+        const rect = ov.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        if (ov.width !== Math.round(rect.width * dpr) || ov.height !== Math.round(rect.height * dpr)) {
+          ov.width = Math.round(rect.width * dpr);
+          ov.height = Math.round(rect.height * dpr);
+        }
+        const ctx = ov.getContext("2d");
+        if (ctx) {
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.clearRect(0, 0, rect.width, rect.height);
+          const vpt = c.viewportTransform as number[];
+          const toVp = (n: { x: number; y: number }) => naturalToViewport(n, vpt, m.objectMatrix, m.objW, m.objH, m.natW, m.natH);
+          ctx.strokeStyle = "#ff0000";
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.lineWidth = Math.max(1.5, 0.015 * Math.min(m.objW, m.objH) * vpt[0]);
+          const all = [...markupStrokesRef.current, ...(markupLiveRef.current ? [markupLiveRef.current] : [])];
+          for (const s of all) {
+            if (s.length === 1) {
+              const p = toVp(s[0]);
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+              ctx.fillStyle = "#ff0000";
+              ctx.fill();
+              continue;
+            }
+            ctx.beginPath();
+            const p0 = toVp(s[0]);
+            ctx.moveTo(p0.x, p0.y);
+            for (let i = 1; i < s.length; i++) { const p = toVp(s[i]); ctx.lineTo(p.x, p.y); }
+            ctx.stroke();
+          }
+        }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [markup?.phase]);
+
+  // Esc exits the markup session without sending anything (0 quota).
+  useEffect(() => {
+    if (!markup) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") endMarkupEdit(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [markup]);
 
   /** VA-4 — swap the SELECTED image layer's src for the variant's artwork. Geometry,
    * every other layer, and the page envelope stay untouched; undo works (history
@@ -1163,7 +1338,62 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               <div className="frameLabel" aria-hidden="true">{projectName || "Artboard"} · {customW} × {customH}</div>
               <div className="canvasWrap" data-transparent={activeClipFill === "transparent" ? "true" : undefined}>
                 <canvas ref={canvasElRef} width={500} height={750} />
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} />
+                {markup?.phase === "draw" && (
+                  <canvas
+                    ref={markupOverlayRef}
+                    className="markupOverlay"
+                    data-testid="markup-overlay"
+                    aria-label="Circle the region to edit"
+                    onPointerDown={(e) => {
+                      const p = markupPoint(e.clientX, e.clientY);
+                      if (p) markupLiveRef.current = [p];
+                      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic/untracked pointers cannot capture — the stroke already started */ }
+                    }}
+                    onPointerMove={(e) => {
+                      const live = markupLiveRef.current;
+                      if (!live) return;
+                      const p = markupPoint(e.clientX, e.clientY);
+                      if (p) live.push(p);
+                    }}
+                    onPointerUp={() => {
+                      const live = markupLiveRef.current;
+                      markupLiveRef.current = null;
+                      if (live && live.length >= 1) {
+                        markupStrokesRef.current.push(live);
+                        setMarkupStrokeCount(markupStrokesRef.current.length);
+                      }
+                    }}
+                  />
+                )}
+                {markup?.phase === "draw" && (
+                  <div className="markupBar" data-testid="markup-bar">
+                    <span>Circle the part to change</span>
+                    <button disabled={markupStrokeCount === 0} onClick={() => setMarkup((m) => (m ? { ...m, phase: "ask" } : m))}>Done circling</button>
+                    <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
+                  </div>
+                )}
+                {markup?.phase === "ask" && (
+                  <div className="markupBar markupAsk" data-testid="markup-ask">
+                    <textarea
+                      aria-label="What should happen inside the circle"
+                      rows={1}
+                      placeholder="What should happen inside the circle?"
+                      value={markupPrompt}
+                      onChange={(e) => setMarkupPrompt(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          void runMarkupEdit();
+                        }
+                      }}
+                    />
+                    {!imageMock && <span className="mono">≈ 1 image edit</span>}
+                    <button className="ctxAi" disabled={aiBusy || !markupPrompt.trim()} onClick={() => void runMarkupEdit()}>✦ Run</button>
+                    <button onClick={() => setMarkup((m) => (m ? { ...m, phase: "draw" } : m))}>Back</button>
+                    <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
+                  </div>
+                )}
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}

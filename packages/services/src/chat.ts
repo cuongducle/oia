@@ -70,7 +70,7 @@ export const chatRequestSchema = z.object({
    *  target. The AGENT layer appends the deterministic clauses (target
    *  declaration, dimension lock, lettering ban when the page overlays text
    *  layers) — the renderer never welds English prose into the prompt string. */
-  editMode: z.object({ targetName: z.string().max(120).optional(), textLayerOverlays: z.boolean().optional() }).optional(),
+  editMode: z.object({ targetName: z.string().max(120).optional(), textLayerOverlays: z.boolean().optional(), markup: z.literal("flatten").optional() }).optional(),
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

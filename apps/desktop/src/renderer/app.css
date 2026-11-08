@@ -400,6 +400,13 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
    canvas but below bars. They can never enter an export (LV-4). */
 .guideZone { position: absolute; pointer-events: none; z-index: 2; background: repeating-linear-gradient(45deg, #dc26261f 0 8px, transparent 8px 16px); border: 1px dashed #dc262666; }
 .guideBadge { position: absolute; left: 8px; top: 8px; z-index: 2; pointer-events: none; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; letter-spacing: 0.02em; }
+/* ME — markup annotate overlay: pure view layer (never enters the scene/export).
+   Sits above the canvas, captures pointer strokes, redrawn per frame. */
+.markupOverlay { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 6; cursor: crosshair; touch-action: none; }
+.markupBar { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 7; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--ink); color: #fff; border-radius: 12px; box-shadow: var(--float-shadow); font-size: 12.5px; white-space: nowrap; }
+.markupBar textarea { min-width: 220px; max-width: 340px; resize: none; font: inherit; font-size: 12.5px; padding: 4px 8px; border-radius: 8px; border: none; background: #ffffff14; color: #fff; }
+.markupBar textarea::placeholder { color: #ffffff8c; }
+.markupBar .mono { font-size: 10.5px; color: #ffffffa8; letter-spacing: 0.04em; }
 .tplGroup { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 /* Workspace "New project" preset menu (LV-2). */
 /* B1 deconstruct confirm dialog (deconstruct-import.md DC-1). */
