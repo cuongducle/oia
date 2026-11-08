@@ -336,3 +336,13 @@ Owner: "update codex version lên trước đi" + "dùng codex đi" (sau khi xá
 - **Vá bẫy env-shadow (bài học 7/11):** `smokeModeFromEnv` giờ cho REAL thắng mọi cờ mock kể cả khi `pnpm smoke` tự set `OIA_DESKTOP_SMOKE=1`; test pin cặp cờ chồng nhau.
 - **Deploy config vào repo:** `wrangler.toml` ở root (worker `twilight-sun-6b7b`, account 6b2f7e5e…, assets ./site) + README ghi rõ origin thật của oia.solutions là Worker, không phải GitHub Pages; deploy = `wrangler deploy`.
 - Gates: turbo no-cache 25/25; agent 88 / services 42 / schema 27 / providers 113+1skip / desktop 202 test; smoke OK; shot xanh kèm ME scenario. Quota tiêu vòng này: 0 ảnh (toàn mock + shot).
+
+## Ghi nhận thay toàn bộ artwork landing + README (2026-11-08, owner "thay toàn bộ")
+
+Owner: ảnh cũ "thời model cũ, chưa có prompt, rất xấu" — regenerate TOÀN BỘ ảnh AI trên landing + README bằng đợt sinh hàng loạt qua codex pin 0.167.0, mỗi ảnh có prompt đầy đủ (provenance: `docs/research/site-artwork-2026-11/` — manifest prompt nằm trong gen.py).
+
+- **15 ảnh mới 1 lần pass QC** (vision, không text lọt vào plate, cặp price-20/30 đúng chính tả + cùng phong cách, laborday 9/10) + **4 ảnh sinh lại sau QC composite**: botanical + ed-poster2 (chữ sáng chìm trên plate sáng → plate mới vùng tối đúng cột chữ), sneaker ×2 (greige → charcoal đậm; lần 2 chỉ còn lỗi wrap text "THE DROP — 12.12" trong template → sửa data studio-templates.ts width/size). Template QA tổng: 12/12 PASS.
+- **Ảnh phái sinh dựng lại**: price-repaint.webp (cặp mới ghép ngang), tpl-ed-* bento composites (plate mới), README banner.png (make-banner.py, PASS), og-hero.png DỰNG LẠI hoàn toàn (script mới make-og-hero.py — bản cũ còn nav "Old designs" lỗi thời; 9/10).
+- **App assets đồng bộ**: 9 plate + 3 ed-plate đè cả `public/studio/` (site và app dùng cùng artwork) — desktop 202 test + shot + smoke xanh sau thay.
+- **Deploy**: wrangler deploy (worker v8d870ad3) + verify hash live khớp local từng file.
+- **Quota ledger đợt này: 19 ảnh thật** (15 + 3 regen + 1 sneaker lần 2) + planner tokens — owner phóng hạn 2026-11-08.

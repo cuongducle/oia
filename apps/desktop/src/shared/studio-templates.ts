@@ -82,8 +82,8 @@ export const STUDIO_TEMPLATES: Template[] = [
     text("RUN LIGHTER.\nLAND SOFTER.", 60, 210, 640, 40, "#c9ccd4" ),
     // visual-QA: the caption nearly melted into the light gradient — near-white now;
     // the date (the actionable line) bumped to rival the tagline.
-    text("THE DROP — 12.12", 470, 1284, 500, 60, "#ffb347", { fontWeight: 800, textAlign: "right" }),
-    text("Limited first run · members early access", 470, 1368, 500, 26, "#e8eaee", { textAlign: "right" }),
+    text("THE DROP — 12.12", 420, 1276, 550, 52, "#ffb347", { fontWeight: 800, textAlign: "right" }),
+    text("Limited first run · members early access", 470, 1360, 500, 24, "#e8eaee", { textAlign: "right" }),
   ], { category: "new-product", pack: "product-launch", w: 1024, h: 1536 }),
   template("holiday", "Year-end blowout", "#0d2b1e", "holiday", [
     text("YEAR-END\nBLOWOUT", 60, 110, 640, 120, "#f5e9c8", { fontWeight: 800, lineHeight: 0.95 }),
