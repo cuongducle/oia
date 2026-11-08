@@ -290,3 +290,13 @@ Owner yêu cầu check tổng trạng thái rồi "làm hết" các vấn đề 
 - **CI actions rời runtime Node 20 đã về hưu:** checkout v7 / setup-node v7 / cache v6 / upload-artifact v7 / pnpm/action-setup v6 / pages v6+v5+v5 — hết annotation deprecation; ubuntu-latest sẽ nhảy Ubuntu 26 (annotation hệ thống, không hành động).
 - **Hai gate owner vẫn treo (không thể làm thay):** (a) D10 — buổi validation với 3–5 seller thật; (b) import corpus `.data` web thật — đã quét máy lần nữa, không tìm thấy thư mục nào (đúng ghi nhận trước); owner cung cấp đường dẫn là chạy được ngay (nút sẵn, idempotent).
 - Gates: CI run 41782005991 (PR #37) xanh đủ 4 job gồm `unit-windows` lần đầu; sau merge main: build/test/typecheck local xanh.
+
+## Ghi nhận Images 2.6 — mở workstream IM26 (2026-11-07)
+
+OpenAI phát hành Images 2.6 ngày 4/11/2026 (ChatGPT + **Codex** + API, mọi tier; nhanh hơn 50%; GIF · SVG · markup edit · complexity; giá báo ngang 2.5). Ảnh hưởng trực tiếp hai đường generation của Oia và mở 4 hướng feature mới — ghi thành plan doc riêng [images-2.6-upgrade.md](images-2.6-upgrade.md) (DRAFT chờ owner Q1–Q6, **chưa tiêu quota**):
+
+- **BYO key:** default đang pin `gpt-image-2.5-sunburst` — slice IM26-1 đổi default + 1 generation thật verify.
+- **Đường Codex (plan quota):** model sau `chatgpt-imagegen` do server quay — 2.6 có thể đã hiệu lực trên pin `rust-v0.166.0` nhưng chưa có bằng chứng; IM26-2 chạy REAL_SMOKE để đo (nếu phải bump pin thì theo luật D12).
+- **Feature lớn nhất: markup edit "khoanh để sửa"** (IM26-3) — đúng DNA layers của Oia; cần design doc con nếu owner duyệt hướng.
+
+Không đụng wire contract nào trong đợt ghi nhận này — chỉ docs. Site landing chưa claim gì về 2.6 (chờ bằng chứng thật, Q6).
