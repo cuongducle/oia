@@ -311,3 +311,14 @@ Workstream [images-2.6-upgrade.md](images-2.6-upgrade.md) chạy slice đầu tr
 - **IM26-3:** design doc con [markup-edit.md](markup-edit.md) — "khoanh để sửa", 5 slice ME-1…5, code chưa bắt đầu.
 - **IM26-4:** quan sát từ smoke — đường codex vẫn trả PNG (không GIF); probe GIF/SVG API hoãn đến khi có key.
 - Gates vòng này: packages build 7/7, providers test 113 pass + 1 skip (kể cả pin test mới), full `pnpm build` + `typecheck` xanh; quota tiêu: đúng 1 ảnh thật (REAL_SMOKE IM26-2).
+
+## Ghi nhận vòng probe IM26 trên đường codex (2026-11-08)
+
+Owner: "update codex version lên trước đi" + "dùng codex đi" (sau khi xác nhận máy không có OpenAI API key).
+
+- **Pin bump theo luật D12**: rust-v0.166.0 → **rust-v0.167.0** (stable sau-2.6, 6/11); fetch checksummed OK (sha256 af45ed45…); REAL_SMOKE qua binary mới OK cùng ngày (events=10) — cặp 0.167.0 = tested pair, ghi cạnh pin.
+- **3 probe thật** (bằng chứng + ảnh: [docs/research/im26-probes/](../research/im26-probes/README.md)):
+  - **P2 SVG-as-code PASS** — codex viết SVG vector thật (659B, 18s, 0 ảnh) → IM26-5 mở lại qua lane text, không cần key.
+  - **P1 GIF: KHÔNG** — $imagegen từ chối tường minh trên pin sau-2.6; GIF giữ API-only.
+  - **P3 markup edit PASS một phần** — ellipse đỏ flatten + chỉ dẫn chữ: model hiểu vùng, tự dọn marker, sửa đúng (lỗi glyph ₫ duy nhất — critic bắt được) → [markup-edit.md](markup-edit.md) cập nhật: ship được trên CẢ HAI lane, codex = flatten-mode.
+- Quota cả đợt: 2 ảnh (1 REAL_SMOKE pin + 1 P3). GIF/complexity (IM26-4/6) giữ chờ key.

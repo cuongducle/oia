@@ -62,7 +62,8 @@ Map `complexity` low/high sang lựa chọn "Draft (nhanh, rẻ hơn)" / "Final"
 
 - [x] IM26-0: verify giá + model IDs + param markup/SVG/GIF từ docs chính thức (0 quota) — giá $8/1M image tokens + $5/1M text tokens; phát hiện lane BYO không tồn tại trong UI
 - [x] IM26-1: swap default `gpt-image-2.6-sunburst` + pin test (generation thật hoãn — không có BYO key; model-id từ changelog chính thức)
-- [x] IM26-2: **REAL_SMOKE OK (2026-11-07, events=10, completed, pin rust-v0.166.0)** — lane generation khoẻ sau 2.6 rollout; output không expose model id → câu hỏi "model nào sau chatgpt-imagegen" giữ nguyên là KHÔNG ĐO ĐƯỢC từ phía mình, không bump pin (không có bằng chứng cần bump)
+- [x] IM26-2: **REAL_SMOKE OK (2026-11-07, events=10, completed, pin rust-v0.166.0)** — lane generation khoẻ sau 2.6 rollout; output không expose model id → câu hỏi "model nào sau chatgpt-imagegen" giữ nguyên là KHÔNG ĐO ĐƯỢC từ phía mình, không claim marketing. **2026-11-08: pin bump rust-v0.167.0 (owner-directed, sau-2.6) — REAL_SMOKE OK cùng ngày, cặp mới = tested pair.**
+- [x] **Vòng probe codex (2026-11-08, owner "dùng codex đi")**: 3 probe thật trên pin mới — [bằng chứng đầy đủ](../research/im26-probes/README.md); tổng quota đợt 2 ảnh. Kết quả đổi 2 slice: SVG mở lại qua lane text (0 ảnh), ME markup edit chạy được trên lane codex (biến thể flatten)
 - [x] IM26-3: design doc markup edit → [markup-edit.md](markup-edit.md)
 - [x] IM26-4: quan sát trong smoke — output vẫn về PNG qua đường codex (không GIF); probe API GIF hoãn đến khi có key
 - [ ] IM26-5: probe SVG — hoãn (API-only, cần key)

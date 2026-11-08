@@ -15,6 +15,14 @@
 - Ràng buộc cứng: layer markup **cùng kích thước pixel đúng** ảnh gốc; mỗi ảnh ≤ 16.777.216 px; file markup ≤ 50 MB; không kết hợp mask hay prompt rewriter.
 - Provider hỗ trợ: OpenAI wire (BYO key). **Codex `$imagegen` chưa có markup field** → lane plan KHÔNG mở tính năng này (capability gate), đến khi codex CLI hỗ trợ.
 
+### Cập nhật sau probe thật (2026-11-08, [bằng chứng](../research/im26-probes/README.md))
+
+Probe P3 trên pin 0.167.0 đã **đập giả định "lane codex không làm được"**: gửi ảnh có ellipse đỏ FLATTEN vào + chỉ dẫn chữ ("vòng đỏ là annotation, xoá nó, đổi giá trong vòng") → model hiểu vùng cần sửa, **tự dọn sạch marker**, đổi đúng nội dung, giữ nguyên phần còn lại (lỗi duy nhất: glyph ₫ hơi dị — loại lỗi critic đã bắt được). Kết luận thiết kế:
+
+- **Hai biến thể, một UI**: codex lane = **flatten-mode** (annotation composite vào ảnh trước khi gửi — rẻ, dùng được NGAY, không cần key); OpenAI lane = **field-mode** (markup tách lớp khi lane BYO quay lại — chính xác hơn vì model nhận chỉ dẫn ở kênh riêng). Provider capability tách làm 2 cờ: `markupEdit: "flatten" | "field" | undefined`.
+- Cost label hai lane như nhau: "≈ 1 image edit".
+- Điểm cần gate riêng cho flatten-mode: prompt phải khai báo tường minh "marker là annotation, xoá sạch" (đã chứng minh hiệu quả) + critic chạy như thường (bắt lỗi glyph như P3).
+
 ## Thiết kế
 
 ### Luồng người dùng
@@ -36,9 +44,9 @@
 - Wire openai-images: khi có `markup` → endpoint edits, ảnh gốc vào `images[0]`, markup vào field riêng; **kèm guard kích thước** client-side (so IHDR của 2 PNG) trước khi fetch — lỗi dims là lỗi местного chế tạo overlay, không phải lỗi mạng.
 - Cost label & job metered-once như mọi generation (G3): 1 job = 1 ảnh edit, retry = job mới.
 
-### Capability gate (mẫu DA `--search`)
+### Capability gate (mẫu DA `--search`) — cập nhật sau probe
 
-UI chỉ hiện nút khi provider hiện tại `capabilities.markupEdit === true`. Codex/mock → nút ẩn hẳn (không disabled gây thắc mắc) — cùng triết lý "provider không hỗ trợ → thông báo thẳng" của DA.
+UI hiện nút khi provider khai `markupEdit` với mode bất kỳ ("flatten" cho codex — đã có bằng chứng thật; "field" khi OpenAI wire bật). Mock/mock-ish provider → nút ẩn như cũ. ME-2 mở rộng: wire codex nhận annotation PNG → composite flatten client-side trước khi vào pipeline edit hiện có (`-i` ảnh đã ghép + prompt chỉ dẫn marker).
 
 ## Slices
 
