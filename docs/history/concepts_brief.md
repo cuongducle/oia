@@ -1,3 +1,12 @@
+---
+type: "Historical Brief"
+title: "Open image agent concept brief"
+description: "Archived brainstorm input superseded twice (banner-maker stage 0, then desktop-only reorg); kept for the B1-B7 blocker taxonomy and the persona analysis."
+tags: [history, brainstorm]
+status: deprecated
+generated: { by: human:cuongducle, at: 2026-10-28T00:00:00Z }
+---
+
 > **ARCHIVED (2026-10-30).** Brainstorm input, decisions here were superseded twice:
 > first by [`designs/banner-maker-loop-stage-0.md`](../designs/banner-maker-loop-stage-0.md)
 > (manual-layering reversed → reference-first; owner-validated), then by

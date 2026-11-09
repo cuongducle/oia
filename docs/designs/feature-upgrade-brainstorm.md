@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Feature upgrade brainstorm"
+description: "Capability-level brainstorm against reference competitors; four decisions graduated (A1, C1, C3, B1) into their own docs, the rest stay candidates."
+tags: [design, brainstorm]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
+---
+
 # Feature brainstorm từ đối thủ tham chiếu (capability-level)
 
 * **Author:** cuongducle + agent

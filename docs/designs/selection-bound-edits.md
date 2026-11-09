@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Selection-bound edits (A3-lite)"
+description: "What actually rides to the image model when a layer is selected: three live experiments deciding the editMode wire contract; shipped as the companion of D16."
+tags: [design, wire, editor, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-02T00:00:00Z }
+---
+
 # Selection-bound edits (A3-lite): what actually rides to the image model
 
 **Ngày:** 2026-11-02

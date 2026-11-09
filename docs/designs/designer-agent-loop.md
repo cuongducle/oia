@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Designer agent loop (DA)"
+description: "Research-informed planning via codex --search plus auto-refine with a vision critic, bounded inside one metered job; slices 0-2 shipped 2026-11-06 including a green real smoke run."
+tags: [design, agent, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-06T00:00:00Z }
+---
+
 # DA: Designer Agent loop: research-informed planning + self-improvement
 
 **Ngày:** 2026-11-06

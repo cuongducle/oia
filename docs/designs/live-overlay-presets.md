@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Live overlay presets (C3)"
+description: "Transparent 9:16 artboard overlay, official Shopee and TikTok cover presets, native price/freeship/countdown packs, and DOM-only safe-zone guides; shipped 2026-10-31."
+tags: [design, editor, presets, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
+---
+
 # C3: Live-commerce overlay presets + safe-zone guides
 
 **Ngày:** 2026-10-31

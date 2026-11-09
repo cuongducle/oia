@@ -1,3 +1,12 @@
+---
+type: "Reference"
+title: "macOS design 2026 (Tahoe)"
+description: "2026 macOS design research for packaging step 7: the Electron cornerMask lag bug and fix versions, three adoption tiers T0-T2, applied checklist."
+tags: [reference, macos, design]
+status: stable
+generated: { by: research-agent/web, at: 2026-10-30T00:00:00Z }
+---
+
 # Thiết kế app cho Mac 2026: nghiên cứu cho bước 7 (đóng gói macOS)
 
 * **Ngày:** 2026-10-30 (research web, nguồn dẫn cuối file)

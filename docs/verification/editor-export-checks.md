@@ -1,3 +1,11 @@
+---
+type: "Verification Record"
+title: "Editor export checks"
+description: "Automated and real-Chrome verification of the English studio refresh: typecheck, build, and test gates, locale fallback, PPTX embedded-image assertions."
+tags: [verification, editor, i18n]
+status: stable
+---
+
 # English studio refresh: verification
 
 ## Automated checks

@@ -1,3 +1,11 @@
+---
+type: "Research"
+title: "IM26 markup probes"
+description: "Annotated input and codex output pairs probing what the edits endpoint accepts for the markup field; evidence base for markup-edit.md."
+tags: [research, images, markup, evidence]
+status: stable
+---
+
 # IM26 probes: bằng chứng thật trên đường codex (2026-11-08)
 
 Owner: "dùng codex đi" (sau khi máy xác nhận không có OpenAI API key). Pin **rust-v0.167.0** (bump theo luật D12 cùng ngày, REAL_SMOKE OK, cặp đã kiểm). Mỗi probe chạy bằng chính binary đóng kèm app + prompt stdin (giữ nguyên hình dạng `codex exec` của bridge). **Quota tiêu cả đợt: 2 ảnh** (1 REAL_SMOKE pin bump + 1 probe markup) + text token.

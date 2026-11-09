@@ -1,3 +1,12 @@
+---
+type: "Reference"
+title: "Design product UI 2026"
+description: "Diagnosis of the not-a-design-product gap with competitor evidence (Photroom REA, Canva, Adobe), seven design-DNA laws, and the P0-P2 gap table sequenced after D10."
+tags: [reference, ui, competitors]
+status: stable
+generated: { by: research-agent/rea-web, at: 2026-10-30T00:00:00Z }
+---
+
 # Vì sao UI chưa phải "sản phẩm thiết kế": nghiên cứu đối thủ 2026
 
 * **Ngày:** 2026-10-30

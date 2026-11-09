@@ -1,3 +1,12 @@
+---
+type: "Verification Record"
+title: "Marketing assets rework"
+description: "2026-11-09 rework: 45 old marketing files replaced by six focused campaign assets (MORI, FORMA), overview.png and the build-marketing.py pipeline."
+tags: [verification, marketing, site]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-09T00:00:00Z }
+---
+
 # Làm lại hình landing và README
 
 Ngày: 2026-11-09. Theo yêu cầu owner: ít hình, đẹp hơn, cho thấy khả năng sản phẩm,

@@ -1,3 +1,11 @@
+---
+type: "Reference"
+title: "Desktop architecture map"
+description: "Post-step-4a architecture: main, utility, preload, renderer, shared, and the package dependency chain from schema to shells."
+tags: [reference, architecture]
+status: stable
+---
+
 # Oia Desktop: cross-platform architecture research
 
 **Status: research and proposed architecture, not an implemented desktop release.**

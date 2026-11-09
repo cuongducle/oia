@@ -1,3 +1,12 @@
+---
+type: "Bug Reproduction"
+title: "Utility-process defects (2026-10-30)"
+description: "Four severe utility-process defects found by adversarial self-review of reorg steps 4a/4b, with reproductions and fixes; recorded as patterns that will try to come back."
+tags: [bugs, electron, utility-process]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
+---
+
 # 2026-10-30: Utility-process defects (4 severe, found by self-review, fixed same day)
 
 Introduced by reorg steps 4a/4b (commits `6960da6`, `aa0740d`); found by an

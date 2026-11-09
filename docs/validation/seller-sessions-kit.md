@@ -1,3 +1,12 @@
+---
+type: "Validation Kit"
+title: "Seller sessions kit"
+description: "Moderation kit for stage-0 exit sessions: T-1 checklist, quota budget, consent script, session flow, Vietnamese task cards, observation sheets, pre-committed scoring."
+tags: [validation, sessions, ops]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
+---
+
 # Stage-0 seller sessions: moderation kit
 
 * **Owner:** cuongducle

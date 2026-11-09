@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Outline gate (C1)"
+description: "Two-phase multi-page generation: a text-only planner produces an editable outline card, page count is a hard two-way contract, default-on switch with an honest N pages means N images label."
+tags: [design, quota, outline]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
+---
+
 # C1: Outline gate: duyệt dàn ý trước khi đốt quota cho deck nhiều trang
 
 **Ngày:** 2026-10-31

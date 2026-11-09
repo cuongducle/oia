@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Desktop-only reorg plan"
+description: "Single source of truth for current scope: decisions D1-D14, the seven-step checklist with gates, and the known-debt ledger; the web app was deleted in step 6."
+tags: [design, plan, scope]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
+---
+
 # Kế hoạch chốt: desktop-only, bỏ web
 
 **Ngày chốt:** 2026-10-30 (sau phiên review toàn diện + tham chiếu `stablyai/orca`)

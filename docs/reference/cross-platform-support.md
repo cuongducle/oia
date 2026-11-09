@@ -1,3 +1,11 @@
+---
+type: "Reference"
+title: "Cross-platform support battle log"
+description: "Distilled macOS and Windows battle log: cmd shims, Windows path shapes, GUI-launch PATH, EPERM renames, detached trees, cjs preload, oia CORS; required reading before touching process spawning or the shell."
+tags: [reference, windows, macos, electron]
+status: stable
+---
+
 # Cross-platform support
 
 Oia targets macOS and Windows. Every rule below is a trap this repository has

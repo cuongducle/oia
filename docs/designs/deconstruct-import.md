@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Deconstruct import (B1)"
+description: "AI-first image deconstruction: one vision read extracts text boxes, one inpaint pass cleans the background, native Textboxes land on a clean plate; shipped 2026-10-31 with a real spike pass."
+tags: [design, editor, vision, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
+---
+
 # B1: Deconstruct import: hồi sinh banner cũ thành bản chỉnh sửa được
 
 **Ngày:** 2026-10-31

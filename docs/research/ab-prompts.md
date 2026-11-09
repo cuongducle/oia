@@ -1,3 +1,12 @@
+---
+type: "Research"
+title: "A/B prompt evidence"
+description: "Full per-round prompts for the no-rules vs IMAGE_CRAFT_RULES A/B (2026-11-05), feeding the DA-11 anti-AI-slop craft rules."
+tags: [research, prompts, evidence]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-05T00:00:00Z }
+---
+
 # A/B prompt evidence: full prompts per round (2026-11-05)
 
 Round 1, no craft rules (A) vs IMAGE_CRAFT_RULES v1 (B), cùng user prompt, poster dọc 1360×2048:

@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "UI v1.1 redesign"
+description: "Renderer-only app-frame redesign draft: left sidebar, status footer, one Create sheet, Editor layers and design tab; R1-R6 slices await owner approval."
+tags: [design, ui, draft]
+status: draft
+generated: { by: human:tiennv, at: 2026-10-31T00:00:00Z }
+---
+
 # UI v1.1: thiết kế lại khung app sau 4 tính năng v1.1
 
 **Ngày:** 2026-10-31

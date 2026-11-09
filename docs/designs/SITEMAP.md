@@ -1,3 +1,11 @@
+---
+type: "Design Ledger"
+title: "Design sitemap"
+description: "One-line ledger of every design doc with ship status; live decisions D1-D14 live in desktop-only-reorg.md."
+tags: [ledger, design]
+status: stable
+---
+
 # Design Sitemap
 
 > Sổ cái thiết kế, mỗi doc một dòng, trạng thái cập nhật khi ship. Quyết định sống (D1-D11) nằm trong [desktop-only-reorg.md](desktop-only-reorg.md).

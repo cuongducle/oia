@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Images 2.6 upgrade (IM26)"
+description: "Reaction to OpenAI Images 2.6: price confirmation, BYO default to gpt-image-2.6-sunburst, real smoke re-run, markup field follow-up; IM26-5 and IM26-6 still open."
+tags: [design, providers, images]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-07T00:00:00Z }
+---
+
 # IM26: Images 2.6: đổi model + 4 khả năng mới (markup edit · GIF · SVG · complexity)
 
 **Ngày:** 2026-11-07

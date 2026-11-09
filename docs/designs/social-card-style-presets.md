@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Social card style presets (SC)"
+description: "STYLE layer over the template taxonomy: Editorial E-ink and Swiss International systems, ten verified Vietnamese font pairs, three international sizes; SC-1..5 shipped with 24 templates and zero-read growth."
+tags: [design, templates, style, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-06T00:00:00Z }
+---
+
 # SC: Social-card style presets: lớp style Editorial × Swiss cho template Oia
 
 **Ngày:** 2026-11-06

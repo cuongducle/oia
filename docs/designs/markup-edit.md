@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Markup edit (ME, IM26-3)"
+description: "Select-to-edit annotations drawn on the view layer (never scene JSON), inverse-transformed to layer natural size, wired as the markup field of /v1/images/edits behind a capability gate; ME-1..5 shipped 2026-11-08."
+tags: [design, editor, markup, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-07T00:00:00Z }
+---
+
 # ME: Markup edit "khoanh để sửa": sửa ảnh bằng bút vẽ, không bằng câu chữ
 
 **Ngày:** 2026-11-07 (tốt nghiệp từ [images-2.6-upgrade.md](images-2.6-upgrade.md) IM26-3, owner duyệt hướng trong đợt "Duyệt hết")

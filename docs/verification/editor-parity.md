@@ -1,3 +1,12 @@
+---
+type: "Verification Record"
+title: "Editor parity web vs desktop"
+description: "Step-5 feature-count parity check against the frozen web editor reference: parity sufficient, desktop is a superset."
+tags: [verification, parity, reorg]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-06T00:00:00Z }
+---
+
 # Editor parity: web ↔ desktop (reorg step 5)
 
 Ngày: 2026-11-06 · Phương pháp: đếm theo **tính năng** (không theo dòng), mỗi mục lấy

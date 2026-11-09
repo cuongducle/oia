@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Desktop app (macOS + Windows)"
+description: "Electron + electron-vite shell design: service-boundary extraction, zero-terminal Codex provisioning, persistence v2, signing and updates; approved 2026-10-30, remaining-work ledger inside."
+tags: [design, desktop, electron]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
+---
+
 # Oia Desktop: app design (macOS + Windows)
 
 * **Author:** cuongducle (+ agent draft)

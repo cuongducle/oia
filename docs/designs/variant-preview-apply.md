@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Variant preview-apply (A1)"
+description: "Preview-before-apply variants in an AI dock tray: the canvas never auto-mutates, variants persist through the chat session, replace-selected-layer is the distinct action."
+tags: [design, editor, variants, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
+---
+
 # A1: Preview-before-apply: khay variant + Replace selected layer
 
 **Ngày:** 2026-10-31

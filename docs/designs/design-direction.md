@@ -1,3 +1,11 @@
+---
+type: "Design Direction"
+title: "Creative studio refresh"
+description: "Visual direction for the studio: editorial near-white surfaces, ink text, violet accent; artwork supplies the color, controls never compete with it."
+tags: [design, visual-direction]
+status: stable
+---
+
 # Oia: Creative studio refresh
 
 ## Research

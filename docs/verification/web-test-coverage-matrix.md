@@ -1,3 +1,12 @@
+---
+type: "Verification Record"
+title: "Web test coverage matrix"
+description: "Step-5 matrix proving every web test behavior had a replacement at service or desktop level before the web app was deleted; two behaviors deliberately ended with web."
+tags: [verification, tests, reorg]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-06T00:00:00Z }
+---
+
 # Ma trận coverage web → thay thế (reorg bước 5)
 
 Ngày: 2026-11-06. Luật (từ plan bước 5, thay metric "số test không giảm"):

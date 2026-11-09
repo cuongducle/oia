@@ -1,3 +1,11 @@
+---
+type: "Engineering Standard"
+title: "Oia style guide"
+description: "Code, naming, comment, and commit conventions for every package in the monorepo."
+tags: [conventions, code]
+status: stable
+---
+
 # Oia style guide: conventions for code and changes
 
 Companion to [`AGENTS.md`](../AGENTS.md) (operational rules) and

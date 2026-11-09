@@ -1,3 +1,11 @@
+---
+type: "Reference"
+title: "Test antipatterns"
+description: "What a bad test looks like here: gate the error path, exercise real stores over temp dirs, never count tests as coverage; read before adding any test."
+tags: [reference, testing]
+status: stable
+---
+
 # Test anti-patterns
 
 Each pattern below has either produced a real miss in this repository or is one

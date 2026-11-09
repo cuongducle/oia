@@ -1,3 +1,12 @@
+---
+type: "Research"
+title: "Image prompt craft rules"
+description: "Evidence-based lessons for DA-11 craft rules: primary sources only (threads, vendor docs, papers, controlled experiments), rejections recorded with reasons."
+tags: [research, prompts, craft]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-05T00:00:00Z }
+---
+
 # Nghiên cứu prompt tạo ảnh: Evidence & bài học (2026-11-05)
 
 Nghiên cứu phục vụ DA-11 (anti-"AI slop" craft rules) trong

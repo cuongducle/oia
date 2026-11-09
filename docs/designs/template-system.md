@@ -1,3 +1,12 @@
+---
+type: "Design"
+title: "Template system (TPL)"
+description: "Template growth loop researched from Canva and PosterMyWall: taxonomy, programmatic and AI plates, publish-with-notes, and the indexable templates hub; T1-T5 shipped."
+tags: [design, templates, site, shipped]
+status: stable
+generated: { by: human:cuongducle, at: 2026-11-03T00:00:00Z }
+---
+
 # TPL: Template system: nghiên cứu đối thủ → làm giàu kho template của Oia
 
 **Ngày:** 2026-11-03
