@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-09",
+  "method": "Three direct image-generation calls through the bundled Codex CLI. Same image channel as the product, not an end-to-end Oia research/auto-refine run.",
+  "codexVersion": "codex-cli 0.167.0",
+  "outputs": [
+    {
+      "file": "site/assets/mori-campaign.webp",
+      "threadId": "01a1be4f-772b-7562-a461-02c436baf027",
+      "prompt": "$imagegen Create exactly ONE finished square 1:1 advertising artwork, 1536px if available. Art direction: a remarkable contemporary matcha brand campaign, magazine art direction meets Japanese still-life photography, not a generic AI sale flyer. Brand name is MORI. Deep forest green backdrop, a large sculptural transparent glass of iced matcha latte on the RIGHT and LOWER half, perfectly distinct ivory milk and rich green matcha layers, lifelike condensation, a single dramatic diagonal ray of late afternoon sunlight, a tiny dusting of matcha powder on the tabletop. A striking oversized refined ivory serif headline on the LEFT and TOP reads exactly \"Your daily\" then \"green ritual.\" Beautiful professional typesetting, generous breathing room, carefully balanced asymmetric composition, editorial premium matcha retail campaign. Small sophisticated brand wordmark \"MORI\" at top left. Small uppercase bottom left line \"CEREMONIAL MATCHA\". At lower left an ivory circular sticker with dark green typography reads exactly \"20% OFF\". All typography fully rendered into artwork. Limit text to these four items. Text and product must not overlap. 7 percent safe margins around outer edges. No interface, no device, no mockup border, no extra words or watermarks. Rich tactile photographic realism with subtle analog grain. This is the complete exported advertisement, NOT a background plate.",
+      "sha256": "c7879f5906373d804142eff75726ac26435fecc501f3dbf96009bc7f4765bf09",
+      "editOf": null
+    },
+    {
+      "file": "site/assets/mori-repaint.webp",
+      "threadId": "01a1be50-a675-79a0-8125-c0908653d029",
+      "prompt": "$imagegen Edit the provided campaign artwork. Produce exactly ONE square output. Change ONLY the circular offer sticker reading \"20% OFF\" to read exactly \"30% OFF\" in the same font, position, size and colours. Preserve everything else: exact MORI wordmark, \"Your daily green ritual.\" headline, CEREMONIAL MATCHA caption, glass, ice, condensation, lighting, green background, composition, colour grading, and texture. This is a precise local price/offer repaint, not a new design. Do not move anything or add any text.",
+      "sha256": "08a4ea15f94be970e03551d36670769a5545c90f3ea086f058cb62c76ee50dd7",
+      "editOf": "mori-campaign.webp"
+    },
+    {
+      "file": "site/assets/forma-editorial.webp",
+      "threadId": "01a1be51-b517-7483-83ea-d4b2fd2d2922",
+      "prompt": "$imagegen Create exactly ONE completed premium skincare brand advertisement, portrait 4:5. Art direction: an exquisite independent beauty magazine print campaign, very different from a dark green matcha sale flyer. Warm pale blush pink and rich oxblood burgundy typography, enormous high contrast elegant serif lettering, confident asymmetric editorial layout with strong whitespace. Brand wordmark \"FORMA\" small top left. Headline on the upper half reads exactly \"Less, but\" then \"better.\" with dramatic typographic scale and precise kerning. Lower and right half has a beautiful frosted dusty rose glass skincare pump bottle and a small ivory jar on pale pink sculptural stone, direct warm sunlight from left makes a strong diagonal architectural shadow, expensive tactile materials, photorealistic detailed cosmetic photography. Bottle label reads \"FORMA\" and \"DAILY SERUM\" in small clean type. Bottom left in fine but legible type reads exactly \"THE DAILY ESSENTIALS\". Bottom right short text \"Discover the collection\". Keep typography clear of product and shadow, 7 percent margins, editorial restraint, meticulous print design. No discount badge, no UI, no frame, no watermarks. This is a fully rendered ready-to-export advertisement with all copy baked into the image, not a background plate.",
+      "sha256": "ef0f6e1db645514b02fbf5202945fb460303018c0035ee33ccc6dbb95243ebab",
+      "editOf": null
+    }
+  ],
+  "studio": {
+    "method": "Fresh build of the real Electron app, isolated temporary userData, providers pinned to mock, real artwork uploaded via Oia bridge, native shipping-note text layer created and selected. No generation triggered in the captured editor.",
+    "file": "site/assets/studio.webp",
+    "sha256": "a8c007fdcd799d504bad0110be5b352dbf95e47dd1102cffbae50ff1e5110291"
+  }
+}

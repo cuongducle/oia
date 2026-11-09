@@ -1,85 +1,84 @@
 # Oia landing site
 
-Production static site. Positioning decision: `../docs/designs/desktop-only-reorg.md` (D19);
-marketplace-seller first, English surface per D8.
+Static site for marketplace sellers, English surface per D8/D19 in
+`../docs/designs/desktop-only-reorg.md`. No build step or third-party JS/CSS.
 
-## Architecture (2026-11-09 rework: see D19 + the reorg doc's landing/README section)
+## Visual system
 
-- **Zero third-party JS/CSS.** No GSAP/Lenis/Draggable/SplitType/three.js, the
-  page is `index.html` + `styles.css` + `main.js` (vanilla) + `faq-schema.js`.
-  The only remaining motion: the hero typewriter (synced to the banner swap),
-  the before/after slider, CSS reveals via IntersectionObserver.
-- **Fonts self-hosted** in `fonts/` (fontsource woff2, latin + vietnamese
-  subsets, 252 KB total, Tết copy renders diacritics). No Google Fonts
-  request: a "local-first" pitch should not phone Google.
-- **Film grain** = one inline SVG `feTurbulence` data-URI on `body::after`.
-- **Hero = the value prop in 3 seconds** (review option B): the real
-  `price-20/30.webp` pair, a prompt chip that types seller prompts, and two
-  repaint buttons that crossfade the banner. No draggable moodboard anymore.
-- **Layers section is static** (no ScrollTrigger pin), offsets are CSS
-  transforms that scale with the cards, so nothing overflows on mobile.
-- `styles.css` keeps exactly one `@media(max-width:960px)` block; keep it that way.
-- Footer links use `.footlinks` (NOT `.navlinks`) so they stay visible on
-  mobile when the nav collapses, the internal-link surface survives.
-- **No version hardcode pair**: `main.js` resolves the latest release from
-  `api.github.com` (3.5 s timeout) and falls back to a single `FALLBACK` const;
-  bump that const on every release. JSON-LD `softwareVersion` stays hand-set.
-- Assets still version-named (`Oia-0.4.0-arm64.dmg`), D19 debt: switch to
-  unversioned asset names so `releases/latest/download/<name>` can be pinned
-  without the API round-trip.
+- The existing dark/violet shell stays. Artwork has its own brand palette.
+- Three generated outputs only: MORI matcha, its offer repaint, FORMA skincare.
+- One genuine Electron screenshot shows the imported MORI artwork and a
+  separately authored, selected shipping-note text layer. It is not a recording
+  of an end-to-end AI run or proof that baked lettering is already editable.
+- Hero choices swap between reviewed outputs and update the short example brief.
+  No automatic typing, auto-swapping, or fake generation progress.
+- Before/after uses a readable side-by-side image. A split down the middle hid
+  both offer badges on the same side of the composition, so the slider was removed.
+- No old video, background plates, or template contact sheets. Template pages are
+  explicitly text indexes; the app's actual templates and assets are untouched.
+- Mobile images keep their complete composition. The studio and comparison link
+  to full-size images, rather than cropping away controls to enlarge the artwork.
 
-## Reproducible assets
+## Asset inventory
 
-- `docs/screenshots/banner.png` (README hero) ← `docs/screenshots/make-banner.py`
-  (PIL, fonts from google/fonts in `/tmp/oia-fonts`). QA at GitHub's ~830px width.
-- `site/assets/og-hero.png` (social card, 1200×630, no fake buttons) ←
-  `docs/screenshots/make-og.py`, supersedes
-  `docs/research/site-artwork-2026-11/make-og-hero.py` (kept for history).
-- `price-20/30.webp` are REAL generations (the repaint pair); the before/after
-  slider and the hero swap both reuse them.
+| File in `assets/` | Purpose |
+| --- | --- |
+| `mori-campaign.webp` | Generated square campaign, 20% offer |
+| `mori-repaint.webp` | Reference-image edit, 30% offer |
+| `forma-editorial.webp` | A contrasting portrait skincare campaign |
+| `studio.webp` | Actual desktop editor screenshot |
+| `mori-comparison.webp` | Side-by-side proof derived from the MORI pair |
+| `og-hero.png` | 1200×630 social card |
 
-## Content sync: what must not drift from the product
+README uses `../docs/screenshots/overview.png`, the same composition as the
+social card. The two fictional brands are campaign examples, not bundled
+examples or customer endorsements. Reference-image edits preserve visual
+intent, not every pixel.
 
-- Hero prompt chip = composer vocabulary (size pill `Shopee 1:1`, cost pill
-  `up to 2 img + 2 reads` = the real Auto refine cost label, DA-5).
-- Workflow step copy follows the real loop: describe → outline approval
-  (outline edits free) → repaint/edit (preview-apply) → export.
-- `#templates` = FEATURE WALL (owner 2026-11-03: tags name FEATURES, never
-  origins; all-English samples).
-- `#workflow` video = REAL codex run (`demo-loop` webm/mp4, lazy via
-  IntersectionObserver, paused off-screen, poster-only under
-  prefers-reduced-motion). **Owner decision (2026-11-03, standing): demo
-  recordings use the REAL codex pair by default, no per-run confirmation.**
-  The light app sits in a light `.appbar` window chrome, intentional
-  contrast with the dark site, don't "fix" it away.
-- Download buttons (`a[data-dl]`): OS + arch detection including iPadOS and
-  Intel Mac (both intentionally get the releases page, with a note); version
-  microcopy lands in `[data-dl-ver]`. `/install/` carries Gatekeeper /
-  SmartScreen / xattr / checksums steps and is in `sitemap.xml`.
-- FAQ JSON-LD is DERIVED from the visible DOM (`faq-schema.js`), one source,
-  zero drift.
+Exact prompts, output hashes, and generation thread identifiers:
+`../docs/verification/marketing-assets-provenance.json`.
+Visual review rounds and scope:
+`../docs/verification/marketing-assets.md`.
 
-## Pages
-
-- `/` landing (above) · `/install/` install help · `/templates/` gallery
-  · `/prompts/` prompt library · `/use-cases/{flash-sale-banners,
-  livestream-overlays,presentations}/` keyword pages, all static, crawlable,
-  styled by `pages.css` on top of the shared primitives in `styles.css`
-  (keep `:root` tokens, `.btn*`, `.kicker`, `.mono` stable, pages depend on them).
-- Subpages load `main.js` for the download resolver only; every feature in it
-  null-guards its elements.
-
-## Run locally
+Rebuild the three derived composites, without network or quota:
 
 ```bash
-cd site && python3 -m http.server 8765   # → http://localhost:8765
+python3 docs/screenshots/build-marketing.py
 ```
-No build step.
+
+Requires Pillow with FreeType WOFF2 support. Fonts come from the self-hosted
+`site/fonts/` files, not `/tmp` or downloads.
+
+## Checks and local preview
+
+```bash
+python3 config/audit/marketing-assets.py --self-test
+python3 config/audit/marketing-assets.py
+python3 site/templates/build.py
+python3 -m http.server 8765 --directory site
+```
+
+The media-reference check also runs before GitHub Pages deployment. It includes
+nested template pages, local social-image URLs, and README images. Use a fresh
+local origin for visual QA when a browser has cached previous site versions.
+
+## Shared contracts
+
+- `styles.css` supplies tokens, `.btn*`, `.kicker`, `.mono` to `pages.css` and
+  content pages. Keep these stable. One `max-width:960px` block owns landing
+  responsiveness.
+- `fonts/` is self-hosted, including Vietnamese subsets for content.
+- `main.js` null-guards landing-specific elements. Content pages reuse the
+  download resolver, GitHub API with a bounded timeout and one fallback version.
+  Release assets still have versioned names, unversioned URLs remain D19 debt.
+- `faq-schema.js` derives JSON-LD from the visible FAQ, no duplicate copy.
+- `templates/build.py` generates category/style/pack text indexes. Deep pages
+  use one extra parent traversal for site resources and links.
+- `/install/`, `/templates/`, `/prompts/`, and `/use-cases/` remain static pages.
 
 ## Deploy
 
-The domain oia.solutions is a static-assets Cloudflare Worker; ops details
-(account, who deploys, cache purge) live in `docs/private/landing-deploy.md`
-(gitignored). `wrangler deploy` from the repo root; pushes touching `site/**`
-also redeploy the github.io copy via `.github/workflows/landing-pages.yml`,
-keep both in sync until the infra is unified.
+The domain oia.solutions uses Cloudflare static assets. Operational details live
+in `docs/private/landing-deploy.md` (gitignored). Pushes touching the landing or
+its marketing asset inputs also publish the GitHub Pages copy. This change does
+not deploy to Cloudflare or publish a release automatically from the local tree.

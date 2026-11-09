@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/screenshots/banner.png" width="100%" alt="Oia, the banner studio for marketplace sellers. Two real generations of the same milk-tea banner, one repaint apart: 20% OFF TODAY becomes 30% OFF TODAY with identical style, auto-refined in round 1.">
+  <img src="docs/screenshots/overview.png" width="100%" alt="Oia, your words, your visual world. Two generated campaigns: MORI matcha in forest green and FORMA skincare in blush pink, with bold editorial typography.">
 </p>
 
 # Oia
@@ -39,8 +39,8 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 ## What you get
 
 <p>
-  <img src="site/assets/price-repaint.webp" width="72%" alt="Two real generations of the same milk-tea banner: 20% OFF TODAY on the left, 30% OFF TODAY on the right, identical glossy typography, drinks and lighting; one repaint apart.">
-  <br><sub><b>Repaint keeps the style.</b> Ask “make it 30% off today” and the banner regenerates (≈ 1 image) while the typography, product and lighting stay.</sub>
+  <a href="site/assets/studio.webp"><img src="site/assets/studio.webp" width="100%" alt="Real Oia desktop editor: MORI artwork on the canvas, a separate shipping-note text layer selected, the Layers panel and native text controls."></a>
+  <br><sub><b>A real canvas, not a mockup.</b> The campaign lettering is baked into the image. The selected shipping note is a separate, editable text layer. Click for the full-size screenshot.</sub>
 </p>
 
 - **Banners with real typography, from one sentence**: describe the sale like a caption; research and auto-refine agent loops check facts and the rendered copy before you ever export. Every loop is priced before you run it.
@@ -50,20 +50,13 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 - **Export anywhere**: PNG, JPG, PDF (mixed page sizes), PPTX, ZIP of page images.
 
 <p>
-  <img src="site/assets/matcha.webp" width="31%" alt="Matcha Every Day studio template" />
-  <img src="site/assets/festival.webp" width="31%" alt="City Sound Fest studio template" />
-  <img src="site/assets/botanical.webp" width="31%" alt="Lumea skincare studio template" />
-  <br><sub><b>Studio templates.</b> Real generated scenes, published as editable community templates.</sub>
-</p>
-
-<p>
-  <img src="site/assets/demo-loop-poster.webp" width="72%" alt="Real Oia run: the agent researches the web, checks its own artwork, refines round 1, and ships with an auto-refined badge.">
-  <br><sub><b>A real run.</b> Research (with sources) → check → refine → auto-refined badge. <a href="https://oia.solutions/">Watch it on the landing page.</a></sub>
+  <img src="site/assets/mori-comparison.webp" width="100%" alt="MORI reference-image edit: the 20% OFF offer becomes 30% OFF, retaining the matcha campaign's composition, typography and lighting style.">
+  <br><sub><b>Change the offer. Keep the visual direction.</b> Two real image outputs, one reference-image edit apart (about 1 image). Fine image details can change; repaint is not a pixel lock. MORI and FORMA are fictional campaign examples, not bundled-template previews.</sub>
 </p>
 
 ### How a banner happens
 
-1. **Describe it**: “milk tea flash sale, 20% off today”, pick a marketplace size. The full cost (`up to N images + N reads`) shows before you run.
+1. **Describe it**: “matcha campaign, 20% off today”, pick a marketplace size. The full cost (`up to N images + N reads`) shows before you run.
 2. **Approve the outline**: multi-page plans land as an outline first; editing it is free.
 3. **Make it yours**: repaint by asking, or edit objects directly. AI edits show a preview first; you apply only what you keep. Your own layers are never deleted by AI refinement.
 4. **Export**: marketplace sizes, overlays, decks; PDF/PPTX included.

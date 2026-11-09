@@ -113,9 +113,7 @@ PAGE = """<!doctype html>
 <meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
 <meta property="og:url" content="https://oia.solutions/templates/{slug}/">
 <link rel="canonical" href="https://oia.solutions/templates/{slug}/">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../fonts/fonts.css">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../../pages.css">
 </head>
@@ -145,6 +143,7 @@ PAGE = """<!doctype html>
   <nav class="catNav" aria-label="Template categories">
 {nav}
   </nav>
+  <p class="catNote">A text index of templates included in the app. Open Oia to preview and edit the actual scenes.</p>
   <div class="tplGrid">
 {cards}
   </div>
@@ -175,8 +174,8 @@ LABELS = {"flash-sale": "Flash sale", "menu": "Menu", "social-post": "Social pos
 
 for slug, m in MANIFEST.items():
     cards = "\n".join(
-        f'    <div class="tplCard"><img loading="lazy" src="{img}" alt="{name} template" width="300" height="450"><div class="body"><h3>{name}</h3><p>{note}</p></div></div>'
-        for img, name, note in m["templates"])
+        f'    <div class="tplCard"><div class="body"><h3>{name}</h3><p>{note}</p></div></div>'
+        for _artwork, name, note in m["templates"])
     faqs = "\n".join(f'    <details><summary>{q}</summary><p>{a}</p></details>' for q, a in m["faqs"])
     html = PAGE.format(slug=slug, label=LABELS[slug], title=m["title"], desc=m["desc"],
                        h1=m["h1"], lede=m["lede"], cards=cards, faqs=faqs, nav=nav_html(slug))
@@ -315,8 +314,8 @@ PROMPT_SECTION = """
 for base, manifest in (("styles", STYLES), ("packs", PACKS)):
     for slug, m in manifest.items():
         cards = "\n".join(
-            f'    <div class="tplCard"><img loading="lazy" src="{img}" alt="{name} template" width="300" height="450"><div class="body"><h3>{name}</h3><p>{note}</p></div></div>'
-            for img, name, note in m["templates"])
+            f'    <div class="tplCard"><div class="body"><h3>{name}</h3><p>{note}</p></div></div>'
+            for _artwork, name, note in m["templates"])
         faqs = "\n".join(f'    <details><summary>{q}</summary><p>{a}</p></details>' for q, a in m["faqs"])
         prompts = ""
         if "prompts" in m:
@@ -327,6 +326,10 @@ for base, manifest in (("styles", STYLES), ("packs", PACKS)):
         html = PAGE.format(slug=f"{base}/{slug}", label=m.get("h1", slug), title=m["title"], desc=m["desc"],
                            h1=m["h1"], lede=m["lede"], cards=cards, faqs=faqs, nav=nav_html(""), prompts="") 
         html = html.replace('<main class="pageMain">', '<main class="pageMain">' + prompts) if prompts else html
+        # Facet pages are one directory deeper than category pages.
+        html = html.replace('../../', '../../../').replace('href="../"', 'href="../../"')
+        for category in NAV:
+            html = html.replace(f'href="../{category}/"', f'href="../../{category}/"')
         out = os.path.join(ROOT, base, slug)
         os.makedirs(out, exist_ok=True)
         with open(os.path.join(out, "index.html"), "w") as f:
