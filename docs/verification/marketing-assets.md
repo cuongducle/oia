@@ -114,3 +114,22 @@ các viewport theo từng section, không claim có screenshot full-page thành 
 Không chạy toàn bộ test/smoke/crash-smoke, không thay code desktop, không kiểm
 Windows thật và không deploy production trong phiên này. Thay đổi không đóng
 các gate phát hành vốn còn treo trong kế hoạch desktop-only.
+
+## Phát hành theo yêu cầu owner
+
+Owner yêu cầu deploy toàn bộ và push mọi thay đổi local sau khi bộ hình hoàn tất.
+
+- Đã push lên `origin/main`, gồm hai commit local có sẵn và commit bộ hình
+  `c90f720c57597e678001010edc372a87614f5525`.
+- Cloudflare deploy thành công, version `e9cad6c4-b906-453f-9041-08bb3abd38fb`.
+  Dọn cache Python khỏi cây static trước lượt deploy cuối, không đưa bytecode lên site.
+- GitHub Pages deploy xanh: [run 42559638292](https://github.com/cuongducle/oia/actions/runs/42559638292).
+  Gate media mới đã chạy trong CI trước khi publish.
+- CI bản code deploy xanh: [run 42559638291](https://github.com/cuongducle/oia/actions/runs/42559638291),
+  gồm build/test/typecheck, desktop-smoke, desktop-smoke-windows và unit-windows.
+  Hai job đóng gói installer được skip đúng trigger, không tạo release desktop mới.
+- Mở `https://oia.solutions/` bằng Chrome thật, xem ảnh chụp hero sau deploy.
+  Fetch cùng origin trong browser trả HTTP 200 và SHA-256 khớp local cho đủ
+  9 file: index, JS, CSS và cả 6 asset marketing. Không cần purge cache.
+  HTTP client ngoài browser bị 403, không lấy phản hồi đó làm bằng chứng site lỗi.
+- Thư mục làm việc sạch sau push. Commit ghi nhận phát hành này chỉ thay tài liệu.
