@@ -233,3 +233,47 @@ Owner yêu cầu deploy toàn bộ và push mọi thay đổi local sau khi bộ
 - Không sửa code desktop trong đợt tích hợp media/docs này. Gates app của
   đợt sửa editor trước không bị nhận thành chạy lại. Không thêm quota, chưa
   push/deploy, chưa kiểm Windows thật hoặc chạy lại task trả phí.
+
+## Triển khai toàn bộ: Cloudflare + release desktop v0.5.0 (2026-11-10)
+
+### Cloudflare (oia.solutions)
+
+- `wrangler deploy` từ gốc repo, version `aaae3ff3-737d-40b4-9eca-09de075d62ab`
+  (29 file mới + 39 file cũ). Sau đó deploy lại lần hai `ff4d718c-e121-4b91-9cbe-755aab8ab1fc`
+  cho fallback text v0.5.0.
+- Kiểm chứng same-origin bằng Chrome thật (fetch cache:no-store + SHA-256):
+  10/10 file khớp từng byte với local (index, styles.css, main.js và 7 asset mới).
+  Ảnh ban đầu báo "broken" (`mori-comparison.webp`) chỉ là lazy-load chưa kéo;
+  sau scroll + decode: 0 ảnh lỗi. Không overflow ngang ở viewport 1193px.
+- Console buffer không có lỗi trong phiên kiểm.
+
+### Release desktop v0.5.0
+
+- Quy trình: commit fix CI (dist job thiếu bước sinh `resources/lens`), bump
+  version, tag `v0.5.0`, CI xanh cả hai job đóng gói (mac arm64 + win x64),
+  tải artifact, đối chiếu SHA-256 khớp CI, publish release kèm notes +
+  checksums: https://github.com/cuongducle/oia/releases/tag/v0.5.0
+- Lần tag đầu thất bại đúng một job `desktop-dist-mac` vì python Homebrew trên
+  runner chặn pip (PEP 668). Sửa bằng venv trong workspace, re-tag cùng tên;
+  không rerun SHA cũ.
+- Kiểm cấu trúc dmg thật (mount read-only): `Resources/lens` đủ 4 file,
+  cặp codex pinned, `app.asar.unpacked/node_modules` có `onnxruntime-node`,
+  `canvas`, `@napi-rs`. App đóng gói đã boot được trên profile thật
+  (utility up, loopback API, ctx ready) trước khi bị dừng.
+- Sự cố cần biết: lần boot đó vô tình dùng userData THẬT của owner (app đóng
+  gói không có cơ chế test-mode dir như `electron .`). Asset GC chạy và dọn
+  2/32 upload mồ côi quá 7 ngày, đúng chính sách mọi lần mở app; các store
+  (projects, chat-sessions, task-log) không đổi theo mtime. Không lặp lại;
+  scripted packaged-smoke (dir tạm) vẫn là nợ.
+- Fallback text tải về trên site đổi sang v0.5.0 (~395 MB), audit media vẫn
+  45 tham chiếu.
+- v0.4.1 vẫn là draft release (đã có artifact từ trước); không xuất bản hay
+  xóa, chờ owner quyết.
+
+### Giới hạn công bố
+
+- Không có smoke script trên bản đóng gói (dmg/exe) với thư mục dữ liệu tạm;
+  bằng chứng mac là cấu trúc + boot trên profile thật, Windows là CI runner.
+- Chưa kiểm Windows máy vật lý của người dùng; chưa chạy model SAM 880 MB
+  end-to-end trong app đóng gói; Lens vẫn hạn chế phi thương mại (NOTICE kèm
+  trong app và ghi trong release notes).

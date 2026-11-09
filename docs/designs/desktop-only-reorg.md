@@ -522,7 +522,22 @@ Ghi đè bộ hình marketing của hai đợt 2026-11-08/09 phía trên, không
 - Trước push theo yêu cầu owner: chạy lại build (8 tác vụ), test (16),
   typecheck (15), mock Electron smoke (`events=10`), crash-smoke (31 project
   trước/sau), shot (gõ chữ, reload/clone/Enter/textbox thường đều đạt), media
-  self-test/audit và diff check. Không chạy task trả phí hoặc model thật.
-- Chưa khảo sát lại website SurgePix hoặc chạy model thật desktop/Windows.
-  Push GitHub sẽ kích hoạt CI/Pages; Cloudflare cần đợt triển khai riêng.
-  Chi tiết: `docs/verification/marketing-assets.md`.
+  self-test/audit và diff check. Không chạy task trả phí hoặc model thật.## Phát hành v0.5.0 (2026-11-10, owner "triển khai hết")
+
+- Cloudflare `twilight-sun-6b7b` deploy hai lần cho landing mới + fallback
+  text v0.5.0; 10 file khớp SHA-256 same-origin. Chi tiết ở
+  `docs/verification/marketing-assets.md`.
+- Release desktop v0.5.0 publish (Latest): dmg arm64 + exe x64 + checksums,
+  SHA-256 đối chiếu CI, notes công bố Lens phi thương mại, SAM 3 tải khi dùng
+  đầu, unsigned và không auto-update.
+- CI dist job phải sinh `resources/lens` trong runner (pip torch build-time,
+  venv workspace trên mac vì PEP 668). Lần tag đầu fail đúng dist-mac, sửa
+  rồi re-tag cùng tên, không rerun SHA cũ.
+- Nợ D21 cập nhật: (1) GIẢM một nửa: cấu trúc dmg thật + boot profile thật
+  đã xác minh, nhưng scripted packaged-smoke với userData tạm vẫn chưa có;
+  (2) e2e model SAM 880 MB trong app đóng gói vẫn mở; (3) Meta SAM License
+  chưa đọc kỹ, notes phát hành đã nêu license riêng của model; (4) Windows:
+  CI runner xanh, máy vật lý vẫn mở; (5) shot gate Split dialog vẫn mở.
+- Bài học: app đóng gói không có test-mode userData; một lần chạy nhầm vào
+  profile thật đã để asset GC dọn 2 upload mồ côi (đúng chính sách boot thường
+  xuyên). Cần cơ chế override userData cho packaged smoke trước khi lặp lại.
