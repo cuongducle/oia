@@ -1,0 +1,37 @@
+{
+  "channel": "Codex built-in image generation tool, invoked through bundled Codex 0.167.0",
+  "imageModel": "Not exposed; no model claim",
+  "newImageOutputs": 2,
+  "scope": "Direct image-channel samples, not an Oia end-to-end planner/research/refine run",
+  "generated": [
+    {
+      "file": "site/feature-review/sources/still-product.webp",
+      "threadId": "01a1be8b-3053-7eb3-b39b-9772d51f86b5",
+      "promptFile": "sources/product-prompt.txt",
+      "originalPngSha256": "11cef06b1860fc4e19a24968177ad3eebd5b2f9b09af78c38d2b4891d703aef6",
+      "webpSha256": "758481d00df1147814e89685a5fbeb48a645a4a6467df69ac497497a9811b4e8",
+      "reference": null
+    },
+    {
+      "file": "site/feature-review/sources/still-campaign.webp",
+      "threadId": "01a1be8d-9dd7-7252-8583-926f3e258870",
+      "promptFile": "sources/campaign-prompt.txt",
+      "originalPngSha256": "633c654e748667c9c7a5876090a384829a61d1bf75cf9565f9d97defd19c6216",
+      "webpSha256": "58363783e4ed52bf8813c4f944a797ddd75dad9b34a2f6c182d7355cbed94a12",
+      "reference": "sources/still-product.webp"
+    }
+  ],
+  "reusedCampaignEvidence": "../../docs/verification/marketing-assets-provenance.json",
+  "liveScreenshot": {
+    "source": "apps/desktop/out/desktop-live-overlay.png",
+    "captured": "Existing mock-pair Electron shot gate artifact, not rerun in this task",
+    "sha256": "dba33912e00031120759cc9f8b3083e5745f5ec873f540b97a3ba242c86354e2",
+    "crop": [
+      885,
+      160,
+      1600,
+      1425
+    ]
+  },
+  "editorScreenshot": "../assets/studio.webp, provenance in marketing-assets.md"
+}

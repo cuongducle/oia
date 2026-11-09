@@ -142,3 +142,94 @@ Owner yêu cầu deploy toàn bộ và push mọi thay đổi local sau khi bộ
   9 file: index, JS, CSS và cả 6 asset marketing. Không cần purge cache.
   HTTP client ngoài browser bị 403, không lấy phản hồi đó làm bằng chứng site lỗi.
 - Thư mục làm việc sạch sau push. Commit ghi nhận phát hành này chỉ thay tài liệu.
+
+## Mẫu "Make text editable" thật cho landing (2026-11-09)
+
+- Asset mới: `site/assets/editable-text-sample.webp` (1488×680; bản đầu 68KB,
+  bản builder công khai hiện khoảng 81KB), ghép 3 khung:
+  poster gốc chữ nung sẵn / bản dựng lại thành layer chữ chỉnh sửa được / bản đã sửa
+  ngày + giá. Ghép bằng `make-landing-asset.py`, nguồn pixel là kết quả thật của
+  tính năng, không chỉnh tay nội dung.
+- Chuỗi chạy thật: tác giả poster bằng phông đầy đủ dấu tiếng Việt (Georgia,
+  Be Vietnam Pro, Courier New; bỏ Chalkboard vì thiếu glyph dấu, bỏ glow cong để
+  vùng chữ nằm trên gradient tuyến tính tái tạo cục bộ được). Một lượt
+  deconstruct thật: 1 lượt đọc + 1 ảnh, ~90 giây. OCR đọc đúng 9/10 dòng kể cả
+  "MỚI NẤU", "SỐ LƯỢNG CÓ HẠN"; một dòng đọc "Cửa Hỏa" thành "Cửa Hòa", dấu ₫
+  thành đ. Màu khôi phục đúng byte ở 7/8 vùng đo.
+- Đính chính sau khi owner chỉ ra chữ dính: bản đầu KHÔNG đạt. Script render
+  lại dùng nhầm `test-input-vi.png` thay ảnh poster để khớp phông. Các số đo
+  SSIM 0,8867 và 35.882 pixel từng báo không chứng minh bản đó đẹp hay đúng.
+- Sửa thật: script trỏ đúng ảnh; refineTextRegions tách dải hàng chữ bằng khoảng
+  trống, giới hạn nới ngang để tránh bắt khung trang trí, bỏ hàng mực quá thưa
+  để khung dọc không nối hai dòng. Bảng khớp phông bỏ dấu phân cách đứng riêng
+  để không tiêu hết ngân sách sáu dòng. Không gán phông/cỡ từ đáp án mẫu.
+- Bản cuối đã mở xem trực tiếp: hết chồng tiêu đề và huy hiệu. SSIM toàn ảnh
+  0,9500; headline 0,8867, nghiêng 0,8806, thân bài 0,9718, giá 0,9617,
+  huy hiệu 0,9652, footer 0,8833. Đây là dải vùng cố định của một ảnh synthetic,
+  không phải benchmark nhiều ảnh. OCR sai dấu và khác biệt chữ nhỏ vẫn còn.
+- Bản demo đầu cần script nới hộp, owner bác cách làm này và yêu cầu sửa code
+  sản phẩm. Bản cuối đã thay bằng `createEditor` thật: harness chỉ nhập nội
+  dung qua textarea Fabric và xuất PNG, không set chiều rộng. Editor tự đo và
+  nới hộp của dòng khôi phục khi gõ, giữ cỡ/phông/vị trí/góc. Câu mới giữ một
+  dòng; Enter tường minh vẫn xuống dòng, textbox thường vẫn wrap. Marker
+  `recoveredTextLine` sống qua save/reload/clone. Caption phản ánh tự nới khi gõ.
+- Gate Electron shot dùng sự kiện nhập textarea thật, xác nhận câu dài giữ một
+  dòng, không đổi cỡ/vị trí, reload/clone, Enter và textbox thường đều đạt.
+  `pnpm test`, `pnpm typecheck`, package build, desktop build/shot/smoke và
+  crash-smoke đạt. Bản cuối `site/assets/editable-text-sample.webp` đã mở xem
+  trực tiếp, không chồng tiêu đề hoặc huy hiệu. Toàn bộ lượt sửa này 0 quota;
+  tái dùng OCR/plate cũ, chưa chạy lại nguyên task trả phí hoặc Windows thật.
+- Lưu ý trung thực trong caption trang: "Unusual fonts are matched with the
+  closest available family". Không quảng cáo khôi phục phông gốc tuyệt đối.
+- Chi tiết và bằng chứng từng bước ở
+  `docs/private/surgepix-feature-audit-2026-11-09/landing-sample/`
+  (gitignored), quyết định kỹ thuật ghi trong sổ D22/D23 của
+  `docs/designs/desktop-only-reorg.md`.
+- Mẫu này cũng là bằng chứng công khai đầu tiên của D22/D23 trên landing:
+  `site/assets/editable-text-sample.webp`, ghép từ pixel thật của một lần chạy
+  trả phí, gate `marketing-assets.py` đạt (36 tham chiếu).
+
+## Hoàn thiện bộ feature, landing, README và báo cáo SurgePix
+
+### Giao phẩm
+
+- `site/index.html`: thêm cặp STILL tham chiếu → chiến dịch, tách Make text
+  editable thành ba ảnh rời để mobile đọc được, thêm crop livestream có vùng
+  an toàn. Giữ hero MORI, cặp repaint, screenshot editor và FORMA đã duyệt.
+- `README.md`: đồng bộ ba nhóm minh họa trên, giữ giải thích có phí/không sinh
+  ảnh mới. Ghi rõ Split layer còn gate mô hình thật và giấy phép Lens hạn chế
+  thương mại. Không dùng PoC làm ảnh quảng cáo kết quả desktop.
+- `docs/screenshots/build-feature-assets.py`: tái tạo bảy asset từ nguồn đã có,
+  không gọi AI/mạng. Đầu ra và mã băm: `feature-assets.json`. Ba poster rời
+  được xuất từ product editor; builder chỉ chuyển định dạng/ghép, không sửa chữ.
+- Báo cáo riêng tư `docs/private/surgepix-feature-audit-2026-11-09/REPORT.md`,
+  `REPORT.html`, bảy ảnh trong `illustrations/` cùng manifest nguồn/mã băm và
+  `build-report.py`. Báo cáo có tám ảnh tổng cộng khi tính thêm mẫu Oia.
+- Đính chính báo cáo: typography Extract text lệch rõ trong ảnh xuất, không
+  gọi là chất lượng cao; 25 credit không đổi chỉ chứng minh các lượt thử không
+  bị trừ, không chứng minh miễn phí vô hạn. Rút khẳng định GPU tự vận hành,
+  model cụ thể và giá vốn dưới 0,001 USD vì không có bằng chứng backend.
+  So sánh Oia thay trạng thái cũ “luôn Be Vietnam Pro/màu cố định” bằng D22/D23.
+- Không chép screenshot, capture hoặc asset SurgePix sang cây site công khai.
+  Report dựa trên phiên 09/11 đã lưu, không phải lần khảo sát website mới.
+
+### Kiểm tra
+
+- Chrome thật qua bsk: landing ở 1440×1000 và 390×844, xem ảnh render trực tiếp.
+  Mobile cặp tham chiếu và ba poster thành một cột 350px, không tràn ngang.
+  Sau cuộn qua các section, 0 ảnh lỗi. Link livestream mở đúng use-case và
+  title, console không có thông báo lỗi trong buffer kiểm tra.
+- README dựng bản xem trước rộng 830px, ảnh so sánh và chữ không đè nhau,
+  không ảnh lỗi/tràn ngang. Đây là preview local, không phải GitHub live.
+- Report HTML ở 390px: tám ảnh tải đủ, năm bảng có vùng cuộn riêng, không
+  overflow trang. Screenshot mobile đã xem. Lần chụp report desktop cuối bị
+  bsk timeout, không ghi là đã qua. Chụp full-page cũng bị từ chối do tab nền,
+  vì vậy bằng chứng landing là ảnh viewport, không phải full-page.
+- Đã sửa nội dung landing bị giấu trong tab nền do reveal animation; nội dung
+  hiển thị tĩnh ngay cả khi observer chưa chạy, thêm scroll margin cho anchor.
+- Builder công khai và report đều chạy được; ba self-test media và 45 tham
+  chiếu ảnh local đạt. Mười link/ảnh tương đối trong report HTML tồn tại.
+  Cú pháp Python, quét dấu gạch ngang dài trong copy mới và diff check đạt.
+- Không sửa code desktop trong đợt tích hợp media/docs này. Gates app của
+  đợt sửa editor trước không bị nhận thành chạy lại. Không thêm quota, chưa
+  push/deploy, chưa kiểm Windows thật hoặc chạy lại task trả phí.

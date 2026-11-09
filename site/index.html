@@ -39,7 +39,7 @@
 <nav aria-label="Main">
   <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
   <div class="navlinks">
-    <a href="#layers">How it works</a>
+    <a href="#product">Features</a>
     <a href="templates/">Templates</a>
     <a href="prompts/">Prompts</a>
     <a href="#bring">Keep the style</a>
@@ -93,6 +93,20 @@
 </header>
 
 <main id="main">
+<section id="product">
+  <div class="wrap">
+    <div class="section-heading reveal">
+      <div><p class="kicker">Start with your product</p><h2>Your product photo.<br>A campaign worth posting.</h2></div>
+      <p class="sub">Attach a reference image and describe the campaign. Give the artwork a product, a mood and an offer to build around.</p>
+    </div>
+    <div class="reference-pair reveal">
+      <figure><img loading="lazy" src="assets/still-product.webp" alt="Reference image: a fictional STILL coffee bag on a neutral background" width="1254" height="1254"><figcaption>01 / the product reference</figcaption></figure>
+      <span class="reference-arrow" aria-hidden="true">→</span>
+      <figure><img loading="lazy" src="assets/still-campaign.webp" alt="Campaign generated using the STILL coffee bag as a reference, with warm lighting and editorial lettering" width="1254" height="1254"><figcaption>02 / a campaign built around it</figcaption></figure>
+    </div>
+    <p class="proof-note">Fictional brand. Both images are AI-generated; the campaign used the product image as a reference. Packaging details can change. These demonstrate image-channel outputs, not a full research and auto-refine run.</p>
+  </div>
+</section>
 <section id="layers">
   <div class="wrap">
     <div class="section-heading reveal">
@@ -103,6 +117,34 @@
       <a href="assets/studio.webp" aria-label="View full-size Oia editor screenshot"><img loading="lazy" src="assets/studio.webp" alt="Real Oia desktop editor with the MORI campaign, image and editable shipping-note layers, and the editing controls" width="2880" height="1666"></a>
       <figcaption>A real desktop canvas, not a mockup. Campaign lettering is baked into the image; the shipping note is a separate text layer. Select the image for a full-size view.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section id="editable-text">
+  <div class="wrap">
+    <div class="section-heading reveal">
+      <div><p class="kicker">Make text editable</p><h2>Baked-in text.<br>Room for a new offer.</h2></div>
+      <p class="sub">Rebuild lettering as native text layers over a cleaned background, then retype the day or price. Recovered single-line boxes grow as you type, keeping the font size.</p>
+    </div>
+    <div class="editable-proof reveal">
+      <figure><img loading="lazy" src="assets/editable-text-before.webp" alt="Original Vietnamese coffee poster, with Saturday greeting and a price of 29,000 dong baked into the image" width="1000" height="1250"><figcaption>01 / the original flat image</figcaption></figure>
+      <figure><img loading="lazy" src="assets/editable-text-rebuilt.webp" alt="The coffee poster rebuilt by Oia as editable text layers over a cleaned background" width="1000" height="1250"><figcaption>02 / rebuilt as text layers</figcaption></figure>
+      <figure><img loading="lazy" src="assets/editable-text-edited.webp" alt="The rebuilt poster after typing a Sunday greeting and changing the price to 39,000 dong" width="1000" height="1250"><figcaption>03 / retype the day and price</figcaption></figure>
+    </div>
+    <p class="proof-note">Actual task OCR and background output, rerendered through the current editor. Preparation used 1 read + 1 image; the text edits used no additional generation. Fonts are approximate, OCR can make mistakes, and complex backgrounds may change inside the erased regions.</p>
+  </div>
+</section>
+
+<section id="livestream">
+  <div class="wrap bring-grid">
+    <div class="reveal">
+      <p class="kicker">Livestream overlays</p>
+      <h2>Keep your offer<br>out of the interface.</h2>
+      <p class="sub">Start with a transparent 1080 × 1920 canvas. Use safe-zone guides to position prices and offers away from stream controls.</p>
+      <p class="bring-note">The guides stay in the editor, not in the exported artwork. TikTok zones are community-measured, not an official platform specification.</p>
+      <a class="btn btn-ghost feature-link" href="use-cases/livestream-overlays/">See the livestream workflow →</a>
+    </div>
+    <figure class="live-proof reveal"><img loading="lazy" src="assets/livestream-safe-zones.webp" alt="Crop of the real Oia Electron editor showing a transparent livestream canvas, sale card and TikTok safe-zone guides" width="715" height="1265"><figcaption>Real editor capture, cropped. The checkerboard shows transparent space; red guides are editor-only.</figcaption></figure>
   </div>
 </section>
 
@@ -175,7 +217,7 @@
       <div class="bring-log">
         <div>you: “make it 30% off today”</div>
         <div>oia repaints the artwork, <b>≈ 1 image</b></div>
-        <div>same matcha, same typography, same light</div>
+        <div>same visual direction, with details that may change</div>
         <div class="trust-line">preview first, apply only what you keep</div>
       </div>
       <p class="bring-note">Need letters you can drag? <strong>“Make text editable”</strong> rebuilds the copy as layers, costs about 1 image + 1 read. Or flip <strong>“Editable text right away”</strong> before generating.</p>
@@ -194,12 +236,12 @@
       <h2>Questions sellers ask.</h2>
     </div>
     <div class="faq reveal">
-      <details><summary>Is Oia really free?</summary><p>Yes, MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, or plug in your OpenAI/fal API key. Your provider's quota and pricing still apply.</p></details>
+      <details><summary>Is Oia really free?</summary><p>Yes, MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, with other provider adapters available to developers. There is no API-key setup form in the desktop UI. Your provider's quota and pricing still apply.</p></details>
       <details><summary>Can I edit the text in a generated image?</summary><p>By default the copy is rendered <em>into</em> the artwork for the best-looking typography. Change it by asking, “make it 30% off today”, and the repaint keeps the style. Need movable letters instead? Flip <em>Editable text right away</em> before generating, or run <em>Make text editable</em> on any design.</p></details>
       <details><summary>Do I have to start from a blank canvas?</summary><p>No, a studio library ships inside the app: flash sales, menu boards, product drops, posters, social posts, livestream overlays and more. Every template is a real, editable scene, and starting from one costs zero images.</p></details>
       <details><summary>What do Research and Auto refine do?</summary><p>Before designing, the planner can research current facts (dates, prices, trends) and shows every finding with its source. After painting, auto refine checks each image against your brief, spelling and language of the rendered text first, and re-generates when it finds a fixable defect. Both are bounded and priced before you run.</p></details>
       <details><summary>Mac or Windows?</summary><p>Both. macOS builds are Apple Silicon (M1 and newer), Windows builds are 64-bit (Windows 10/11). Your projects live on your machine.</p></details>
-      <details><summary>Do I need an API key?</summary><p>No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Keys are optional (OpenAI, fal).</p></details>
+      <details><summary>Do I need an API key?</summary><p>No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Other provider adapters exist in the codebase; the desktop UI does not include an API-key setup form.</p></details>
       <details><summary>What sizes does it support?</summary><p>Shopee / Lazada / TikTok Shop squares, TikTok 9:16, story and post ratios, livestream overlays (1080×1920 transparent), posters, 16:9 presentations, YouTube thumbnails and A4.</p></details>
       <details><summary>Where do my designs live?</summary><p>On your machine, projects, assets and conversations are stored locally. Nothing is uploaded to us (there is no “us” server). Prompts and images still go to the provider you configure.</p></details>
     </div>
@@ -213,7 +255,7 @@
       <h2>Yours to run.<br>Yours to keep.</h2>
     </div>
     <div class="oss-grid reveal">
-      <div class="oss-cell"><div class="k">MIT license</div><p>Fork it, ship it, sell with it. No accounts, no telemetry, no subscription.</p></div>
+      <div class="oss-cell"><div class="k">MIT license</div><p>The app code is MIT-licensed. Third-party model licenses apply separately; the Lens font recognizer currently has a non-commercial restriction. See the README limits.</p></div>
       <div class="oss-cell"><div class="k">Self-hosted</div><p>The app runs entirely on your machine; projects and assets stay in your data directory.</p></div>
       <div class="oss-cell"><div class="k">BYO provider</div><p>Generate through your own ChatGPT plan (bundled Codex CLI) or OpenAI/fal API keys, your quota, your billing.</p></div>
       <div class="oss-cell"><div class="k">Agent-ready</div><p>A local HTTP API on 127.0.0.1 lets coding agents drive the studio, skills ship in the repo.</p></div>

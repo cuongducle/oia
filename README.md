@@ -54,6 +54,14 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
   <br><sub><b>Change the offer. Keep the visual direction.</b> Two real image outputs, one reference-image edit apart (about 1 image). Fine image details can change; repaint is not a pixel lock. MORI and FORMA are fictional campaign examples, not bundled-template previews.</sub>
 </p>
 
+### Your product photo, a campaign to build around
+
+<p>
+  <img src="site/assets/still-product.webp" width="49%" alt="Product reference: a fictional STILL coffee bag on a neutral background.">
+  <img src="site/assets/still-campaign.webp" width="49%" alt="A warm coffee campaign generated using the STILL product image as a reference.">
+  <br><sub>Two actual image-channel outputs. STILL is fictional and the reference photo is AI-generated. Packaging details can change; this pair is not a full Oia research/auto-refine run.</sub>
+</p>
+
 ### How a banner happens
 
 1. **Describe it**: “matcha campaign, 20% off today”, pick a marketplace size. The full cost (`up to N images + N reads`) shows before you run.
@@ -63,7 +71,20 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 
 ### Text: baked by default, editable on demand
 
-Generations render the copy into the artwork for the best-looking typography. Two paths keep text editable: flip **“Editable text right away”** before generating (clean-plate artwork + native text layers), or select any baked design and click **“Make text editable”** (rebuilds each line as a layer, ≈ 1 image + 1 read).
+Generations render the copy into the artwork for the best-looking typography. Two paths keep text editable: flip **“Editable text right away”** before generating (clean-plate artwork + native text layers), or select a baked design and click **“Make text editable”** (up to 1 image + 1 read). Once rebuilt, retyping text uses no image quota. Recovered single-line boxes grow while typing without changing font size; explicit line breaks still work.
+
+<p>
+  <a href="site/assets/editable-text-sample.webp"><img src="site/assets/editable-text-sample.webp" width="100%" alt="Actual Oia reconstruction: original Vietnamese coffee poster, rebuilt text layers, then a retyped Sunday greeting and price of 39,000 dong."></a>
+  <br><sub>Saved task OCR and background output, rerendered through the current product editor. The test driver only types and exports, it does not resize text boxes. Fonts are approximate, OCR needs checking, and complex backgrounds can change within erased regions. Click to inspect full size.</sub>
+</p>
+
+### Livestream offers, with room for the controls
+
+<p>
+  <img src="site/assets/livestream-safe-zones.webp" width="300" alt="Actual Oia editor crop: a transparent livestream artboard, sale card and TikTok safe-zone guides.">
+</p>
+
+Design on a transparent 1080 × 1920 canvas. Safe-zone guides stay in the editor, not the exported artwork. TikTok zones are community-measured, not an official platform specification. [Livestream workflow](https://oia.solutions/use-cases/livestream-overlays/).
 
 ---
 
@@ -74,9 +95,11 @@ Generations render the copy into the artwork for the best-looking typography. Tw
 | Image | `codex` | Bundled Codex CLI + ChatGPT login (recommended, zero-setup) |
 | Image | `openai` | `OPENAI_API_KEY` (generations and edits with reference images) |
 | Image | `fal` | `FAL_KEY` |
-| Image / planner | `mock` | Default; for testing the workflow, no credentials, no real artwork |
+| Image / planner | `mock` | Testing fallback; no credentials, no real artwork |
 | Planner | `codex` | Same ChatGPT login, text-only `codex exec`, structured plan |
 | Planner | `openai` | `OPENAI_API_KEY` |
+
+The desktop UI exposes ChatGPT login and mock mode, not an OpenAI/fal API-key form. The other adapters are code-level integrations, not a promised desktop onboarding flow.
 
 A mixed mock/real pair (mock planner feeding a real image channel) refuses to boot, canned plans never ride a real generation channel silently.
 
@@ -145,6 +168,7 @@ MIT license, explore the code, adapt the studio, and contribute through [issues]
 Known boundaries, so nothing surprises you:
 
 - **Artwork is raster**: object edits don't repaint pixels inside an image; reference-image support varies by provider.
-- **Some tools are unfinished**: background removal needs `rembg`; PPT Translator is a placeholder.
+- **Some tools are unfinished**: background removal needs `rembg`; PPT Translator is a placeholder. Local SAM 3 layer splitting is a preview: the real-model desktop end-to-end gate is still open, so no marketing result is shown for it yet.
+- **Model licenses are separate from the MIT code license**: the bundled Lens font recognizer has a non-commercial restriction. Commercial use of that component requires the author's permission or removing/replacing it. Check model notices before commercial distribution.
 - **Storage is local**: projects live in the app's data directory with atomic writes; there is no cloud sync (by design).
 - **macOS builds are Apple Silicon only** for now.

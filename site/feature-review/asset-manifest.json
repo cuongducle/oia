@@ -1,0 +1,34 @@
+{
+  "01-product-to-campaign-mobile.webp": {
+    "bytes": 149614,
+    "sha256": "05a945d10ff9876b778d30283aab10d12c51584dbe7472fd237094d668202fd9"
+  },
+  "01-product-to-campaign.webp": {
+    "bytes": 169412,
+    "sha256": "97cae498b267846b5c0d27223388d38272a1ad4dfe821bcfd117afd28bd35f31"
+  },
+  "02-offer-edit-mobile.webp": {
+    "bytes": 194744,
+    "sha256": "f28ea2fc25fcf001bd2a2113de6f39a69eb231e220223b8c292b400c06375396"
+  },
+  "02-offer-edit.webp": {
+    "bytes": 181476,
+    "sha256": "9757b395f05b6041dccfd66d2e9dab0ec5ce38c7b0cf84762ef79089b0443ba4"
+  },
+  "03-real-layer-editor.webp": {
+    "bytes": 97364,
+    "sha256": "50e003dc221a582b7f12d349c2576a1e7754232e3a86c891da72cfa102fa8ac0"
+  },
+  "04-live-safe-zones.webp": {
+    "bytes": 99280,
+    "sha256": "d36a9d7aee5298bebef464cd3693f7c9dc03c972012aaefe5c5e17e53f160c0c"
+  },
+  "05-art-direction.webp": {
+    "bytes": 168498,
+    "sha256": "bf067b7b88a012fe15b2e56ad8004caa064c90067d3eb9e52b85834b7935b253"
+  },
+  "contact-sheet.jpg": {
+    "bytes": 414300,
+    "sha256": "a53877b42695d903615a8db9ac31714b13ab829927278643d0326473a2afae04"
+  }
+}

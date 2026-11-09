@@ -6,7 +6,13 @@ Static site for marketplace sellers, English surface per D8/D19 in
 ## Visual system
 
 - The existing dark/violet shell stays. Artwork has its own brand palette.
-- Three generated outputs only: MORI matcha, its offer repaint, FORMA skincare.
+- Reused generated outputs: MORI matcha, its offer repaint, FORMA skincare,
+  plus the fictional STILL product/reference pair from the reviewed feature pack.
+- Make text editable has three individual posters: original, reconstructed,
+  and retyped through product editor code. On mobile they stack at full width.
+- Livestream uses a genuine editor crop, not a fabricated UI or exported guide.
+- Content does not wait for a reveal animation to become visible, including
+  background tabs. Fixed-header anchors have a scroll margin.
 - One genuine Electron screenshot shows the imported MORI artwork and a
   separately authored, selected shipping-note text layer. It is not a recording
   of an end-to-end AI run or proof that baked lettering is already editable.
@@ -29,9 +35,13 @@ Static site for marketplace sellers, English surface per D8/D19 in
 | `studio.webp` | Actual desktop editor screenshot |
 | `mori-comparison.webp` | Side-by-side proof derived from the MORI pair |
 | `og-hero.png` | 1200×630 social card |
+| `still-product.webp`, `still-campaign.webp` | Product reference and corresponding image-channel campaign outputs |
+| `editable-text-before.webp`, `editable-text-rebuilt.webp`, `editable-text-edited.webp` | Individual product reconstruction/edit outputs, used responsively |
+| `editable-text-sample.webp` | Three-panel comparison for README and research report |
+| `livestream-safe-zones.webp` | Crop of an actual editor artboard with community-measured guides |
 
 README uses `../docs/screenshots/overview.png`, the same composition as the
-social card. The two fictional brands are campaign examples, not bundled
+social card. The fictional brands are campaign examples, not bundled
 examples or customer endorsements. Reference-image edits preserve visual
 intent, not every pixel.
 
@@ -44,7 +54,14 @@ Rebuild the three derived composites, without network or quota:
 
 ```bash
 python3 docs/screenshots/build-marketing.py
+python3 docs/screenshots/build-feature-assets.py
 ```
+
+The feature builder uses committed outputs and reviewed source images, with
+hashes and evidence boundaries in `../docs/verification/feature-assets.json`.
+`--refresh-editable` imports newer private renderer outputs when those are
+available, it does not run AI. SurgePix captures stay private and are never
+inputs to the public marketing builder.
 
 Requires Pillow with FreeType WOFF2 support. Fonts come from the self-hosted
 `site/fonts/` files, not `/tmp` or downloads.

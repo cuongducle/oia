@@ -1,0 +1,66 @@
+{
+  "description": "Derived images, not new AI calls. Editable samples use product createEditor and textarea input events, never harness width overrides.",
+  "evidence": {
+    "still": "site/feature-review/provenance.json; fictional product, direct Codex image outputs, not a complete Oia agent run",
+    "livestream": "crop of real Electron shot, community-measured guides, not an exported overlay",
+    "editable": "private audit landing-sample: saved paid OCR/plate, rerendered through corrected product code with zero new quota"
+  },
+  "files": {
+    "still-product.webp": {
+      "sha256": "65e85b48733d497fcb709cc7dcbffa10815998f78f4fbbc19dc23f7847428e3d",
+      "bytes": 180392,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    "still-campaign.webp": {
+      "sha256": "c2fa7493b9c9030e3aebfa5d65bc197bf9f31f0022953bdbaf88b4f1dfe1b274",
+      "bytes": 267130,
+      "size": [
+        1254,
+        1254
+      ]
+    },
+    "livestream-safe-zones.webp": {
+      "sha256": "5cbcaa7edf1e20b4f9f0f2b6086b138707fac53b85077d803b1f1d37e404c059",
+      "bytes": 92814,
+      "size": [
+        715,
+        1265
+      ]
+    },
+    "editable-text-before.webp": {
+      "sha256": "b4e5b6c5e95b92e0cb3edec365ad0c8020b83909832cad8f451aab44125e4776",
+      "bytes": 58696,
+      "size": [
+        1000,
+        1250
+      ]
+    },
+    "editable-text-rebuilt.webp": {
+      "sha256": "72e5fb08a93f612f66255a59b81ba1e9785bd86d297e25fcee9edb0f3f30398f",
+      "bytes": 57198,
+      "size": [
+        1000,
+        1250
+      ]
+    },
+    "editable-text-edited.webp": {
+      "sha256": "93700017e1fbdc043ed03097b417224248c183a0b10405992d8abe77762c4219",
+      "bytes": 57510,
+      "size": [
+        1000,
+        1250
+      ]
+    },
+    "editable-text-sample.webp": {
+      "sha256": "277df0c1a97eaf67028d847cb5edcd4348d5157dd546b1e9a41ec78382b24ed6",
+      "bytes": 81388,
+      "size": [
+        1488,
+        680
+      ]
+    }
+  }
+}
