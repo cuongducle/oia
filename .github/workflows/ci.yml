@@ -124,6 +124,13 @@ jobs:
         with:
           path: apps/desktop/resources/codex
           key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-arm64
+      # D23: resources/lens is a gitignored build artifact derived from
+      # checksum-pinned upstream weights; regenerate it in CI (torch is
+      # build-time only, the app ships the exported ONNX + catalog).
+      - run: python3 -m pip install --upgrade torch torchvision onnx
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      - run: pnpm --filter @oia/desktop prepare-lens
       - run: pnpm --filter @oia/desktop dist:mac
       - name: sha256
         run: shasum -a 256 apps/desktop/dist/*.dmg > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
@@ -155,6 +162,11 @@ jobs:
         with:
           path: apps/desktop/resources/codex
           key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-x64
+      # D23: same lens derivation as the mac job (see dist-mac note).
+      - run: python -m pip install --upgrade torch torchvision onnx
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      - run: pnpm --filter @oia/desktop prepare-lens
       - run: pnpm --filter @oia/desktop dist:win
       # the packaged app must carry the bundled pair where main/runtime.ts looks for it
       - name: bundled codex present
