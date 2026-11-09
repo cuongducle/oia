@@ -14,6 +14,7 @@ import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { seedSampleProjects } from "./seedSamples.js";
 import { unlinkSync } from "node:fs";
+import path from "node:path";
 import {
   type UtilityRequest,
   type UtilityResponse,
@@ -44,6 +45,11 @@ let loopback: { port: number; discoveryFile: string; close: () => Promise<void> 
 /** The renderer quick-tools task lane (guarded submit for tasks.submit). */
 let toolLane: ReturnType<typeof createGuardedSubmitter> | null = null;
 let discoveryCleanup: string | null = null; // ONE module-level exit listener, never per-rebuild
+/** D21: local SAM 3 models live under <userData>/models/sam3, one manager + one
+ *  engine for the process lifetime (sessions are expensive, cache the vision
+ *  outputs). The engine is injected into createServiceContext; rebuild reuses it. */
+const segmentModels = new SegmentModelManager("");
+let segmenter: Sam3Segmenter | null = null;
 
 // Registered ONCE: a hard exit (kill, crash) still removes the discovery file so
 // agents are not pointed at a dead port (they also pid-check on read).
@@ -64,11 +70,16 @@ process.on("SIGTERM", () => {
   setTimeout(() => process.exit(0), 1500).unref();
 });
 
+import { Sam3Segmenter } from "./segmentation/engine.js";
+import { LensRecognizer } from "./lens.js";
+import { SegmentModelManager } from "./segmentation/models.js";
+
 async function startServices(env: Record<string, string | undefined>): Promise<void> {
   if (loopback) await loopback.close().catch(() => {});
   loopback = null;
   toolLane?.dispose();
-  ctx = await createServiceContext({ dataDir, env });
+  const fontRecognizer = env.OIA_LENS_DIR && env.LLM_PROVIDER === "codex" ? new LensRecognizer(env.OIA_LENS_DIR) : undefined;
+  ctx = await createServiceContext({ dataDir, env, ...(segmenter ? { segmenter } : {}), ...(fontRecognizer ? { fontRecognizer } : {}) });
   // reorg step 4c, the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
   // guard as the loopback, attributed to source "web" (the web tools UI contract).
   // Its lifecycle frames stream to the UI too (lane "tool"), a metered generation
@@ -133,6 +144,8 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       dataDir = req.dataDir;
       userDataDir = req.userDataDir;
       serviceEnv = req.env;
+      segmentModels.setDir(path.join(userDataDir, "models", "sam3"));
+      segmenter ??= new Sam3Segmenter(segmentModels);
       await startServices(req.env);
       log(`ctx ready (dataDir=${dataDir})`);
       return null;
@@ -146,6 +159,15 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     case "cancelAll":
       cancelAll();
       return null;
+
+    case "segment.status":
+      return segmentModels.ensureStatus();
+
+    case "segment.download": {
+      // fire-and-forget with join: the renderer polls segment.status for bytes
+      void segmentModels.download().catch((e) => log(`segment download failed: ${e}`));
+      return segmentModels.ensureStatus();
+    }
 
     case "chatRun": {
       const c = requireCtx();

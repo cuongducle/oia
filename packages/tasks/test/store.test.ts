@@ -76,6 +76,14 @@ describe("BR-10 param validation per task type", () => {
 });
 
 describe("BR-11 output rules: background removal stays PNG, multi-image becomes one ZIP", () => {
+  it("an image task with no files still fails instead of claiming data-only success", async () => {
+    const store = new TaskStore();
+    store.register("remove-background", async () => ({ urls: [] }));
+    const result = await store.submit("remove-background", { fileUrl: "u" }, { noWait: true });
+    expect(result.progress).toBe("failed");
+    expect(result.taskResult).toBeNull();
+    expect(result.msg).toBe("remove-background returned no output files");
+  });
     it("remove-background forces a .png output even for .jpg input", async () => {
     const store = new TaskStore();
     store.register("remove-background", async () => ({ urls: ["https://cdn/x/subject.jpg"] }));

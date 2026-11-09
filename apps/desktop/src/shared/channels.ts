@@ -7,6 +7,8 @@ export const IPC = {
   chatEvent: "chat:event", // main → renderer streaming (ChatEvent frames)
   chatCancel: "chat:cancel",
   providerStatus: "provider:status",
+  segmentStatus: "segment:status",
+  segmentDownload: "segment:download",
   projectsCreate: "projects:create",
   projectsGet: "projects:get",
   projectsList: "projects:list",

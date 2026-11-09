@@ -36,6 +36,7 @@ export const fabricObjectSchema = z
     text: z.string().nullable().optional(),
     fontFamily: z.string().nullable().optional(),
     fontSize: z.number().nullable().optional(),
+    recoveredTextLine: z.boolean().optional(),
     name: z.string().nullable().optional(),
     selectable: z.boolean().nullable().optional(),
     /** TP.10 provenance, objects without `origin` (legacy scenes) default to "user". */

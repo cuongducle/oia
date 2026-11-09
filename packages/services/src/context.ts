@@ -2,7 +2,7 @@ import path from "node:path";
 import {
   TaskStore, LocalFileStore, ApiKeyStore,
   BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore,
-  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct,
+  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct, makeMatchFonts, makeRecognizeFonts, makeSegmentImage,
 } from "@oia/tasks";
 import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
@@ -44,7 +44,7 @@ function parseDailyLimit(env: NodeJS.ProcessEnv, name: string): number | undefin
   return n;
 }
 
-export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv } = {}): Promise<ServiceContext> {
+export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv; segmenter?: import("@oia/tasks").Segmenter; fontRecognizer?: import("@oia/tasks").FontRecognizer } = {}): Promise<ServiceContext> {
   const env = opts.env ?? process.env;
   // TP.2/TP.4: a mock provider paired with a real provider never boots silently
   try {
@@ -87,10 +87,13 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   // image-edit/reference tasks/presentation + generic image tasks; image-translate is a
   // clear failure, never a hang). Providers come from `chat` (env-configured + metered):
   // tasks must burn the SAME quota ledger as chat, never a bare registry lookup.
-  const procCtx = { store: files, image: chat.image, llm: chat.llm };
+  const procCtx = { store: files, image: chat.image, llm: chat.llm, ...(opts.segmenter ? { segmenter: opts.segmenter } : {}), ...(opts.fontRecognizer ? { fontRecognizer: opts.fontRecognizer } : {}) };
   taskStore.register("generate-poster", makeGeneratePoster(procCtx));
   taskStore.register("image-edit", makeImageEdit(procCtx));
   taskStore.register("deconstruct", makeDeconstruct(procCtx));
+  taskStore.register("match-fonts", makeMatchFonts(procCtx));
+  taskStore.register("recognize-fonts", makeRecognizeFonts(procCtx));
+  taskStore.register("segment-image", makeSegmentImage(procCtx));
   taskStore.register("remove-background", makeRemoveBackground(procCtx));
   taskStore.register("generate-presentation", makeGeneratePresentation(procCtx));
   taskStore.register("generate-logo", makeGenericImageTask(procCtx, { buildPrompt: (p) => `logo design, ${p.prompt ?? ""}, vector style, plain background` }));

@@ -63,6 +63,7 @@ async function contextEnv(): Promise<Record<string, string | undefined>> {
   const mode = await effectiveMode();
   const det = mode === "codex" ? await getProvisionerSafe() : null;
   const env = buildServiceEnv(process.env, mode, det);
+  env.OIA_LENS_DIR = process.env.OIA_LENS_DIR ?? (app.isPackaged ? path.join(process.resourcesPath, "lens") : path.resolve(here, "../../resources/lens"));
   // shot-busy paces the mock pair so the mid-run UI stays photographable,
   // registry-only knob (T3 pattern), injected here, never via process.env mutation.
   if (smokeModeFromEnv(process.env, app.isPackaged) === "shot-busy") env.OIA_MOCK_STEP_DELAY_MS = "350";
@@ -191,6 +192,22 @@ function registerIpc(): void {
     try {
       await ensureUtility();
       return await utility.call({ cmd: "providerStatus" });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.segmentStatus, async () => {
+    try {
+      await ensureUtility();
+      return await utility.call({ cmd: "segment.status" });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.segmentDownload, async () => {
+    try {
+      await ensureUtility();
+      return await utility.call({ cmd: "segment.download" });
     } catch (err) {
       ipcError(err);
     }
@@ -420,7 +437,7 @@ function registerAssetProtocol(): void {
       // without ACAO the image load is blocked and fabric loadFromJSON rejects
       return new Response(bytes as unknown as BodyInit, {
         headers: {
-          "content-type": { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif" }[ext] ?? "application/octet-stream",
+          "content-type": { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", ttf: "font/ttf", txt: "text/plain; charset=utf-8" }[ext] ?? "application/octet-stream",
           "cache-control": "public, max-age=31536000, immutable",
           "access-control-allow-origin": "*",
         },
@@ -1703,8 +1720,85 @@ async function shot(): Promise<void> {
     app.exit(20);
     return;
   }
+  // D22: assert painted glyph geometry, not merely the presence of text objects.
+  const typographyVerify = await win.webContents.executeJavaScript(`(() => {
+    const c = window.__oiaCanvas;
+    const texts = c.getObjects().filter((o) => o.type === "textbox");
+    const dims = [600, 200];
+    const boxes = [[0.08, 0.1, 0.55, 0.09], [0.1, 0.72, 0.45, 0.07], [0.1, 0.81, 0.4, 0.05]];
+    return texts.map((o, i) => {
+      const canvas = o.toCanvasElement({ withoutTransform: true });
+      const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+      let x0 = canvas.width, y0 = canvas.height, x1 = -1, y1 = -1;
+      for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+        if (data[(y * canvas.width + x) * 4 + 3] < 32) continue;
+        x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+      }
+      const dx = x0 - (canvas.width - o.width) / 2, dy = y0 - (canvas.height - o.height) / 2;
+      const r = o.angle * Math.PI / 180;
+      const anchor = [o.left + dx * Math.cos(r) - dy * Math.sin(r), o.top + dx * Math.sin(r) + dy * Math.cos(r)];
+      const b = boxes[i];
+      const anchorOk = Math.abs(anchor[0] - b[0] * dims[0]) <= 3 && Math.abs(anchor[1] - b[1] * dims[1]) <= 3;
+      const sizeOk = x1 >= x0 && y1 >= y0 && x1 - x0 + 1 <= b[2] * dims[0] + 3 && Math.abs(y1 - y0 + 1 - b[3] * dims[1]) <= 3;
+      return { anchorOk, sizeOk, anchor, ink: [x1 - x0 + 1, y1 - y0 + 1], angle: o.angle, fill: o.fill, spacing: o.charSpacing, lines: o.textLines.length };
+    });
+  })()`, true);
+  console.log("[shot] D22 typography pixels:", JSON.stringify(typographyVerify));
+  // D23b: fill is now MEASURED from pixels (dominant ink cluster, seed only a fallback);
+  // the fixture's price text is black, the mock seed claims yellow, the gate pins the truth.
+  if (typographyVerify.length !== 3 || typographyVerify.some((o: { anchorOk: boolean; sizeOk: boolean; lines: number }) => !o.anchorOk || !o.sizeOk || o.lines !== 1)
+      || typographyVerify[1].angle !== -8 || typographyVerify[1].fill !== "#000000" || !Number.isFinite(typographyVerify[2].spacing)) {
+    console.error("DESKTOP_SHOT D22 FAILED, glyph size/anchor/style drift");
+    app.exit(20);
+    return;
+  }
   await snap(win, "desktop-deconstruct.png");
-  console.log("[shot] B1 OK (mock pair: read → inpaint → editable text layers)");
+  console.log("[shot] B1/D22 OK (mock pair, measured glyphs, rotated text, Vietnamese accents)");
+
+  const recoveredEditVerify = await win.webContents.executeJavaScript(`(async () => {
+    const c = window.__oiaCanvas;
+    const snapshot = c.toObject();
+    const target = c.getObjects().find((o) => o.type === "textbox" && o.get("recoveredTextLine") === true);
+    if (!target) return { ok: false, why: "missing recovered text marker" };
+    const before = { width: target.width, fontSize: target.fontSize, left: target.left, top: target.top, angle: target.angle };
+    const replacement = "Chủ nhật vui vẻ! Cà phê sáng cùng bạn bè";
+    const type = (o, text) => {
+      c.setActiveObject(o); o.enterEditing();
+      const input = o.hiddenTextarea;
+      input.value = text; input.selectionStart = input.selectionEnd = text.length;
+      input.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+      o.exitEditing(); c.renderAll();
+    };
+    type(target, replacement);
+    const edited = {
+      text: target.text, lines: target.textLines.length, grew: target.width > before.width, before,
+      after: { width: target.width, fontSize: target.fontSize, left: target.left, top: target.top, angle: target.angle },
+      sameStyle: target.fontSize === before.fontSize && Math.abs(target.left - before.left) < 0.001 && Math.abs(target.top - before.top) < 0.001 && target.angle === before.angle,
+    };
+    const saved = c.toObject();
+    await c.loadFromJSON(saved);
+    const restored = c.getObjects().find((o) => o.text === replacement);
+    type(restored, replacement + " nhé!");
+    const reloadOk = restored.get("recoveredTextLine") === true && restored.textLines.length === 1;
+    const duplicate = await restored.clone();
+    const cloneOk = duplicate.get("recoveredTextLine") === true;
+    duplicate.dispose();
+    type(restored, "Dòng một\\nDòng hai");
+    const explicitBreakOk = restored.textLines.length === 2;
+    restored.set("recoveredTextLine", false);
+    restored.set({ text: "ordinary text", width: 40 });
+    const ordinaryWidth = restored.width;
+    type(restored, replacement);
+    const ordinaryOk = restored.width === ordinaryWidth && restored.textLines.length > 1;
+    await c.loadFromJSON(snapshot); c.renderAll();
+    return { ok: edited.text === replacement && edited.lines === 1 && edited.grew && edited.sameStyle && reloadOk && cloneOk && explicitBreakOk && ordinaryOk, edited, reloadOk, cloneOk, explicitBreakOk, ordinaryOk };
+  })()`, true);
+  console.log("[shot] recovered text typing:", JSON.stringify(recoveredEditVerify));
+  if (!recoveredEditVerify?.ok) {
+    console.error("DESKTOP_SHOT recovered text typing FAILED");
+    app.exit(20);
+    return;
+  }
 
   // ---- UI v1.1 R4/R5: Layers mirror the Fabric stack; selection drives toolbar + Design tab ----
   const r45 = await win.webContents.executeJavaScript(`(async () => {

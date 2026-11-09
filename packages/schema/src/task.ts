@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { errorClassSchema } from "./plan.js";
 import { deconstructTextSchema } from "./deconstruct.js";
+import { fontMatchSchema, fontReferenceInputSchema } from "./font-reference.js";
+import { lensSuggestionSchema, recognizeFontsInputSchema } from "./lens.js";
+import { segmentObjectSchema } from "./segment.js";
+import { SEGMENT_PROMPT_MAX } from "./segment.js";
 
 export const taskTypeSchema = z.enum([
   "remove-background",
@@ -16,7 +20,10 @@ export const taskTypeSchema = z.enum([
   "generate-photo-poetic-editorial",
   "generate-restaged-cinematic",
   "deconstruct",
-]);;
+  "match-fonts",
+  "recognize-fonts",
+  "segment-image",
+]);
 export type TaskType = z.infer<typeof taskTypeSchema>;
 
 /** CommonResult envelope. */
@@ -68,13 +75,18 @@ export const submitTaskSchemas = {
   "deconstruct": z
     .object({ ...submitTaskBase, fileUrl: z.string() })
     .strict(),
+  "match-fonts": fontReferenceInputSchema.safeExtend(submitTaskBase),
+  "recognize-fonts": recognizeFontsInputSchema.extend(submitTaskBase),
+  "segment-image": z
+    .object({ ...submitTaskBase, fileUrl: z.string(), prompt: z.string().min(1).max(SEGMENT_PROMPT_MAX) })
+    .strict(),
 } as const;
 
 export const taskStatusSchema = z.object({
   taskId: z.string(),
   sessionId: z.number(),
   progress: z.enum(["processing", "succeeded", "failed"]),
-  taskResult: z.object({ download: z.string().optional(), texts: z.array(deconstructTextSchema).optional() }).nullable(),
+  taskResult: z.object({ download: z.string().optional(), texts: z.array(deconstructTextSchema).optional(), objects: z.array(segmentObjectSchema).optional(), fontMatches: z.array(fontMatchSchema).optional(), fontSuggestions: z.array(lensSuggestionSchema).optional() }).nullable(),
   taskNote: z.string().nullable(),
   msg: z.string().default(""),
   /** TP.4 durability: every task record carries these (nullable for legacy rows). */

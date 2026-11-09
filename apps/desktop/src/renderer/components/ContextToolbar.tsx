@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type * as fabricNS from "fabric";
 import { applyLayerAction, layerKind, type LayerObject } from "@oia/canvas";
 import { commitObject, useCanvasRev } from "../lib/canvas-rev.js";
@@ -16,12 +16,24 @@ interface Props {
   onDuplicate: () => void;
   /** D16: poster-mode edit path, deconstruct this page's baked text into layers. */
   onMakeTextEditable?: () => void;
+  /** D21: cut objects out of this image as separate layers (local SAM 3). */
+  onSplitLayer?: () => void;
   /** ME: markup edit, circle a region on the selected image, then describe the edit. */
   onCircleEdit?: () => void;
 }
 
-export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplicate, onMakeTextEditable, onCircleEdit }: Props) {
+export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplicate, onMakeTextEditable, onSplitLayer, onCircleEdit }: Props) {
   useCanvasRev(canvas, true);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    const area = el?.closest(".canvasArea");
+    if (!el || !area) return;
+    const rect = el.getBoundingClientRect(), bounds = area.getBoundingClientRect();
+    const shift = rect.left < bounds.left + 4 ? bounds.left + 4 - rect.left
+      : rect.right > bounds.right - 4 ? bounds.right - 4 - rect.right : 0;
+    if (shift) el.style.left = `${parseFloat(el.style.left) + shift}px`;
+  });
   const fileRef = useRef<HTMLInputElement>(null);
   const active = canvas?.getActiveObject();
   // SAFETY: LayerObject is a structural subset of FabricObject.
@@ -56,7 +68,7 @@ export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplica
   const nextAlign = text.textAlign === "left" ? "center" : text.textAlign === "center" ? "right" : "left";
 
   return (
-    <div className="ctxToolbar" role="toolbar" aria-label="Selection actions" data-testid="ctx-toolbar" data-kind={kind} style={style} onMouseDown={(e) => e.preventDefault()}>
+    <div ref={toolbarRef} className="ctxToolbar" role="toolbar" aria-label="Selection actions" data-testid="ctx-toolbar" data-kind={kind} style={style} onMouseDown={(e) => e.preventDefault()}>
       {kind === "text" && (
         <>
           <button aria-label="Smaller text" onClick={() => set({ fontSize: Math.max(4, Math.round((text.fontSize ?? 16) / 1.15)) })}>A−</button>
@@ -77,6 +89,7 @@ export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplica
           <button className="ctxAi" data-testid="ctx-edit-ai" onClick={onEditWithAi}>✦ Edit with AI</button>
           {onCircleEdit && <button data-testid="ctx-circle-edit" title="Circle the part to change, then say what to do" onClick={onCircleEdit}>◎ Circle to edit</button>}
           {onMakeTextEditable && <button data-testid="ctx-make-text-editable" title="Read the text in this artwork and rebuild it as editable layers" onClick={onMakeTextEditable}>Make text editable</button>}
+          {onSplitLayer && <button data-testid="ctx-split-layer" title="Cut objects out of this image as separate layers, runs on your machine" onClick={onSplitLayer}>Split layer</button>}
           <span className="ctxSep" />
         </>
       )}

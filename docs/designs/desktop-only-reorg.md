@@ -38,6 +38,106 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 | D19 | **(owner, 2026-11-09): landing + README định vị rõ persona seller marketplace, bề mặt giữ tiếng Anh theo D8.** Sau audit bên ngoài (hero không nói sản phẩm là gì, bẫi download, tràn mobile, README lẫn ghi chú nội bộ), owner duyệt "sửa lại hết" theo hướng: copy tiếng Anh nhưng headline/sub phải chứa từ khoá ngành (banner · promo · Shopee/Lazada/TikTok Shop · seller), phục vụ cả seller Việt (persona chính; mâu thuẫn với D8 đã được cân nhắc và chấp nhận từ D8) lặp seller quốc tế; KHÔNG mở lại D8. Kèm theo: landing rebuild tĩnh hoá hoàn toàn (xem ghi nhận 2026-11-09), README gọn ~190 dòng với Download lên đầu, nội dung ops deploy chuyển `docs/private/` (gitignored), `wrangler.toml` bỏ account_id/tên người. Nợ ghi nhận (chưa làm): asset release đặt tên KHÔNG chứa version để pin `releases/latest/download` cố định (hiện resolver hỏi GitHub API + fallback const); đồng bộ brand app sáng ↔ site tối (wordmark, theme); trang SEO tiếng Việt riêng cho từ khoá tìm kiếm VN; demo GIF 15s cho README. |
 | D20 | **(owner, 2026-11-09): TUYỆT ĐỐI không dùng em dash (U+2014) và en dash (U+2013) trong MỌI văn bản của repo: UI copy, comment code, docs, prompt gửi model, fixture, README/site.** Lý do: owner ghét ký tự gạch ngang dài là dấu hiệu văn bản do LLM sinh; thay bằng dấu phẩy, hai chấm, ngoặc, hoặc tách câu. Phạm vi áp dụng cả prompt template gửi planner/vision (chữ vẫn rõ nghĩa, chỉ đổi dấu câu). Ngoại lệ có chủ đích (glyph chức năng, không phải văn phạm): icon hình dòng (giá trị glyph `line` trong shape picker, Editor.tsx, đứng cạnh ◇ ┄ →). Quy tắc tương tự đã vào `~/.pi/agent/AGENTS.md` cho mọi phiên agent sau. |
 
+## D22: khôi phục kiểu chữ khi Make text editable
+
+Owner duyệt thực hiện sau D21. Nâng cấp luồng `deconstruct` hiện có, không thêm mô hình OCR và không thêm lượt trả phí: một lượt đọc ảnh bằng LLM, tối đa một lượt tạo nền sạch bằng nhà cung cấp hiện tại.
+
+- OCR trả nội dung đúng dấu, hộp chữ trước xoay, góc xoay quanh góc trái trên, màu, họ phông gần nhất trong danh sách khả dụng, độ đậm, kiểu nghiêng, căn lề và spacing theo em. `typography` tùy chọn để đọc được kết quả cũ theo D14, nhưng schema gửi Codex yêu cầu đủ các thuộc tính. Không tuyên bố nhận diện chính xác phông gốc.
+- Phông: Be Vietnam Pro và Instrument Serif đã đóng kèm; các họ sans-serif, serif, monospace dùng phông hệ thống và có thể khác giữa macOS và Windows. Chờ phông tải xong trước khi đo. Khớp cỡ và spacing bằng pixel chữ Fabric thật, tính cả dấu và phần chữ thòng xuống; không ép chữ chồng lên nhau để giả khớp.
+- Màu: lấy cụm pixel gần màu LLM ước lượng trong vùng chữ gốc, không lấy màu phổ biến nhất của cả hộp (thường là nền). Nếu thiếu bằng chứng pixel thì giữ màu ước lượng.
+- Xóa chữ: đối chiếu pixel gần màu chữ để hiệu chỉnh hộp OCR (bắt cả phần chữ thòng xuống), không nới hộp khi màu ước lượng thực chất chiếm phần lớn nền. Nền trơn hoặc chuyển màu tuyến tính được khớp mặt phẳng màu từ biên, kiểm lại pixel bên trong và loại pixel khử răng cưa theo hỗn hợp màu chữ/nền. Nếu mọi vùng đều đạt, tái tạo nền cục bộ, không gọi tạo ảnh. Nếu có vùng phức tạp, gửi nội dung/vùng OCR dưới dạng dữ liệu cho một lượt tạo ảnh; vùng trơn vẫn dùng công thức, vùng phức tạp dùng ảnh AI. Ghép trong các vùng xoay có đệm và mép chuyển mềm. Pixel ngoài vùng ghép và alpha ảnh gốc giữ nguyên; đầu ra khác kích thước được nội suy về kích thước gốc. Không bảo đảm cấu trúc bên trong vùng chữ nếu nền phức tạp hoặc công cụ tự dịch bố cục.
+- PNG là đầu vào xử lý pixel của task, giới hạn 24 triệu pixel trước giải nén. Import desktop chuyển JPEG/WebP sang PNG cục bộ; editor đã xuất PNG. Gọi task trực tiếp với định dạng khác phải chuyển PNG trước, lỗi định dạng xảy ra trước quota. OCR rỗng giữ ảnh gốc và bỏ qua lượt tạo ảnh. Hủy sau OCR chặn lượt tạo ảnh tiếp theo, không tự thử lại.
+- Giới hạn chủ động: chưa khôi phục chữ chuyển màu, viền chữ, bóng đổ, chữ cong hoặc biến dạng phối cảnh. Phông là xấp xỉ và có thể không khớp đồng thời cả chiều rộng lẫn chiều cao; phép đo không tự biến thành nhận diện đúng phông. Chưa kiểm phông hệ thống trên Windows; gate mock không chứng minh chất lượng OCR/tạo nền.
+- Kiểm chứng: build/test/typecheck, smoke, crash-smoke và shot trên macOS. Shot D22 đo pixel chữ (cao, vị trí xoay, một dòng, màu và góc -8 độ), gồm tiếng Việt. Mẫu chữ nhỏ lộ lỗi thanh công cụ vượt mép trái, đã kẹp lại theo canvasArea, gate R4/R5 tái hiện rồi qua.
+- Mẫu thật: chạy task deconstruct qua ServiceContext có bộ đếm quota và giới hạn 1 đọc/1 ảnh, thành công trong 57.924 ms, đúng 1 đọc + 1 ảnh, không thử lại. Kết quả OCR đọc được hai dòng tiếng Việt rõ và SALE 50% trên nền họa tiết. Lần ghép đầu lộ lỗi hộp cắt đuôi chữ và mảng màu lệch; đã sửa bằng hiệu chỉnh hộp và khớp nền trơn, kiểm lại bằng cách ghép lại đầu ra OCR/ảnh đã lưu (0 lượt trả phí mới). Mẫu ghép cuối không còn các đuôi chữ thừa và mảng chữ nhật lệch màu nhìn thấy ở phần nền trơn; nền họa tiết trong vùng xóa vẫn là ảnh AI tái tạo, không bảo đảm đồng nhất bản gốc. Chưa chạy lại nguyên task trả phí sau sửa. Đánh giá bổ sung bằng renderer thật trên OCR/plate đã lưu: IoU hộp chữ trung bình 0,9268 nhưng IoU mặt nạ glyph tham khảo chỉ 0,2328, quan sát trực tiếp xác nhận sai họ phông (serif khác Georgia, sans thay chữ viết tay, monospace đậm khác Courier). Vì vậy chưa đạt mức bảo toàn hình dáng chữ. Ngoài vùng sửa có 0/998.997 pixel đổi; MAE nền tại pixel chữ cũ trên 5 dòng nền trơn giảm từ 6,8008 xuống 0,1167 (thang 255, tham chiếu gradient nguồn cùng hàng). CER 3/61 = 4,92% trên 5 dòng không có ô thiếu glyph; đây là một mẫu, không phải benchmark đại diện. Phương pháp/ngưỡng/giới hạn ghi trong METRICS.md, metrics.json và comparison.png ở thư mục bằng chứng. Bằng chứng riêng tư: `docs/private/surgepix-feature-audit-2026-11-09/d22-live/`.
+
+### D22/D23: sửa chữ dính trên mẫu landing sau kiểm ảnh trực tiếp
+
+Owner phát hiện bản landing chữ chồng dòng và huy hiệu dính. Đánh giá đạt trước
+đó bị rút: script render lại đã lấy nhầm ảnh đầu vào để đo phông; hộp OCR nới
+40% chiều cao còn bắt dòng bên cạnh và khung trang trí cùng màu. Sửa
+`refineTextRegions`: tách các dải hàng mực qua khoảng trống, giữ dải có nhiều
+mực nhất giao hộp OCR, giới hạn nới ngang và loại hàng thưa do khung dọc.
+Bảng ứng viên bỏ dấu phân cách đứng riêng khỏi hạn mức sáu dòng. Vẫn có giới
+hạn: không giải quyết hai dòng không có khoảng trống hoặc hộp OCR nằm sai
+hoàn toàn; không phải bộ phân đoạn bố cục tổng quát.
+
+Tái dựng từ OCR/plate cũ, đúng ảnh nguồn, 0 quota mới; mở xem trực tiếp ảnh
+cuối: tiêu đề và huy hiệu không còn dính. SSIM toàn ảnh 0,9500 trên một poster
+synthetic; không suy rộng thành benchmark. Demo sửa ngày cần nới hộp chữ vì
+câu dài hơn, caption landing ghi rõ, không tuyên bố tự giữ một dòng khi chỉ
+gõ. Chi tiết `docs/verification/marketing-assets.md`. Gate: tasks 158/158
+(gồm regression hai dòng cùng màu, dấu rời và khung dọc), desktop 219/219,
+desktop typecheck/build, tasks build, shot, smoke, crash-smoke và kiểm
+tham chiếu media đạt. Chưa kiểm Windows thật hay chạy lại nguyên task trả phí.
+
+### D22: sửa chữ trong sản phẩm, không nới hộp bằng script demo
+
+Owner yêu cầu kết quả sửa ngày/giá phải do code app tạo ra. Các dòng khôi phục
+có một dòng được gắn `recoveredTextLine: true` (thuộc tính scene tùy chọn,
+không migration). Khi người dùng gõ, editor đo chiều rộng dòng bằng Fabric và
+chỉ nới hộp khi cần, không đổi cỡ/phông/vị trí/góc. Dấu xuống dòng do người dùng
+nhập được giữ nguyên. Textbox thường không đổi hành vi wrap. Marker sống qua
+save/reload/clone. Không cam kết tránh mép artboard hoặc tránh các layer bên
+cạnh khi nội dung dài tùy ý; đây là giữ một dòng, không phải tự dàn trang.
+
+Kiểm chứng phải đi qua `createEditor` và sự kiện nhập của textarea Fabric,
+không cho harness tự set chiều rộng. Gate shot kiểm gõ câu dài, save/reload,
+xuống dòng tường minh và textbox thường. Mẫu landing phải được xuất lại qua
+cùng editor, không còn bước nới hộp thủ công trong script.
+
+Đã kiểm: gate nhập textarea trong Electron shot đạt một dòng sau gõ câu dài,
+giữ cỡ/vị trí/góc, marker sống qua reload và clone; Enter xuống dòng và textbox
+thường vẫn wrap. Khắc phục lỗi constructor Fabric không nhận trường `type`
+chỉ đọc từ JSON; chỉ truyền các thuộc tính phông vào đối tượng đo. Dùng probe
+Textbox để xác nhận wrap thật vì đo Text thuần không đủ khi tracking khác 0.
+Asset landing đã xuất lại qua `createEditor`, script chỉ nhập textarea và xuất
+PNG, mở xem trực tiếp không chồng chữ. Gates `pnpm test`, `pnpm typecheck`,
+package build, desktop build/shot/smoke/crash-smoke và media check đều đạt.
+Không thêm lượt trả phí; chưa kiểm Windows thật.
+
+## D23: khôi phục phông bằng Lens chạy local (owner duyệt "lấy đi")
+
+Nâng cấp tiếp của D22, thay phần đoán tên phông bằng mô hình phân loại phông. Kiến trúc: OCR trả nội dung vùng chữ (như D22) → **task `recognize-fonts` chạy Lens ONNX local trong utility process (0 quota)**, trả tối đa 3 ứng viên mỗi dòng kèm bytes phông OFL + tệp giấy phép đã lưu vào store → renderer tải phông bằng FontFace, ghép vào bảng ứng viên → **thứ hạng pixel quyết định** (thử phông/độ đậm/spacing, chấm IoU mặt nạ; chỉ nhận khi tốt hơn baseline rõ ràng, không bao giờ ép nhận phông tệ hơn). Khi Lens tự tin (điểm ≥ 0,5 trên mọi dòng) thì **bỏ hẳn lượt đọc LLM thứ hai**; không tự tin mới dùng bảng ảnh đúng nội dung OCR qua task `match-fonts` cho LLM chọn tối đa 3 ứng viên/dòng. Font bytes + giấy phép sống trong store, đi theo scene qua `fontSource` (customProperties), tải lại khi mở dự án, sống sót qua asset GC vì `fontSource.url` là khóa uploads/... Chỉ chọn phông OFL, tệp giấy phép lưu cạnh bytes.
+
+Nguồn mô hình: **mixfont/lens, commit dcbc882, ~45MB ResNet18, 983 họ phông**. KHÔNG chạy mã Python của tác giả lúc runtime: chỉ xuất ONNX một lần lúc build (`pnpm --filter @oia/desktop prepare-lens`, tải từ raw.githubusercontent.com pin sha256, trọng số không vào git), suy luận bằng onnxruntime-node có sẵn (CPU, ~1,3 giây cho 6 dòng). Tiền xử lý viết lại thuần TS (bicubic + pad màu biên + chuẩn hóa ImageNet, tách từ dài nhất theo mặt nạ màu, không cần Tesseract). GATE AN TOÀN: giấy phép repo gốc **cấm dùng thương mại nếu không có chấp thuận bằng văn bản**; owner quyết định dùng cho mục đích phi thương mại; NOTICE.txt ghi công đi kèm build (extraResources resources/lens). Nếu sau này thương mại hóa: xin giấy phép hoặc bỏ Lens; bảng ảnh + match-fonts vẫn chạy không cần Lens.
+
+Hạn chế ghi nhận: tải phông OFL lần đầu (~0,1-1,8MB/phông, lưu vĩnh viễn vào store, giới hạn 5MB/tệp, chặn host ngoài static.mixfont.com/raw.githubusercontent.com); chỉ nhận diện phông trong tập huấn luyện (phông độc quyền trả về phông mở gần nhất); bảng 983 họ là tuyên bố của tác giả, chưa kiểm chứng độc lập.
+
+**Kiểm chứng (mẫu tiếng Việt test-input-vi.png, tái lập bằng OCR/plate đã lưu, 0 quota mới):**
+- Lens đề xuất đúng hướng: dòng Georgia → **Gelasio** (phông thay thế metric của Georgia, điểm 0,68); dòng chữ viết tay → Patrick Hand; dòng khó điểm thấp trung thực (0,003-0,04%).
+- Thứ hạng pixel: dòng 1 mặt nạ glyph IoU **0,315 → 0,591** (+87%), hộp giữ 0,945; đề xuất sai (Scope One cho dòng monospace) bị **từ chối**, giữ baseline; trung bình mặt nạ 6 dòng 0,2328 → 0,2789 chỉ nhờ một dòng được thay đúng.
+- Gates: build/test (219 desktop + 148 tasks)/typecheck/smoke/shot đều đạt; 8 unit test mới (tiền xử lý Lens, checksum, tải phông + giấy phép, phông hỏng bỏ qua an toàn, host lạ bị chặn, thiếu build → capability_unsupported, hủy giữa chừng AbortError).
+- Bằng chứng riêng tư: `d22-live/comparison-d23.png`, `lens-scores.json`, `reconstructed-lens.png`, `glyph-lens-*.png`.
+
+Chưa làm: chạy task `deconstruct` thật từ đầu đến cuối qua UI (mới kiểm chứng từng tầng + harness render dùng đúng hàm production); phông Lens trên Windows (Menlo/Consolas khác nền tảng, ảnh hưởng danh sách phông cài sẵn); chưa đo thời gian rank trong UI thật.
+
+**Rà soát luồng thực tế sau D23 (2026-11-09): chưa đạt, có lỗi tích hợp chặn D23.** Chạy ServiceContext thật có quota + hàm `matchedDeconstructScene` production trong Electron (không phải thao tác nút UI). Lần đầu từ ảnh gốc: OCR thành công nhưng tạo nền trả `no_output`, task deconstruct thất bại; không thử lại. Sau đó tái dùng OCR/plate D22 để kiểm riêng đoạn khớp phông: `recognize-fonts` và `match-fonts` đều trả kết quả handler nhưng TaskStore đánh thất bại vì `finalDownload()` đọc `urls[0].replace(...)` khi hai handler trả `urls: []`. Lượt match-fonts đã tiêu thụ 1 lượt đọc thật (~6,9 giây) trước khi kết quả bị mất ở lớp đóng gói. Renderer giữ baseline D22 với cảnh báo, cả 6 ảnh glyph giống D22 từng pixel, IoU trung bình vẫn 0,2328 chứ KHÔNG phải 0,2789. Số 0,2789 ở trên chỉ là thử nghiệm Lens shortlist riêng, bỏ qua nhánh chọn LLM thật; không chứng minh chất lượng luồng tích hợp. Phiên kiểm riêng phông mất ~18,5 giây tính cả tải tài nguyên và dựng scene. Test trước chỉ gọi handler, không đi xuyên TaskStore nên bỏ sót lỗi này. Chưa sửa trong lần rà soát. Bằng chứng: `docs/private/surgepix-feature-audit-2026-11-09/quality-current/` (deconstruct.json, ocr.json, fonts.json, result.json, glyph-comparison.json, comparison.png và data/task-log.jsonl).
+
+### D23b: bỏ LLM khỏi khớp phông, Lens + chấm pixel quyết định (owner chốt)
+
+Research bên ngoài xác nhận hướng: VLM yếu nhận diện phông (arXiv 2503.23768: VLM thất bại benchmark 15 phông, few-shot/CoT không giúp; David Ferris 12/2025: VLM "siêu nhân ở OCR nhưng tệ ở nhận diện phông, weight/size/kerning khỏi bàn"). Mọi bên chuyên nghiệp đều dùng classifier chuyên dụng trả DANH SÁCH XẾP HẠNG chứ không trả một phông duy nhất: WhatTheFont (kho 400k+), Mixfont Lens API (chính là model mình dùng, "isolates the strongest text sample, returns a ranked shortlist"), DeepFont (Adobe 2015, 80%+ top-5 kèm độ đo tương đồng), FasterViT-2 (SOTA 87,4% AdobeVFR). Ferris cũng thấy Instrument Serif lẫn STIX Two Text, đúng hiện tượng bảng của mình gặp. Nguồn: arxiv.org/abs/2503.23768; david-ferris.medium.com (font-detection-benchmarking-vlms); mixfont.com/font-recognition-api; research.adobe.com/publication/deepfont.
+
+Thay đổi: `matchedDeconstructScene` không còn gọi task `match-fonts`; mọi ứng viên (phông OCR ban đầu + tối đa 6 đề xuất Lens + phông hệ thống trong DECONSTRUCT_FONTS) đều được đo. `rankFontReferences` viết lại: chấm thô từng phông×độ đậm (điểm Lens cố định weight), hàm chấm mới `fontMaskPlacement` cho phép dịch vị trí ±2px để đặt glyph đúng chỗ (trước đây lệch 1-2px tự trừ điểm), tinh chỉnh 4 phông tốt nhất bằng coordinate descent trên fontSize×charSpacing 2 lượt; `DeconstructFit` thêm offsetX/offsetY áp vào vị trí khi dựng scene. UI copy: "Up to 1 image + 1 read; font matching runs locally". Task `match-fonts` GIỮ cho loopback API (contract ổn định), không còn nằm trong luồng UI.
+
+Đo trên cùng mẫu test-input-vi.png, tái dùng OCR/plate D22 (0 quota, đúng hàm production trong Electron): IoU mặt nạ glyph trung bình **0,2328 → 0,5249** với OCR gốc (6/6 dòng cải thiện: 0,3146→0,7185; 0,2746→0,7089; 0,1562→0,4484; 0,2888→0,4720; 0,1798→0,2739; 0,1827→0,5278); **0,5866** nếu sửa đúng nội dung chữ (0,5761 / 0,5162 ở 2 dòng OCR sai dấu). Nhìn bằng mắt: dòng Georgia khôi phục gần giống bản gốc, phông chọn là Georgia/Chalkboard/Courier New hệ thống (đo pixel thắng, không cần đúng tên phông gốc). Thời gian khớp phông ~13-21 giây CPU, 0 lượt đọc. Bằng chứng: `quality-local/`, `quality-local-corrected/` (result.json, metrics.json, comparison.png).
+
+**Đo lại theo thang chuẩn ngành (SSIM vùng chữ giữa ảnh gốc và bản tái dựng cuối, cách paper scene text editing chấm): trung bình 0,692 (D22) → 0,849 (bản mới)**; theo dòng: 0,700→0,891; 0,698→0,885; 0,616→0,783; 0,728→0,872; 0,780→0,859; 0,631→0,802. Nằm trong vùng 0,7-0,9 các method dẫn đầu báo trên nền sạch. Từ nay số liệu chất lượng chữ báo bằng SSIM chuẩn này; IoU mặt nạ tự chế chỉ dùng làm hàm mục tiêu nội bộ của bộ tối ưu (nó khắt khe với lệch 1px và khử răng cưa nên số thấp hơn hẳn thang ngành, nghiên cứu gần đây cũng phê bình PSNR/SSIM vì cùng kiểu nhạy). Đối chiếu ngành: nhận diện phông chấm top-1/top-5 trên AdobeVFR (FasterViT-2 SOTA 11/2025: 87,4%/92,1% ảnh thật; DeepFont >80% top-5; Ferris tự train 74%/85,3%); chỉnh sửa chữ chấm SSIM/PSNR/MSE/FID vùng chữ + LPIPS; OCR chấm CER/WER. Cảnh báo từ fontina: 88,5% trên synthetic validate nhưng 5% top-1 trên ảnh thật, không tin số synthetic.
+
+**Màu chữ: pixel là chính, LLM chỉ là dự phòng (owner duyệt "màu thì cần gì LLM").** `sampleTextColors` viết lại: nền cục bộ = median vành ngoài hộp xoay; pixel mực = pixel xa nền ≥70 (loại band khử răng cưa); trong các pixel mực lấy cụm trội (bin 4-bit, tối thiểu 8 pixel và ≥1,5 lần cụm nhì) rồi median từng kênh; không đo được (hộp xấu, tương phản thấp) mới giữ ước lượng LLM. Lỗi gặp giữa chừng và đã sửa: median mù trên chữ trắng nền họa tiết trả về màu rác (#f6cac1 thay vì trắng), cụm trội + tiêu chí thống trị tương đối khắc phục. Trên ảnh thật: 6/6 dòng khôi phục ĐÚNG byte màu gốc (rgb-dist 0,0), tốt hơn bản mồi-LLM (dE76 0,86). Shot gate D22 đổi kỳ vọng fill #ffcc00 → #000000 kèm lý do trong comment: fixture thật có chữ giá đen, mock seed vàng là mồi sai, gate ghim hành vi đo đúng (đổi theo quyết định, không che giấu). 5 unit test mới: mồi sai được sửa, nền gradient, tương phản thấp fallback giữ ước lượng, chữ trắng trên texture nhiều màu, giữ ước lượng khi không có mực. `fill` vẫn nằm trong schema/prompt (dự phòng), không đổi wire.
+
+**Hình học (kích thước + vị trí), đo bằng hộp bao pixel chữ:** vị trí lệch tâm trung bình 1,35px → **1,15px** trên ảnh 1000×1200 (dòng lỗi nhất của D22 lệch 4,5px → 0,7px nhờ placement search ±2px); tỷ lệ rộng 0,996 (gần chuẩn), tỷ lệ cao 0,944 (D22: 0,985): cao bị thấp ~6% một cách có hệ thống, phần lớn là thiên lệch phép đo (mặt nạ nguồn bắt được mép khử răng cưa, mặt nạ render dùng alpha ≥200 khắt khe hơn) cộng khác biệt x-height giữa phông chọn và phông gốc; IoU hộp trung bình 0,934. Offset vị trí được ghi vào left/top của đối tượng (thuộc tính chỉnh sửa được bình thường, không phải hack ẩn). Chi tiết: `quality-local/geometry.json`.
+
+Thực nghiệm OCR crop (2 lượt đọc thật, owner hỏi): gửi ảnh toàn trang, model đọc sai "chơi" thành "chợ"/"chℓi" ở 2 lần chạy; crop dòng về độ phân giải gốc 420×83 → đọc đúng 100% "ghé chơi nha". Dòng chữ Courier nhỏ có dấu chồng: crop + phóng 3x vẫn sai dấu ("Ước ưỡ y đẵng"). Owner chốt: bỏ trường hợp dòng Courier nhỏ đó ("ko có trường hợp ntn đâu"), không làm two-pass crop OCR hay từ điển dấu trong đợt này, chi phí giữ nguyên tối đa 1 ảnh + 1 lượt đọc. Ghi nhớ nếu sau này cần: lỗi OCR dấu ở dòng to có thể sửa bằng 1 lượt đọc crop ghép, cơ chế phát hiện bằng chính IoU pixel đã có.
+
+**Chốt (2026-11-09): chạy thật end-to-end 1 lần từ ảnh gốc, CHUỖI ĐẦY ĐỦ THÀNH CÔNG.** Task `deconstruct` thật qua ServiceContext + Codex: 1 lượt đọc + 1 ảnh, đúng con số dialog, không retry, không chạm limit, tổng ~97 giây (gồm tạo nền + Lens + khớp phông + dựng scene). `no_output` lần trước không tái xuất (1 lần thất bại trên 2 lần gọi tạo nền, chưa đủ dữ liệu tần suất, đã có cơ chế giữ OCR). Kết quả đo bản dựng lại từ artifact thật (0 quota mới): SSIM vùng chữ từng dòng 0,885 / 0,891 / 0,729 / 0,877 / 0,738 / 0,887, trung bình **0,8345**; màu 6/6 dòng đúng từng byte; phông chọn Georgia×3, Chalkboard, Courier New×2 (đo pixel thắng). OCR lần này sai khác lần trước (dòng viết tay có ký tự ô thiếu, dòng dấu Việt mất một từ → maskIoU dòng đó 0,08), xác nhận giới hạn đã ghi: chất lượng cuối phụ thuộc OCR dấu tiếng Việt. Plate lần này sót 3976 pixel chữ cũ ở vùng SALE họa tiết (bản D22 sót 125): tạo ảnh AI có phương sai trên nền phức tạp, đã ghi là giới hạn từ D22. Lỗi race tải ảnh nền trong harness đo đã sửa (chờ image ready) và ghi nhận: app thật đi oia:// URL, không dính đường data-URL lớn. Bằng chứng: `e2e-real/` (deconstruct-task.json, plate.png, result.json, reconstructed-fixed.png, glyph-fixed-*.png, rerender.json). Trạng thái: **D22 + D23 đóng trên macOS**. Nợ còn mở: kiểm máy Windows thật (phông hệ thống + quy trình đầy đủ), đo tần suất lỗi OCR dấu trên bộ mẫu lớn hơn nếu sau này cần tăng chất lượng (crop re-read đã có bằng chứng nguyên lý, owner tạm gác), tích lũy mẫu thật nhiều hơn 1 ảnh trước khi tuyên bố số liệu đại diện.
+
+- Task dữ liệu `recognize-fonts`/`match-fonts` thành công không cần tệp tải xuống: TaskStore giữ `fontSuggestions`/`fontMatches` và bỏ trường `download`. Task ảnh không có tệp vẫn thất bại, không tạo URL giả. Kiểm thử gọi handler thật qua TaskStore và ghi/đọc lại log, không chỉ gọi handler độc lập.
+- `deconstruct` lưu checkpoint OCR đã hiệu chỉnh trước khi tạo nền. Nếu tạo ảnh trả `no_output`, hủy hoặc tiến trình dừng, record giữ chữ nhưng vẫn failed, không gắn ảnh gốc thành nền sạch. UI giữ trang cũ và thông báo cả nguyên nhân lẫn phần OCR được lưu. Không tự thử lại; checkpoint không phải lối tiếp tục miễn phí đã có UI. Abort từ tín hiệu TaskStore ghi `errorClass: cancelled`, không `unknown`.
+- Chạy lại `matchedDeconstructScene` production trong Electron với TaskStore + Lens thật + một lượt Codex `match-fonts`, tái dùng OCR/plate D22: cả hai task thành công, không fallback. Thời gian ~19,1 giây (lượt đọc ~8,6 giây), 1 đọc + 0 ảnh. IoU mặt nạ chữ theo cùng phép đo D22 tăng **0,2328 → 0,3391** (5 dòng cải thiện, 1 dòng giữ nguyên): dòng 1 0,3146→0,5911; dòng 2 0,2746→0,4104; dòng 3 0,1563→0,2577; dòng 4 0,2888 giữ nguyên; dòng 5 0,1798→0,2125; dòng 6 0,1827→0,2742. Chưa đạt bảo toàn phông gốc, chưa phải benchmark đại diện.
+- Build/test/typecheck/smoke/crash-smoke/shot đã chạy sau sửa tích hợp. Bằng chứng riêng tư: `quality-fixed/result.json`, `metrics.json`, `comparison.png`, `data/task-log.jsonl`; script `quality-run.cjs` + `quality-entry.mjs` gọi trực tiếp hàm production, không thao tác nút UI.
+- `no_output` từ lần tạo nền trước chưa đủ bằng chứng để chốt do công cụ không chạy hay bộ tìm tệp bỏ sót. Không sửa bừa nhà cung cấp và không gọi tạo ảnh thêm trong đợt này. Đã sửa khả năng giữ OCR khi lỗi; chưa chứng minh cả luồng tạo nền thật sẽ thành công và chưa kiểm Windows thật.
+
 ## Loopback API spec (D9: đầy đủ, hấp thụ review điểm 3)
 
 - **Transport**: `node:http`, bind **chỉ 127.0.0.1**. **Port random** + ghi **discovery file** `<userData>/agent-api.json` (quyền 0600) chứa `{port, pid}`; xoá file khi tắt. Skill script: đọc discovery file trước, `OIA_BASE_URL` override sau.
@@ -384,3 +484,45 @@ Ghi đè bộ hình marketing của hai đợt 2026-11-08/09 phía trên, không
 - Gate: kiểm 28 local media references xanh + 3 regression test; template builder và composite builder chạy được; JS syntax và diff check xanh; desktop build/typecheck xanh; Chrome thật qua bsk ở 1440×900, 390×844 không ảnh lỗi/tràn ngang, thử 20%/30% khớp ảnh/brief. Thêm kiểm tra media trước GitHub Pages deploy. Chưa chạy CI từ local, không full test/smoke/crash-smoke, không Windows thật, không deploy production.
 - Chi tiết vòng review, giới hạn bằng chứng và provenance: [`../verification/marketing-assets.md`](../verification/marketing-assets.md), [`../verification/marketing-assets-provenance.json`](../verification/marketing-assets-provenance.json). Quota vòng này: 3 ảnh thật (2 tạo mới + 1 sửa tham chiếu), không sinh lại trong lúc chụp editor.
 - **Hậu kiểm deploy (owner yêu cầu push/deploy toàn bộ):** đã push các commit local lên `main`, code SHA `c90f720`; Cloudflare version `e9cad6c4-b906-453f-9041-08bb3abd38fb` đã lên `oia.solutions`. GitHub Pages run `42559638292` xanh; CI `42559638291` xanh đủ build/test/typecheck, desktop-smoke, desktop-smoke-windows, unit-windows (dist jobs skip đúng trigger, không phát hành installer). Chrome thật xác nhận 9 file live trả 200 và SHA-256 trùng local, gồm HTML/JS/CSS và 6 asset. Không cần purge cache. Chi tiết bằng chứng ở mục phát hành trong bản ghi verification phía trên.
+
+## Ghi nhận audit tính năng và pack hình xem trước (2026-11-09)
+
+- Theo yêu cầu owner, đối chiếu tính năng đã ship với code và ledger, chọn câu chuyện ảnh sản phẩm → quảng cáo → sửa ưu đãi → editor → xuất file; livestream là use-case riêng. Chi tiết: [landing-feature-audit.md](landing-feature-audit.md).
+- Pack độc lập ở `site/feature-review/`: 5 hình chính, 2 bản mobile dọc, 1 bảng tổng hợp; không sửa `site/index.html`, không thay template/app, không deploy. Sinh đúng 2 output AI mới qua Codex 0.167.0: sản phẩm STILL hư cấu và chiến dịch có đính kèm ảnh sản phẩm. Không claim run Oia đủ planner/research/refine. Prompt/thread/mã băm được lưu cùng pack.
+- Ảnh editor và livestream là nguồn Electron đã có, không vẽ UI giả hoặc sửa nội dung screenshot. Không đánh tráo chữ baked thành layer, không hứa PPTX native text, guide nền tảng chính thức hoặc tự động giữ nhận diện tuyệt đối. Make text editable có sẵn nhưng chưa có demo deconstruct thực trên artwork mới trong pack này.
+- Gates: composite builder chạy được, media audit 35 reference xanh; Chrome thật qua bsk 1440×1000 và 390×844 không overflow, bản mobile tải đúng `picture/source`; xem trực tiếp artwork và screenshot render, review vision độc lập hình 01 không có blocker crop/màu/overlap. Sửa caption dài và bổ sung mobile dọc sau review. `git diff --check` xanh. Không full build/test/smoke/crash-smoke hoặc gate Windows mới, không đổi code desktop; các gate phát hành còn treo giữ nguyên.
+- Hướng dẫn tái tạo và giới hạn kiểm tra: `site/feature-review/README.md`. Trang là review có noindex, không thêm vào điều hướng/sitemap landing.
+
+## Ghi nhận D21: Split layer chạy local bằng SAM 3 ONNX (2026-11-09, owner "làm đi và tối ưu")
+
+- **Quyết định:** task `segment-image` (schema enum mới) chạy engine **SAM 3 int8 ONNX thuần local** trong utility process: vision encode 1 lần/ảnh (cache theo content hash, 6-8 giây CPU), mỗi text prompt 1-2 giây, **0 quota provider**. Nút "Split layer" trên ContextToolbar ảnh (cạnh "Make text editable"), dialog prompt + chips, cutout chèn thành layer đè lên ảnh gốc (giống SurgePix: giữ nguyên layer gốc).
+- **Model:** danilobukvic/sam3-text-onnx int8 (880 MB, 3 graph + tokenizer CLIP), **download-on-first-run** vào `<userData>/models/sam3`, sha256 pin + atomic rename (không bao giờ bundle vào installer: cả kích thước lẫn Meta SAM License). Bằng chứng chọn model: PoC đối đầu 6 bản ONNX + 3 đường (PyTorch MPS, ONNX node, SAM3-tracker), IoU 0,994 so PyTorch BF16, chi tiết `docs/private/surgepix-feature-audit-2026-11-09/poc-local-segment/RESULTS.md`.
+- **Kiến trúc:** onnxruntime-node + pngjs là dep của apps/desktop (native, cần asarUnpack khi đóng gói: noted nợ packaging); engine `src/utility/segmentation/` (engine/models/compose/clip-bpe) inject vào createServiceContext qua `opts.segmenter` (workspace packages sạch native dep); IPC `segment:status`/`segment:download` poll-based (không thêm event wire); taskResult mở rộng field `objects` (additive theo D14, không bump schema version).
+- **Tối ưu đã đo:** int4 KHÔNG nhanh hơn int8 trên CPU (6,0 vs 5,8 giây) nên giữ int8; intraOpNumThreads mặc định đã tối ưu; cache vision embedding là đòn bẩy thật (prompt 2+ trên cùng ảnh: 1-2 giây).
+- **Gate:** build/test/typecheck toàn repo xanh; 13 test mới (processor 4: happy/honest-empty/thiếu engine capability_unsupported/param sai; compose 4: threshold/alpha-roundtrip/maskBox/preprocess; models 2: checksum mismatch dọn tmp + install nguyên tử; BPE 3: SOT-EOT pad 32/lowercase/cut 32); DESKTOP_SMOKE OK events=10.
+- **Nợ ghi sổ:** (1) asarUnpack onnxruntime-node + smoke trên bản đóng gói thật; (2) chạy thử end-to-end với model thật trên máy owner (dialog download 880 MB → prompt → cutout); (3) đọc kỹ Meta SAM License trước khi phát hành rộng (download runtime có thể cần điều khoản riêng); (4) Windows: cùng bộ ONNX CPU EP nhưng chưa đo trên máy Windows thật (D3); (5) shot gate cho view Split layer dialog.
+
+## Hoàn thiện asset tính năng và báo cáo SurgePix, sau sửa D22/D23
+
+- Tích hợp vào landing/README: cặp ảnh tham chiếu STILL, editor thật, ba ảnh
+  Make text editable, crop livestream; giữ các artwork MORI/FORMA. Dùng ảnh
+  rời với HTML responsive thay ảnh ghép ba khung thu nhỏ trên điện thoại.
+- Builder công khai `docs/screenshots/build-feature-assets.py`, bảy đầu ra và
+  mã băm ở `docs/verification/feature-assets.json`, không thêm quota. Không
+  dùng PoC Split layer làm bằng chứng app khi các gate D21 bên trên còn mở.
+- Báo cáo riêng tư SurgePix có Markdown/HTML, bảy minh họa + mẫu Oia, nguồn
+  và manifest; phân biệt quan sát/suy luận/chưa biết. Rút khẳng định giá vốn,
+  model cụ thể và self-host chưa có chứng cứ, sửa nhận xét typography quá mức.
+  Capture/asset đối thủ không được đưa vào site công khai.
+- Gate đợt media/docs: builder/report chạy được; media audit ba self-test và
+  45 tham chiếu đạt; link report tồn tại; diff check đạt. Chrome thật kiểm
+  landing desktop/mobile, README preview và report mobile; không overflow,
+  ảnh tải đủ, link use-case hoạt động. Chụp report desktop bị timeout bsk,
+  không ghi là pass. Nội dung site hiển thị ngay, không đợi reveal observer.
+- Trước push theo yêu cầu owner: chạy lại build (8 tác vụ), test (16),
+  typecheck (15), mock Electron smoke (`events=10`), crash-smoke (31 project
+  trước/sau), shot (gõ chữ, reload/clone/Enter/textbox thường đều đạt), media
+  self-test/audit và diff check. Không chạy task trả phí hoặc model thật.
+- Chưa khảo sát lại website SurgePix hoặc chạy model thật desktop/Windows.
+  Push GitHub sẽ kích hoạt CI/Pages; Cloudflare cần đợt triển khai riêng.
+  Chi tiết: `docs/verification/marketing-assets.md`.

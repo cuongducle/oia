@@ -24,6 +24,10 @@ export type UtilityCommand =
   | { cmd: "chatCancel"; jobId: string }
   /** Window closed / app quitting, kill every in-flight generation (TP-D5). */
   | { cmd: "cancelAll" }
+  /** D21: local SAM 3 model state (ready / downloading / missing + bytes). */
+  | { cmd: "segment.status" }
+  /** D21: start (or join) the model download; poll segment.status for progress. */
+  | { cmd: "segment.download" }
   | { cmd: "providerStatus" }
   | { cmd: "projects.create"; input: { name?: string; scene?: unknown; pages?: unknown; width?: number; height?: number } }
   | { cmd: "projects.get"; id: string }

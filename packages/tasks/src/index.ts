@@ -4,6 +4,8 @@ export * from "./importWebData.js";
 export * from "./templates.js";
 export * from "./brandkits.js";
 export * from "./processors.js";
+export * from "./font-reference.js";
+export * from "./font-recognition.js";
 export * from "./apikeys.js";
 export * from "./storage.js";
 export * from "./referenceImages.js";

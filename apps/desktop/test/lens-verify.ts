@@ -1,0 +1,11 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const { LensRecognizer } = await import(fileURLToPath(new URL('../src/utility/lens.ts', import.meta.url)));
+const dir = '../../docs/private/surgepix-feature-audit-2026-11-09';
+const png = await readFile(`${dir}/test-input-vi.png`);
+const texts = JSON.parse(await readFile(`${dir}/d22-live/refined-texts.json`, 'utf8'));
+const recognizer = new LensRecognizer('./resources/lens');
+const started = Date.now();
+const found = await recognizer.recognize(png, texts, new AbortController().signal);
+console.log(`elapsed ${Date.now() - started} ms`);
+for (const f of found) console.log(JSON.stringify(f));

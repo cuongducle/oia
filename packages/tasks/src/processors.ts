@@ -1,4 +1,5 @@
 import type { FileStore } from "./storage.js";
+import { composeTextPlate, localTextPlate, readDeconstructPng, refineTextRegions, sampleTextColors } from "./deconstruct-plate.js";
 import { ProviderError } from "@oia/providers";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import type { TaskContext } from "./store.js";
@@ -25,6 +26,18 @@ export interface ProcCtx {
   store: FileStore;
   image: ImageProvider;
   llm: LlmProvider;
+  /** D21: injected by the desktop utility (onnxruntime + SAM 3 int8 live in the
+   *  app shell, workspace packages stay free of native deps). Absent = clear error. */
+  segmenter?: Segmenter;
+  fontRecognizer?: import("./font-recognition.js").FontRecognizer;
+}
+
+/** The local ONNX engine contract (implemented in apps/desktop/src/utility/segmentation). */
+export interface Segmenter {
+  /** @returns per-detection cutout PNG bytes + box fractions + score, best first. */
+  segment(input: { png: Uint8Array; prompt: string; signal: AbortSignal }): Promise<
+    { box: [number, number, number, number]; score: number; cutout: Uint8Array }[]
+  >;
 }
 
 /** generate-poster: image provider → file.png → URL (scene JSON is assembled by the agent/web layer). */
@@ -78,12 +91,29 @@ export function makeRemoveBackground(ctx: ProcCtx) {
   };
 }
 
-/** PNG IHDR size probe, 4 lines, no dependency; non-PNG returns null and the
- * caller falls back to a square (boxes are fractions, so positions stay honest). */
-function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
-  if (bytes.length < 24 || bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null; // "IHDR"
-  return { width: new DataView(bytes.buffer, bytes.byteOffset).getUint32(16), height: new DataView(bytes.buffer, bytes.byteOffset).getUint32(20) };
+/** D21 segment-image: LOCAL ONNX (no provider quota). The engine is injected;
+ *  this processor only handles validation, storage and honest failures. */
+export function makeSegmentImage(ctx: ProcCtx) {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
+    const fileUrl = String(params.fileUrl ?? "");
+    const prompt = String(params.prompt ?? "").trim();
+    if (!fileUrl) throw new Error("segment-image requires fileUrl");
+    if (!prompt) throw new Error("segment-image requires prompt");
+    if (!ctx.segmenter) throw new ProviderError("capability_unsupported", "the segmentation model is not available, download it first from the Split layer dialog", { provider: "local" });
+    const src = await ctx.store.read(fileUrl.replace(/^\/api\/files\//, "")).catch(() => null);
+    if (!src) throw new Error("fileUrl is invalid or has not been uploaded");
+    const hits = await ctx.segmenter.segment({ png: src, prompt, signal: tctx.signal });
+    if (!hits.length) return { urls: [], note: `nothing matching "${prompt}" was found` };
+    const objects: { box: [number, number, number, number]; score: number; url: string }[] = [];
+    for (const h of hits) {
+      if (tctx.signal.aborted) break; // stop saving cutouts, the record still settles honestly
+      const saved = await ctx.store.put(h.cutout, "png");
+      objects.push({ box: h.box, score: h.score, url: saved.url });
+    }
+    return { urls: objects.map((o) => o.url), objects, note: `${objects.length} layer${objects.length === 1 ? "" : "s"} cut out` };
+  };
 }
+
 
 /** B1 deconstruct (deconstruct-import.md): vision read (1 LLM turn) → inpaint
  * (1 image). The order is a G2 invariant: a malformed read fails BEFORE any
@@ -98,6 +128,8 @@ export function makeDeconstruct(ctx: ProcCtx) {
     if (typeof ctx.llm.readImage !== "function" || !ctx.llm.capabilities.referenceImages) {
       throw new ProviderError("capability_unsupported", `provider ${ctx.llm.name} cannot read images`, { provider: ctx.llm.name });
     }
+    const original = readDeconstructPng(src);
+    tctx.signal?.throwIfAborted();
     const raw = await ctx.llm.readImage(DECONSTRUCT_READ_PROMPT, src, DECONSTRUCT_JSON_SCHEMA, {
       signal: tctx.signal,
       ...(tctx.jobId ? { jobId: `read-${tctx.jobId}` } : {}),
@@ -109,23 +141,37 @@ export function makeDeconstruct(ctx: ProcCtx) {
       throw new ProviderError("plan_parse_failed", "vision read returned malformed JSON", { provider: ctx.llm.name, detail: String(raw).slice(0, 200) });
     }
 
+    if (!read.texts.length) {
+      tctx.signal?.throwIfAborted();
+      return { urls: [fileUrl], texts: [], note: "No readable text was found. The original image is unchanged." };
+    }
+    const texts = sampleTextColors(original, refineTextRegions(original, read.texts));
+    await tctx.checkpoint?.({ urls: [], texts, note: "Text recognition was preserved. Background cleanup has not completed; the original image is unchanged." });
+    tctx.signal?.throwIfAborted();
+    const local = localTextPlate(original, texts);
+    if (local) {
+      const saved = await ctx.store.put(local, "png");
+      return { urls: [saved.url], texts, note: "The smooth background was restored locally; no image generation was used." };
+    }
     if (!ctx.image.capabilities.referenceImages) {
       throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
     }
-    const size = pngSize(src) ?? { width: 1024, height: 1024 };
+    const size = original;
     // in-process ref: the store's LOCAL PATH, no base64 round-trip (P2)
     const platePath = await ctx.store.pathOf(fileUrl.replace(/^\/api\/files\//, ""));
     if (!platePath) throw new Error("fileUrl is invalid or has not been uploaded");
     const img = await ctx.image.generate({
-      prompt: DECONSTRUCT_INPAINT_PROMPT,
+      prompt: `${DECONSTRUCT_INPAINT_PROMPT}\nOCR data (fraction boxes, clockwise angle about top-left): ${JSON.stringify(texts.map((t) => ({ text: t.text, box: t.box, angle: t.typography?.angle ?? 0 })))}`,
       width: size.width,
       height: size.height,
       referenceImages: [platePath],
       signal: tctx.signal,
     });
     const bytes = await fetchBytes(img.url, ctx.store);
-    const saved = await ctx.store.put(bytes, "png");
-    return { urls: [saved.url], texts: read.texts };
+    tctx.signal?.throwIfAborted();
+    const plate = composeTextPlate(original, readDeconstructPng(bytes), texts);
+    const saved = await ctx.store.put(plate, "png");
+    return { urls: [saved.url], texts };
   };
 }
 

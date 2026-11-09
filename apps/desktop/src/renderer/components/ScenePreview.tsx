@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SceneCanvas } from "@oia/schema";
 import type { StaticCanvas } from "fabric";
+import { loadSceneFonts } from "../lib/scene-fonts.js";
 import { mapAssetUrls } from "../../shared/assets.js";
 import { fabricV6OriginDefaults, normalizeImageScales } from "@oia/canvas";
 
@@ -19,7 +20,7 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
       if (!entries.some(e => e.isIntersecting)) return;
       observer.disconnect();
       try {
-        const [fabric] = await Promise.all([import("fabric"), document.fonts.ready]);
+        const [fabric] = await Promise.all([import("fabric"), document.fonts.ready, loadSceneFonts(scene)]);
         if (disposed || !ref.current) return;
         fabricV6OriginDefaults(); // before loadFromJSON constructs objects (see editor.ts)
         const mapped = mapAssetUrls(scene);

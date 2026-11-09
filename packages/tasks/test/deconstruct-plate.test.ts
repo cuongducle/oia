@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+import { PNG } from "pngjs";
+import { deconstructTextSchema } from "@oia/schema";
+import { composeTextPlate, localTextPlate, readDeconstructPng, refineTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
+
+function solid(w: number, h: number, rgb: number[]) {
+  const p = new PNG({ width: w, height: h });
+  for (let i = 0; i < p.data.length; i += 4) p.data.set([...rgb, 255], i);
+  return p;
+}
+const line = (angle = 0) => deconstructTextSchema.parse({
+  text: "thứ bảy vui vẻ!", box: { x: 0.3, y: 0.3, w: 0.4, h: 0.12 },
+  typography: { fontFamily: "Be Vietnam Pro", fontWeight: 700, fontStyle: "normal", fill: "#e52233", angle, spacingEm: 0, textAlign: "left" },
+});
+
+describe("D22 text plate", () => {
+  it("does not copy imagegen drift outside a rotated OCR region; source alpha survives", () => {
+    const src = solid(100, 100, [10, 20, 30]);
+    src.data[3] = 0;
+    src.data.set([255, 255, 255, 255], (40 * 100 + 40) * 4);
+    const generated = solid(50, 50, [200, 210, 220]);
+    const out = readDeconstructPng(composeTextPlate(src, generated, [line(30)]));
+    const pixel = (x: number, y: number) => [...out.data.subarray((y * 100 + x) * 4, (y * 100 + x) * 4 + 4)];
+    expect(pixel(0, 0)).toEqual([10, 20, 30, 0]);
+    expect(pixel(95, 95)).toEqual([10, 20, 30, 255]);
+    expect(pixel(40, 40)).toEqual([10, 20, 30, 255]); // flat background reconstructed, not imagegen's shifted color
+    // Inside the rotated rectangle's AABB but not the rectangle itself.
+    expect(pixel(65, 31)).toEqual([10, 20, 30, 255]);
+    expect([out.width, out.height]).toEqual([100, 100]);
+  });
+
+  it("uses generated pixels on a patterned background rather than hallucinating a flat plate", () => {
+    const src = solid(100, 100, [10, 20, 30]);
+    for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) {
+      const c = (x * 71 + y * 13) % 255;
+      src.data.set([c, 255 - c, c, 255], (y * 100 + x) * 4);
+    }
+    const out = readDeconstructPng(composeTextPlate(src, solid(50, 50, [200, 210, 220]), [line()]));
+    expect([...out.data.subarray((35 * 100 + 45) * 4, (35 * 100 + 45) * 4 + 4)]).toEqual([200, 210, 220, 255]);
+  });
+
+  it("expands an underestimated OCR box to include descenders before erasing", () => {
+    const src = solid(100, 100, [20, 70, 90]);
+    for (let y = 30; y < 46; y++) for (let x = 30; x < 70; x += 4) src.data.set([229, 34, 51, 255], (y * 100 + x) * 4);
+    const [refined] = refineTextRegions(src, [line()]);
+    expect((refined.box.y + refined.box.h) * 100).toBeGreaterThanOrEqual(46);
+    const out = readDeconstructPng(composeTextPlate(src, solid(100, 100, [200, 210, 220]), [refined]));
+    expect([...out.data.subarray((45 * 100 + 42) * 4, (45 * 100 + 42) * 4 + 4)]).toEqual([20, 70, 90, 255]);
+  });
+
+  it("keeps adjacent same-color lines separate while retaining detached accents", () => {
+    const src = solid(200, 200, [20, 70, 90]);
+    for (const [start, end] of [[61, 64], [67, 80], [89, 110]]) {
+      for (let y = start; y < end; y++) for (let x = 60; x < 140; x += 2) {
+        src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+      }
+    }
+    // A same-color decorative rail must not connect otherwise separated row bands.
+    for (let y = 45; y < 120; y++) src.data.set([229, 34, 51, 255], (y * 200 + 57) * 4);
+    const first = { ...line(), box: { x: 0.3, y: 0.3, w: 0.4, h: 0.12 } };
+    const second = { ...line(), box: { x: 0.3, y: 0.44, w: 0.4, h: 0.12 } };
+    const [a, b] = refineTextRegions(src, [first, second]);
+    expect(a.box.y * 200).toBeLessThan(62);
+    expect((a.box.y + a.box.h) * 200).toBeLessThan(89);
+    expect(b.box.y * 200).toBeGreaterThan(80);
+    expect((b.box.y + b.box.h) * 200).toBeGreaterThanOrEqual(110);
+  });
+
+  it("reconstructs a gradient without rectangular color seams from imagegen", () => {
+    const src = solid(100, 100, [0, 0, 0]);
+    for (let y = 0; y < 100; y++) for (let x = 0; x < 100; x++) src.data.set([x + 10, y + 20, x + y, 255], (y * 100 + x) * 4);
+    src.data.set([255, 255, 255, 255], (35 * 100 + 45) * 4);
+    const out = readDeconstructPng(composeTextPlate(src, solid(100, 100, [200, 210, 220]), [line()]));
+    const pixel = [...out.data.subarray((35 * 100 + 45) * 4, (35 * 100 + 45) * 4 + 3)];
+    pixel.forEach((c, k) => expect(Math.abs(c - [55, 55, 80][k])).toBeLessThanOrEqual(1));
+  });
+
+  it("recognizes antialiased ink as a background/foreground mixture, not texture", () => {
+    const src = solid(100, 100, [10, 20, 30]);
+    for (let y = 31; y < 41; y++) for (let x = 32; x < 68; x++) {
+      src.data.set([87, 25, 37, 255], (y * 100 + x) * 4); // 35% of #e52233 over the background
+    }
+    const plate = localTextPlate(src, [line()]);
+    expect(plate).not.toBeNull();
+    const p = readDeconstructPng(plate!);
+    expect([...p.data.subarray((35 * 100 + 45) * 4, (35 * 100 + 45) * 4 + 3)]).toEqual([10, 20, 30]);
+  });
+
+  it("does not flatten a textured interior just because the border is smooth", () => {
+    const src = solid(100, 100, [10, 20, 30]);
+    for (let y = 32; y < 40; y++) for (let x = 35; x < 65; x++) src.data.set([0, 200, 100, 255], (y * 100 + x) * 4);
+    expect(localTextPlate(src, [line()])).toBeNull();
+    expect(localTextPlate(solid(100, 100, [10, 20, 30]), [line()])).toBeInstanceOf(Uint8Array);
+  });
+
+  it("empty OCR preserves every decoded pixel", () => {
+    const src = solid(10, 10, [1, 2, 3]);
+    expect(readDeconstructPng(composeTextPlate(src, solid(4, 4, [255, 255, 255]), [])).data).toEqual(src.data);
+  });
+
+  it("samples sparse foreground ink rather than the dominant background", () => {
+    const src = solid(100, 100, [255, 255, 255]);
+    for (let x = 32; x < 60; x++) src.data.set([230, 30, 50, 255], (35 * 100 + x) * 4);
+    const [text] = sampleTextColors(src, [line()]);
+    expect(text.typography?.fill).toBe("#e61e32");
+    expect(text.text).toBe("thứ bảy vui vẻ!");
+  });
+
+  it("retains vision estimate when no plausible ink exists; old OCR remains readable", () => {
+    const src = solid(100, 100, [255, 255, 255]);
+    expect(sampleTextColors(src, [line()])[0].typography?.fill).toBe("#e52233");
+    const legacy = { text: "OLD", box: { x: 0, y: 0, w: 1, h: 1 } };
+    expect(sampleTextColors(src, [legacy])).toEqual([legacy]);
+  });
+
+  it("corrects a WRONG vision seed: the ink cluster is measured, not searched near the seed", () => {
+    const src = solid(100, 100, [255, 255, 255]);
+    for (let x = 32; x < 60; x++) src.data.set([20, 60, 220, 255], (35 * 100 + x) * 4);
+    const [text] = sampleTextColors(src, [line()]);
+    expect(text.typography?.fill).toBe("#143cdc");
+  });
+
+  it("extracts ink over a gradient background from the ring reference", () => {
+    const src = new PNG({ width: 100, height: 100 });
+    for (let y = 0; y < 100; y++) {
+      const c = Math.round(240 - y * 0.5);
+      for (let x = 0; x < 100; x++) src.data.set([c, c, c, 255], (y * 100 + x) * 4);
+    }
+    for (let x = 32; x < 60; x++) src.data.set([10, 10, 10, 255], (35 * 100 + x) * 4);
+    const [text] = sampleTextColors(src, [line()]);
+    expect(text.typography?.fill).toBe("#0a0a0a");
+  });
+
+  it("low-contrast ink falls back to the vision estimate instead of guessing", () => {
+    const src = solid(100, 100, [30, 30, 30]);
+    for (let x = 32; x < 60; x++) src.data.set([42, 42, 42, 255], (35 * 100 + x) * 4);
+    expect(sampleTextColors(src, [line()])[0].typography?.fill).toBe("#e52233");
+  });
+
+  it("white ink on colorful texture wins as the dominant far cluster, not the texture median", () => {
+    const src = solid(100, 100, [90, 140, 90]);
+    // scatter DISTINCT colors inside the box so no single stray bin can outnumber real ink
+    for (let y = 30; y < 42; y += 3) for (let x = 30; x < 70; x += 3) {
+      const r = (x * 7 + y * 13) % 256, g = (x * 3 + y * 5) % 256, b = (x * 11 + y * 2) % 256;
+      for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) src.data.set([r, g, b, 255], ((y + dy) * 100 + x + dx) * 4);
+    }
+    for (let y = 34; y < 38; y++) for (let x = 32; x < 60; x++) src.data.set([255, 255, 255, 255], (y * 100 + x) * 4);
+    expect(sampleTextColors(src, [line()])[0].typography?.fill).toBe("#ffffff");
+  });
+
+  it("rejects oversized, truncated and non-PNG input before decompression", () => {
+    const b = PNG.sync.write(solid(1, 1, [0, 0, 0]));
+    b.writeUInt32BE(100000, 16); b.writeUInt32BE(100000, 20);
+    expect(() => readDeconstructPng(b)).toThrow(/24 megapixel/);
+    expect(() => readDeconstructPng(new Uint8Array([1, 2, 3]))).toThrow(/PNG/);
+    expect(() => readDeconstructPng(PNG.sync.write(solid(2, 2, [0, 0, 0])).subarray(0, 30))).toThrow();
+  });
+});

@@ -3,7 +3,8 @@ import type { Project } from "@oia/schema";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { Dialog } from "../components/Dialog.js";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
-import { deconstructScene } from "../lib/deconstruct-scene.js";
+import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
+import { dataUrlBytes } from "../lib/data-url.js";
 import { pollTask } from "../lib/poll-task.js";
 import { sceneDims, sceneShape, type SceneShape } from "../lib/scene-dims.js";
 import type { DeconstructText } from "@oia/schema";
@@ -76,11 +77,13 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
 
   const deconTaskRef = useRef<string | null>(null);
   const deconRunRef = useRef(0);
+  const deconStoppedRef = useRef(false);
   /** Teardown B1 (spec deviation): "cancel is always available", the run must
    * be cancellable mid-flight. Cancelling closes the dialog, but the poll loop
    * KEEPS WATCHING: if the task had already finished, the paid result still
    * becomes a project (quota-is-money, no orphaned paid generation). */
   async function cancelDecon() {
+    deconStoppedRef.current = true;
     const id = deconTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
     closeDecon();
@@ -93,17 +96,32 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
     // success path must not depend on live dialog state.
     const pick = decon;
     const myRun = ++deconRunRef.current;
+    deconStoppedRef.current = false;
     setDeconBusy(true); setError("");
     try {
-      const up = await oia().uploadAsset(pick.file.name, new Uint8Array(await pick.file.arrayBuffer()));
+      if (pick.w * pick.h > 24_000_000) throw new Error("The image exceeds the 24 megapixel text-editing limit.");
+      const bitmap = await createImageBitmap(pick.file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      try {
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Image conversion is unavailable.");
+        context.drawImage(bitmap, 0, 0);
+      } finally { bitmap.close(); }
+      const png = dataUrlBytes(canvas.toDataURL("image/png"));
+      canvas.width = canvas.height = 0;
+      const up = await oia().uploadAsset("deconstruct.png", png);
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
       deconTaskRef.current = started.taskId;
       const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
-        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "deconstruct was cancelled, nothing was imported"));
+        throw new Error([final.msg, final.taskNote].filter(Boolean).join(" ") || "Nothing was imported.");
       }
       const texts = (final.taskResult.texts ?? []) as DeconstructText[];
-      const scene = deconstructScene({ imageUrl: final.taskResult.download, w: pick.w, h: pick.h, texts });
+      const { scene } = await matchedDeconstructScene({ png, imageUrl: final.taskResult.download, w: pick.w, h: pick.h, texts }, oia(), {
+        stopped: () => deconStoppedRef.current || deconRunRef.current !== myRun,
+        onTask: (id) => { deconTaskRef.current = id; },
+      });
       const p = await oia().createProject({ name: pick.file.name.replace(/\.[^.]+$/, "") || "Deconstructed design", scene });
       if (deconRunRef.current !== myRun) return; // a newer run owns the UI, the project stays in the workspace list
       closeDecon();
@@ -257,7 +275,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
         <Dialog onClose={deconBusy ? () => void cancelDecon() : closeDecon} label="Deconstruct old design">
           <h2>Make this design editable?</h2>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 12px" }}>
-            Oia reads the text in the image, cleans it off the background, and rebuilds each line as an editable text layer.
+            Oia reads the text, cleans the text regions, and rebuilds editable layers with matching color, angle and spacing. Fonts are approximated from available families; complex lettering may need adjustment.
             Everything else stays a flat image, objects are not separated.
           </p>
           <div className="deconPreview">
@@ -265,10 +283,10 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
             <div>
               <strong>{decon.file.name}</strong>
               <span>{decon.w} × {decon.h}</span>
-              {imageMock === false && <span data-testid="decon-cost">≈ 1 image + 1 read</span>}
+              {imageMock === false && <span data-testid="decon-cost">Up to 1 image + 1 read; font matching runs locally</span>}
             </div>
           </div>
-          {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading and cleaning, this usually takes 1-3 minutes…</p>}
+          {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading text, restoring the background and comparing font samples…</p>}
           <div className="dialogActions">
             <button className="secondaryBtn" onClick={() => void cancelDecon()}>{deconBusy ? "Cancel run" : "Cancel"}</button>
             <button className="primaryBtn" disabled={deconBusy} data-testid="decon-confirm" onClick={() => void runDeconstruct()}>

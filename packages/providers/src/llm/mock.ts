@@ -1,6 +1,6 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { holdMockPace } from "../mockPace.js";
-import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA } from "@oia/schema";
+import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA, FONT_MATCH_MARKER, fontReferenceRowSchema } from "@oia/schema";
 
 /**
  * Mock planner: costs no tokens; generates the outline demos need.
@@ -110,6 +110,13 @@ export class MockLlmProvider implements LlmProvider {
    * pattern). Bytes are ignored: the mock proves wiring, not eyesight. */
   async readImage(prompt: string, _image: Uint8Array, _schema: object = DECONSTRUCT_JSON_SCHEMA, opts: LlmChatOpts = {}): Promise<string> {
     await holdMockPace(this.paceMs); // shot-busy only, 0 in every other mode
+    if (prompt.includes(FONT_MATCH_MARKER)) {
+      const rows: unknown[] = JSON.parse(prompt.split("\nFONT_ROWS=")[1] ?? "[]");
+      return JSON.stringify({ matches: rows.map((r) => {
+        const row = fontReferenceRowSchema.parse(r);
+        return { lineIndex: row.lineIndex, candidateIds: row.candidateIds.slice(0, 3) };
+      }) });
+    }
     if (prompt.includes(EVAL_READ_MARKER)) {
       // DA-3 mock critic, deterministic fail→pass per job (see #evalSeen)
       const fail = this.#evalSeen(opts.jobId) === 0;
@@ -122,11 +129,12 @@ export class MockLlmProvider implements LlmProvider {
     if (!prompt.includes(DECONSTRUCT_READ_MARKER)) {
       throw new Error(`mock vision: prompt is not a deconstruct read (missing ${DECONSTRUCT_READ_MARKER})`);
     }
+    const typography = { fontFamily: "Be Vietnam Pro", fontWeight: 700, fontStyle: "normal", fill: "#ffffff", angle: 0, spacingEm: 0, textAlign: "left" };
     return JSON.stringify({
       texts: [
-        { text: "SALE 50", box: { x: 0.08, y: 0.1, w: 0.55, h: 0.09 } },
-        { text: "299.000₫", box: { x: 0.1, y: 0.72, w: 0.45, h: 0.07 } },
-        { text: "Chỉ hôm nay", box: { x: 0.1, y: 0.81, w: 0.4, h: 0.05 } },
+        { text: "SALE 50", box: { x: 0.08, y: 0.1, w: 0.55, h: 0.09 }, typography },
+        { text: "299.000₫", box: { x: 0.1, y: 0.72, w: 0.45, h: 0.07 }, typography: { ...typography, fill: "#ffcc00", angle: -8 } },
+        { text: "Chỉ hôm nay", box: { x: 0.1, y: 0.81, w: 0.4, h: 0.05 }, typography: { ...typography, fontWeight: 400, fontStyle: "italic", spacingEm: 0.1 } },
       ],
     });
   }

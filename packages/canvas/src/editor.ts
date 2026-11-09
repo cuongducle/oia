@@ -2,6 +2,7 @@ import * as fabric from "fabric";
 import type { SceneCanvas } from "@oia/schema";
 import { TEXT_PRESET_SPECS, SHAPES, SIZE_PRESETS, DEFAULT_POSTER, type TextPreset, type ShapeKind, type SizePresetName } from "./presets.js";
 import { stampUser } from "./provenance.js";
+import { growRecoveredTextLine } from "./recovered-text-layout.js";
 
 /**
  * F4 follow-up (found visually, 2026-11-06): fabric 7 changed the object defaults
@@ -25,11 +26,15 @@ export async function createEditor(canvasEl: HTMLCanvasElement, scene?: SceneCan
   // whitelisting it, toObject() silently strips provenance on every save/reload and
   // the non-destruction survival rule becomes unenforceable. `locked` (layers.ts)
   // likewise: Fabric never serializes selectable/evented.
-  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name", "origin", "locked"])];
+  fabric.FabricObject.customProperties = [...new Set([...fabric.FabricObject.customProperties, "name", "origin", "locked", "fontSource", "recoveredTextLine"])];
   const canvas = new fabric.Canvas(canvasEl, {
     preserveObjectStacking: true,
     selection: true,
     backgroundColor: "#f4f4f5",
+  });
+  canvas.on("text:changed", ({ target }) => {
+    growRecoveredTextLine(target);
+    canvas.requestRenderAll();
   });
   if (scene) await loadScene(canvas, scene);
   return canvas;

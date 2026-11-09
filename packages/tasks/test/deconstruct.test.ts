@@ -3,20 +3,17 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { makeDeconstruct } from "../src/processors.js";
+import { TaskStore } from "../src/store.js";
+import { ProviderError } from "@oia/providers";
 import { LocalFileStore } from "../src/storage.js";
 import type { ImageProvider, LlmProvider, LlmChatOpts, ProviderCapabilities, ProviderDiagnostic, LlmMessage } from "@oia/providers";
 import { DECONSTRUCT_READ_MARKER } from "@oia/schema";
+import { PNG } from "pngjs";
 
-/** Minimal PNG header (8-byte signature + IHDR 900×1200), enough for pngSize. */
-function fakePng(w = 900, h = 1200): Uint8Array {
-  const b = new Uint8Array(33);
-  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  const dv = new DataView(b.buffer);
-  dv.setUint32(8, 13); // IHDR length
-  b.set([0x49, 0x48, 0x44, 0x52], 12); // "IHDR"
-  dv.setUint32(16, w);
-  dv.setUint32(20, h);
-  return b;
+function fakePng(w = 90, h = 120): Uint8Array {
+  const png = new PNG({ width: w, height: h });
+  png.data.fill(255);
+  return PNG.sync.write(png);
 }
 
 const anyCaps = (over: Partial<ProviderCapabilities> = {}): ProviderCapabilities => ({
@@ -37,7 +34,7 @@ function fakeLlm(read: (prompt: string) => string): LlmProvider {
   };
 }
 
-function probeImage(seen: { calls: { prompt: string; refs: string[]; w: number; h: number }[] }, url = "data:image/png;base64,iVBORw0KGgo="): ImageProvider {
+function probeImage(seen: { calls: { prompt: string; refs: string[]; w: number; h: number }[] }, url = `data:image/png;base64,${Buffer.from(fakePng()).toString("base64")}`): ImageProvider {
   return {
     name: "probe-image",
     capabilities: anyCaps(),
@@ -68,6 +65,43 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
   }
 
   const tctx = { jobId: "job-1", signal: undefined as AbortSignal | undefined };
+
+  it("preserves paid OCR on no_output without claiming a clean plate or retrying", async () => {
+    const { store, fileUrl } = await setup();
+    let reads = 0, images = 0;
+    const image = probeImage({ calls: [] });
+    image.generate = async () => { images++; throw new ProviderError("no_output", "codex produced no image file", { provider: "codex" }); };
+    const logFile = path.join(root, "partial-tasks.jsonl"), tasks = new TaskStore({ logFile });
+    tasks.register("deconstruct", makeDeconstruct({ store, image, llm: fakeLlm(() => { reads++; return GOOD_READ; }) }));
+    const result = await tasks.submit("deconstruct", { fileUrl }, { noWait: true });
+    expect(result).toMatchObject({ progress: "failed", errorClass: "no_output", provider: "codex" });
+    expect(result.taskResult?.texts?.[0].text).toBe("SALE 50");
+    expect(result.taskResult?.download).toBeUndefined();
+    expect(result.taskNote).toContain("Background cleanup has not completed");
+    expect([reads, images]).toEqual([1, 1]);
+    const restored = new TaskStore({ logFile }); await restored.load();
+    expect(restored.get(result.taskId)).toMatchObject({ progress: "failed", errorClass: "no_output", taskResult: result.taskResult });
+  });
+
+  it("preserves OCR when cancelled before cleanup without calling the image provider", async () => {
+    const { store, fileUrl } = await setup();
+    const tasks = new TaskStore(), seen = { calls: [] };
+    const llm = fakeLlm(() => GOOD_READ);
+    llm.readImage = async (_p, _b, _s, opts) => {
+      const job = opts?.signal;
+      // Abort the registered job at the OCR boundary, not an unrelated test signal.
+      const record = tasks.sessionTasks(1)[0];
+      await tasks.cancel(record.taskId);
+      expect(job?.aborted).toBe(true);
+      return GOOD_READ;
+    };
+    tasks.register("deconstruct", makeDeconstruct({ store, image: probeImage(seen), llm }));
+    const result = await tasks.submit("deconstruct", { fileUrl }, { noWait: true });
+    expect(result).toMatchObject({ progress: "failed", errorClass: "cancelled" });
+    expect(result.taskResult?.texts).toHaveLength(2);
+    expect(result.taskResult?.download).toBeUndefined();
+    expect(seen.calls).toHaveLength(0);
+  });
 
   it("happy path: read → inpaint with the ORIGINAL size + reference, texts ride the result", async () => {
     const { store, fileUrl } = await setup();
@@ -133,6 +167,45 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     await expect(handler({ fileUrl }, tctx)).rejects.toMatchObject({ errorClass: "capability_unsupported" });
   });
 
+  it("empty OCR returns original without spending an image generation", async () => {
+    const { store, fileUrl } = await setup();
+    const seen: { calls: unknown[] } = { calls: [] };
+    const result = await makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => '{"texts":[]}') })({ fileUrl }, tctx);
+    expect(result.urls).toEqual([fileUrl]);
+    expect(result.texts).toEqual([]);
+    expect(seen.calls).toHaveLength(0);
+  });
+
+  it("restores smooth backgrounds without a paid image call", async () => {
+    const { store, fileUrl } = await setup();
+    const seen: { calls: unknown[] } = { calls: [] };
+    const read = JSON.parse(GOOD_READ);
+    for (const t of read.texts) t.typography = { fontFamily: "Be Vietnam Pro", fontWeight: 400, fontStyle: "normal", fill: "#111111", angle: 0, spacingEm: 0, textAlign: "left" };
+    const result = await makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => JSON.stringify(read)) })({ fileUrl }, tctx);
+    expect(result.note).toContain("no image generation");
+    expect(seen.calls).toHaveLength(0);
+    const png = PNG.sync.read(Buffer.from(await store.read(result.urls[0].replace(/^\/api\/files\//, ""))));
+    expect([png.width, png.height]).toEqual([900, 1200]);
+  });
+
+  it("cancellation between OCR and inpaint never starts a paid generation", async () => {
+    const { store, fileUrl } = await setup();
+    const stop = new AbortController();
+    const seen: { calls: unknown[] } = { calls: [] };
+    const handler = makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => { stop.abort(); return GOOD_READ; }) });
+    await expect(handler({ fileUrl }, { signal: stop.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(seen.calls).toHaveLength(0);
+  });
+
+  it("malformed typography fails before image quota is spent", async () => {
+    const { store, fileUrl } = await setup();
+    const seen: { calls: unknown[] } = { calls: [] };
+    const read = JSON.parse(GOOD_READ);
+    read.texts[0].typography = { fill: "#fff", angle: 999 };
+    await expect(makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => JSON.stringify(read)) })({ fileUrl }, tctx)).rejects.toMatchObject({ errorClass: "plan_parse_failed" });
+    expect(seen.calls).toHaveLength(0);
+  });
+
   it("missing/invalid fileUrl is a clear error, not a mystery provider failure", async () => {
     const store = new LocalFileStore(root);
     const handler = makeDeconstruct({ store, image: probeImage({ calls: [] }), llm: fakeLlm(() => GOOD_READ) });
@@ -140,12 +213,12 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     await expect(handler({ fileUrl: "/api/files/nope/missing.png" }, tctx)).rejects.toThrow(/not been uploaded|invalid/i);
   });
 
-  it("non-PNG upload falls back to a square size, positions stay honest (fractions)", async () => {
+  it("invalid pixels fail before a paid read or generation, never fall back to imaginary dimensions", async () => {
     const store = new LocalFileStore(root);
     const src = await store.put(new Uint8Array([1, 2, 3, 4]), "png");
     const seen: { calls: { w: number; h: number }[] } = { calls: [] };
     const handler = makeDeconstruct({ store, image: probeImage(seen), llm: fakeLlm(() => GOOD_READ) });
-    await handler({ fileUrl: src.url }, tctx);
-    expect(seen.calls[0]).toMatchObject({ w: 1024, h: 1024 });
+    await expect(handler({ fileUrl: src.url }, tctx)).rejects.toThrow(/PNG/);
+    expect(seen.calls).toHaveLength(0);
   });
 });

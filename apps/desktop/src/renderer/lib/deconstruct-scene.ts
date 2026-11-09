@@ -1,4 +1,4 @@
-import type { DeconstructText, FabricObject, SceneCanvas } from "@oia/schema";
+import { SCENE_VERSION, type DeconstructText, type FabricObject, type SceneCanvas } from "@oia/schema";
 
 /**
  * B1: build the deconstructed scene (deconstruct-import.md DC-6): white clip at
@@ -35,10 +35,16 @@ export function deconstructScene(input: { imageUrl: string; w: number; h: number
       top,
       width,
       fontSize,
-      fill: TEXT_FILL,
-      fontFamily: "Be Vietnam Pro",
+      fill: t.typography?.fill ?? TEXT_FILL,
+      fontFamily: t.typography?.fontFamily ?? "Be Vietnam Pro",
+      fontWeight: t.typography?.fontWeight ?? 400,
+      fontStyle: t.typography?.fontStyle ?? "normal",
+      angle: t.typography?.angle ?? 0,
+      charSpacing: (t.typography?.spacingEm ?? 0) * 1000,
+      textAlign: t.typography?.textAlign ?? "left",
+      originX: "left", originY: "top",
       selectable: true,
     });
   }
-  return { version: "6.9.1", objects };
+  return { version: SCENE_VERSION, objects };
 }

@@ -20,7 +20,8 @@ import { LayersPanel } from "../components/LayersPanel.js";
 import { Inspector } from "../components/Inspector.js";
 import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
-import { deconstructScene } from "../lib/deconstruct-scene.js";
+import { loadSceneFonts } from "../lib/scene-fonts.js";
+import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
@@ -212,6 +213,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const c = fabricRef.current; if (!c) return;
     restoring.current = true;
     try {
+      await loadSceneFonts(list[idx].canvas);
       await c.loadFromJSON(mapAssetUrls(list[idx].canvas));
       const size = sceneSize(list[idx].canvas);
       sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height);
@@ -311,6 +313,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setProjectName(initialName);
       if (initialPages && initialPages.length) {
         setPages(initialPages); setActivePage(0);
+        const fontNote = initialPages[0].canvas.deconstructFontNote;
+        if (typeof fontNote === "string") setNotice(fontNote);
+        await loadSceneFonts(initialPages[0].canvas);
         await editor.loadFromJSON(mapAssetUrls(initialPages[0].canvas));
         editor.requestRenderAll();
         setHasScene(true);
@@ -627,6 +632,96 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const label = obj.type === "textbox" ? `"${(obj.text ?? "").slice(0, 40)}"` : obj.src ? `image: ${obj.name ?? "unnamed layer"}` : obj.type ?? "layer";
     setAiPrompt((p) => `${p}@(selected ${obj.type}: ${label}) `);
   }
+  /** D21 split-layer: cut objects out of the selected image with the LOCAL SAM 3
+   *  engine (no provider quota). Phases: ask → (models) → running → done. The
+   *  original layer stays (SurgePix does the same), cutouts stack above it. */
+  const [splitPhase, setSplitPhase] = useState<"ask" | "models" | "running" | null>(null);
+  const [splitPrompt, setSplitPrompt] = useState("");
+  const [splitModelNote, setSplitModelNote] = useState("");
+  const splitTaskRef = useRef<string | null>(null);
+  const splitRunRef = useRef(0);
+  const splitStoppedRef = useRef(false);
+  async function cancelSplit() {
+    const id = splitTaskRef.current;
+    if (id) await oia().cancelTask(id).catch(() => {});
+    splitStoppedRef.current = true;
+    setSplitPhase(null);
+  }
+  async function ensureSplitModels(): Promise<boolean> {
+    const st = await oia().segmentStatus();
+    if (st.state === "ready") return true;
+    setSplitPhase("models");
+    await oia().segmentDownload().catch(() => {});
+    for (;;) {
+      const s = await oia().segmentStatus();
+      if (s.state === "ready") { setSplitPhase("ask"); return true; }
+      if (s.state === "missing") { setSplitModelNote("The download did not finish. Check your connection and try again."); setSplitPhase(null); return false; }
+      setSplitModelNote(`Downloading ${s.file} (${Math.round(s.downloadedBytes / 1e6)} of ${Math.round(s.totalBytes / 1e6)} MB)…`);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  async function runSplitLayer() {
+    const c = fabricRef.current;
+    const obj = c?.getActiveObject() as (fabricNS.FabricImage & { src?: string }) | undefined;
+    if (!c || !obj || typeof obj.src !== "string" || splitPhase === "running") return;
+    const prompt = splitPrompt.trim();
+    if (!prompt) return;
+    const myRun = ++splitRunRef.current;
+    splitStoppedRef.current = false;
+    setSplitPhase("running"); setNotice("");
+    try {
+      const fabric = await import("fabric");
+      // export the selected image layer as PNG (exactly what the seller sees)
+      const url = toDisplayUrl(toCanonicalUrl(obj.src));
+      const imgEl = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = () => rej(new Error("image load failed")); i.src = url; });
+      const off = document.createElement("canvas");
+      off.width = imgEl.naturalWidth; off.height = imgEl.naturalHeight;
+      off.getContext("2d")!.drawImage(imgEl, 0, 0);
+      const bytes = dataUrlBytes(off.toDataURL("image/png"));
+      const up = await oia().uploadAsset("split.png", bytes);
+      const started = await oia().submitTask("segment-image", { fileUrl: up.url, prompt });
+      splitTaskRef.current = started.taskId;
+      const final = await pollTask(started, { get: (id) => oia().getTask(id) });
+      const objects = (final.taskResult?.objects ?? []) as { box: [number, number, number, number]; score: number; url: string }[];
+      if (final.progress !== "succeeded") throw new Error(final.taskNote || final.msg || "the split failed");
+      if (!objects.length) {
+        if (splitRunRef.current !== myRun) return;
+        setSplitPhase(null);
+        setNotice(`Nothing matching "${prompt}" was found in this image. Try another word, like product, package or label.`);
+        return;
+      }
+      // place each cutout at its box, fractions of the selected layer's on-page rect
+      const rect = obj.getBoundingRect();
+      const added: fabricNS.FabricImage[] = [];
+      for (const o of objects) {
+        const [fx1, fy1, fx2, fy2] = o.box;
+        const w = (fx2 - fx1) * rect.width, h = (fy2 - fy1) * rect.height;
+        if (w < 4 || h < 4) continue;
+        const img = await fabric.FabricImage.fromURL(toDisplayUrl(o.url), { crossOrigin: "anonymous" });
+        img.set({ left: rect.left + fx1 * rect.width, top: rect.top + fy1 * rect.height, scaleX: w / Math.max(1, img.width ?? 1), scaleY: h / Math.max(1, img.height ?? 1) });
+        stampUser(img as unknown as import("@oia/schema").FabricObject);
+        img.setCoords();
+        c.add(img);
+        added.push(img);
+      }
+      if (added.length > 1) { const sel = new fabric.ActiveSelection(added, { canvas: c }); c.setActiveObject(sel); }
+      else if (added.length === 1) c.setActiveObject(added[0]);
+      c.requestRenderAll();
+      c.fire("object:modified", { target: obj });
+      if (splitRunRef.current !== myRun) return;
+      setSplitPhase(null);
+      setNotice(splitStoppedRef.current
+        ? `It finished after you stopped, the result was applied. ${added.length} layer${added.length === 1 ? "" : "s"} cut out; undo keeps the original.`
+        : `${added.length} layer${added.length === 1 ? "" : "s"} cut out. The original image stays below; undo works as usual.`);
+    } catch (e) {
+      if (splitRunRef.current === myRun) {
+        setSplitPhase(null);
+        setNotice(bridgeErrorMessage(e, "The image could not be split. Please try again."));
+      }
+    } finally {
+      splitTaskRef.current = null;
+    }
+  }
   /** R5 "Edit with AI": the AI tab opens with the selection already named in the prompt (A3 step one). */
   function editSelectionWithAi() {
     setAiOpen(true);
@@ -634,7 +729,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     mentionSelection();
   }
   /** D16 poster-mode edit path: the copy is baked into the artwork, deconstruct
-   *  THIS page (≈ 1 image + 1 read) into a clean plate + native text layers.
+   *  THIS page (up to 1 image + 1 read) into a clean plate + native text layers.
    *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
    *  scene through replaceCurrentScene so undo/history/save all behave. */
   // teardown #2: one phase instead of two booleans (ask → running → null)
@@ -643,9 +738,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const textEditRunRef = useRef(0);
   const textEditStoppedRef = useRef(false);
   async function cancelTextEdit() {
+    textEditStoppedRef.current = true; // Stop must block the next paid phase before IPC returns.
     const id = textEditTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
-    textEditStoppedRef.current = true; // B1 teardown: the poll keeps watching, a late success still applies
     setTextEditPhase(null);
   }
   async function runMakeTextEditable() {
@@ -664,16 +759,20 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       textEditTaskRef.current = started.taskId;
       const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
-        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "the page was not changed"));
+        throw new Error([final.msg, final.taskNote].filter(Boolean).join(" ") || "The page was not changed.");
       }
       const texts = (final.taskResult.texts ?? []) as DeconstructText[];
-      await replaceCurrentScene(deconstructScene({ imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }));
+      const matched = await matchedDeconstructScene({ png: bytes, imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }, oia(), {
+        stopped: () => textEditStoppedRef.current || textEditRunRef.current !== myRun,
+        onTask: (id) => { textEditTaskRef.current = id; },
+      });
+      await replaceCurrentScene(matched.scene);
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
       setTextEditPhase(null);
       // honest notice: a Stop does not refund the read, if it finished anyway, say so (B7)
       setNotice(textEditStoppedRef.current
         ? `It finished after you stopped, the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
-        : `Text is editable, ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
+        : `Text is editable, ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. ${matched.note || "Undo works if you prefer the original."}`);
     } catch (e) {
       if (textEditRunRef.current === myRun) {
         setTextEditPhase(null);
@@ -1393,7 +1492,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                     <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
                   </div>
                 )}
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1457,12 +1556,37 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       </div>
 
       {/* Export dialog (BR-ED5) */}
+      {/* D21 split-layer dialog: local SAM 3, no provider quota */}
+      {splitPhase && splitPhase !== "models" && (
+        <Dialog onClose={() => { if (splitPhase !== "running") setSplitPhase(null); }} label="Split layer">
+          <h3>Cut an object out of this image</h3>
+          <p>Type what to cut out. It runs on your machine (first use downloads a one-time 880 MB AI model).</p>
+          <input autoFocus data-testid="split-prompt" value={splitPrompt} maxLength={64} placeholder="e.g. product, package, bottle" onChange={(e) => setSplitPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && splitPrompt.trim() && splitPhase !== "running") void runSplitLayer(); }} disabled={splitPhase === "running"} style={{ width: "100%", padding: "8px 10px", marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+            {["product", "package", "bottle", "cup", "label", "person"].map((chip) => (
+              <button key={chip} className="chip" type="button" onClick={() => setSplitPrompt(chip)} disabled={splitPhase === "running"}>{chip}</button>
+            ))}
+          </div>
+          {splitPhase === "running" && <p className="hintP" data-testid="split-running">Cutting "{splitPrompt}" out…</p>}
+          <div className="dialogActions">
+            <button className="secondaryBtn" onClick={() => void cancelSplit()}>{splitPhase === "running" ? "Stop" : "Cancel"}</button>
+            <button className="primaryBtn" data-testid="split-confirm" disabled={splitPhase === "running" || !splitPrompt.trim()} onClick={() => void runSplitLayer()}>Split layer</button>
+          </div>
+        </Dialog>
+      )}
+      {splitPhase === "models" && (
+        <Dialog onClose={() => setSplitPhase(null)} label="Split layer model">
+          <h3>Downloading the split model</h3>
+          <p className="hintP" data-testid="split-model-note">{splitModelNote || "Preparing…"}</p>
+          <div className="dialogActions"><button className="secondaryBtn" onClick={() => setSplitPhase(null)}>Hide</button></div>
+        </Dialog>
+      )}
       {textEditPhase && (
         <Dialog onClose={() => { if (textEditPhase !== "running") setTextEditPhase(null); }} label="Make text editable">
           <h3>Make this text editable?</h3>
-          <p>Oia reads the text on this page, cleans it off the artwork, and rebuilds each line as an editable text layer. Everything else stays in place.</p>
-          {!imageMock && <p className="hintP" data-testid="text-edit-cost">≈ 1 image + 1 read</p>}
-          {textEditPhase === "running" && <p className="hintP">Reading the text…</p>}
+          <p>Oia reads the text on this page, cleans the text regions, and rebuilds editable layers with matching color, angle and spacing. Fonts are approximated from available families; complex lettering may need adjustment.</p>
+          {!imageMock && <p className="hintP" data-testid="text-edit-cost">Up to 1 image + 1 read; font matching runs locally</p>}
+          {textEditPhase === "running" && <p className="hintP">Reading text, restoring the background and comparing font samples…</p>}
           <div className="dialogActions">
             <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditPhase === "running" ? "Stop" : "Cancel"}</button>
             <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditPhase === "running"} onClick={() => void runMakeTextEditable()}>Make text editable</button>

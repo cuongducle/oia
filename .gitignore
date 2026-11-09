@@ -25,6 +25,12 @@ docs/private/
 # release; the PIN is committed, the ~166MB tree is a build artifact)
 apps/desktop/resources/codex/
 
+# D23: generated Lens ONNX + catalog, prepared from checksum-pinned upstream weights.
+apps/desktop/resources/lens/
+
+# Local segmentation probe, not a distributable application resource.
+/vision_encoder_int4.onnx.data
+
 # tesseract lang cache from ad-hoc node probes run in this cwd
 apps/desktop/*.traineddata
 .idea/

@@ -65,6 +65,17 @@ export interface OiaBridge {
     /** B7: stores whose LAST disk write failed (basename only). Empty = all durable. */
     persistence: { file: string; error: string; code: string | null; failedWrites: number }[];
   }>;
+  /** D21: local SAM 3 model state + one-time download trigger. */
+  segmentStatus: () => Promise<
+    | { state: "ready"; dir: string }
+    | { state: "downloading"; file: string; downloadedBytes: number; totalBytes: number }
+    | { state: "missing"; missingBytes: number; totalBytes: number }
+  >;
+  segmentDownload: () => Promise<
+    | { state: "ready"; dir: string }
+    | { state: "downloading"; file: string; downloadedBytes: number; totalBytes: number }
+    | { state: "missing"; missingBytes: number; totalBytes: number }
+  >;
   createProject: (p: {
     name?: string;
     scene?: unknown;

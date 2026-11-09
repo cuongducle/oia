@@ -9,6 +9,8 @@ generated: { by: human:cuongducle, at: 2026-10-31T00:00:00Z }
 
 # B1: Deconstruct import: hồi sinh banner cũ thành bản chỉnh sửa được
 
+> Cập nhật D22: [desktop-only-reorg.md](desktop-only-reorg.md#d22-khôi-phục-kiểu-chữ-khi-make-text-editable) ghi đè phần kiểu chữ cố định ở DC-6 và pipeline hai pha bắt buộc dưới đây. OCR mới có typography; renderer đo pixel phông thật; nền trơn tái tạo cục bộ, nền phức tạp dùng tối đa một lượt tạo ảnh và chỉ ghép vùng chữ. Đầu vào task trực tiếp phải là PNG, tối đa 24 triệu pixel; desktop tự chuyển định dạng ảnh nhập. Các ghi nhận bên dưới là lịch sử B1 trước nâng cấp.
+
 **Ngày:** 2026-10-31
 **Trạng thái:** ĐÃ IMPLEMENT + **SPIKE THẬT ĐÃ CHẠY (2026-10-31, owner duyệt "oke chạy thử đi"), ĐÓNG GATE 7.** Chi tiết kết quả ở mục Gates.
 **Nguồn quyết định cha:** [`feature-upgrade-brainstorm.md`](feature-upgrade-brainstorm.md) mục B1 + Q4. Doc này là bản "tốt nghiệp" theo Q5: chi tiết B1 sống ở ĐÂY từ nay.

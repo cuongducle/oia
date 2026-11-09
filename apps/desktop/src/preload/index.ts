@@ -15,6 +15,8 @@ const api: OiaBridge = {
   },
   cancelChat: (jobId) => ipcRenderer.invoke(IPC.chatCancel, { jobId }),
   providerStatus: () => ipcRenderer.invoke(IPC.providerStatus),
+  segmentStatus: () => ipcRenderer.invoke(IPC.segmentStatus),
+  segmentDownload: () => ipcRenderer.invoke(IPC.segmentDownload),
   createProject: (p) => ipcRenderer.invoke(IPC.projectsCreate, p),
   getProject: (id) => ipcRenderer.invoke(IPC.projectsGet, { id }),
   listProjects: () => ipcRenderer.invoke(IPC.projectsList),

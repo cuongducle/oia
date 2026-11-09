@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus, type DeconstructText } from "@oia/schema";
+import { taskTypeSchema, submitTaskSchemas, taskStatusSchema, type TaskType, type TaskStatus, type DeconstructText, type FontMatch, type LensSuggestion } from "@oia/schema";
 import { ProviderError } from "@oia/providers";
 import { registerCancelable, releaseCancelable, abortLocal } from "./cancel.js";
 
@@ -33,12 +33,14 @@ export interface SubmitOptions {
    *  runToCompletion never rejects, so this ALWAYS fires. */
   onSettled?: (status: TaskStatus) => void;
 }
-export type TaskHandlerResult = { urls: string[]; note?: string; texts?: DeconstructText[] };
+export type TaskHandlerResult = { urls: string[]; note?: string; texts?: DeconstructText[]; fontMatches?: FontMatch[]; fontSuggestions?: LensSuggestion[]; objects?: { box: [number, number, number, number]; score: number; url: string }[] };
 
 /** Handlers may thread cooperative cancellation into providers (TP.5). */
 export interface TaskContext {
   jobId: string;
   signal: AbortSignal;
+  /** Preserve paid intermediate data without marking an unfinished task successful. */
+  checkpoint?: (result: TaskHandlerResult) => Promise<void>;
 }
 export type TaskHandler = (params: Record<string, unknown>, ctx: TaskContext) => Promise<TaskHandlerResult>;
 
@@ -170,9 +172,13 @@ export class TaskStore {
     try {
       const handler = this.handlers.get(type);
       if (!handler) throw new Error(`no handler registered for ${type}`);
-      const result = await handler(params, { jobId: status.jobId!, signal: ac.signal });
-      status.taskResult = { download: this.finalDownload(type, result), ...(result.texts ? { texts: result.texts } : {}) };
-      if (result.note) status.taskNote = result.note;
+      const keepResult = async (result: TaskHandlerResult, partial = false) => {
+        status.taskResult = { ...this.downloadResult(type, result, partial), ...(result.texts ? { texts: result.texts } : {}), ...(result.objects ? { objects: result.objects } : {}), ...(result.fontMatches ? { fontMatches: result.fontMatches } : {}), ...(result.fontSuggestions ? { fontSuggestions: result.fontSuggestions } : {}) };
+        status.taskNote = result.note ?? null;
+        await this.persist(status);
+      };
+      const result = await handler(params, { jobId: status.jobId!, signal: ac.signal, checkpoint: (result) => keepResult(result, true) });
+      await keepResult(result);
       if (ac.signal.aborted) {
         // B7: the handler finished but was cancelled after completion, the quota was spent,
         // so the result is kept (afterCompletion principle) and the outcome stays honest
@@ -185,7 +191,7 @@ export class TaskStore {
     } catch (err) {
       status.progress = "failed";
       status.msg = err instanceof Error ? err.message : String(err);
-      const pe = ProviderError.from(err);
+      const pe = ac.signal.aborted ? new ProviderError("cancelled", status.msg) : ProviderError.from(err);
       status.errorClass = pe.errorClass;
       status.provider = pe.provider ?? null;
       status.attemptNumber = 1; // metered jobs run exactly once (G3), retries are new tasks (retryOf)
@@ -206,6 +212,14 @@ export class TaskStore {
   }
 
 /** Output rules: remove-background stays .png; multiple urls become one ZIP. */
+  private downloadResult(type: TaskType, result: TaskHandlerResult, partial: boolean): { download?: string } {
+    if (!result.urls.length) {
+      if (type === "match-fonts" || type === "recognize-fonts" || (partial && type === "deconstruct" && result.texts)) return {};
+      throw new Error(`${type} returned no output files`);
+    }
+    return { download: this.finalDownload(type, result) };
+  }
+
   private finalDownload(type: TaskType, result: TaskHandlerResult): string {
     let urls = result.urls;
     if (type === "remove-background") urls = urls.map((u) => u.replace(/\.\w+(\?|$)/, ".png$1"));

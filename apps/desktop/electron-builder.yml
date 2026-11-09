@@ -33,6 +33,12 @@ files:
 extraResources:
   - from: resources/codex
     to: codex
+  - from: resources/lens
+    to: lens
+    filter: ["lens.onnx", "catalog.json", "manifest.json", "NOTICE.txt"]
+
+asarUnpack:
+  - "**/onnxruntime-node/**"
 
 # No-signing budget plan (reorg step 7): local builds are unsigned; Gatekeeper
 # bypass instructions live in the README; NO auto-update channel until signing
