@@ -126,11 +126,16 @@ jobs:
           key: codex-${{ steps.pin.outputs.tag }}-${{ runner.os }}-arm64
       # D23: resources/lens is a gitignored build artifact derived from
       # checksum-pinned upstream weights; regenerate it in CI (torch is
-      # build-time only, the app ships the exported ONNX + catalog).
-      - run: python3 -m pip install --upgrade torch torchvision onnx
+      # build-time only, the app ships the exported ONNX + catalog). The macOS
+      # image python is PEP 668 externally-managed, so derive inside a venv.
+      - run: |
+          python3 -m venv .lens-venv
+          .lens-venv/bin/pip install --upgrade torch torchvision onnx
         env:
           PIP_DISABLE_PIP_VERSION_CHECK: "1"
       - run: pnpm --filter @oia/desktop prepare-lens
+        env:
+          OIA_LENS_PYTHON: ${{ github.workspace }}/.lens-venv/bin/python
       - run: pnpm --filter @oia/desktop dist:mac
       - name: sha256
         run: shasum -a 256 apps/desktop/dist/*.dmg > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
