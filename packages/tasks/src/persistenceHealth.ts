@@ -1,9 +1,9 @@
 /**
- * B7 (records must not lie) — write-side health for the file-backed stores.
+ * B7 (records must not lie), write-side health for the file-backed stores.
  *
  * atomicWriteJson is the single funnel for every store save; on failure it
  * records the file here (error, errno, count, timestamps) and on success it
- * clears the entry — so the health surface always answers "which stores are
+ * clears the entry, so the health surface always answers "which stores are
  * CURRENTLY failing to persist", not "which stores ever failed".
  *
  * Before this, a full disk or a locked directory made `void this.save()`
@@ -36,7 +36,7 @@ export function noteWriteFailure(file: string, err: unknown): void {
   };
   failures.set(file, entry);
   console.error(
-    `[persist] WRITE FAILED ${file} (${entry.code ?? "?"}) attempt #${entry.failedWrites}: ${e.message} — ` +
+    `[persist] WRITE FAILED ${file} (${entry.code ?? "?"}) attempt #${entry.failedWrites}: ${e.message}, ` +
       "memory is AHEAD of disk: changes since the last good save are at risk until a write succeeds",
   );
 }

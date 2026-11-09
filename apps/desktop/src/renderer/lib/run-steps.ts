@@ -1,7 +1,7 @@
 import { outlineCostLabel } from "./outline-card.js";
 
 /**
- * UI v1.1 R3 — one progress vocabulary for every metered flow. The agent streams
+ * UI v1.1 R3: one progress vocabulary for every metered flow. The agent streams
  * its internal role names (taskMeta.content); sellers see what is happening
  * instead. Unknown names pass through rather than vanish.
  */
@@ -15,7 +15,7 @@ const LABELS: Record<string, string> = {
 };
 
 /** Timeline entries the renderer keeps: content, completion, and the wire's
- *  `substep` marker (type field on taskMeta — schema contract, not a label). */
+ *  `substep` marker (type field on taskMeta, schema contract, not a label). */
 export interface TimelineEntry {
   content: string;
   done: boolean;
@@ -43,10 +43,10 @@ export function stepsFromTimeline(timeline: TimelineEntry[]): RunStep[] {
 
 /**
  * The cost line next to a paid action. Multi-page keeps C1's contract label
- * ("N pages ≈ N images", shown even in Trial — the gate pins it); a single image
+ * ("N pages ≈ N images", shown even in Trial, the gate pins it); a single image
  * is hidden in Trial, where nothing is billed.
  *
- * DA-5: the Auto refine label is a display LAW — it shows whenever the loop is
+ * DA-5: the Auto refine label is a display LAW, it shows whenever the loop is
  * ON (Trial included: it previews the real bill). K = pages × (rounds + 1):
  * worst case images AND critic reads, computed per page like C1 did.
  */
@@ -66,7 +66,7 @@ export function costHintText(opts: {
   }
   const rounds = opts.autoRefineRounds ?? 0;
   if (rounds > 0) {
-    // rounds ≥ 1 ⇒ k ≥ 2 — the plural form is the only form (teardown #16 killed the dead k===1 guard)
+    // rounds ≥ 1 ⇒ k ≥ 2, the plural form is the only form (teardown #16 killed the dead k===1 guard)
     const k = Math.max(1, pages ?? 1) * (rounds + 1);
     const refine = `Auto refine on · up to ${k} images + ${k} reads`;
     return base ? `${base} · ${refine}` : refine;

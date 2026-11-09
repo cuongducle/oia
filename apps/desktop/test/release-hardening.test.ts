@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { smokeModeFromEnv, appMenuTemplate } from "../src/main/releaseGate.js";
 
 /**
- * F2 — the release shell must not carry dev affordances. Pinned as pure functions
+ * F2: the release shell must not carry dev affordances. Pinned as pure functions
  * (no Electron runtime): what a packaged build may do is decided HERE, the main
  * process only obeys.
  */
@@ -17,7 +17,7 @@ const allFlags: NodeJS.ProcessEnv = {
 };
 
 describe("F2 smoke/test modes are dev-build only", () => {
-  it("a PACKAGED build ignores every OIA_DESKTOP_* flag — even all of them at once", () => {
+  it("a PACKAGED build ignores every OIA_DESKTOP_* flag, even all of them at once", () => {
     expect(smokeModeFromEnv(allFlags, true)).toBeNull(); // REAL_SMOKE bills quota; never reachable in release
   });
   it("an unpackaged build (CI, dev) still enters each mode", () => {
@@ -39,7 +39,7 @@ describe("F2 smoke/test modes are dev-build only", () => {
   });
 });
 
-describe("F2 menu — no DevTools or Reload in the release View menu", () => {
+describe("F2 menu, no DevTools or Reload in the release View menu", () => {
   const roles = (tpl: ReturnType<typeof appMenuTemplate>): string =>
     JSON.stringify(tpl);
 

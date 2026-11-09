@@ -9,7 +9,7 @@ import { resolveEffectiveMode, normalizeProvidersSettings, type ProvidersSetting
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
 
 /**
- * TP-D3 — the runtime controller, extracted from main/index.ts (the god-file smell):
+ * TP-D3: the runtime controller, extracted from main/index.ts (the god-file smell):
  * owns settings.json (provider choice + codex consent), the provisioner singleton,
  * the runtime:* IPC surface, and the abort controller for cancelable install/login.
  * The context rebuild stays in index.ts and is injected as a hook.
@@ -39,7 +39,7 @@ function settingsFile(): string {
 
 export async function readSettings(): Promise<DesktopSettings> {
   try {
-    // D13: normalization lives in the PURE shared module — the "fresh install = auto +
+    // D13: normalization lives in the PURE shared module, the "fresh install = auto +
     // consent granted" default is pinned by tests there, not by this electron side.
     return normalizeProvidersSettings(JSON.parse(await readFile(settingsFile(), "utf8")));
   } catch {
@@ -51,7 +51,7 @@ async function writeSettings(s: DesktopSettings): Promise<void> {
   const file = settingsFile();
   const tmp = `${file}.tmp`;
   await writeFile(tmp, JSON.stringify(s, null, 2), "utf8");
-  await rename(tmp, file); // atomic — a crash never truncates the choice
+  await rename(tmp, file); // atomic, a crash never truncates the choice
 }
 
 /** Consent is sticky: one explicit runtime action is enough, it is never auto-granted. */
@@ -63,9 +63,9 @@ async function markConsent(): Promise<void> {
 export function getProvisioner(): RuntimeProvisioner {
   provisioner ??= new RuntimeProvisioner({
     managedDir: path.join(userDataDir, "codex"),
-    // D12 — codex bundled INSIDE the app: packaged → Contents/Resources/codex (Windows:
+    // D12: codex bundled INSIDE the app: packaged → Contents/Resources/codex (Windows:
     // resources/codex) via electron-builder extraResources; dev → apps/desktop/resources/codex
-    // (populated by `pnpm --filter @oia/desktop fetch-codex`). Probed BEFORE PATH —
+    // (populated by `pnpm --filter @oia/desktop fetch-codex`). Probed BEFORE PATH,
     // the bundled pair is the one this build was tested with, and it survives a
     // Dock/Finder launch where the shell PATH is invisible.
     bundledDir: app.isPackaged
@@ -123,7 +123,7 @@ export function registerRuntimeIpc(deps: RuntimeControllerDeps): void {
     if (deps.currentEffective() !== mode) await deps.rebuildContext();
   };
 
-  // F2 — same sender admission as the app IPC: only OUR windows may drive the runtime.
+  // F2: same sender admission as the app IPC: only OUR windows may drive the runtime.
   const handle = (ch: string, fn: (event: IpcMainInvokeEvent, raw: unknown) => unknown): void => {
     ipcMain.handle(ch, async (event, raw) => {
       if (!isOwnRendererSender(event)) throw forbiddenSenderError();

@@ -22,12 +22,12 @@ import {
 } from "../shared/utility-protocol.js";
 
 /**
- * D11 (reorg step 4a) — the Oia services utility process.
+ * D11 (reorg step 4a), the Oia services utility process.
  *
  * Everything that talks to providers, stores, or files lives HERE, one crash
  * boundary away from the window: ServiceContext (runChat + task store +
- * projects/templates/sessions + LocalFileStore), the NSFW upload gate, and —
- * later in step 4b — the loopback agent API server. The MAIN process owns
+ * projects/templates/sessions + LocalFileStore), the NSFW upload gate, and,
+ * later in step 4b, the loopback agent API server. The MAIN process owns
  * windows, dialogs, the oia:// protocol, and the codex runtime controller; it
  * validates renderer input BEFORE it crosses this wire, so this process trusts
  * only its parent.
@@ -38,12 +38,12 @@ import {
 let ctx: ServiceContext | null = null;
 let dataDir = "";
 let userDataDir = "";
-/** T3 — the env the CURRENT context was built from (NSFW mode etc. ride it). */
+/** T3: the env the CURRENT context was built from (NSFW mode etc. ride it). */
 let serviceEnv: Record<string, string | undefined> = {};
 let loopback: { port: number; discoveryFile: string; close: () => Promise<void> } | null = null;
 /** The renderer quick-tools task lane (guarded submit for tasks.submit). */
 let toolLane: ReturnType<typeof createGuardedSubmitter> | null = null;
-let discoveryCleanup: string | null = null; // ONE module-level exit listener — never per-rebuild
+let discoveryCleanup: string | null = null; // ONE module-level exit listener, never per-rebuild
 
 // Registered ONCE: a hard exit (kill, crash) still removes the discovery file so
 // agents are not pointed at a dead port (they also pid-check on read).
@@ -56,8 +56,8 @@ process.on("exit", () => {
   }
 });
 
-// SIGTERM (main quitting / kill): abort every in-flight job FIRST — aborting the
-// controllers makes CliRuntime kill its DETACHED codex trees — then exit. Without
+// SIGTERM (main quitting / kill): abort every in-flight job FIRST, aborting the
+// controllers makes CliRuntime kill its DETACHED codex trees, then exit. Without
 // this, a hard kill orphans quota-burning children that outlive the app.
 process.on("SIGTERM", () => {
   cancelAll();
@@ -69,9 +69,9 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   loopback = null;
   toolLane?.dispose();
   ctx = await createServiceContext({ dataDir, env });
-  // reorg step 4c — the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
+  // reorg step 4c, the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
   // guard as the loopback, attributed to source "web" (the web tools UI contract).
-  // Its lifecycle frames stream to the UI too (lane "tool") — a metered generation
+  // Its lifecycle frames stream to the UI too (lane "tool"), a metered generation
   // must stay visible even after the Tools view closes (hard rule 6).
   const live = ctx;
   toolLane = createGuardedSubmitter({
@@ -92,10 +92,10 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   // First run: curated sample projects (marker file makes this a no-op from boot 2 on)
   const seeded = await seedSampleProjects({ dataDir, projects: ctx.projects });
   if (seeded) log(`seeded ${seeded} sample projects`);
-  void sweepAssets(ctx); // T11: off the boot path — a slow disk must not delay the window
+  void sweepAssets(ctx); // T11: off the boot path, a slow disk must not delay the window
 }
 
-/** T11 — drop uploads nothing references any more. Best-effort: a GC failure is
+/** T11: drop uploads nothing references any more. Best-effort: a GC failure is
  *  logged and never surfaces as a user-facing error (worst case: a file stays). */
 async function sweepAssets(c: ServiceContext): Promise<void> {
   try {
@@ -115,7 +115,7 @@ function log(line: string): void {
 }
 
 function requireCtx(): ServiceContext {
-  if (!ctx) throw new Error("service context not initialized — main must send init first");
+  if (!ctx) throw new Error("service context not initialized, main must send init first");
   return ctx;
 }
 
@@ -153,7 +153,7 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       const { outcome, jobId, sessionId } = await runChat(req.req as Parameters<typeof runChat>[0], c, {
         sink: (ev) => post({ type: "chatEvent", requestId, ev }),
       });
-      return { outcome, jobId, sessionId }; // sessionId — A1 preview-apply (VA-9)
+      return { outcome, jobId, sessionId }; // sessionId, A1 preview-apply (VA-9)
     }
     case "chatCancel":
       return cancelJob(req.jobId);
@@ -177,11 +177,11 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     }
 
     case "templates.list":
-      // G1 (goldfish): the caller's query rides templateListQuery — page/featured/category
+      // G1 (goldfish): the caller's query rides templateListQuery, page/featured/category
       // were silently dropped before; an absent input keeps the legacy first-page shape.
       return requireCtx().templates.list(templateListQuery.parse(req.input ?? {})).items;
     case "templates.create":
-      return requireCtx().templates.publish(req.input); // { template, warnings } — T4 soft gate rides the wire
+      return requireCtx().templates.publish(req.input); // { template, warnings }, T4 soft gate rides the wire
 
     case "sessions.list":
       return requireCtx()

@@ -1,4 +1,4 @@
-# English studio refresh — verification
+# English studio refresh: verification
 
 ## Automated checks
 
@@ -61,9 +61,9 @@ Environment: macOS, codex-cli 0.163.0 logged in (`IMAGE_PROVIDER=codex LLM_PROVI
 - Home → "Open editor" hands off by projectId; editor loads the project by id.
 
 **Stop control (found and fixed a real bug in this pass):**
-- First attempt: pressing Dừng killed the CLI tree (0 orphan `codex exec` processes, image counter unchanged) but the client aborted its own stream reader before the terminal event arrived — the seller never saw the cancelled message. Fixed: Stop calls only the cancel API; the server emits the terminal `cancelled` event and closes the stream. Re-verified in Chrome: alert shows "Đã dừng tạo ảnh theo yêu cầu." and no orphan processes remain.
+- First attempt: pressing Dừng killed the CLI tree (0 orphan `codex exec` processes, image counter unchanged) but the client aborted its own stream reader before the terminal event arrived, the seller never saw the cancelled message. Fixed: Stop calls only the cancel API; the server emits the terminal `cancelled` event and closes the stream. Re-verified in Chrome: alert shows "Đã dừng tạo ảnh theo yêu cầu." and no orphan processes remain.
 
-**Mock labeling:** restarted with the default mock pair — the status banner reads "Chế độ thử nghiệm — ảnh placeholder, không phải AI thật".
+**Mock labeling:** restarted with the default mock pair, the status banner reads "Chế độ thử nghiệm, ảnh placeholder, không phải AI thật".
 
 **Marketplace presets:** editor Settings → Recommended Size shows Shopee Product (1:1) 1024×1024, Lazada Product (1:1) 800×800, TikTok Shop Product (1:1) 1080×1080 (existing TikTok 9:16 intact).
 
@@ -72,14 +72,14 @@ Environment: macOS, codex-cli 0.163.0 logged in (`IMAGE_PROVIDER=codex LLM_PROVI
 **Limits:** one real generation per pass (quota); stop verified twice on macOS only (Windows remains gated to the desktop design per the Stage-0 doc).
 
 
-## Desktop shell D2 — remediation checks (2026-10-30, real Electron window)
+## Desktop shell D2: remediation checks (2026-10-30, real Electron window)
 
 The first D2 pass shipped with a green event-stream smoke but a canvas that could not
-display artwork — nobody had opened the window. The fix pass added visual verification
+display artwork, nobody had opened the window. The fix pass added visual verification
 (`OIA_DESKTOP_SHOT=1`: real window → chat through the bridge → DOM + painted-pixel
 assertions → PNG capture) and it found, in order:
 
-1. `/api/files/<key>` scene srcs are same-origin on the web but dead under `file://` —
+1. `/api/files/<key>` scene srcs are same-origin on the web but dead under `file://`,
    fixed with the privileged `oia://files/<key>` protocol serving the LocalFileStore.
 2. The sandboxed preload was silently dead: `require("@oia/services")`/`require("zod")`
    got externalized (sandbox allows only electron) and `"type":"module"` made a `.js`
@@ -89,7 +89,7 @@ assertions → PNG capture) and it found, in order:
    `crossOrigin="anonymous"`, so the scheme needed `corsEnabled: true` + ACAO. Probed
    in-page: `{"none":"OK","anonymous":"FAIL"}` → after the fix both OK.
 4. The painted-pixel check itself had a wrong selector (fabric's upper-canvas is a
-   sibling) — the verification layer must be verified too.
+   sibling), the verification layer must be verified too.
 
 Final: `{"ok":true,"painted":407160,"err":""}` + `out/desktop-shot.png`; smoke mode
 still asserts the event stream (no base64, `</Content>`). Window-close now cancels

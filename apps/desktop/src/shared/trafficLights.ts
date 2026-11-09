@@ -1,5 +1,5 @@
 /**
- * T1 chrome (macos-design-2026.md) — the traffic-light geometry is ONE contract
+ * T1 chrome (macos-design-2026.md), the traffic-light geometry is ONE contract
  * shared by two processes: main positions the lights (trafficLightPosition.x),
  * the renderer pads the top bars around them (--traffic-inset, set by preload).
  * A second copy of these numbers anywhere else is a drift bug the shot gate

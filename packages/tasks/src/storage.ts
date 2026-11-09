@@ -6,11 +6,11 @@ import path from "node:path";
  * BR-UP storage: local filesystem self-hosting (S3/MinIO adapter planned).
  * - put(bytes) → key `uploads/<yyyymmdd>/<hash>-<ts36>.<ext>` + url `/api/files/<key>`
  * - dedupe: identical content returns the previous url ("if url != null in the
- *   response, the file was already uploaded — reuse that URL directly")
+ *   response, the file was already uploaded, reuse that URL directly")
  *
  * Identity is sha256 (F4): md5 is collision-broken, and this dedupe silently
  * ALIASES two different files on any collision. Files written before the switch
- * are still deduped through LEGACY md5 indexes — full-32-hex names match by full
+ * are still deduped through LEGACY md5 indexes, full-32-hex names match by full
  * md5, old 8-char-prefix names are hints verified against the bytes.
  */
 export interface FileStore {
@@ -19,19 +19,19 @@ export interface FileStore {
   read(key: string): Promise<Uint8Array>;
   contentType(ext: string): string;
   /** A3/P2: the absolute path of a stored asset, when the store is on local disk
-   *  (null otherwise/when unreadable) — lets providers consume refs WITHOUT a
+   *  (null otherwise/when unreadable), lets providers consume refs WITHOUT a
    *  base64 round-trip. Same traversal+realpath guard as read(). */
   pathOf(key: string): Promise<string | null>;
 }
 
 export class LocalFileStore implements FileStore {
   private sha256Index = new Map<string, string>(); // FULL sha256 → key (authoritative, new files)
-  /** LEGACY (pre-F4) md5 identity — kept ONLY to keep dedupe working for files
+  /** LEGACY (pre-F4) md5 identity, kept ONLY to keep dedupe working for files
    *  written by older builds; new files never enter these. */
   private legacyFullMd5Index = new Map<string, string>(); // 32-hex md5 names → key
-  /** LEGACY pre-F3 names: 8-char prefix — a HINT, bytes verified before any claim. */
+  /** LEGACY pre-F3 names: 8-char prefix, a HINT, bytes verified before any claim. */
   private legacyPrefixIndex = new Map<string, string>();
-  /** Realpath of rootDir, resolved once — it never moves (see read()). */
+  /** Realpath of rootDir, resolved once, it never moves (see read()). */
   private realRootP: Promise<string> | undefined;
   constructor(
     private rootDir = process.env.OIA_DATA_DIR ?? ".data/files",
@@ -55,7 +55,7 @@ export class LocalFileStore implements FileStore {
     const md5 = createHash("md5").update(bytes).digest("hex"); // legacy resolution only
     const existing = await this.resolveExistingKey(sha, md5);
     if (existing) {
-      // a dedupe hit hands an OLD file to a new owner that has not saved yet — refresh
+      // a dedupe hit hands an OLD file to a new owner that has not saved yet, refresh
       // its mtime so the asset GC grace window counts from this hand-out, not from birth
       const now = new Date();
       await utimes(path.join(this.rootDir, existing), now, now).catch(() => {});
@@ -63,7 +63,7 @@ export class LocalFileStore implements FileStore {
     }
 
     const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    // FULL sha256 in the name — hydrate rebuilds the authoritative index (F3/F4)
+    // FULL sha256 in the name, hydrate rebuilds the authoritative index (F3/F4)
     const key = `uploads/${day}/${sha}-${Date.now().toString(36)}.${ext}`;
     const abs = path.join(this.rootDir, key);
     await mkdir(path.dirname(abs), { recursive: true });
@@ -79,7 +79,7 @@ export class LocalFileStore implements FileStore {
 
     const fullLegacy = this.legacyFullMd5Index.get(md5);
     if (fullLegacy) {
-      // full md5 match on a legacy file — same guarantee the old system gave;
+      // full md5 match on a legacy file, same guarantee the old system gave;
       // promote to the sha256 index so later lookups skip this lane
       this.sha256Index.set(sha, fullLegacy);
       this.legacyFullMd5Index.delete(md5);
@@ -90,11 +90,11 @@ export class LocalFileStore implements FileStore {
     if (!hinted) return null;
     const onDisk = await this.read(hinted).catch(() => null);
     if (!onDisk) {
-      this.legacyPrefixIndex.delete(md5.slice(0, 8)); // file vanished — drop the stale hint
+      this.legacyPrefixIndex.delete(md5.slice(0, 8)); // file vanished, drop the stale hint
       return null;
     }
     const actualMd5 = createHash("md5").update(onDisk).digest("hex");
-    if (actualMd5 !== md5) return null; // prefix collision — different image, never dedupe
+    if (actualMd5 !== md5) return null; // prefix collision, different image, never dedupe
     this.sha256Index.set(sha, hinted); // promote: verified content identity
     this.legacyPrefixIndex.delete(md5.slice(0, 8));
     return hinted;
@@ -116,7 +116,7 @@ export class LocalFileStore implements FileStore {
       for (const day of await readdir(dir)) {
         for (const f of await readdir(path.join(dir, day)).catch(() => [])) {
           const sha = f.match(/^([0-9a-f]{64})-/);
-          // Keys are WIRE URL parts (/api/files/<key>, oia://files/<key>) — POSIX
+          // Keys are WIRE URL parts (/api/files/<key>, oia://files/<key>), POSIX
           // separators only. path.join yields "\" on Windows and broke the contract
           // after every restart (7f debt; listUploads already did it this way).
           if (sha) {
@@ -140,12 +140,12 @@ export class LocalFileStore implements FileStore {
     if (!safe) throw new Error("invalid key");
     const full = path.join(this.rootDir, safe);
     // Reorg step 7 security gate: safeKey stops ".."/absolute keys, but a symlink
-    // planted inside the tree would still escape — resolve BOTH ends and require
+    // planted inside the tree would still escape, resolve BOTH ends and require
     // the file to stay inside the real root (throws ENOENT-miss as before when
-    // absent). Known TOCTOU: the link could swap between realpath and readFile —
+    // absent). Known TOCTOU: the link could swap between realpath and readFile,
     // accepted (defeating it needs an attacker who can already write the tree,
     // at which point they own the data anyway).
-    // The root is resolved lazily ONCE — but a REJECTED resolve must not be cached:
+    // The root is resolved lazily ONCE, but a REJECTED resolve must not be cached:
     // the first read can legitimately race ahead of the first upload (root not
     // created yet); caching that ENOENT poisoned every later read (found live by
     // the shot gate after the dark-mode gate shifted boot timing).
@@ -172,7 +172,7 @@ export class LocalFileStore implements FileStore {
       if (realFile !== realRoot && !realFile.startsWith(realRoot + path.sep)) return null;
       return realFile;
     } catch {
-      return null; // unreadable/absent — the caller decides what an honest error is
+      return null; // unreadable/absent, the caller decides what an honest error is
     }
   }
 
@@ -189,7 +189,7 @@ export class LocalFileStore implements FileStore {
     return out;
   }
 
-  /** Delete one upload AND forget it in every dedupe index — a stale index entry
+  /** Delete one upload AND forget it in every dedupe index, a stale index entry
    *  would hand the next identical upload a URL to a file that no longer exists. */
   async remove(key: string): Promise<void> {
     const safe = this.safeKey(key);

@@ -12,15 +12,15 @@ import {
 } from "../shared/utility-protocol.js";
 
 /**
- * D11 (reorg step 4a) — the main-side handle to the services utility process.
- * - call(cmd): request/response by rid, with a PER-COMMAND TIMEOUT — a wedged
+ * D11 (reorg step 4a), the main-side handle to the services utility process.
+ * - call(cmd): request/response by rid, with a PER-COMMAND TIMEOUT, a wedged
  *   utility must fail fast (UtilityTimeout), never hang a handler forever.
  * - crash recovery: `generation` bumps on every fork. Main stores the generation
- *   its context was built with; a mismatch means "fork again + re-init" — one
+ *   its context was built with; a mismatch means "fork again + re-init", one
  *   services crash can never brick the app until restart (the bug this fixed).
  * - chat events stream back tagged with the originating request id and are routed
  *   to the WebContents that started the chat.
- * - 'exit' rejects pending calls (UtilityProcessCrashed) and logs the code — a
+ * - 'exit' rejects pending calls (UtilityProcessCrashed) and logs the code, a
  *   services crash must never leave the UI hanging on a promise.
  */
 
@@ -51,16 +51,16 @@ export class UtilityClient {
   private chatSenders = new Map<string, WebContents>();
   private eventListeners: ((ev: UtilityEvent) => void)[] = [];
   private exitInfo: { code: number } | null = null;
-  /** Bumps on every fork — main keys its context cache on this (crash recovery). */
+  /** Bumps on every fork, main keys its context cache on this (crash recovery). */
   private generation = 0;
   /** shot-busy frame stepping: when set, chatRun events AND its reply are buffered
-   *  here instead of delivered — the renderer stays fully alive but its chat UI
+   *  here instead of delivered, the renderer stays fully alive but its chat UI
    *  freezes at the last delivered frame. Diagnostics-only, driven from main. */
   private chatHold: { queue: HeldChatFrame[] } | null = null;
   private heldChatRids = new Set<string>();
 
   /** Fork if needed. After a crash (exitInfo set) a fresh fork RESETS the crash
-   *  state — callers re-init through their generation check. */
+   *  state, callers re-init through their generation check. */
   start(): void {
     if (this.child && this.exitInfo === null) return; // alive and healthy
     this.exitInfo = null;
@@ -89,7 +89,7 @@ export class UtilityClient {
     return this.exitInfo !== null;
   }
 
-  /** The fork counter — compare with the generation your context was built on. */
+  /** The fork counter, compare with the generation your context was built on. */
   get gen(): number {
     return this.generation;
   }
@@ -123,7 +123,7 @@ export class UtilityClient {
       return;
     }
     if (this.chatHold && this.heldChatRids.has(msg.rid)) {
-      this.chatHold.queue.push({ kind: "reply", msg }); // the reply flips busy off — it rides the same FIFO
+      this.chatHold.queue.push({ kind: "reply", msg }); // the reply flips busy off, it rides the same FIFO
       return;
     }
     const p = this.pending.get(msg.rid);
@@ -145,7 +145,7 @@ export class UtilityClient {
     const routeKey = opts.requestId ?? rid;
     if (opts.sender) this.chatSenders.set(routeKey, opts.sender);
     const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS[cmd.cmd] ?? DEFAULT_TIMEOUT_MS;
-    const child = this.child; // captured — never re-read across the async gap
+    const child = this.child; // captured, never re-read across the async gap
     return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(rid); // the late response (if any) is dropped on the floor
@@ -165,13 +165,13 @@ export class UtilityClient {
       });
       child.postMessage(req);
     }).finally(() => {
-      this.chatSenders.delete(routeKey); // chat done (or failed) — stop routing its events
+      this.chatSenders.delete(routeKey); // chat done (or failed), stop routing its events
       this.heldChatRids.delete(rid);
     });
   }
 
   /** Begin/end holding chat traffic (shot-busy audits). Release order is the
-   *  arrival order — events first, the reply last — so the renderer never sees
+   *  arrival order, events first, the reply last, so the renderer never sees
    *  busy=false before the frames that explain it. */
   setChatHold(on: boolean): void {
     if (on) {
@@ -218,5 +218,5 @@ export class UtilityClient {
   }
 }
 
-/** Process-wide singleton — main forks exactly one services utility process. */
+/** Process-wide singleton, main forks exactly one services utility process. */
 export const utility = new UtilityClient();

@@ -13,47 +13,47 @@ export interface DesignerAgentDeps {
 }
 export interface DesignerAgentInput {
   prompt: string;
-  language?: string; // "en" | "zh" | ... — detected from the prompt by default
+  language?: string; // "en" | "zh" | ..., detected from the prompt by default
   width?: number;
   height?: number;
-  /** BR-BK5: brand kit applied to chat — guidance goes to the planner; brandId rides on every SSE event. */
+  /** BR-BK5: brand kit applied to chat, guidance goes to the planner; brandId rides on every SSE event. */
   brandGuidance?: string;
   brandId?: number;
-  /** BR-CTRL: composer controls — attach reference images ("Add to chat" inpainting). */
+  /** BR-CTRL: composer controls, attach reference images ("Add to chat" inpainting). */
   referenceImages?: string[];
   /** Page count: a fixed N is 1..9. "Auto" generates ONE page today (the composer's
-   *  default) — there is no planner-decided count yet (stale comment fixed 2026-10-31). */
+   *  default), there is no planner-decided count yet (stale comment fixed 2026-10-31). */
   pages?: number;
   /** Outline mode: emit the outline (title + bullets) BEFORE generating. */
   outlineMode?: boolean;
   /** C1 outline gate phase 1 (docs/designs/outline-gate.md OC-1): stop after the
-   * planner returns pageOutline — NO image call. Phase 2 sends approvedOutline. */
+   * planner returns pageOutline, NO image call. Phase 2 sends approvedOutline. */
   outlineGate?: boolean;
   /** C1 phase 2: the user-edited outline. Planner is constrained to it; the page
-   * COUNT is a hard contract both ways (OC-2) — mismatch aborts before any image. */
+   * COUNT is a hard contract both ways (OC-2), mismatch aborts before any image. */
   approvedOutline?: PlanPage[];
-  /** Selected skill (e.g. "Presentation Maker") — structure hint for the planner. */
+  /** Selected skill (e.g. "Presentation Maker"), structure hint for the planner. */
   skill?: string;
-  /** Style preset id — the concrete phrases are injected by CODE from STYLE_PRESETS. */
+  /** Style preset id, the concrete phrases are injected by CODE from STYLE_PRESETS. */
   style?: string;
-  /** A3-lite: referenceImages[0] is the edit target — clauses are welded HERE
+  /** A3-lite: referenceImages[0] is the edit target, clauses are welded HERE
    *  (deterministic, planner-proof), never in the renderer's prompt string. */
   editMode?: { targetName?: string; textLayerOverlays?: boolean; markup?: "flatten" };
-  /** TP.3 — generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
+  /** TP.3: generation mode. Poster (baked text, fidelity guard) stays the default for skills/templates; the Home banner flow sends "clean-plate". */
   mode?: GenerationMode;
-  /** DA-1 — run the planner turn with live web search. Capability-gated: a
+  /** DA-1: run the planner turn with live web search. Capability-gated: a
    * provider without `webSearch` plans from the prompt alone (announced, never
-   * silently skipped — DA-2). Ignored when reusePlan skips the planner turn. */
+   * silently skipped, DA-2). Ignored when reusePlan skips the planner turn. */
   research?: boolean;
-  /** DA-3 — Auto refine rounds PER PAGE: after each image a critic read checks
+  /** DA-3: Auto refine rounds PER PAGE: after each image a critic read checks
    * it; a failed check re-plans + re-generates, bounded by `rounds` (0 = off).
    * The loop lives INSIDE the one metered job (hard rule 6 / G3). */
   selfImprove?: { rounds: number };
-  /** TP.5 — cooperative cancellation; checked between stages and threaded into providers. */
+  /** TP.5: cooperative cancellation; checked between stages and threaded into providers. */
   signal?: AbortSignal;
-  /** TP.4/TP.5 — correlation id; when provided (the SSE route pre-generates it so /api/chat/cancel can address the job), every event carries it. */
+  /** TP.4/TP.5: correlation id; when provided (the SSE route pre-generates it so /api/chat/cancel can address the job), every event carries it. */
   jobId?: string;
-  /** TP.4 stage-aware retry: a cached plan from a failed-image run — the planner stage
+  /** TP.4 stage-aware retry: a cached plan from a failed-image run, the planner stage
    *  is skipped entirely (zero planner turns spent on a retry that only needs the image). */
   reusePlan?: PlannerPlan;
   /** TP.4: the route stashes the successful plan per session so a retry reuses it. */
@@ -62,9 +62,9 @@ export interface DesignerAgentInput {
 
 const uuid32 = () => randomUUID().replace(/-/g, "");
 
-/** Agent narrative — English chrome text regardless of prompt language. */
+/** Agent narrative, English chrome text regardless of prompt language. */
 const NARRATIVE = {
-  progress: (t: string) => `Creating ${t} — please hold on.`,
+  progress: (t: string) => `Creating ${t}, please hold on.`,
   done: (t: string) => `Finished creating ${t}. Here is the result:`,
 };
 export type NarrativeLang = "en" | "vi" | "zh";
@@ -88,26 +88,26 @@ export function foldAscii(s: string): string {
     .slice(0, 60);
 }
 
-/** A3-lite edit contract — one place, deterministic, planner-proof (the live
+/** A3-lite edit contract, one place, deterministic, planner-proof (the live
  *  experiments of 2026-11-02 verified each clause: target declaration kills
  *  wrong-image edits, the dimension lock kills ratio-mismatch warnings, the
  *  lettering ban stops a plate growing text that would double after apply).
  *  ME "flatten" clause (2026-11-08): probe P3 verified the channel reads a
  *  flattened red-circle annotation as the edit region and removes the marker
- *  when told to — the wording below is the probe's working instruction. */
+ *  when told to, the wording below is the probe's working instruction. */
 export function buildEditClauses(edit: { targetName?: string; textLayerOverlays?: boolean; markup?: "flatten" }): string {
   const target = ` Edit Image 1${edit.targetName ? ` (the ${edit.targetName} layer)` : ""} only, and return the result at the exact same dimensions as Image 1.`;
-  const noText = edit.textLayerOverlays ? " Do not add any text or lettering — copy is added as separate layers." : "";
+  const noText = edit.textLayerOverlays ? " Do not add any text or lettering, copy is added as separate layers." : "";
   const markup = edit.markup === "flatten"
     ? " The red markings drawn on Image 1 are an annotation overlay, not part of the design: treat them as marking where the edit applies, and remove every marking completely from the result."
     : "";
   return target + noText + markup;
 }
 
-/** DA-3..DA-8 — Auto refine helpers. The loop itself lives inline in the page
+/** DA-3..DA-8: Auto refine helpers. The loop itself lives inline in the page
  * loop so every yield keeps the taskMeta/ev orchestration in one place. */
 
-/** Decode a `data:` image URL to bytes — the critic needs the actual pixels.
+/** Decode a `data:` image URL to bytes, the critic needs the actual pixels.
  * Every current provider returns data URLs; anything else returns null and the
  * loop reports "check unavailable" instead of pretending (DA-7, 0 extra burn). */
 export function decodeDataImage(url: string): Uint8Array | null {
@@ -137,7 +137,7 @@ export function evalTotal(e: EvalRead): number {
   return (s.textHandling + s.brand + s.fidelity + s.composition + s.realism) / 5;
 }
 
-/** DA-3.1 — surgical-edit instruction for a LOCALIZED critic fail: the current
+/** DA-3.1, surgical-edit instruction for a LOCALIZED critic fail: the current
  * artwork is reference Image 1 and everything not named stays put (astorie.ai:
  * one edit from the clean source beats chaining; the pattern mirrors the
  * A3-lite edit contract that shipped live 2026-11-02). */
@@ -153,7 +153,7 @@ export function surgicalEditPrompt(issues: string[], mode: GenerationMode): stri
   );
 }
 
-/** DA-3.1 — variance vs broken prompt (higgsfield § Before You Iterate): when
+/** DA-3.1, variance vs broken prompt (higgsfield § Before You Iterate): when
  * consecutive fails complain about DIFFERENT things, the prompt is right and
  * the dice were wrong → re-roll beats a planner turn. Shared keywords of 5+
  * chars (punctuation stripped) mean the same defect came back → systematic. */
@@ -165,19 +165,19 @@ export function isStochasticMiss(prev: EvalRead | null, current: EvalRead): bool
   return ![...keywords(current.issues)].some((w) => a.has(w));
 }
 
-/** DA-8 — mode-aware critic criteria live in ONE place, versioned with the
+/** DA-8: mode-aware critic criteria live in ONE place, versioned with the
  * planner prompt. Poster weighs rendered text heaviest (D16 + RE §7.1: wrong
- * spelling/language is the image model's #1 defect — the reference competitor
+ * spelling/language is the image model's #1 defect, the reference competitor
  * ships it too): the copy to judge is INSIDE the page prompt (it names the exact
- * lines) — never duplicated into a second field (teardown #11: two copies of the
+ * lines), never duplicated into a second field (teardown #11: two copies of the
  * same text confuse the reader). Clean-plate swaps the criterion for copy-zone
  * headroom: `overlayCopy` lists ONLY the copy that will land on THIS page
- * (page 0 carries the blocks; later pages carry none — teardown #3).
+ * (page 0 carries the blocks; later pages carry none, teardown #3).
  * The `textHandling` score covers both meanings; the prompt says which applies. */
-/** B7: stamped into every selfImprove record — the rubric shipped 3 versions in one day;
+/** B7: stamped into every selfImprove record, the rubric shipped 3 versions in one day;
  * a verdict must name its judge. Bump when the rubric changes. v3.2 (2026-11-05):
  * +REALISM criterion +scope routing (research: docs/research/image-prompt-craft.md).
- * v3.3 (2026-11-07, SC-2): +STYLE criterion — when a style preset is selected the
+ * v3.3 (2026-11-07, SC-2): +STYLE criterion, when a style preset is selected the
  * critic enforces that style's hard laws (editorial/swiss, social-card-style-presets.md). */
 export const CRITIC_PROMPT_VERSION = "v3.3";
 
@@ -188,56 +188,56 @@ export function criticPrompt(o: {
   /** Clean-plate ONLY: the overlay copy this page must leave room for. */
   overlayCopy: string[];
   brandGuidance?: string;
-  /** SC-2 — selected style preset id; editorial/swiss carry hard laws below. */
+  /** SC-2: selected style preset id; editorial/swiss carry hard laws below. */
   style?: string;
 }): string {
   const styleLaw = !o.style ? "" :
     o.style === "swiss"
-      ? `STYLE (swiss): exactly ONE saturated accent color, used in one place; display type is very large AND very light (thin strokes); flat surfaces only — a gradient, drop shadow or rounded corner is a defect; hairline dividers, left-aligned grid. Multiple accents, heavy display strokes or soft shadows cap this score at 4.`
+      ? `STYLE (swiss): exactly ONE saturated accent color, used in one place; display type is very large AND very light (thin strokes); flat surfaces only, a gradient, drop shadow or rounded corner is a defect; hairline dividers, left-aligned grid. Multiple accents, heavy display strokes or soft shadows cap this score at 4.`
       : o.style === "editorial"
-        ? `STYLE (editorial): serif display headline with a quiet italic subhead; warm paper palette with visible texture (grain/ink wash — a flat untextured background is a defect); restrained color, generous margins, hairline rules. A flat beige background, heavy sans display or saturated multi-color palette caps this score at 4.`
+        ? `STYLE (editorial): serif display headline with a quiet italic subhead; warm paper palette with visible texture (grain/ink wash, a flat untextured background is a defect); restrained color, generous margins, hairline rules. A flat beige background, heavy sans display or saturated multi-color palette caps this score at 4.`
         : `STYLE (${o.style}): the image must express the selected style preset's concrete phrases; a style label with none of its qualities showing is a defect.`;
   const overlays = o.mode === "clean-plate"
     ? o.overlayCopy.length
       ? `Overlay copy that will land on this page (the artwork must leave clean, uncluttered room exactly where each line sits): ${o.overlayCopy.join(" | ")}`
       : "This page carries NO overlay copy (purely visual plate)."
-    : `The image prompt above names the exact copy lines that must be rendered — judge every rendered line against them.`;
+    : `The image prompt above names the exact copy lines that must be rendered, judge every rendered line against them.`;
   return (
     `Critic rubric ${CRITIC_PROMPT_VERSION}.\n` +
     `You are a senior art director doing final review of ONE generated image for a paying client. You are strict and evidence-driven: "shippable" means the client approves it without a single revision.\n` +
     `Brief title: ${o.title}\n` +
     `Image prompt that produced it: ${o.pagePrompt}\n` +
     (o.brandGuidance ? `Brand rules that must hold: ${o.brandGuidance}\n` : "") +
-    `\nMETHOD — look before you judge:\n` +
-    `1. TRANSCRIBE first: read every line of text actually painted in the image, character by character, including every diacritic. Never assume the copy came out right because the prompt asked for it — garbled rendered text is the single most common defect of image models.\n` +
-    `2. SQUINT at the image (the designer's squint test): when blurred, what registers first, second, third? That is the real hierarchy — it must match what the brief intends to lead.\n` +
+    `\nMETHOD, look before you judge:\n` +
+    `1. TRANSCRIBE first: read every line of text actually painted in the image, character by character, including every diacritic. Never assume the copy came out right because the prompt asked for it, garbled rendered text is the single most common defect of image models.\n` +
+    `2. SQUINT at the image (the designer's squint test): when blurred, what registers first, second, third? That is the real hierarchy, it must match what the brief intends to lead.\n` +
     `3. Only then score. Every issue you report must be something you SAW, at a place you can name.\n` +
-    `\nSCORE BANDS — same meaning for every criterion:\n` +
-    `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend — a SINGLE tight-but-clean margin with everything else solid and no critical defect is exactly that: 7, not 6. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
+    `\nSCORE BANDS, same meaning for every criterion:\n` +
+    `9-10 flawless; a senior designer ships it without a comment. 7-8 shippable; at most one minor nit nobody would resend, a SINGLE tight-but-clean margin with everything else solid and no critical defect is exactly that: 7, not 6. 4-6 the client sends it back; visible defects. 0-3 broken; unusable as-is.\n` +
     `When torn between two scores, take the LOWER one.\n` +
-    `\nCRITERIA — the classic design-review dimensions (C.R.A.P. + Gestalt), weighted for AI image output:\n` +
-    `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? " — every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the leading line stays legible at the size the design will actually be consumed. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable leading line." : " — the artwork leaves clean, uncluttered space where each overlay line lands (check figure-ground contrast against what sits behind it); any text painted INTO the image is a defect in this mode."}\n` +
+    `\nCRITERIA, the classic design-review dimensions (C.R.A.P. + Gestalt), weighted for AI image output:\n` +
+    `TEXTHANDLING (heaviest weight)${o.mode === "poster" ? ", every rendered line matches its brief line EXACTLY: spelling, language, diacritics, casing; no garbled, invented, duplicated or missing words; the leading line stays legible at the size the design will actually be consumed. CRITICAL defects (instant fail): garbled or invented text, wrong language, missing copy line, wrong or missing diacritics, unreadable leading line." : ", the artwork leaves clean, uncluttered space where each overlay line lands (check figure-ground contrast against what sits behind it); any text painted INTO the image is a defect in this mode."}\n` +
     overlays + `\n` +
     `BRAND: adherence to the brand rules above (10 only when none were given).\n` +
-    `FIDELITY: everything the brief named — subject, style, mood, aspect and platform context; anything named that is absent or wrong is a defect.\n` +
-    `REALISM — the anti-"AI slop" axes: light has a direction and DOES something to the objects (a flat, even, shadowless wash is a defect); skin, fabric and product surfaces show real texture — pores, weave, wear — instead of plastic gloss; the piece reads as a DESIGNED commercial asset, not a stock photo with text stamped on. Score 4-6 when the content is correct but the look is generic AI output.\n` +
+    `FIDELITY: everything the brief named, subject, style, mood, aspect and platform context; anything named that is absent or wrong is a defect.\n` +
+    `REALISM, the anti-"AI slop" axes: light has a direction and DOES something to the objects (a flat, even, shadowless wash is a defect); skin, fabric and product surfaces show real texture, pores, weave, wear, instead of plastic gloss; the piece reads as a DESIGNED commercial asset, not a stock photo with text stamped on. Score 4-6 when the content is correct but the look is generic AI output.\n` +
     (styleLaw ? styleLaw + `\n` : ``) +
-    `COMPOSITION — judge like a designer, whatever the design type (poster, menu, slide, overlay, social post):\n` +
-    `- Hierarchy: one clear focal order — primary message/subject first, then secondary, then supporting; the squint-test order must match the brief's intent.\n` +
+    `COMPOSITION, judge like a designer, whatever the design type (poster, menu, slide, overlay, social post):\n` +
+    `- Hierarchy: one clear focal order, primary message/subject first, then secondary, then supporting; the squint-test order must match the brief's intent.\n` +
     `- Contrast & figure-ground: text and subject separate cleanly from the background; contrast is deliberate, never accidental blending.\n` +
     `- Alignment & proximity: elements align to edges or a grid; related elements grouped, unrelated separated (C.R.A.P.).\n` +
     `- Repetition & consistency: recurring styles, colors and type treatments stay consistent where the brief implies them.\n` +
     `- Balance, negative space, crop: no accidental crowding or dead zones; nothing important clipped or within ~5% of any edge.\n` +
-    `\nVERDICT: "pass" ONLY when every score is 7+ AND no critical defect exists. Anything fixable that you would revise yourself means "fail" — do not grade effort, grade the artifact.\n` +
-    `scope: "localized" when the image is right overall and only the listed details are wrong (one bad line, one small area — a surgical edit can fix it); "global" when the problems come from the layout, lighting or overall treatment.\n` +
-    `issues[]: one entry per defect, evidence-first — what you saw and where, e.g. rendered 'GIAM SÓC' top center while the brief says 'GIẢM SỐC' (diacritics missing).\n` +
-    `fixHints[]: imperative edits to the IMAGE PROMPT only — change exactly what is broken, keep everything that worked, specific enough that one regeneration fixes it.\n` +
+    `\nVERDICT: "pass" ONLY when every score is 7+ AND no critical defect exists. Anything fixable that you would revise yourself means "fail", do not grade effort, grade the artifact.\n` +
+    `scope: "localized" when the image is right overall and only the listed details are wrong (one bad line, one small area, a surgical edit can fix it); "global" when the problems come from the layout, lighting or overall treatment.\n` +
+    `issues[]: one entry per defect, evidence-first, what you saw and where, e.g. rendered 'GIAM SÓC' top center while the brief says 'GIẢM SỐC' (diacritics missing).\n` +
+    `fixHints[]: imperative edits to the IMAGE PROMPT only, change exactly what is broken, keep everything that worked, specific enough that one regeneration fixes it.\n` +
     EVAL_READ_MARKER
   );
 }
 
 /** Input + winner of one page's Auto refine loop (DA-3). `taskMeta` returns the
- * frames the caller must adopt — the check/refine nodes live there. */
+ * frames the caller must adopt, the check/refine nodes live there. */
 export interface RefinePageResult {
   img: ImageGenResult;
   prompt: string;
@@ -245,12 +245,12 @@ export interface RefinePageResult {
   taskMeta: TaskMeta[];
 }
 
-/** DA-3 — one page's bounded critic→refine loop, extracted from the page loop
+/** DA-3: one page's bounded critic→refine loop, extracted from the page loop
  * (teardown #13: a 120-line inline loop was steering the generator toward
  * god-function). Semantics:
  * - `rounds` counts refine ATTEMPTS; the recorded `selfImprove.rounds` counts
  *   re-generations that PRODUCED an image (a failed refine turn burns quota but
- *   adds no round — the failure + its error class rides the note, teardown #5/#6)
+ *   adds no round, the failure + its error class rides the note, teardown #5/#6)
  * - every stop flavor keeps the current best image and never burns the main flow (G2)
  * - abort anywhere yields-nothing-more; the caller finalizes with the best image (DA-7)
  */
@@ -262,7 +262,7 @@ async function* refinePage(a: {
   signal?: AbortSignal;
   jobId?: string;
   brandGuidance?: string;
-  /** SC-2 — selected style preset id; the critic enforces editorial/swiss hard laws. */
+  /** SC-2: selected style preset id; the critic enforces editorial/swiss hard laws. */
   style?: string;
   brandId: number;
   msgId: number;
@@ -280,7 +280,7 @@ async function* refinePage(a: {
   let img = a.img;
   let pagePrompt = a.prompt;
   let selfImprove: SelfImproveResult | null = null;
-  /** DA-3.1: which medicine the LAST successful round administered — rides the
+  /** DA-3.1: which medicine the LAST successful round administered, rides the
    *  record (B7) so a verdict can say HOW it was fixed, not just that it was. */
   let refinePath: "edit" | "reroll" | "regen" | null = null;
   const withPath = (r: SelfImproveResult): SelfImproveResult => (refinePath ? { ...r, refinePath } : r);
@@ -320,13 +320,13 @@ async function* refinePage(a: {
         evalRead = null; // G2: a failed check never burns the main flow
       }
     }
-    // teardown #10: close the check frame BEFORE any abort exit — no node may
+    // teardown #10: close the check frame BEFORE any abort exit, no node may
     // hang "running" on the canvas the caller is about to yield
     flip(checkId);
     if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta };
     if (!evalRead) {
       // DA-7: check unavailable → keep this version, zero extra burn
-      yield ev("Auto refine check unavailable — keeping this version.");
+      yield ev("Auto refine check unavailable, keeping this version.");
       selfImprove = { criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: [] };
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
@@ -342,7 +342,7 @@ async function* refinePage(a: {
       return { img: best.img, prompt: best.prompt, selfImprove, taskMeta };
     }
     // DA-3.1 (2026-11-05, docs/research/image-prompt-craft.md): route the fix by
-    // evidence instead of always re-planning — stochastic (consecutive fails
+    // evidence instead of always re-planning, stochastic (consecutive fails
     // complain about DIFFERENT things) → re-roll the SAME prompt (variance, and
     // the planner turn is saved); localized → surgical edit of the CURRENT
     // image (astorie.ai: one edit from the current artwork keeps what already
@@ -358,7 +358,7 @@ async function* refinePage(a: {
     taskMeta = [...taskMeta, { id: refineId, content: "Refining", type: "substep", status: "0" }];
     yield ev("Refining…");
     if (path !== "regen") {
-      // no planner turn on these paths — the fix targets pixels, not words
+      // no planner turn on these paths, the fix targets pixels, not words
       try {
         img = path === "edit"
           ? await deps.image.generate({
@@ -376,7 +376,7 @@ async function* refinePage(a: {
       } catch (err) {
         if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta };
         const cls = ProviderError.from(err, deps.image.name).errorClass;
-        yield ev(`Auto refine ${path === "edit" ? "edit" : "re-roll"} failed (${cls}) — keeping this version.`);
+        yield ev(`Auto refine ${path === "edit" ? "edit" : "re-roll"} failed (${cls}), keeping this version.`);
         selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
         return { img, prompt: pagePrompt, selfImprove, taskMeta };
       }
@@ -398,9 +398,9 @@ async function* refinePage(a: {
     }
     flip(refineId);
     if (!revisedPrompt) {
-      // teardown #5/#6: the burned planner turn is ANNOUNCED — a quota cost with
+      // teardown #5/#6: the burned planner turn is ANNOUNCED, a quota cost with
       // no round and no note is a record that lies
-      yield ev("Auto refine could not revise the prompt (planner returned no usable plan) — keeping this version.");
+      yield ev("Auto refine could not revise the prompt (planner returned no usable plan), keeping this version.");
       selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
@@ -415,9 +415,9 @@ async function* refinePage(a: {
       roundsRun += 1; // teardown #5: a round = a re-generation that produced an image
     } catch (err) {
       if (signal?.aborted) return { img, prompt: pagePrompt, selfImprove, taskMeta };
-      // teardown #6: the note names the class — "failed" alone hides quota_exceeded
+      // teardown #6: the note names the class, "failed" alone hides quota_exceeded
       const cls = ProviderError.from(err, deps.image.name).errorClass;
-      yield ev(`Auto refine regeneration failed (${cls}) — keeping this version.`);
+      yield ev(`Auto refine regeneration failed (${cls}), keeping this version.`);
       selfImprove = withPath({ criticVersion: CRITIC_PROMPT_VERSION, rounds: roundsRun, verdict: "best-effort", issues: evalRead.issues });
       return { img, prompt: pagePrompt, selfImprove, taskMeta };
     }
@@ -432,7 +432,7 @@ export function buildScene(opts: {
   width: number;
   height: number;
   blocks: PlanBlock[];
-  /** Placement policy is mode-dependent (DEF-1) — required, no silent default. */
+  /** Placement policy is mode-dependent (DEF-1), required, no silent default. */
   mode: GenerationMode;
 }): SceneCanvas {
   const { width, height } = opts;
@@ -452,7 +452,7 @@ export function buildScene(opts: {
       src: opts.artworkUrl, crossOrigin: "anonymous", selectable: true, visible: true,
     });
   } else {
-    // provider did not report the actual size — stretch to the canvas (legacy behavior)
+    // provider did not report the actual size, stretch to the canvas (legacy behavior)
     objects.push({
       type: "Image", name: "artwork", origin: "generated",
       left: 0, top: 0, width, height, src: opts.artworkUrl, crossOrigin: "anonymous", selectable: true, visible: true,
@@ -460,7 +460,7 @@ export function buildScene(opts: {
   }
 
   // TP.1: every block lands as a NAMED Textbox (price/date/… first-class for selection);
-  // placement from styleHint + copy-zone defaults — the fixed 72% overlay is gone.
+  // placement from styleHint + copy-zone defaults, the fixed 72% overlay is gone.
   for (const placed of placeBlocks(opts.blocks, width, height)) {
     objects.push({
       type: "Textbox",
@@ -480,10 +480,10 @@ export function buildScene(opts: {
 /**
  * Designer Agent orchestration (Stage 0, Slice 1):
  * 1. jobId UUID at entry, attached to every event (TP.4 correlation)
- * 2. planner node — strict plan parse; a planner failure ABORTS the job before image
+ * 2. planner node, strict plan parse; a planner failure ABORTS the job before image
  *    generation (G2: no text-free empty banners from a failed planner)
- * 3. image generator tool — mode-aware prompts (TP.3), references on page 0 (TP.9)
- * 4. scene builder — named textboxes + origin provenance (TP.10 enforceable)
+ * 3. image generator tool, mode-aware prompts (TP.3), references on page 0 (TP.9)
+ * 4. scene builder, named textboxes + origin provenance (TP.10 enforceable)
  * 5. AbortSignal threading end to end (TP.5)
  */
 export async function* runDesignerAgent(
@@ -491,11 +491,11 @@ export async function* runDesignerAgent(
   deps: DesignerAgentDeps,
 ): AsyncGenerator<ChatEvent> {
   const jobId = input.jobId ?? randomUUID();
-  const msgId = nextMsgId(); // monotonic — Date.now() alone collides for same-ms streams
+  const msgId = nextMsgId(); // monotonic, Date.now() alone collides for same-ms streams
   const brandId = input.brandId ?? 0;
   const width = input.width ?? 1360;
   const height = input.height ?? 2048;
-  /** DA-11: orientation drives the layout grammar below — a bare ratio number
+  /** DA-11: orientation drives the layout grammar below, a bare ratio number
    *  is frequently ignored by the image channel (OpenAI vertical-orientation
    *  threads; Xiaohongshu cover guides put format + layout in sentence one). */
   const portrait = height >= width;
@@ -515,7 +515,7 @@ export async function* runDesignerAgent(
     ...extra,
   });
 
-  // B3: provider attribution comes from the THROWING stage — a planner failure is never
+  // B3: provider attribution comes from the THROWING stage, a planner failure is never
   // labeled with the image provider's name. ProviderError keeps its own provider when set.
   const fail = (err: unknown, providerHint: string): ChatEvent => {
     const pe = ProviderError.from(err, providerHint);
@@ -530,7 +530,7 @@ export async function* runDesignerAgent(
   };
 
   // C1: the approved outline (phase 2) DECIDES the page count before the planner
-  // prompt is built — otherwise the "exactly N imagePrompts" instruction never fires.
+  // prompt is built, otherwise the "exactly N imagePrompts" instruction never fires.
   const approvedPages = input.approvedOutline?.length ?? 0;
   const pagesWanted = Math.max(1, Math.min(9, approvedPages || (input.pages ?? 1)));
   // ---- 1) Planner node ----
@@ -541,8 +541,8 @@ export async function* runDesignerAgent(
   const nodeId = uuid32();
   const researchId = uuid32();
   if (researchWanted && !researchActive) {
-    // DA-2: say it, never skip silently — research is an enhancer, the job runs on
-    yield ev(`Research unavailable on ${deps.llm.name} — generating from the prompt alone.`);
+    // DA-2: say it, never skip silently, research is an enhancer, the job runs on
+    yield ev(`Research unavailable on ${deps.llm.name}, generating from the prompt alone.`);
   }
   taskMeta = [
     ...(researchActive ? [{ id: researchId, content: "Researching the web", type: "node" as const, status: "0" }] : []),
@@ -552,7 +552,7 @@ export async function* runDesignerAgent(
 
   let plan: ReturnType<typeof parsePlannerPlan>;
   if (input.reusePlan) {
-    // TP.4 stage-aware retry: the cached plan rides again — the planner never runs
+    // TP.4 stage-aware retry: the cached plan rides again, the planner never runs
     plan = input.reusePlan;
   } else
   try {
@@ -563,30 +563,30 @@ export async function* runDesignerAgent(
           content:
             `You are a poster/banner planner. Reply with a JSON object matching the provided plan schema: ` +
             `{title, imagePrompt, imagePrompts?, outline?, blocks[]}. ` +
-            `blocks[]: free-form text blocks that become editable text layers — pick roles from the request ` +
+            `blocks[]: free-form text blocks that become editable text layers, pick roles from the request ` +
             `("headline", "price", "discount", "date", "name", "slogan", "subtitle"…); a sale banner naturally yields price/date/name blocks; ` +
             `omit blocks when the text must stay baked into the artwork. ` +
             `Coherence rule: never emit a block whose text duplicates what the imagePrompt asks the model to render.` +
             (input.skill ? `\nSkill structure hint: ${input.skill}.` : "")
             + (researchActive ? `\n${PLANNER_INSTRUCTIONS.research}` : "")
             + ((pagesWanted > 1 || approvedPages >= 1) ? `\n${PLANNER_INSTRUCTIONS.imagePrompts(pagesWanted)}` : "")
-            + (input.outlineMode ? `\nAlso return outline[] — 3-6 short bullets planning the content (Outline Mode).` : "")
+            + (input.outlineMode ? `\nAlso return outline[], 3-6 short bullets planning the content (Outline Mode).` : "")
             + (input.outlineGate && pagesWanted > 1 ? `\n${PLANNER_INSTRUCTIONS.pageOutline(pagesWanted)}` : "")
-            + (input.approvedOutline?.length ? `\nThe user APPROVED this page outline — implement each page faithfully; do NOT merge, add, drop or reorder pages:\n${input.approvedOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n")}` : "")
+            + (input.approvedOutline?.length ? `\nThe user APPROVED this page outline, implement each page faithfully; do NOT merge, add, drop or reorder pages:\n${input.approvedOutline.map((p, i) => `${i + 1}. ${p.title}, ${p.summary}`).join("\n")}` : "")
             + (input.brandGuidance ? `\nBrand rules the output MUST follow:\n${input.brandGuidance}` : "")
             + (mode === "clean-plate"
-              ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved) — ALL copy goes into blocks[].` +
+              ? `\nClean-plate mode: the imagePrompt must describe text-free artwork (no added typography; product packaging lettering is preserved), ALL copy goes into blocks[].` +
                 ` The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ${portrait ? "portrait" : "landscape"}).` +
-                ` Open every imagePrompt with the orientation in LAYOUT language — e.g. ${portrait ? '"Vertical poster, portrait orientation"' : '"Wide banner, landscape orientation"'} — a bare ratio number is often ignored.` +
-                ` Compose the artwork as zones with the hero subject given room to breathe: ${cleanPlateZoneClause()} The calm zones are where editable copy lands later — artwork detail there must stay quiet enough for overlaid text to read.`
-              : `\nPoster mode (D16): the image model RENDS the copy — put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request — an English request gets English-only copy, never mixed; do NOT emit blocks[] — no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ${portrait ? "portrait" : "landscape"}).` +
+                ` Open every imagePrompt with the orientation in LAYOUT language, e.g. ${portrait ? '"Vertical poster, portrait orientation"' : '"Wide banner, landscape orientation"'}, a bare ratio number is often ignored.` +
+                ` Compose the artwork as zones with the hero subject given room to breathe: ${cleanPlateZoneClause()} The calm zones are where editable copy lands later, artwork detail there must stay quiet enough for overlaid text to read.`
+              : `\nPoster mode (D16): the image model RENDS the copy, put every text line into imagePrompt verbatim with placement and typography hints (e.g. \"bold condensed 'FLASH SALE' across the top, '20% OFF TODAY' large beneath it\"); write ALL copy in the SAME language as the user's request, an English request gets English-only copy, never mixed; do NOT emit blocks[], no overlay text will be added on top. The image channel cannot request exact pixels and the render is cover-cropped to the page (${width}\u00d7${height}, ${portrait ? "portrait" : "landscape"}).` +
               (portrait
-                ? ` Open every imagePrompt with the orientation in LAYOUT language — e.g. "Vertical poster, portrait orientation, top-to-bottom layout" — a bare ratio number is often ignored. Describe the poster as construction zones, not a photograph: top ~40% typography zone (headline + offer + badge), middle ~45% the product/subject STAGE (props and containers around the hero — not a close-up — plus one dynamic element such as steam, light or reflection connecting the zones), bottom ~15% support strip (short selling points + call to action); adapt the percentages to the request but always NAME each zone and what sits in it.`
-                : ` Open every imagePrompt with the orientation in LAYOUT language — e.g. "Wide banner, landscape orientation, left-to-right flow" — a bare ratio number is often ignored. Describe the layout as zones with a left-to-right visual flow: the subject anchoring one third, the copy on the opposite side, deliberate negative space between them.`) +
-              ` Demand ALL text inside a safe area — at least 10% clear of every edge, checked on the long axis first — or the crop will cut edge-hugging lines.`
+                ? ` Open every imagePrompt with the orientation in LAYOUT language, e.g. "Vertical poster, portrait orientation, top-to-bottom layout", a bare ratio number is often ignored. Describe the poster as construction zones, not a photograph: top ~40% typography zone (headline + offer + badge), middle ~45% the product/subject STAGE (props and containers around the hero, not a close-up, plus one dynamic element such as steam, light or reflection connecting the zones), bottom ~15% support strip (short selling points + call to action); adapt the percentages to the request but always NAME each zone and what sits in it.`
+                : ` Open every imagePrompt with the orientation in LAYOUT language, e.g. "Wide banner, landscape orientation, left-to-right flow", a bare ratio number is often ignored. Describe the layout as zones with a left-to-right visual flow: the subject anchoring one third, the copy on the opposite side, deliberate negative space between them.`) +
+              ` Demand ALL text inside a safe area, at least 10% clear of every edge, checked on the long axis first, or the crop will cut edge-hugging lines.`
             )
             +
-            `\nStyle vocabulary — when the request names or implies a style, spell the CONCRETE phrases into imagePrompt, never the label alone ` +
+            `\nStyle vocabulary, when the request names or implies a style, spell the CONCRETE phrases into imagePrompt, never the label alone ` +
             `(adapted from SurgePix agent-skills, MIT): ` +
             `modern=grid-based, generous whitespace, strong focal hierarchy, modular alignment; ` +
             `vintage=collage-style, organic layered graphics, retro print alignment; ` +
@@ -597,10 +597,10 @@ export async function* runDesignerAgent(
             `hand-drawn=illustration-led, organic strokes, playful hand-lettered typography; ` +
             `business-promo=product-centered, large promotional headline, layered badges, clear CTA; ` +
             `editorial=magazine-feature feel, serif display headline, quiet italic subhead, warm paper tones with visible grain or soft ink wash, generous margins, hairline rules; ` +
-            `swiss=strict left-aligned grid, very large LIGHT-weight type, hairline rules, exactly one saturated accent used once, flat surfaces — no gradients, no shadows, no rounded corners.`
+            `swiss=strict left-aligned grid, very large LIGHT-weight type, hairline rules, exactly one saturated accent used once, flat surfaces, no gradients, no shadows, no rounded corners.`
             + `\n${IMAGE_CRAFT_RULES}`
             + (input.style
-              ? `\nStyle preset selected by the user — '${input.style}': ${(STYLE_PRESETS.find((p) => p.id === input.style) ?? STYLE_PRESETS[0]).phrases}. Weave these exact qualities into every imagePrompt.`
+              ? `\nStyle preset selected by the user, '${input.style}': ${(STYLE_PRESETS.find((p) => p.id === input.style) ?? STYLE_PRESETS[0]).phrases}. Weave these exact qualities into every imagePrompt.`
               : "")
         },
         { role: "user", content: input.prompt },
@@ -613,8 +613,8 @@ export async function* runDesignerAgent(
     }
     input.onPlan?.(plan); // stash for stage-aware retry (TP.4)
   } catch (err) {
-    if (input.signal?.aborted) return; // TP.5: silent stop — the route emits the terminal cancelled event
-    // G2/G7: planner failure aborts BEFORE image generation — explicit failure event, one attempt, no silent fallback
+    if (input.signal?.aborted) return; // TP.5: silent stop, the route emits the terminal cancelled event
+    // G2/G7: planner failure aborts BEFORE image generation, explicit failure event, one attempt, no silent fallback
     yield fail(err, deps.llm.name);
     return;
   }
@@ -622,7 +622,7 @@ export async function* runDesignerAgent(
   const title = plan.title || input.prompt.slice(0, 60);
   const blocks = normalizeBlocks(plan);
 
-  // DA-6: the research findings are part of the record — the user sees what the
+  // DA-6: the research findings are part of the record, the user sees what the
   // planner learned (and imagePrompt already inherited them inside the turn).
   if (researchActive && plan.researchNotes?.length) {
     if (researchActive) taskMeta = taskMeta.map((x) => (x.id === researchId ? { ...x, status: "1" } : x));
@@ -631,11 +631,11 @@ export async function* runDesignerAgent(
     taskMeta = taskMeta.map((x) => (x.id === researchId ? { ...x, status: "1" } : x));
   }
 
-  // ---- C1 outline gate phase 1: emit the outline and STOP — zero image calls (OC-1) ----
+  // ---- C1 outline gate phase 1: emit the outline and STOP, zero image calls (OC-1) ----
   if (input.outlineGate && !input.approvedOutline && pagesWanted > 1) {
     const pageOutline = plan.pageOutline;
     if (!pageOutline || pageOutline.length !== pagesWanted) {
-      // OC-2: a wrong-count outline is a planner failure — abort before any quota burns
+      // OC-2: a wrong-count outline is a planner failure, abort before any quota burns
       yield fail(
         new ProviderError("plan_parse_failed", `the planner returned ${pageOutline?.length ?? 0}/${pagesWanted} outline pages`, { provider: deps.llm.name }),
         deps.llm.name,
@@ -644,7 +644,7 @@ export async function* runDesignerAgent(
     }
     taskMeta = taskMeta.map((x) => (x.id === nodeId ? { ...x, status: "1" } : x));
     yield ev(`Outline for ${pagesWanted} pages:`);
-    yield ev(pageOutline.map((p, i) => `${i + 1}. ${p.title} — ${p.summary}`).join("\n"), {
+    yield ev(pageOutline.map((p, i) => `${i + 1}. ${p.title}, ${p.summary}`).join("\n"), {
       renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, outline: pageOutline },
     });
     yield ev(`</Content>`);
@@ -670,8 +670,8 @@ export async function* runDesignerAgent(
       : pagesWanted > 1 && plan.imagePrompts?.length
         ? plan.imagePrompts.slice(0, pagesWanted)
         : Array.from({ length: pagesWanted }, (_, i) =>
-            i === 0 ? (plan.imagePrompt ?? input.prompt) : `${plan.imagePrompt ?? input.prompt} — variation ${i + 1}`);
-    // A3-lite: append the edit contract only when the caller sent references —
+            i === 0 ? (plan.imagePrompt ?? input.prompt) : `${plan.imagePrompt ?? input.prompt}, variation ${i + 1}`);
+    // A3-lite: append the edit contract only when the caller sent references,
     // "Image 1" names referenceImages[0], so the clauses are meaningless without it.
     const clauses = input.editMode && input.referenceImages?.length ? buildEditClauses(input.editMode) : "";
     return clauses ? base.map((p) => p + clauses) : base;
@@ -683,17 +683,17 @@ export async function* runDesignerAgent(
       : t.progress(title.toLowerCase()),
   );
 
-  // BR-CTRL: outline mode — the outline is emitted BEFORE generation
+  // BR-CTRL: outline mode, the outline is emitted BEFORE generation
   if (input.outlineMode && plan.outline?.length) {
     yield ev(`Outline:\n${plan.outline.map((b, i) => `${i + 1}. ${b}`).join("\n")}\n`);
   }
 
   // ---- 2) Image Generator tool + progressive canvases ----
-  // Stepper honesty: phase transitions are ATOMIC — the planner node closes in
+  // Stepper honesty: phase transitions are ATOMIC, the planner node closes in
   // the SAME taskMeta snapshot that opens the image tool. Flipping each phase
   // at its own pace left gaps where every step read done while the job ran on
   // (and open phases outliving their own substeps rendered done to the RIGHT
-  // of pending — the jumble the busy-shot caught live).
+  // of pending, the jumble the busy-shot caught live).
   const toolId = uuid32();
   taskMeta = [
     ...taskMeta.map((x: TaskMeta) => (x.id === nodeId ? { ...x, status: "1" } : x)),
@@ -703,7 +703,7 @@ export async function* runDesignerAgent(
 
   const pages: { canvasId: string; canvasMeta: { id: string; type: "canvas"; thumbnail: string; canvas: SceneCanvas } }[] = [];
   const refineRounds = Math.max(0, input.selfImprove?.rounds ?? 0);
-  /** DA-6/B7 — the hero verdict pairs with the HERO canvas the terminal events
+  /** DA-6/B7: the hero verdict pairs with the HERO canvas the terminal events
    * attach (pages[0]); every page's verdict rides `selfImprovePages` so the
    * record never drops a refine round that burned quota (teardown #2). */
   let heroSelfImprove: SelfImproveResult | null = null;
@@ -719,7 +719,7 @@ export async function* runDesignerAgent(
       });
       let pagePrompt = imagePrompts[pi];
 
-      // ---- DA-3: Auto refine — critic check → bounded refine, INSIDE this metered job ----
+      // ---- DA-3: Auto refine, critic check → bounded refine, INSIDE this metered job ----
       let selfImprove: SelfImproveResult | null = null;
       if (refineRounds > 0) {
         const r = yield* refinePage({
@@ -729,7 +729,7 @@ export async function* runDesignerAgent(
           style: input.style,
           referenceImages: pi === 0 ? input.referenceImages : undefined,
           mode, title,
-          // teardown #3: only page 0 carries overlay blocks — later pages are
+          // teardown #3: only page 0 carries overlay blocks, later pages are
           // judged as purely visual plates, not against copy that never lands
           blockTexts: mode === "clean-plate" && pi === 0 ? blocks.map((b) => b.text) : [],
           width, height, taskMeta,
@@ -741,13 +741,13 @@ export async function* runDesignerAgent(
       }
 
       const canvasId = uuid32();
-      // D16: in poster mode the copy is baked into the artwork — overlay blocks
+      // D16: in poster mode the copy is baked into the artwork, overlay blocks
       // would DOUBLE the text. The planner is told not to emit them; this guard
       // holds even when it half-complies (bakes the copy AND returns blocks).
-      // A half-complying planner can also LOSE copy it never baked — that must
+      // A half-complying planner can also LOSE copy it never baked, that must
       // never be silent (B7 spirit, same bar as format_drift): warn per page.
       if (pi === 0 && mode !== "clean-plate" && blocks.length > 0) {
-        yield ev(`Note: ${blocks.length} planned text block${blocks.length === 1 ? "" : "s"} were not drawn — in Text-in-image mode the copy is rendered into the artwork. If any copy is missing from the image, ask for a repaint.`, {
+        yield ev(`Note: ${blocks.length} planned text block${blocks.length === 1 ? "" : "s"} were not drawn, in Text-in-image mode the copy is rendered into the artwork. If any copy is missing from the image, ask for a repaint.`, {
           renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null },
         });
       }
@@ -757,7 +757,7 @@ export async function* runDesignerAgent(
         artworkH: img.height,
         width, height,
         mode,
-        // blocks land on the first page only — per-page blocks wait for a real ask.
+        // blocks land on the first page only, per-page blocks wait for a real ask.
         blocks: pi === 0 && mode === "clean-plate" ? blocks : [],
       });
       const canvasMeta = { id: canvasId, type: "canvas" as const, thumbnail: img.url, canvas: scene };
@@ -767,7 +767,7 @@ export async function* runDesignerAgent(
       yield ev(`[[canvas::canvas::${canvasId}]] `, {
         renderData: { msgMeta: [canvasMeta], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...(selfImprove ? { selfImprove } : {}) },
       });
-      if (input.signal?.aborted) return; // DA-7: canvas yielded, stop here — route sends cancelled
+      if (input.signal?.aborted) return; // DA-7: canvas yielded, stop here, route sends cancelled
     } catch (err) {
       if (input.signal?.aborted) return;
       yield fail(err, deps.image.name);
@@ -784,7 +784,7 @@ export async function* runDesignerAgent(
 
   // ---- 3) Tool done + done narrative ----
   // Atomic again: the image tool closes in the same snapshot that opens the
-  // composing phase — no event may show an all-done track while the job runs.
+  // composing phase, no event may show an all-done track while the job runs.
   const resultId = uuid32();
   taskMeta = [
     ...taskMeta.map((x: TaskMeta) => (x.id === toolId ? { ...x, status: "1" } : x)),
@@ -813,7 +813,7 @@ export async function* runDesignerAgent(
       ...verdictExtras,
     },
   });
-  // BR-2 settle: the result node CLOSES (0→1) — without this terminal flip the UI
+  // BR-2 settle: the result node CLOSES (0→1), without this terminal flip the UI
   // timeline hangs on "Manager Agent · running…" after the poster has finished.
   taskMeta = taskMeta.map((x) => (x.id === resultId ? { ...x, status: "1" } : x));
   yield ev("", { renderData: { msgMeta: [], fileMeta: [], taskMeta, exportMeta: null, confirmRequest: null, ...verdictExtras } });

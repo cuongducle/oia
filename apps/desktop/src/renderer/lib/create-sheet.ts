@@ -4,9 +4,9 @@ import { oia } from "./bridge.js";
 import { LIVE_ARTBOARDS, liveArtboardScene, type LiveArtboard } from "./livestream-presets.js";
 
 /**
- * UI v1.1 R2 — the Create sheet's "Start from a size" lane: marketplace sizes
+ * UI v1.1 R2: the Create sheet's "Start from a size" lane: marketplace sizes
  * (SIZE_PRESETS), the C3 livestream artboards, and the everyday formats, grouped
- * the way sellers name them. Only the two C3 covers are `official` (LV-10) —
+ * the way sellers name them. Only the two C3 covers are `official` (LV-10),
  * marketplace sizes follow seller guides, never "the platform requires".
  */
 

@@ -1,11 +1,11 @@
-# AGENTS.md — rules for coding agents working on Oia
+# AGENTS.md: rules for coding agents working on Oia
 
 ## Current state (read this first)
 
 Oia is **desktop-only** (Electron, macOS + Windows). The web app was deleted in
-reorg step 6 — it exists only in git history and in verification records. The single
-source of truth for scope, decisions (D1–D14), step status, and known debt is
-[`docs/designs/desktop-only-reorg.md`](docs/designs/desktop-only-reorg.md) —
+reorg step 6, it exists only in git history and in verification records. The single
+source of truth for scope, decisions (D1-D14), step status, and known debt is
+[`docs/designs/desktop-only-reorg.md`](docs/designs/desktop-only-reorg.md),
 check its checklist before starting work, and update it (with gates run) after.
 
 The design ledger for older docs is [`docs/designs/SITEMAP.md`](docs/designs/SITEMAP.md).
@@ -23,7 +23,7 @@ pnpm --filter @oia/desktop crash-smoke              # error-path e2e: kill servi
 pnpm --filter @oia/desktop shot                     # visual verification → out/*.png
 ```
 
-Smoke modes are mock by default. `OIA_DESKTOP_REAL_SMOKE=1` burns real Codex quota —
+Smoke modes are mock by default. `OIA_DESKTOP_REAL_SMOKE=1` burns real Codex quota,
 never in CI, only when the owner asks.
 
 ## Hard rules
@@ -33,14 +33,14 @@ never in CI, only when the owner asks.
 2. **`@oia-web` imports in `apps/desktop` are ratcheted to 0**
    (`config/baselines/oia-web-imports.baseline.txt`, CI-enforced). The desktop owns
    its lib copies. Never reach back into the web app.
-3. **Atomic writes for every persisted state** (temp + rename, EPERM/EBUSY retry —
+3. **Atomic writes for every persisted state** (temp + rename, EPERM/EBUSY retry,
    see `packages/tasks/src/atomic.ts`). A crash mid-write must never corrupt a store.
 4. **Error-path gates, not happy-path only.** Every fix to a defect gets a
    regression test that reproduces the failure mode (crash, race, timeout, TTL).
    Green build/test/smoke proves nothing about paths it never exercises.
 5. **Records must not lie** (B7): cancelled jobs record cancelled outcomes; a job
    interrupted by a restart is marked failed at boot; task handlers run exactly
-   once when metered (G3) — retries are new tasks, never silent re-runs.
+   once when metered (G3), retries are new tasks, never silent re-runs.
 6. **Quota is money.** Nothing may repeat or orphan a paid generation: noWait
    semantics stay exact, cancellation kills the detached CLI trees, quit waits
    (bounded) for cancel before kill.
@@ -55,8 +55,7 @@ never in CI, only when the owner asks.
 - **macOS AND Windows.** A passing macOS build is not evidence for Windows (D3).
   BEFORE changing process spawning, file paths, the codex bridge, or the
   Electron shell, read
-  [`docs/reference/cross-platform-support.md`](docs/reference/cross-platform-support.md)
-  — it is the distilled battle log (`.cmd` shims, `C:\` path shapes, GUI-launch
+  [`docs/reference/cross-platform-support.md`](docs/reference/cross-platform-support.md), it is the distilled battle log (`.cmd` shims, `C:\` path shapes, GUI-launch
   PATH, EPERM renames, detached trees, `.cjs` preload, `oia://` CORS).
 - **The seller's quota.** Every generation path must be cancellable, metered once,
   and visible (UI or agent-job events).
@@ -65,13 +64,13 @@ never in CI, only when the owner asks.
 
 ## Reuse before reimplementing
 
-Before writing new logic at any scale — a store call, an IPC handler, an HTTP
-route, a validation — check whether it already exists:
+Before writing new logic at any scale, a store call, an IPC handler, an HTTP
+route, a validation, check whether it already exists:
 
 - `@oia/tasks` (stores, processors, upload, api keys) and `@oia/services`
   (chat orchestration, quota, context) own the logic; shells only wire it.
 - **The web app's routes are the reference implementation of every API
-  semantic.** When porting, mirror them exactly — drift here produced the
+  semantic.** When porting, mirror them exactly, drift here produced the
   `language`-field skill bug (the API rejected a field the skill sent, and
   nothing caught it until the live e2e).
 - `@oia/schema` is the single home for shapes, versions, and constants.
@@ -85,16 +84,16 @@ route, a validation — check whether it already exists:
   line-specific `SAFETY:` comment saying why it cannot lie.
 - **File naming**: name files after the domain concept they hold
   (`copy-zones.ts`, `utilityClient.ts`), never after their role (`helpers`,
-  `utils`, `common`) — those become dumping grounds.
+  `utils`, `common`), those become dumping grounds.
 - Full conventions: [`docs/STYLEGUIDE.md`](docs/STYLEGUIDE.md).
 
 ## UI validation
 
 - `pnpm --filter @oia/desktop shot` is the scripted eyes: it opens the real
   window, drives the bridge, and asserts painted pixels (not just DOM). Extend
-  it when porting views — a view without a shot check is unverified.
+  it when porting views, a view without a shot check is unverified.
 - Rebuild (`electron-vite build`) before launching smoke/shot after changing
-  startup/launch-policy code — a stale `out/` wrapper can run old behavior and
+  startup/launch-policy code, a stale `out/` wrapper can run old behavior and
   produce confident nonsense.
 - The gates run in CI on Linux (xvfb). They prove wiring, not platform
   behavior: platform claims need the real-machine gates (step 7).
@@ -112,13 +111,13 @@ Before adding a test, check it against
 apps/desktop/src/main      windows, menus, dialogs, oia:// protocol, runtime controller
 apps/desktop/src/utility   ServiceContext: runChat, task store, stores, files, loopback API
 apps/desktop/src/preload   contextBridge (sandboxed, .cjs)
-apps/desktop/src/renderer  React UI (views, lib) — English
+apps/desktop/src/renderer  React UI (views, lib), English
 apps/desktop/src/shared    IPC schemas/channels + main↔utility wire protocol
 
 packages: schema → protocol/providers/agent/canvas → tasks → services → shells
 ```
 
-Known debt (deferred, deliberate) is listed at the end of the reorg plan —
+Known debt (deferred, deliberate) is listed at the end of the reorg plan,
 do not "discover" it as new; do not fix silently either: update the ledger.
 
 ## Style
@@ -130,7 +129,7 @@ Commit style: imperative subject + structured body explaining WHY (see `git log`
 
 - Commit style and gates-run evidence: see STYLEGUIDE "Commits".
 - A failed CI run: inspect first (`gh run view <run-id> --log-failed`), then
-  `gh run rerun <run-id> --failed` reruns only the failed jobs — preserve the
+  `gh run rerun <run-id> --failed` reruns only the failed jobs, preserve the
   green ones. A code fix always needs a new push and fresh checks,
   never a rerun of the old SHA.
 - The `@oia-web` ratchet and the smoke gates live in `.github/workflows/ci.yml`;

@@ -16,7 +16,7 @@ export const taskMetaSchema = z.object({
   status: z.string().optional(),
   /** "substep" = an inner loop step (auto-refine check/refine turns): it opens
    *  and closes INSIDE its enclosing phase. Steppers must not lay these on the
-   *  linear track — a closed substep to the right of an open phase reads as
+   *  linear track, a closed substep to the right of an open phase reads as
    *  out-of-order. This field IS the wire contract (stable name), not the label. */
   type: z.enum(["node", "tool", "result", "substep"]),
 });
@@ -47,22 +47,22 @@ export const renderDataSchema = z.object({
   fileMeta: z.array(z.unknown()).default([]),
   taskMeta: z.array(taskMetaSchema).default([]),
   exportMeta: exportMetaSchema.nullable().default(null),
-  /** TP.10 — present only when an agent action needs explicit user confirmation. */
+  /** TP.10: present only when an agent action needs explicit user confirmation. */
   confirmRequest: confirmRequestSchema.nullable().default(null),
-  /** C1 outline gate — the deck outline phase 1 ends with (absent on every other
+  /** C1 outline gate, the deck outline phase 1 ends with (absent on every other
    * event; optional-nullable so every legacy producer/consumer parses unchanged). */
   outline: planPageSchema.array().nullable().optional(),
-  /** DA-6 — Auto refine verdict, on the WINNING canvas event only (absent on
-   * every other event; optional-nullable — D14 additive). */
+  /** DA-6: Auto refine verdict, on the WINNING canvas event only (absent on
+   * every other event; optional-nullable, D14 additive). */
   selfImprove: selfImproveResultSchema.nullable().optional(),
-  /** DA-6/B7 — per-page verdicts of a multi-page run, on the terminal events
+  /** DA-6/B7: per-page verdicts of a multi-page run, on the terminal events
    * only; absent when the loop never ran (D14 additive, teardown #2: the record
    * must keep every verdict that burned quota, not just the hero page's). */
   selfImprovePages: z.array(selfImproveResultSchema.nullable()).nullable().optional(),
 });
 
 /**
- * TP.4/TP.5 — `status` widens to "cancelled" for the terminal cancel event; numeric
+ * TP.4/TP.5: `status` widens to "cancelled" for the terminal cancel event; numeric
  * statuses keep their existing meaning. Failure events carry `errorClass`,
  * `attemptNumber` (always 1 for metered jobs) and `provider`; every event carries `jobId`.
  */
@@ -80,7 +80,7 @@ export const chatEventSchema = z.object({
   provider: z.string().optional(),
   /** Cancel outcome flag (job outcome, not an error class): artwork was already produced. */
   afterCompletion: z.boolean().optional(),
-  /** TP.4/Q3 — quota reset time when known (parsed from provider output, ISO string). */
+  /** TP.4/Q3: quota reset time when known (parsed from provider output, ISO string). */
   resetAt: z.string().optional(),
 });
 

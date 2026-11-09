@@ -3,7 +3,7 @@ import type { TaskStatus } from "@oia/schema";
 import { pollTask } from "./poll-task.js";
 
 /** Error-path gates for the shared poller (repo rule 4: never happy-path only).
- *  The clock is injected — no fake timers, each test drives ticks by hand. */
+ *  The clock is injected, no fake timers, each test drives ticks by hand. */
 
 const mk = (over: Partial<TaskStatus> = {}): TaskStatus => ({
   taskId: "t1", sessionId: 1, progress: "processing",
@@ -17,7 +17,7 @@ const tick = () => {
 };
 
 describe("pollTask", () => {
-  it("already-terminal task returns immediately — zero polls, zero sleeps", async () => {
+  it("already-terminal task returns immediately, zero polls, zero sleeps", async () => {
     const t = tick();
     const done = mk({ progress: "succeeded" });
     const out = await pollTask(done, { get: async () => { throw new Error("must not poll"); }, sleep: t.sleep });
@@ -38,7 +38,7 @@ describe("pollTask", () => {
     expect(t.ticks()).toBe(3); // one sleep per read
   });
 
-  it("a null read is 'task vanished' — never silently retried into a lie", async () => {
+  it("a null read is 'task vanished', never silently retried into a lie", async () => {
     const t = tick();
     await expect(pollTask(mk(), { get: async () => null, sleep: t.sleep, intervalMs: 1, capMs: 100 }))
       .rejects.toThrow("task vanished");
@@ -51,14 +51,14 @@ describe("pollTask", () => {
     expect(t.ticks()).toBe(3); // ceil(150/50) polls, then stop
   });
 
-  it("a FAILED terminal state resolves (not throws) — the caller reports taskNote honestly", async () => {
+  it("a FAILED terminal state resolves (not throws), the caller reports taskNote honestly", async () => {
     const failed = mk({ progress: "failed", taskNote: "quota_exceeded" });
     const out = await pollTask(mk(), { get: async () => failed, sleep: async () => {}, intervalMs: 1, capMs: 10 });
     expect(out.progress).toBe("failed");
     expect(out.taskNote).toBe("quota_exceeded");
   });
 
-  it("a late success after the user pressed Stop still resolves — quota-is-money, the caller applies it", async () => {
+  it("a late success after the user pressed Stop still resolves, quota-is-money, the caller applies it", async () => {
     const t = tick();
     let reads = 0;
     const late = mk({ progress: "succeeded" });

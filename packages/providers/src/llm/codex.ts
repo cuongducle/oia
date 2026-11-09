@@ -9,18 +9,18 @@ import { CodexBridge } from "../codex/bridge.js";
 import { createScratchDir, removeScratchDir } from "../cli/runtime.js";
 
 /**
- * TP.2 — the keyless planner over the ChatGPT login (text-only `codex exec`).
+ * TP.2: the keyless planner over the ChatGPT login (text-only `codex exec`).
  * Same bridge as image generation: one login, one channel, two uses.
  *
- * Exactly one attempt per call — no silent retry, no silent mock fallback.
+ * Exactly one attempt per call, no silent retry, no silent mock fallback.
  * A malformed plan fails with `plan_parse_failed` and the job aborts before
  * image generation (G2/G7): no text-free empty banners ship from a failed planner.
  */
 
-/** Default planner budget — the registry threads CODEX_PLANNER_TIMEOUT_MS per instance (T3: no import-time env reads). */
+/** Default planner budget, the registry threads CODEX_PLANNER_TIMEOUT_MS per instance (T3: no import-time env reads). */
 export const CODEX_PLANNER_TIMEOUT_DEFAULT = 120_000;
 
-/** Magic-byte sniff — the extension must tell the truth about the bytes
+/** Magic-byte sniff, the extension must tell the truth about the bytes
  * (a webp saved as .png is a lie downstream tools may punish). */
 export function sniffImageExt(bytes: Uint8Array): string {
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
@@ -63,17 +63,17 @@ export class CodexLlmProvider implements LlmProvider {
     return JSON.stringify(plan);
   }
 
-  /** B1 — one vision read: image bytes materialized to an ASCII-named temp file
+  /** B1: one vision read: image bytes materialized to an ASCII-named temp file
    * (same rule as image references, TP.9), attached with -i on the planner role,
    * output pinned by the CALLER's schema via --output-schema. Validation of the
-   * returned JSON is the caller's job (deconstructReadSchema) — this returns raw. */
+   * returned JSON is the caller's job (deconstructReadSchema), this returns raw. */
   async readImage(prompt: string, image: Uint8Array, schema: object = DECONSTRUCT_JSON_SCHEMA, opts: LlmChatOpts = {}): Promise<string> {
     const scratch = await createScratchDir("codex-vision-io");
     try {
       const schemaFile = path.join(scratch, "read.schema.json");
       await writeFile(schemaFile, JSON.stringify(schema), "utf8");
       const lastMessageFile = path.join(scratch, "read.json");
-      // extension must match the REAL bytes — a webp named .png may be rejected
+      // extension must match the REAL bytes, a webp named .png may be rejected
       // or misread downstream (teardown B1); sniff the magic bytes, default png.
       const imgFile = path.join(scratch, `${randomUUID()}.${sniffImageExt(image)}`); // ASCII-safe filename (TP.9)
       await writeFile(imgFile, Buffer.from(image));
@@ -106,7 +106,7 @@ export class CodexLlmProvider implements LlmProvider {
       const lastMessageFile = path.join(scratch, "plan.json");
 
       // stdin prompt: full conversation (system rules + user request). User input is
-      // data, not instructions — the read-only sandbox and empty -C root bound the blast radius.
+      // data, not instructions, the read-only sandbox and empty -C root bound the blast radius.
       const prompt = messages.map((m) => `[${m.role}]\n${m.content}`).join("\n\n");
 
       const res = await this.bridge.exec({

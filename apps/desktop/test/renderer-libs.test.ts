@@ -12,7 +12,7 @@ import { ERROR_CLASSES } from "@oia/schema";
 import { presentErrorEn } from "../src/renderer/lib/errors.js";
 
 /**
- * Reorg step 5 — the coverage-matrix cells the web tests used to own. The web
+ * Reorg step 5, the coverage-matrix cells the web tests used to own. The web
  * app is deleted in step 6 together with its test suite; these behaviors were
  * ported with the lib copies in step 2/4c but never re-homed. Source of truth:
  * docs/verification/web-test-coverage-matrix.md.
@@ -59,7 +59,7 @@ describe("studio-ui: templates are real editable scenes", () => {
     expect(filterTemplates([{ name: "Matcha menu" }, { name: "Slide deck" }] as never, "poster")).toHaveLength(1);
     expect(filterTemplates([{ name: "a" }] as never, "all")).toHaveLength(1);
   });
-  it("imageSource admits http(s), data URLs and root-relative paths — and nothing executable", () => {
+  it("imageSource admits http(s), data URLs and root-relative paths, and nothing executable", () => {
     expect(imageSource("https://x/y.png")).toBe("https://x/y.png");
     expect(imageSource("data:image/png;base64,xx")).toBe("data:image/png;base64,xx");
     expect(imageSource("/studio/matcha.webp")).toBe("/studio/matcha.webp");
@@ -116,14 +116,14 @@ describe("quick tools registry (4 categories, one honest landing)", () => {
   it("slug unique", () => {
     expect(new Set(QUICK_TOOLS.map((tool) => tool.slug)).size).toBe(QUICK_TOOLS.length);
   });
-  it("every tool is implemented except ppt-translator (the only landing — D5)", () => {
+  it("every tool is implemented except ppt-translator (the only landing, D5)", () => {
     const landing = QUICK_TOOLS.filter((tool) => !tool.implemented);
     expect(landing.map((tool) => tool.slug)).toEqual(["ppt-translator"]);
     expect(landing[0].kind).toBe("landing");
   });
 });
 
-describe("previewRenderSize — the thumbnail memory cap (pure)", () => {
+describe("previewRenderSize, the thumbnail memory cap (pure)", () => {
   it("natural size when under the cap (no zoom path taken)", () => {
     expect(previewRenderSize(900, 1200)).toEqual({ width: 900, height: 1200, zoom: 1 });
   });
@@ -147,7 +147,7 @@ describe("i18n is English-only and complete (D8)", () => {
     }
   });
 
-  /** Vietnamese-specific letters — none may appear in desktop UI copy (D8). */
+  /** Vietnamese-specific letters, none may appear in desktop UI copy (D8). */
   const VIETNAMESE = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/;
 
   /** D8 content-level exception, enumerated: files carrying seller-copy DATA
@@ -170,7 +170,7 @@ describe("i18n is English-only and complete (D8)", () => {
         if (f.isDirectory()) scan(full);
         else if (/\.(tsx?|css)$/.test(f.name)) {
           scanned++;
-          // POSIX-only assumption — Windows returns lib\file.ts and the allowlist
+          // POSIX-only assumption, Windows returns lib\file.ts and the allowlist
           // (and offender names) must compare one canonical shape (battle-log: path shapes)
           const rel = path.relative(root, full).split(path.sep).join("/");
           if (!VN_CONTENT_DATA_FILES.has(rel) && VIETNAMESE.test(readFileSync(full, "utf8"))) offenders.push(rel);
@@ -178,17 +178,17 @@ describe("i18n is English-only and complete (D8)", () => {
       }
     };
     scan(root);
-    // a scanner that scanned nothing passes vacuously — pin a floor so a future
+    // a scanner that scanned nothing passes vacuously, pin a floor so a future
     // restructure FAILS this test instead of silently going blind (self-review lesson)
     expect(scanned).toBeGreaterThanOrEqual(20);
     expect(offenders).toEqual([]);
-    // an allowlist entry that no longer exists would silently widen the gate — refuse
+    // an allowlist entry that no longer exists would silently widen the gate, refuse
     for (const rel of VN_CONTENT_DATA_FILES) {
       expect(existsSync(path.join(root, rel)), `VN content-data allowlist entry is stale: ${rel}`).toBe(true);
     }
   });
 
-  it("every error class renders REAL English — no silent unknown fallback (coverage for the Partial EN dict)", () => {
+  it("every error class renders REAL English, no silent unknown fallback (coverage for the Partial EN dict)", () => {
     for (const cls of ERROR_CLASSES) {
       const p = ERROR_PRESENTATION[cls];
       expect(EN_MESSAGES[p.messageKey].trim().length, `${cls} messageKey`).toBeGreaterThan(1);

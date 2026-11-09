@@ -8,14 +8,14 @@ import { MockLlmProvider } from "../src/llm/mock.js";
 import { CodexBridge } from "../src/codex/bridge.js";
 import { DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA } from "@oia/schema";
 
-/** B1 — the vision-read provider surface (deconstruct-import.md DC-3/DC-4). */
+/** B1: the vision-read provider surface (deconstruct-import.md DC-3/DC-4). */
 describe("readImage (B1 deconstruct)", () => {
   const fakeDir = path.join(tmpdir(), `oia-vision-${Date.now()}`);
   beforeAll(() => mkdirSync(fakeDir, { recursive: true }));
 
   it("codex readImage: planner role + -i attach + caller schema + read-only sandbox", async () => {
     // mimics codex: writes the read JSON to the -o file, echoes ARGS for pinning
-    // (portable node fake — see fakeCli.ts)
+    // (portable node fake, see fakeCli.ts)
     const bin = writeRunnableCli(
       fakeDir,
       "readwriter",
@@ -66,7 +66,7 @@ process.stdout.write("ARGS:" + process.argv.slice(2).join(" ") + "\\n");
     expect(new CodexLlmProvider().capabilities.referenceImages).toBe(true);
   });
 
-  it("sniffImageExt tells the truth about bytes — no webp named .png (teardown B1)", async () => {
+  it("sniffImageExt tells the truth about bytes, no webp named .png (teardown B1)", async () => {
     const { sniffImageExt } = await import("../src/llm/codex.js");
     expect(sniffImageExt(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]))).toBe("png");
     expect(sniffImageExt(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("jpg");

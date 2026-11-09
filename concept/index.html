@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oia — Generate the image. Keep the control.</title>
+<title>Oia: Generate the image. Keep the control.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wdth,wght@75..125,300..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@ a{color:inherit;text-decoration:none}
 .cursor-ring.big{width:52px;height:52px;border-color:rgba(124,92,255,.9);background:rgba(124,92,255,.08)}
 @media (pointer:coarse){.cursor-dot,.cursor-ring{display:none}}
 
-/* chapter rail — narrative spine */
+/* chapter rail, narrative spine */
 .rail{position:fixed;left:clamp(14px,2vw,28px);top:50%;transform:translateY(-50%);z-index:60;display:flex;flex-direction:column;gap:22px}
 .rail a{display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono';font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);transition:color .2s}
 .rail a i{width:5px;height:5px;border-radius:50%;background:var(--faint);transition:.2s}
@@ -73,7 +73,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:cent
 .hero .sub{margin-top:16px;color:var(--muted);font-size:15.5px;max-width:460px}
 .hero .ctas{display:flex;gap:14px;margin-top:26px;flex-wrap:wrap}
 
-/* moodboard canvas — tiles are draggable (product metaphor) */
+/* moodboard canvas, tiles are draggable (product metaphor) */
 .board{position:relative;height:min(74vh,700px);z-index:10;touch-action:none;margin-top:24px}
 .board::after{content:"";position:absolute;inset:-12%;background:radial-gradient(560px 380px at 60% 45%,rgba(124,92,255,.13),transparent 70%);pointer-events:none;transition:transform .4s ease-out}
 .board-tag{position:absolute;left:0;top:-30px;font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;white-space:nowrap}
@@ -263,8 +263,8 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
     </div>
   </div>
 
-  <div class="board" id="board" aria-label="Oia canvas moodboard — drag the layers">
-    <span class="board-tag">canvas · 6 layers — drag me</span>
+  <div class="board" id="board" aria-label="Oia canvas moodboard, drag the layers">
+    <span class="board-tag">canvas · 6 layers, drag me</span>
     <figure class="tile t-palette drag-hint">
       <span class="sw" style="background:#0c2b1e"></span><span class="sw" style="background:#f4f1e8"></span><span class="sw" style="background:#2753d4"></span><span class="sw" style="background:#b4552d"></span><span class="sw" style="background:#7c5cff"></span>
       <span class="cap mono">palette</span>
@@ -288,7 +288,7 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
 
     <div class="chip chip-prompt">
       <div class="k">prompt</div>
-      <div class="t">a matcha editorial study — <em>cream type</em>, quiet morning light</div>
+      <div class="t">a matcha editorial study, <em>cream type</em>, quiet morning light</div>
     </div>
     <div class="chip chip-log">
       <div class="row"><span>generate scene</span><b>done · 12.4s</b></div>
@@ -316,13 +316,13 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
       <div class="card card-photo"><img src="assets/matcha.webp" alt="Generated scene"></div>
       <div class="card card-copy">
         <div class="big">Matcha<br>every <span>day.</span></div>
-        <div class="small">native text object — not pixels</div>
+        <div class="small">native text object, not pixels</div>
       </div>
     </div>
     <div>
       <p class="kicker">Layers, not magic</p>
       <h2>The image and the design are different things.</h2>
-      <p class="hint">scroll — the layers separate</p>
+      <p class="hint">scroll, the layers separate</p>
       <div class="chips3">
         <span class="c3">text</span><span class="c3">images</span><span class="c3">shapes</span><span class="c3">your uploads</span><span class="c3">multi-page</span><span class="c3">undo · autosave</span>
       </div>
@@ -350,17 +350,17 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
     <h2>A studio around your image model.</h2>
     <div class="steps">
       <div class="step">
-        <div class="num">01 — GENERATE</div>
+        <div class="num">01 · GENERATE</div>
         <h3>Describe it</h3>
         <div class="log"><div>plan scene <b>ok · 2.1s</b></div><div>generate artwork <b>ok · 12.4s</b></div></div>
       </div>
       <div class="step">
-        <div class="num">02 — MAKE IT YOURS</div>
+        <div class="num">02 · MAKE IT YOURS</div>
         <h3>Edit the layers</h3>
-        <div class="log"><div>your layers are stamped</div><div class="trust-line"><b>origin: user</b> — AI never deletes them</div></div>
+        <div class="log"><div>your layers are stamped</div><div class="trust-line"><b>origin: user</b>, AI never deletes them</div></div>
       </div>
       <div class="step">
-        <div class="num">03 — PRODUCE</div>
+        <div class="num">03 · PRODUCE</div>
         <h3>Export</h3>
         <div class="log"><div>png · jpg · pdf · pptx · zip</div><div>export pdf <b>ok · 1.8s</b></div></div>
       </div>
@@ -392,7 +392,7 @@ footer .meta{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.1em;c
 
 <footer>
   <a class="brand" href="#"><span class="o">◆ OIA</span></a>
-  <span class="meta">MIT · concept — Oct 2026</span>
+  <span class="meta">MIT · concept, Oct 2026</span>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>

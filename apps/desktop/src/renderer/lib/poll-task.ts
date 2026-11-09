@@ -1,11 +1,11 @@
 import type { TaskStatus } from "@oia/schema";
 
 /**
- * Shared task poller — was copy-pasted verbatim between Workspace's B1 import
+ * Shared task poller, was copy-pasted verbatim between Workspace's B1 import
  * and the editor's Make-text-editable (the only two task-lane UIs). One loop,
  * injected clock/sleep so every path is testable without the bridge:
  * poll until terminal (progress !== "processing"), 5-min honest cap,
- * "task vanished" on a null read. Cancellation is the CALLER's concern — per
+ * "task vanished" on a null read. Cancellation is the CALLER's concern, per
  * B1 teardown, a Stop does not abandon the poll: a task that succeeded before
  * the cancel landed still owes the seller its result (quota-is-money).
  */

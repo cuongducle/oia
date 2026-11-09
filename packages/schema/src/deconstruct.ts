@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * B1 — deconstruct import (deconstruct-import.md). The vision-read contract:
+ * B1: deconstruct import (deconstruct-import.md). The vision-read contract:
  * one image in, {text, box}[] out. Boxes are FRACTIONS of the image dimensions
  * (0..1) so they map onto any artboard size, whatever size the inpaint returns.
  *
@@ -67,9 +67,9 @@ export const DECONSTRUCT_JSON_SCHEMA = {
   },
 } as const;
 
-/** Stable marker at the end of the read prompt — the mock matcher keys on it. */
+/** Stable marker at the end of the read prompt, the mock matcher keys on it. */
 export const DECONSTRUCT_READ_MARKER = "deconstruct.read.v1";
 
-export const DECONSTRUCT_READ_PROMPT = `Read every piece of text visible in this image — all languages, including Vietnamese. For each visual LINE of text return: the exact text content, and its bounding box as fractions of the image dimensions (x, y = top-left corner, w, h = size, each in 0..1). Merge words of the same visual line into one entry. Skip watermarks smaller than 2% of image height. Return JSON only — ${DECONSTRUCT_READ_MARKER}.`;
+export const DECONSTRUCT_READ_PROMPT = `Read every piece of text visible in this image, all languages, including Vietnamese. For each visual LINE of text return: the exact text content, and its bounding box as fractions of the image dimensions (x, y = top-left corner, w, h = size, each in 0..1). Merge words of the same visual line into one entry. Skip watermarks smaller than 2% of image height. Return JSON only, ${DECONSTRUCT_READ_MARKER}.`;
 
-export const DECONSTRUCT_INPAINT_PROMPT = `Edit this image: remove ALL text and lettering everywhere in it. Keep everything else exactly as it is — colors, products, background, lighting, composition. Fill the areas where text was removed with the surrounding content so nothing looks erased. Do not add any new elements or text. deconstruct.inpaint.v1`;
+export const DECONSTRUCT_INPAINT_PROMPT = `Edit this image: remove ALL text and lettering everywhere in it. Keep everything else exactly as it is, colors, products, background, lighting, composition. Fill the areas where text was removed with the surrounding content so nothing looks erased. Do not add any new elements or text. deconstruct.inpaint.v1`;

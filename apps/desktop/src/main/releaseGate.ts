@@ -1,13 +1,13 @@
 import type { MenuItemConstructorOptions } from "electron";
 
 /**
- * F2 — what a RELEASE build may do, decided in pure functions so the gates can
+ * F2: what a RELEASE build may do, decided in pure functions so the gates can
  * pin it without booting Electron.
  *
  * Two holes the readiness review caught in the shipped shell:
  * 1. `{ role: "viewMenu" }` silently shipped Toggle Developer Tools + Reload to
  *    sellers (the comment next to it claimed the opposite).
- * 2. every OIA_DESKTOP_* smoke mode was one env var away in release builds —
+ * 2. every OIA_DESKTOP_* smoke mode was one env var away in release builds,
  *    including REAL_SMOKE, which bills real quota.
  */
 
@@ -22,7 +22,7 @@ export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): S
   if (isPackaged) return null;
   // REAL wins over mock modes even when both are set: `pnpm smoke` exports
   // OIA_DESKTOP_SMOKE=1 itself, which used to silently swallow an outer
-  // OIA_DESKTOP_REAL_SMOKE=1 — two "real" runs on 2026-11-07 were recorded
+  // OIA_DESKTOP_REAL_SMOKE=1, two "real" runs on 2026-11-07 were recorded
   // that way and were actually mock (pin-comment CORRECTION, D12 ledger).
   if (env.OIA_DESKTOP_REAL_SMOKE === "1") return "real";
   if (env.OIA_DESKTOP_SI_SMOKE === "1") return "si";
@@ -34,7 +34,7 @@ export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): S
 }
 
 /**
- * Explicit View submenu — NEVER role:"viewMenu" (it drags in Reload + Toggle
+ * Explicit View submenu, NEVER role:"viewMenu" (it drags in Reload + Toggle
  * Developer Tools). Dev builds additionally get reload + devtools.
  */
 export function appMenuTemplate(isMac: boolean, devTools: boolean): MenuItemConstructorOptions[] {

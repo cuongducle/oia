@@ -109,24 +109,24 @@ describe("C1 outline gate: pageOutline on the plan contract", () => {
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":[{"title":"","summary":"x"}]}')).toBeNull();
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":[{"title":"x"}]}')).toBeNull();
   });
-  it("stays optional + nullable (legacy plans parse unchanged — D14 additive)", () => {
+  it("stays optional + nullable (legacy plans parse unchanged, D14 additive)", () => {
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I"}')?.pageOutline).toBeUndefined();
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","pageOutline":null}')?.pageOutline).toBeNull();
   });
 });
 
-describe("DA — researchNotes on the plan contract (D14 additive)", () => {
+describe("DA, researchNotes on the plan contract (D14 additive)", () => {
   it("parses a plan with researchNotes (one line per finding + source)", () => {
     const plan = parsePlannerPlan('{"title":"T","imagePrompt":"I","researchNotes":["2026 Tet falls on Feb 17 (vnexpress.net)"]}');
     expect(plan?.researchNotes).toEqual(["2026 Tet falls on Feb 17 (vnexpress.net)"]);
   });
-  it("stays optional + nullable — legacy plans parse unchanged (both directions)", () => {
+  it("stays optional + nullable, legacy plans parse unchanged (both directions)", () => {
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I"}')?.researchNotes).toBeUndefined();
     expect(parsePlannerPlan('{"title":"T","imagePrompt":"I","researchNotes":null}')?.researchNotes).toBeNull();
   });
 });
 
-describe("DA — webSearch capability (optional-default-false)", () => {
+describe("DA, webSearch capability (optional-default-false)", () => {
   it("a legacy capabilities object parses unchanged (no webSearch key)", () => {
     const caps = providerCapabilitiesSchema.parse({ referenceImages: true, sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false } });
     expect(caps.webSearch).toBeUndefined(); // consumers read `=== true`
@@ -137,8 +137,8 @@ describe("DA — webSearch capability (optional-default-false)", () => {
   });
 });
 
-describe("DA — Auto refine bounds + eval contract", () => {
-  it("DA-4: the bounds are pinned constants — default ON, default 1 round, hard cap 2", () => {
+describe("DA, Auto refine bounds + eval contract", () => {
+  it("DA-4: the bounds are pinned constants, default ON, default 1 round, hard cap 2", () => {
     expect(AUTO_REFINE_DEFAULT).toBe(true);
     expect(AUTO_REFINE_MAX_ROUNDS_DEFAULT).toBe(1);
     expect(AUTO_REFINE_MAX_ROUNDS_CAP).toBe(2);

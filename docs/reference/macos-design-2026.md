@@ -1,126 +1,126 @@
-# Thiết kế app cho Mac 2026 — nghiên cứu cho bước 7 (đóng gói macOS)
+# Thiết kế app cho Mac 2026: nghiên cứu cho bước 7 (đóng gói macOS)
 
 * **Ngày:** 2026-10-30 (research web, nguồn dẫn cuối file)
-* **Phạm vi:** đầu vào thiết kế/gate cho bước 7 của [reorg plan](../designs/desktop-only-reorg.md) — icons, window chrome, quyết định có theo Liquid Glass hay không.
+* **Phạm vi:** đầu vào thiết kế/gate cho bước 7 của [reorg plan](../designs/desktop-only-reorg.md), icons, window chrome, quyết định có theo Liquid Glass hay không.
 * **Tình trạng:** research hoàn tất, chưa có quyết định owner. Ghi vào đây để khỏi tìm lại.
 
 ---
 
 ## 1. Bối cảnh: Liquid Glass là ngôn ngữ thiết kế hiện hành của macOS
 
-macOS 26 "Tahoe" (WWDC 06/2025, ship 09/2025) mang **Liquid Glass** — vật liệu trong suốt
+macOS 26 "Tahoe" (WWDC 06/2025, ship 09/2025) mang **Liquid Glass**: vật liệu trong suốt
 phản chiếu/khúc xạ nội dung phía sau, tự thích ứng sáng/tối, phủ mọi nền tảng Apple
 (iOS/iPadOS/macOS/watchOS/tvOS). Đến 2026 đây là mặt mũi chuẩn của Mac.
 
 Những gì thay đổi trên Mac (nguồn: Apple Newsroom + tổng quan hệ sinh thái 02/2026):
 
-- **Control/toolbar/sidebar làm lại hoàn toàn** — làm từ Liquid Glass, là một lớp chức năng
+- **Control/toolbar/sidebar làm lại hoàn toàn**: làm từ Liquid Glass, là một lớp chức năng
   NẰM TRÊN nội dung (content-first: control "nhường chỗ" cho nội dung, morph khi cần).
-- **Sidebar khúc xạ nội dung phía sau** — người dùng luôn cảm nhận ngữ cảnh (Finder, Apple TV).
-- **Menu bar trong suốt hoàn toàn** — màn hình "thấy" lớn hơn.
-- **Dock/app icon/widget nhiều lớp glass** — tùy biến light/dark/**tint**/**clear**.
+- **Sidebar khúc xạ nội dung phía sau**: người dùng luôn cảm nhận ngữ cảnh (Finder, Apple TV).
+- **Menu bar trong suốt hoàn toàn**: màn hình "thấy" lớn hơn.
+- **Dock/app icon/widget nhiều lớp glass**: tùy biến light/dark/**tint**/**clear**.
 - SF typeface co giãn weight/width theo ngữ cảnh (Lock Screen).
 - Bo góc control đồng tâm với góc bo màn hình/cửa sổ.
 - Accessibility: Liquid Glass tôn trọng Reduce Transparency / Increase Contrast / Reduce Motion
   (hai biến thể glass: regular + clear).
 
-**Định nghĩa "adopt cho đúng"** (tổng quan 02/2026 — openmarkapp): dùng material THẬT thích ứng
+**Định nghĩa "adopt cho đúng"** (tổng quan 02/2026, openmarkapp): dùng material THẬT thích ứng
 (không phải đổi màu accent), tint thích ứng theo nội dung phía sau, phân lớp nhất quán
-(toolbar trên content, sidebar cạnh content — vật liệu thể hiện cái gì trước cái gì),
+(toolbar trên content, sidebar cạnh content, vật liệu thể hiện cái gì trước cái gì),
 xây sẵn cho nó chứ không gắn vô sau.
 
 ## 2. ⚠️ Bẫy bắt buộc biết: Electron từng lag toàn hệ thống trên Tahoe
 
-Sự kiện 09–11/2025, quan trọng nhất với app Electron như Oia:
+Sự kiện 09-11/2025, quan trọng nhất với app Electron như Oia:
 
 - **Triệu chứng:** app Electron mở (không minimize) → di chuyển cửa sổ/scroll toàn hệ thống
-  giật lag, kể cả khi đang ở app khác. CPU/GPU thấp — thủ phạm là **WindowServer**.
+  giật lag, kể cả khi đang ở app khác. CPU/GPU thấp, thủ phạm là **WindowServer**.
 - **Root cause** (avarayr, xác nhận bởi fix chính thức): Electron override private AppKit API
   `_cornerMask` để vẽ corner mask cho vibrant view. WindowServer gọi đúng method này để tính
   shadow cửa sổ; override (ngay cả override rỗng chỉ gọi `super`) phá memoization → WindowServer
   tính lại + vẽ lại shadow liên tục.
-- **Fix Electron:** PR electron#48376 bỏ override — có mặt từ **36.9.2 / 37.6.0 / 38.2.0 / 39.0.0 trở lên**.
-- **Apple vá OS-wide từ macOS 26.2** (11/2025) — nhưng chờ app tự nâng vẫn là việc của từng dev
+- **Fix Electron:** PR electron#48376 bỏ override, có mặt từ **36.9.2 / 37.6.0 / 38.2.0 / 39.0.0 trở lên**.
+- **Apple vá OS-wide từ macOS 26.2** (11/2025), nhưng chờ app tự nâng vẫn là việc của từng dev
   (Dropbox, 1Password, Cursor… lâu mới kịp).
 
 **Áp cho Oia:** đang Electron **39.8.10 → đã chứa fix, an toàn**. Luật rút ra (đề xuất đưa vào
 nợ/CI khi bước 7): không bao giờ ghim Electron < 39 trên nhánh ship macOS; cân nhắc test nhẹ
 "mở app + kéo cửa sổ không giật" vào shot gate trên máy Tahoe thật của owner.
 
-## 3. Electron vs native trên Tahoe — vị thế trung thực
+## 3. Electron vs native trên Tahoe: vị thế trung thực
 
 - Native (SwiftUI `.ultraThin/.thin/.regularMaterial`, AppKit `NSGlassEffectView`) adopt Liquid
   Glass được trực tiếp; hệ sinh thái 2026 đang **chia rẽ thị giác**: native đẹp lên rõ, Electron
   (VS Code, Slack, Discord, Notion, Figma…) vẫn phẳng và "không thuộc về Tahoe" (nhận định của
-  bài openmarkapp — quan điểm một phía của native dev, nhưng triệu chứng "visual uncanny valley"
+  bài openmarkapp, quan điểm một phía của native dev, nhưng triệu chứng "visual uncanny valley"
   là có thật với người dùng Mac lâu năm).
 - **Electron core chưa expose NSGlassEffectView** (tính đến lúc research). Có sẵn:
-  - `vibrancy: 'sidebar' | 'under-window' | ...` — NSVisualEffectView, material hệ thống tự
+  - `vibrancy: 'sidebar' | 'under-window' | ...`, NSVisualEffectView, material hệ thống tự
     thích ứng sáng/tối (mức "mặc hệ vẽ giúp", không phải glass thế hệ mới nhưng không giả);
-  - `titleBarStyle: 'hiddenInset'` + `trafficLightPosition` — titlebar trong suốt ăn khớp,
+  - `titleBarStyle: 'hiddenInset'` + `trafficLightPosition`, titlebar trong suốt ăn khớp,
     traffic lights chồng lên nội dung như app native.
 - **Add-on cộng đồng** lấy glass THẬT: `electron-liquid-glass` (Meridius-Labs, OSS) và
   `super-browser-window-kit` (thương mại, bài Medium 09/2025 thực chất là quảng cáo cho nó).
   Cả hai gọi `NSGlassEffectView` qua native addon. **Rủi ro:** chính là kiểu phụ thuộc private API
-  của bên thứ ba từng gây thảm họa `_cornerMask` (mục 2) — không có cam kết ổn định từ Apple
+  của bên thứ ba từng gây thảm họa `_cornerMask` (mục 2), không có cam kết ổn định từ Apple
   lẫn maintainer; đổi lại là glass thật với chi phí thấp.
 
 ## 4. Khuyến nghị cho Oia (3 tầng, theo chi phí/lợi ích)
 
-Persona là seller Việt dùng công cụ sản xuất — app không cần glass để bán hàng. Mục tiêu thực
+Persona là seller Việt dùng công cụ sản xuất, app không cần glass để bán hàng. Mục tiêu thực
 sự: **không trông như "web page kẹt trong khung nhôm"** trên máy Mac của họ, đúng chuẩn ở nơi
 người dùng nhìn thấy đầu tiên.
 
 | Tầng | Việc | Chi phí | Khi nào |
 | --- | --- | --- | --- |
-| **T0 — hiện trạng** | UI phẳng như đa số Electron lớn (Figma, Slack trên Tahoe vẫn thế) | 0 | chấp nhận được vô thời hạn |
-| **T1 — nền tảng macOS đúng chuẩn (khuyến nghị làm ở bước 7)** | (a) icon app: `.icns` chuẩn, cân nhắc làm **icon nhiều lớp qua Icon Composer** (tuyệt đẹp trong Dock tùy tint/clear; Electron nạp `.icns` bình thường, icon nhiều lớp Tahoe cần Assets.car — xem "không cần Xcode app" của Hendrik Erz); (b) `titleBarStyle: 'hiddenInset'` + `trafficLightPosition` + khoảng đệm sidebar để traffic lights không đè chữ; (c) tùy chọn `vibrancy: 'sidebar'` cho nav trái (material hệ, tự theo dark mode); (d) tôn trọng Reduce Transparency/Increase Contrast (CSS `prefers-reduced-transparency`/`prefers-contrast` nếu dùng nền mờ CSS) | thấp, 1–2 buổi | cùng bước 7 (đóng gói cần icon bắt buộc) |
-| **T2 — glass thật** | add-on `electron-liquid-glass`/`super-browser-window-kit` cho toolbar/sidebar | trung + rủi ro private API | để sau v1; chỉ cân nhắc nếu owner muốn "thử cảm giác Tahoe" — nhớ bài học mục 2 |
+| **T0: hiện trạng** | UI phẳng như đa số Electron lớn (Figma, Slack trên Tahoe vẫn thế) | 0 | chấp nhận được vô thời hạn |
+| **T1: nền tảng macOS đúng chuẩn (khuyến nghị làm ở bước 7)** | (a) icon app: `.icns` chuẩn, cân nhắc làm **icon nhiều lớp qua Icon Composer** (tuyệt đẹp trong Dock tùy tint/clear; Electron nạp `.icns` bình thường, icon nhiều lớp Tahoe cần Assets.car, xem "không cần Xcode app" của Hendrik Erz); (b) `titleBarStyle: 'hiddenInset'` + `trafficLightPosition` + khoảng đệm sidebar để traffic lights không đè chữ; (c) tùy chọn `vibrancy: 'sidebar'` cho nav trái (material hệ, tự theo dark mode); (d) tôn trọng Reduce Transparency/Increase Contrast (CSS `prefers-reduced-transparency`/`prefers-contrast` nếu dùng nền mờ CSS) | thấp, 1-2 buổi | cùng bước 7 (đóng gói cần icon bắt buộc) |
+| **T2: glass thật** | add-on `electron-liquid-glass`/`super-browser-window-kit` cho toolbar/sidebar | trung + rủi ro private API | để sau v1; chỉ cân nhắc nếu owner muốn "thử cảm giác Tahoe", nhớ bài học mục 2 |
 
 **Không làm:** tự viết native addon override private API; fake glass bằng backdrop-filter CSS
 trên nền trong suốt (trông "gần đúng" = uncanny valley, lại tốn GPU canvas lớn của editor).
 
 Ghi chú giao với design doc hiện hành: `design-direction.md` có bảng **UX rules** (feedback
-thời lượng, Cancel luôn hiện, không overclaim) — T1 không chạm nội dung đó, chỉ là chrome.
+thời lượng, Cancel luôn hiện, không overclaim), T1 không chạm nội dung đó, chỉ là chrome.
 IconComposer cần Xcode 26 (có sẵn trên máy dev); icon nhiều lớp cũng render fallback đúng cho
-macOS cũ — không mất gì khi chỉ xuất icon.
+macOS cũ, không mất gì khi chỉ xuất icon.
 
-## 4b. Thí nghiệm T2 — glass thật qua binding native (2026-10-31 sáng, nhánh glass-experiment)
+## 4b. Thí nghiệm T2: glass thật qua binding native (2026-10-31 sáng, nhánh glass-experiment)
 
-Sau khi vibrancy legacy chết (mục 5), thử **đường duy nhất còn sống**: `electron-liquid-glass` (Meridius-Labs) — binding `NSGlassEffectView` (API TƯ NHÂN của Apple, dịch ngược; chính README ghi "DO NOT USE IN PROD" cho các nút variant/scrim/subdued). Cài vào nhánh theo đúng công thức của họ (transparent:true, vibrancy OFF, addView sau load).
+Sau khi vibrancy legacy chết (mục 5), thử **đường duy nhất còn sống**: `electron-liquid-glass` (Meridius-Labs), binding `NSGlassEffectView` (API TƯ NHÂN của Apple, dịch ngược; chính README ghi "DO NOT USE IN PROD" cho các nút variant/scrim/subdued). Cài vào nhánh theo đúng công thức của họ (transparent:true, vibrancy OFF, addView sau load).
 
-**Kết quả trên máy thật (macOS 27, Electron 39):** view native ĐÚNG được mount — bar probe đổi thành **màu aqua đặc** (tôi set tint trắng 15% — không được tôn trọng) chứng tỏ có lớp native sống. Nhưng **không bao giờ lấy nền sau**: bar phẳng, cạnh cứng, 0 sắc màu wallpaper trong khi widget Calendar cùng khung hình frost chuẩn (nhóm chứng); `unstable_setVariant(2)` và `(19)` — hai variant được ghi là "functional" — không đổi gì. Kết luận: binding mount được nhưng **không composite backdrop qua cửa sổ Electron** trên OS build này.
+**Kết quả trên máy thật (macOS 27, Electron 39):** view native ĐÚNG được mount, bar probe đổi thành **màu aqua đặc** (tôi set tint trắng 15%, không được tôn trọng) chứng tỏ có lớp native sống. Nhưng **không bao giờ lấy nền sau**: bar phẳng, cạnh cứng, 0 sắc màu wallpaper trong khi widget Calendar cùng khung hình frost chuẩn (nhóm chứng); `unstable_setVariant(2)` và `(19)`, hai variant được ghi là "functional", không đổi gì. Kết luận: binding mount được nhưng **không composite backdrop qua cửa sổ Electron** trên OS build này.
 
-**Phán quyết:** giữ nguyên luật "không native glass trong v1" — giờ có bằng chứng sống: kể cả binding được duy trì cũng chưa chạy được trên OS đích. Điều kiện revisit nâng cấp thành: (a) Electron core expose API glass công khai, HOẶC (b) một binding chứng minh được backdrop-sampling thật trên OS đích qua gate có nhóm chứng như lần này. Chi phí mỗi lần thí nghiệm ~30 phút theo nghi thức đã có sẵn.
+**Phán quyết:** giữ nguyên luật "không native glass trong v1", giờ có bằng chứng sống: kể cả binding được duy trì cũng chưa chạy được trên OS đích. Điều kiện revisit nâng cấp thành: (a) Electron core expose API glass công khai, HOẶC (b) một binding chứng minh được backdrop-sampling thật trên OS đích qua gate có nhóm chứng như lần này. Chi phí mỗi lần thí nghiệm ~30 phút theo nghi thức đã có sẵn.
 
-## 5. Checklist áp vào bước 7 (rút từ research) — cập nhật 2026-10-30 (bước 7c)
+## 5. Checklist áp vào bước 7 (rút từ research): cập nhật 2026-10-30 (bước 7c)
 
-- [x] Icon: **icon nhiều lớp Liquid Glass ĐÃ SHIP (2026-10-31 sáng)** — package `AppIcon.icon` (định dạng Icon Composer: `icon.json` + Assets/mark.png; tham chiếu schema: github.com/peterpoliwoda/icon-composer-template) với nền `automatic-gradient` tím accent + mark O serif nhận `glass: true`. afterPack chép vào bundle + patch Info.plist (`CFBundleIconFile=AppIcon.icon`, `CFBundleIconFiles` kèm icns — **CHƯA BIẾT** macOS cũ có thật sự chọn icns từ mảng đó khi gặp `.icon` lạ không; chưa test, chưa từng là thiết kế đã nghiệm). **Gate máy thật macOS 27:** Dock render đúng tím + O, không rơi về icon generic. LƯU Ý giới hạn (teardown 2): phán đoán "xử lý kính trên mark" dựa trên vision ở cỡ Dock ~55px, KHÔNG có A/B `glass:false` đối chứng — đọc là "artwork + nền hệ thống đúng", chưa đọc được "lensing thật". VẪN CÒN: artwork là placeholder (O + dot) — owner duyệt thiết kế icon thật thì chỉ cần thay mark.png/gradient, cơ chế giữ nguyên. Hình học mark giờ MỘT nguồn `scripts/build-icon-assets.py` (sinh cả mark.png + icns — hai rendition không thể lệch nhau nữa).
-- [x] Window chrome: `hiddenInset` + traffic light padding — SHIP (7c). Dark mode: "bug trắng-trên-trắng" ghi ở đây từng được coi như đã bắt+fix — **ĐÍNH CHÍNH 2026-10-31: triệu chứng không tái hiện được bằng cơ chế nào** (probe: không màu nào flip, kể cả UA-default); pin `color-scheme: light` giữ như vệ sinh D8; gate dark-mode đã gỡ (không thể fail). Chi tiết + bài học ở reorg doc.
-- [x] Vibrancy sidebar: **ĐÃ THỬ trên nhánh riêng (2026-10-30) và BỎ — có bằng chứng, không phải đoán mò.** Thực nghiệm 4 cấu hình trên máy thật macOS 27 (đính chính 2026-10-31: ảnh của cấu hình 1 VÔ HIỆU — `env -i` giết node nên cửa sổ chụp là build cũ không vibrancy; phát hiện muộn ở phiên glass, không đính chính ngay. Kết luận đứng trên cấu hình 2–4 + probe glass) (vibrancy under-window → +backgroundColor transparent → +transparent:true → +visualEffectState active), CSS body trong suốt, chỉ bar bán trong suốt: bar **trắng đặc ở cả 4** — trong khi widget Calendar/notification hệ thống **trên cùng khung hình chụp** frost đúng màu wallpaper (nhóm chứng: lỗi nằm phía app, không phải OS). `reduceTransparency` = 0 (loại). Nguyên nhân khớp nghiên cứu: macOS 26+ (Liquid Glass) bỏ legacy NSVisualEffectView material — render dẹt; Electron ≤39 chỉ expose đúng đường legacy này (không có NSGlassEffectView); binding native duy nhất từng có (Meridius-Labs/electron-liquid-glass) đã biến mất khỏi GitHub. Gate trong nhánh: shot xanh toàn bộ, canvas giữ nguyên pixel (painted 260832 = baseline) — tức lỗi KHÔNG phải canvas lệch màu mà là hiệu ứng không bao giờ hiện. **Revisit khi:** Electron hỗ trợ native glass API mới (hoặc có binding được duy trì) — khi đó thử lại theo đúng nghi thức nhánh + nhóm chứng.
-- [x] Gate kéo-cửa-sổ trên máy Tahoe thật — 7c: cliclick kéo header, window dịch đúng +240px trên bản packaged; độ mượt thị giác = quick-check owner khi tiện.
-- [x] Electron >= 39 trong cây ship mọi lúc — 39.8.10 pin; desktop-audit CI giữ.
-- [x] Không thêm phụ thuộc native glass nào vào v1 — giữ nguyên.
+- [x] Icon: **icon nhiều lớp Liquid Glass ĐÃ SHIP (2026-10-31 sáng)**: package `AppIcon.icon` (định dạng Icon Composer: `icon.json` + Assets/mark.png; tham chiếu schema: github.com/peterpoliwoda/icon-composer-template) với nền `automatic-gradient` tím accent + mark O serif nhận `glass: true`. afterPack chép vào bundle + patch Info.plist (`CFBundleIconFile=AppIcon.icon`, `CFBundleIconFiles` kèm icns, **CHƯA BIẾT** macOS cũ có thật sự chọn icns từ mảng đó khi gặp `.icon` lạ không; chưa test, chưa từng là thiết kế đã nghiệm). **Gate máy thật macOS 27:** Dock render đúng tím + O, không rơi về icon generic. LƯU Ý giới hạn (teardown 2): phán đoán "xử lý kính trên mark" dựa trên vision ở cỡ Dock ~55px, KHÔNG có A/B `glass:false` đối chứng, đọc là "artwork + nền hệ thống đúng", chưa đọc được "lensing thật". VẪN CÒN: artwork là placeholder (O + dot), owner duyệt thiết kế icon thật thì chỉ cần thay mark.png/gradient, cơ chế giữ nguyên. Hình học mark giờ MỘT nguồn `scripts/build-icon-assets.py` (sinh cả mark.png + icns, hai rendition không thể lệch nhau nữa).
+- [x] Window chrome: `hiddenInset` + traffic light padding, SHIP (7c). Dark mode: "bug trắng-trên-trắng" ghi ở đây từng được coi như đã bắt+fix, **ĐÍNH CHÍNH 2026-10-31: triệu chứng không tái hiện được bằng cơ chế nào** (probe: không màu nào flip, kể cả UA-default); pin `color-scheme: light` giữ như vệ sinh D8; gate dark-mode đã gỡ (không thể fail). Chi tiết + bài học ở reorg doc.
+- [x] Vibrancy sidebar: **ĐÃ THỬ trên nhánh riêng (2026-10-30) và BỎ, có bằng chứng, không phải đoán mò.** Thực nghiệm 4 cấu hình trên máy thật macOS 27 (đính chính 2026-10-31: ảnh của cấu hình 1 VÔ HIỆU, `env -i` giết node nên cửa sổ chụp là build cũ không vibrancy; phát hiện muộn ở phiên glass, không đính chính ngay. Kết luận đứng trên cấu hình 2-4 + probe glass) (vibrancy under-window → +backgroundColor transparent → +transparent:true → +visualEffectState active), CSS body trong suốt, chỉ bar bán trong suốt: bar **trắng đặc ở cả 4**: trong khi widget Calendar/notification hệ thống **trên cùng khung hình chụp** frost đúng màu wallpaper (nhóm chứng: lỗi nằm phía app, không phải OS). `reduceTransparency` = 0 (loại). Nguyên nhân khớp nghiên cứu: macOS 26+ (Liquid Glass) bỏ legacy NSVisualEffectView material, render dẹt; Electron ≤39 chỉ expose đúng đường legacy này (không có NSGlassEffectView); binding native duy nhất từng có (Meridius-Labs/electron-liquid-glass) đã biến mất khỏi GitHub. Gate trong nhánh: shot xanh toàn bộ, canvas giữ nguyên pixel (painted 260832 = baseline), tức lỗi KHÔNG phải canvas lệch màu mà là hiệu ứng không bao giờ hiện. **Revisit khi:** Electron hỗ trợ native glass API mới (hoặc có binding được duy trì), khi đó thử lại theo đúng nghi thức nhánh + nhóm chứng.
+- [x] Gate kéo-cửa-sổ trên máy Tahoe thật, 7c: cliclick kéo header, window dịch đúng +240px trên bản packaged; độ mượt thị giác = quick-check owner khi tiện.
+- [x] Electron >= 39 trong cây ship mọi lúc, 39.8.10 pin; desktop-audit CI giữ.
+- [x] Không thêm phụ thuộc native glass nào vào v1, giữ nguyên.
 
 ## 6. Nguồn (truy cập 2026-10-30)
 
-- Apple Newsroom — thiết kế mới Liquid Glass (09/06/2025):
+- Apple Newsroom, thiết kế mới Liquid Glass (09/06/2025):
   https://www.apple.com/newsroom/2025/06/apple-introduces-a-delightful-and-elegant-new-software-design/
-- Apple HIG — Foundations / Adopting Liquid Glass:
+- Apple HIG, Foundations / Adopting Liquid Glass:
   https://developer.apple.com/design/human-interface-guidelines/foundations
-- M.J. Tsai — Electron apps causing system-wide lag on Tahoe (chuỗi update tới 11/2025, gồm
+- M.J. Tsai, Electron apps causing system-wide lag on Tahoe (chuỗi update tới 11/2025, gồm
   root cause, danh sách version fix, Apple fix 26.2): https://mjtsai.com/blog/2025/09/30/electron-apps-causing-system-wide-lag-on-tahoe/
-- Script dò app Electron chưa fix (Tomas Kafka, có bản applet của Hockenberry) — dẫn trong bài Tsai.
-- The Register — Electron patch fix Tahoe slowdown (02/10/2025):
+- Script dò app Electron chưa fix (Tomas Kafka, có bản applet của Hockenberry), dẫn trong bài Tsai.
+- The Register, Electron patch fix Tahoe slowdown (02/10/2025):
   https://www.theregister.com/software/2025/10/02/electron-patch-fixes-macos-26-tahoe-slowdown-bug/
-- openmarkapp — macOS Tahoe apps with Liquid Glass (19/02/2026; quan điểm native-dev một phần):
+- openmarkapp, macOS Tahoe apps with Liquid Glass (19/02/2026; quan điểm native-dev một phần):
   https://openmarkapp.com/blog/macos-tahoe-apps-liquid-glass
 - Meridius-Labs/electron-liquid-glass (OSS, NSGlassEffectView bindings):
   https://github.com/Meridius-Labs/electron-liquid-glass
-- Apple — Icon Composer: https://developer.apple.com/icon-composer/
-- createwithswift — Crafting Liquid Glass app icons with Icon Composer (12/06/2025):
+- Apple, Icon Composer: https://developer.apple.com/icon-composer/
+- createwithswift, Crafting Liquid Glass app icons with Icon Composer (12/06/2025):
   https://www.createwithswift.com/crafting-liquid-glass-app-icons-with-icon-composer/
-- Hendrik Erz — Supporting Liquid Glass icons without Xcode app:
+- Hendrik Erz, Supporting Liquid Glass icons without Xcode app:
   https://www.hendrik-erz.de/blog/supporting-liquid-glass-icons-2025
-- Medium (Deng Gao) — Why your Electron app doesn't feel native (09/2025; **lưu ý: bài marketing
-  cho super-browser-window-kit** — dùng chọn lọc): https://medium.com/@gaodengming/why-your-electron-app-doesnt-feel-native-on-macos-and-how-to-fix-it-8180626dd6db
+- Medium (Deng Gao), Why your Electron app doesn't feel native (09/2025; **lưu ý: bài marketing
+  cho super-browser-window-kit**, dùng chọn lọc): https://medium.com/@gaodengming/why-your-electron-app-doesnt-feel-native-on-macos-and-how-to-fix-it-8180626dd6db

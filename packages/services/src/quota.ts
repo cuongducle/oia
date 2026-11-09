@@ -3,9 +3,9 @@ import { ProviderError } from "@oia/providers";
 import type { ErrorClass } from "@oia/schema";
 
 /**
- * TP-D2 (D1) — quota accounting owned by the service layer so BOTH shells (web SSE and
+ * TP-D2 (D1), quota accounting owned by the service layer so BOTH shells (web SSE and
  * desktop IPC) meter the same. Counters are in-memory per process (single-user posture);
- * a failed attempt counts as a spent turn — the provider may have consumed before failing.
+ * a failed attempt counts as a spent turn, the provider may have consumed before failing.
  */
 export interface QuotaCounters {
   day: string; // YYYY-MM-DD
@@ -27,14 +27,14 @@ export interface QuotaClock {
 }
 
 /**
- * TP-D2 (D1) — quota accounting owned by the service layer so BOTH shells (web SSE and
+ * TP-D2 (D1), quota accounting owned by the service layer so BOTH shells (web SSE and
  * desktop IPC) meter the same. Counters are in-memory per process (single-user posture);
- * a failed attempt counts as a spent turn — the provider may have consumed before failing.
+ * a failed attempt counts as a spent turn, the provider may have consumed before failing.
  *
- * Enforcement (hard rule 6 — quota is money): optional per-kind DAILY budgets. A budget
+ * Enforcement (hard rule 6, quota is money): optional per-kind DAILY budgets. A budget
  * is checked BEFORE the provider is called: beginTurn throws `quota_exceeded` without
  * moving the spent counter, so the counters always equal turns that actually reached a
- * provider. Refusals are free — they increment limitHits only. Budgets reset at
+ * provider. Refusals are free, they increment limitHits only. Budgets reset at
  * midnight UTC with the day roll.
  */
 export class QuotaMeter {
@@ -47,14 +47,14 @@ export class QuotaMeter {
       clock?: QuotaClock;
     } = {},
   ) {
-    // explicit assignment — a field initializer must not read the parameter property
+    // explicit assignment, a field initializer must not read the parameter property
     this.opts = opts;
     this.today = freshDay(this.clockNow().toISOString().slice(0, 10));
   }
   private clockNow(): Date {
     return this.opts.clock?.now() ?? new Date();
   }
-  /** Admit + charge one turn — or refuse for free when the day's budget is spent. */
+  /** Admit + charge one turn, or refuse for free when the day's budget is spent. */
   beginTurn(kind: "planner" | "image"): void {
     this.rollDay();
     const limit = kind === "image" ? this.opts.imageDailyLimit : this.opts.llmDailyLimit;
@@ -63,7 +63,7 @@ export class QuotaMeter {
       const envName = kind === "image" ? "OIA_DAILY_IMAGE_LIMIT" : "OIA_DAILY_LLM_LIMIT";
       throw new ProviderError(
         "quota_exceeded",
-        `daily ${kind} budget spent (${this.today[kind]}/${limit}) — resets at midnight UTC; raise ${envName} to spend more`,
+        `daily ${kind} budget spent (${this.today[kind]}/${limit}), resets at midnight UTC; raise ${envName} to spend more`,
         { provider: "quota", detail: { spent: this.today[kind], limit, kind } },
       );
     }
@@ -94,7 +94,7 @@ function freshDay(day: string): QuotaCounters {
 }
 
 /** Wrap a provider so every metered turn is counted and limit errors are parsed (TP.6).
- *  Budget refusal happens BEFORE inner.generate — a refused turn never burns money. */
+ *  Budget refusal happens BEFORE inner.generate, a refused turn never burns money. */
 export function meterImage(inner: ImageProvider, meter: QuotaMeter): ImageProvider {
   return {
     name: inner.name,
@@ -126,7 +126,7 @@ export function meterLlm(inner: LlmProvider, meter: QuotaMeter): LlmProvider {
         throw err;
       }
     },
-    // B1: the vision read is an LLM turn — it rides the SAME metered ledger as
+    // B1: the vision read is an LLM turn, it rides the SAME metered ledger as
     // chat (hard rule 6). Forwarded only when the inner provider has it.
     ...(inner.readImage
       ? {
@@ -148,7 +148,7 @@ export interface ProviderStatus {
   image: { name: string; capabilities: ProviderCapabilities; diagnostic: ProviderDiagnostic };
   llm: { name: string; capabilities: ProviderCapabilities; diagnostic: ProviderDiagnostic };
   quota: QuotaCounters & { session: { planner: number; image: number } };
-  /** B7 — stores whose LAST disk write failed (basename only: no absolute paths cross the wire). */
+  /** B7: stores whose LAST disk write failed (basename only: no absolute paths cross the wire). */
   persistence: { file: string; error: string; code: string | null; failedWrites: number }[];
 }
 
@@ -156,7 +156,7 @@ import type { ServiceContext } from "./context.js";
 import { basename } from "node:path";
 import { persistenceWriteFailures } from "@oia/tasks";
 
-/** TP.6 — health snapshot over a service context (both shells render this the same way). */
+/** TP.6: health snapshot over a service context (both shells render this the same way). */
 export async function providerStatusSnapshot(ctx: ServiceContext): Promise<ProviderStatus> {
   const [imageDiag, llmDiag] = await Promise.all([ctx.chat.image.isAvailable(), ctx.chat.llm.isAvailable()]);
   return {

@@ -32,7 +32,7 @@ import { presentErrorEn } from "../lib/errors.js";
 import { mapAssetUrls, unmapAssetUrls, toDisplayUrl, toCanonicalUrl } from "../../shared/assets.js";
 
 /**
- * D2 renderer port — the fullscreen editing shell over IPC + @oia/canvas:
+ * D2 renderer port, the fullscreen editing shell over IPC + @oia/canvas:
  * canvas/layers/text/shapes/tables/draw, undo/redo, autosave by projectId (TP.7),
  * the AI dock refine flow with the TP.10 non-destruction merge, marketplace size
  * presets, template gallery, and native-dialog export (PNG/JPG/PDF/PPTX/ZIP).
@@ -50,11 +50,11 @@ const RAIL: Panel[] = ["templates", "assets", "text", "shapes", "tables", "draw"
 export interface EditorProps {
   projectId: string | null;
   onExit: () => void;
-  /** A1 preview-apply — "Open in editor" on a variant opens it as a NEW project. */
+  /** A1 preview-apply, "Open in editor" on a variant opens it as a NEW project. */
   onOpenProject: (id: string) => void;
 }
 
-/* Small inline icon set (lucide is a web dep — the desktop keeps zero extra deps). */
+/* Small inline icon set (lucide is a web dep, the desktop keeps zero extra deps). */
 const I = ({ d, size = 17 }: { d: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d={d} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -83,12 +83,12 @@ const icons = {
   chevronsDown: "M7 13l5 5 5-5M7 6l5 5 5-5",
 };
 
-/** A Replace target must be an image layer (has a src) — pins the button state. */
+/** A Replace target must be an image layer (has a src), pins the button state. */
 function hasSrc(o: fabricNS.Object | undefined): boolean {
   return typeof (o as { src?: unknown } | undefined)?.src === "string";
 }
 
-/** Fabric never serializes selectable/evented — re-derive locks after every load (R4). */
+/** Fabric never serializes selectable/evented, re-derive locks after every load (R4). */
 function relock(c: fabricNS.Canvas): void {
   // SAFETY: LayerObject is a structural subset of FabricObject.
   applyLocks(c.getObjects() as unknown as LayerObject[]);
@@ -111,7 +111,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [projectName, setProjectName] = useState("Untitled project");
   const [hasScene, setHasScene] = useState(false);
   const [selectedText, setSelectedText] = useState(false);
-  const [hasTextLayer, setHasTextLayer] = useState(false); // poster-mode pages carry baked text — the edit path is regenerate (D16/SurgePix lane)
+  const [hasTextLayer, setHasTextLayer] = useState(false); // poster-mode pages carry baked text, the edit path is regenerate (D16/SurgePix lane)
   const [zoom, setZoom] = useState(0.35);
   const [zoomText, setZoomText] = useState<string | null>(null); // null = not typing; mirrors the bar while editing
   const [exportOpen, setExportOpen] = useState(false);
@@ -128,11 +128,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const redoStack = useRef<string[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  // AI dock (BR gap #3) — the same chat stream and cancel as the web dock; A1
+  // AI dock (BR gap #3), the same chat stream and cancel as the web dock; A1
   // preview-apply adds the variant tray + conversation pinning (VA-1)
   const [aiOpen, setAiOpen] = useState(true);
   const [aiPrompt, setAiPrompt] = useState("");
-  const aiPromptRef = useRef(""); // mirrors aiPrompt — event handlers outlive render closures
+  const aiPromptRef = useRef(""); // mirrors aiPrompt, event handlers outlive render closures
   useEffect(() => { aiPromptRef.current = aiPrompt; }, [aiPrompt]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiTimeline, setAiTimeline] = useState<{ content: string; done: boolean; sub?: boolean }[]>([]);
@@ -140,21 +140,21 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const aiOffRef = useRef<(() => void) | null>(null);
   const [aiError, setAiError] = useState<{ message: string; actionLabel?: string } | null>(null);
   const [refCapable, setRefCapable] = useState(true);
-  const [markupCapable, setMarkupCapable] = useState(false); // ME — the Circle-to-edit button only on markup-capable channels
+  const [markupCapable, setMarkupCapable] = useState(false); // ME, the Circle-to-edit button only on markup-capable channels
   const [aiRefs, setAiRefs] = useState<string[]>([]); // explicit AI-dock attachments (canonical)
   const [aiUploading, setAiUploading] = useState(false);
   const [aiNarrative, setAiNarrative] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chats, setChats] = useState<{ id: number; name: string; updatedAt: number }[]>([]);
   const [selectedImg, setSelectedImg] = useState(false); // an image layer is active (enables Replace)
-  const [selectedName, setSelectedName] = useState<string | null>(null); // its NAME — A3-lite: variants only replace the layer they were painted for
+  const [selectedName, setSelectedName] = useState<string | null>(null); // its NAME, A3-lite: variants only replace the layer they were painted for
   const [imageMock, setImageMock] = useState(false); // "≈ 1 image" label only when a real provider
   const [aiSessionId, setAiSessionId] = useState<number | null>(null); // VA-1 conversation pin
   const [variants, setVariants] = useState<VariantCard[]>([]);
-  const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now" — view state, never persisted (VA-7)
-  const aiPromptByJobRef = useRef<Map<string, string>>(new Map()); // per-job prompt binding (B7) — rules in variant-tray.ts
-  const aiTargetRef = useRef<string | null>(null); // the layer the CURRENT edit targets (A3-lite) — captured at send, bound per job at first event
-  const aiLastImageRef = useRef<string | null>(null); // LAST image layer the user picked — survives selection:cleared (teardown #1: fabric can drop the active object mid-flow)
+  const [hiddenVariants, setHiddenVariants] = useState<Set<string>>(new Set()); // "Not now", view state, never persisted (VA-7)
+  const aiPromptByJobRef = useRef<Map<string, string>>(new Map()); // per-job prompt binding (B7), rules in variant-tray.ts
+  const aiTargetRef = useRef<string | null>(null); // the layer the CURRENT edit targets (A3-lite), captured at send, bound per job at first event
+  const aiLastImageRef = useRef<string | null>(null); // LAST image layer the user picked, survives selection:cleared (teardown #1: fabric can drop the active object mid-flow)
   const aiTargetByJobRef = useRef<Map<string, string | null>>(new Map());
   // Templates/Assets/Draw
   const [tplList, setTplList] = useState<Template[]>([]);
@@ -164,8 +164,8 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const [pageThumbs, setPageThumbs] = useState<Record<string, string>>({});
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [activePage, setActivePage] = useState(0);
-  // C3 — safe-zone guides (live-overlay-presets.md LV-4/LV-6/LV-11): view state +
-  // localStorage pref. NEVER scene data — rendered as a DOM layer over the canvas.
+  // C3: safe-zone guides (live-overlay-presets.md LV-4/LV-6/LV-11): view state +
+  // localStorage pref. NEVER scene data, rendered as a DOM layer over the canvas.
   const [guidePlatform, setGuidePlatform] = useState<GuidePlatform>(readGuidePref);
   const guidesEligible = isNineSixteen(customW, customH);
   const guidesOn = guidePlatform !== "off" && guidesEligible;
@@ -265,7 +265,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       if (ev.content) setAiNarrative((n) => n + stripMarkers(ev.content) + " ");
       for (const m of ev.renderData?.msgMeta ?? []) {
         if (m.type === "canvas") {
-          // A1 preview-apply (VA-3): the canvas NEVER mutates on arrival — each canvas
+          // A1 preview-apply (VA-3): the canvas NEVER mutates on arrival, each canvas
           // meta becomes a variant card; TP.10 non-destruction now lives in the apply
           // step (replaceObjectSrc touches one user-designated object's src).
           // Dedupe + per-job prompt rules live in variant-tray.ts (unit-tested there).
@@ -286,7 +286,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     return () => aiOffRef.current?.();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // load fabric + the project (by id — TP.7: handoff is by projectId only)
+  // load fabric + the project (by id, TP.7: handoff is by projectId only)
   useEffect(() => {
     let cancelled = false;
     let owned: fabricNS.Canvas | null = null;
@@ -381,7 +381,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setZoom(z);
     if (fabricRef.current) applyZoom(fabricRef.current, z);
   }
-  /** Typed zoom commits on blur/Enter — committing per keystroke would clamp "1…"
+  /** Typed zoom commits on blur/Enter, committing per keystroke would clamp "1…"
    * mid-typing and destroy multi-digit input. */
   function commitZoomText() {
     if (zoomText === null) return;
@@ -437,7 +437,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const prev = undoStack.current.at(-1)!;
     restoring.current = true;
     try { await c.loadFromJSON(JSON.parse(prev)); relock(c); const size = sceneSize(c.toObject() as SceneCanvas); sceneDimensions.current = size; setCustomW(size.width); setCustomH(size.height); fitView(); } finally { restoring.current = false; }
-    setSelectedText(false); setSelectedImg(false); setSelectedName(null); // the reloaded page clears selection — state must not lie
+    setSelectedText(false); setSelectedImg(false); setSelectedName(null); // the reloaded page clears selection, state must not lie
     setCanUndo(undoStack.current.length >= 2); setCanRedo(true);
     scheduleSave();
   }
@@ -523,7 +523,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setNotice(bridgeErrorMessage(e, "The image could not be uploaded. Please try again."));
     }
   }
-  /** AI-dock attach — upload without inserting; the image rides the NEXT edit request (TP.11). */
+  /** AI-dock attach, upload without inserting; the image rides the NEXT edit request (TP.11). */
   async function attachAiRef(file: File) {
     setAiUploading(true);
     try {
@@ -542,7 +542,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const fabric = await import("fabric");
     const img = await fabric.FabricImage.fromURL(toDisplayUrl(url), { crossOrigin: "anonymous" });
     img.scaleToWidth((c.getWidth() / c.getZoom()) * 0.8);
-    stampUser(img as unknown as import("@oia/schema").FabricObject); // TP.10: user upload — never wiped by refinement
+    stampUser(img as unknown as import("@oia/schema").FabricObject); // TP.10: user upload, never wiped by refinement
     c.add(img); c.setActiveObject(img); c.requestRenderAll();
   }
   async function insertTable(n: number) {
@@ -603,7 +603,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setHistoryOpen((h) => !h);
   }
   /** A1 resume (spec goal 5): opening a conversation in the EDITOR loads its
-   *  variants back into the tray and pins the session — the dock conversation
+   *  variants back into the tray and pins the session, the dock conversation
    *  continues where it left off. Home's resume (canvas view) is unchanged. */
   async function resumeConversationInDock(id: number) {
     try {
@@ -633,7 +633,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setRightTab("ai");
     mentionSelection();
   }
-  /** D16 poster-mode edit path: the copy is baked into the artwork — deconstruct
+  /** D16 poster-mode edit path: the copy is baked into the artwork, deconstruct
    *  THIS page (≈ 1 image + 1 read) into a clean plate + native text layers.
    *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
    *  scene through replaceCurrentScene so undo/history/save all behave. */
@@ -645,7 +645,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   async function cancelTextEdit() {
     const id = textEditTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
-    textEditStoppedRef.current = true; // B1 teardown: the poll keeps watching — a late success still applies
+    textEditStoppedRef.current = true; // B1 teardown: the poll keeps watching, a late success still applies
     setTextEditPhase(null);
   }
   async function runMakeTextEditable() {
@@ -656,7 +656,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     textEditStoppedRef.current = false;
     setTextEditPhase("running"); setNotice("");
     try {
-      // export the page as-is — the model reads exactly what the seller sees
+      // export the page as-is, the model reads exactly what the seller sees
       const dataUrl = c.toDataURL({ format: "png", multiplier: 1, enableRetinaScaling: false });
       const bytes = dataUrlBytes(dataUrl); // teardown #3: indexed loop, not the per-char callback path
       const up = await oia().uploadAsset("page.png", bytes);
@@ -670,10 +670,10 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       await replaceCurrentScene(deconstructScene({ imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }));
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
       setTextEditPhase(null);
-      // honest notice: a Stop does not refund the read — if it finished anyway, say so (B7)
+      // honest notice: a Stop does not refund the read, if it finished anyway, say so (B7)
       setNotice(textEditStoppedRef.current
-        ? `It finished after you stopped — the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
-        : `Text is editable — ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
+        ? `It finished after you stopped, the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
+        : `Text is editable, ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. Undo works if you prefer the original.`);
     } catch (e) {
       if (textEditRunRef.current === myRun) {
         setTextEditPhase(null);
@@ -734,7 +734,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         refs = [...aiRefs, ...canvasRefs].slice(0, 4);
       }
     }
-    // A3-lite: the edit contract is STRUCTURED now — referenceImages[0] is the
+    // A3-lite: the edit contract is STRUCTURED now, referenceImages[0] is the
     // target; the agent layer welds the clauses (target declaration, dimension
     // lock, lettering ban). The renderer no longer concatenates prose.
     const aiTargetName = target?.name;
@@ -743,12 +743,12 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     await dispatchAiEdit(aiPrompt, refs, editMode);
   }
 
-  /** Shared send path for every AI edit (plain + ME markup) — busy state, session
+  /** Shared send path for every AI edit (plain + ME markup), busy state, session
    *  pinning, error surface and the event subscription all behave identically. */
   async function dispatchAiEdit(prompt: string, refs: string[] | undefined, editMode: Record<string, unknown>) {
     setAiBusy(true); setAiTimeline([]); setAiNarrative(""); setAiError(null); aiJobRef.current = null;
     try {
-      // VA-1: pin the conversation — variants and the A5 plan stash attach to ONE session
+      // VA-1: pin the conversation, variants and the A5 plan stash attach to ONE session
       const res = await oia().chatRun({ prompt, ...(aiSessionId ? { sessionId: aiSessionId } : {}), ...(refs?.length ? { referenceImages: refs } : {}), editMode: editMode as ChatRequest["editMode"] });
       setAiSessionId(res.sessionId);
       // events stream in through the onChatEvent subscription; wait for the job to settle
@@ -757,16 +757,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setAiError({ message: bridgeErrorMessage(e, "Something went wrong. Please try again.") });
     } finally { setAiBusy(false); }
   }
-  /** TP.5 — cancel API only; the terminal cancelled event arrives on the subscription. */
+  /** TP.5: cancel API only; the terminal cancelled event arrives on the subscription. */
   async function stopAiEdit() {
     if (aiJobRef.current) await oia().cancelChat(aiJobRef.current).catch(() => {});
   }
 
-  // ===== ME — markup edit "Circle to edit" (markup-edit.md, flatten mode) =====
+  // ===== ME, markup edit "Circle to edit" (markup-edit.md, flatten mode) =====
   // Strokes live in the layer's NATURAL pixel space (markup-annotate.ts) so pan/
   // zoom never distorts them; the object is interaction-locked for the session so
   // the captured object matrix stays valid. Nothing here ever enters the scene
-  // JSON — the annotation is composited onto a throwaway copy for the edit call.
+  // JSON, the annotation is composited onto a throwaway copy for the edit call.
   interface MarkupSession {
     phase: "draw" | "ask";
     src: string;
@@ -793,7 +793,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string; skewX?: number; skewY?: number; getElement?: () => HTMLImageElement }) | undefined;
     if (!c || !active || !active.src) return;
     if ((active.skewX ?? 0) !== 0 || (active.skewY ?? 0) !== 0) {
-      setAiError({ message: "Straighten the layer first — skewed layers cannot be circled accurately." });
+      setAiError({ message: "Straighten the layer first, skewed layers cannot be circled accurately." });
       return;
     }
     const el = active.getElement?.();
@@ -807,7 +807,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setMarkupStrokeCount(0);
     setMarkup({
       phase: "draw",
-      // DISPLAY form (oia://…) — what the renderer can actually load for the composite;
+      // DISPLAY form (oia://…), what the renderer can actually load for the composite;
       // the composite itself goes to the wire as a data: URL, so canonical form never matters here.
       src: toDisplayUrl(active.src),
       name: active.name,
@@ -862,14 +862,14 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setAiOpen(true);
     setRightTab("ai");
     // No textLayerOverlays here: a markup edit may legitimately rewrite baked copy
-    // (probe P3 changed a price) — the marker clause + dimension lock carry the contract.
+    // (probe P3 changed a price), the marker clause + dimension lock carry the contract.
     await dispatchAiEdit(prompt, refCapable ? [composite, ...aiRefs].slice(0, 4) : undefined, {
       ...(name ? { targetName: name } : {}),
       markup: "flatten",
     });
   }
 
-  // Redraw the annotation every frame while drawing — pan/zoom mid-session stays
+  // Redraw the annotation every frame while drawing, pan/zoom mid-session stays
   // correct because strokes project back from natural px each frame.
   useEffect(() => {
     if (markup?.phase !== "draw") return;
@@ -927,7 +927,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     return () => window.removeEventListener("keydown", onKey);
   }, [markup]);
 
-  /** VA-4 — swap the SELECTED image layer's src for the variant's artwork. Geometry,
+  /** VA-4: swap the SELECTED image layer's src for the variant's artwork. Geometry,
    * every other layer, and the page envelope stay untouched; undo works (history
    * push happens in replaceCurrentScene). */
   async function applyVariantToSelection(v: VariantCard) {
@@ -943,7 +943,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setAiError({ message: "Select an image layer on the canvas first, then replace it." });
       return;
     }
-    // A3-lite TOCTOU: a variant painted for one layer never replaces another —
+    // A3-lite TOCTOU: a variant painted for one layer never replaces another,
     // even if the button state raced a selection change mid-click.
     const gate = canReplaceVariant(v, { selectedImg: true, selectedName: (active.name as string | undefined) ?? null });
     if (!gate.ok) {
@@ -951,29 +951,29 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       return;
     }
     const idx = c.getObjects().indexOf(active);
-    if (idx < 0) return; // active object already detached — nothing honest to replace
+    if (idx < 0) return; // active object already detached, nothing honest to replace
     try {
       const next = replaceObjectSrc(unmapAssetUrls(c.toObject() as SceneCanvas), idx, artwork.src);
       await replaceCurrentScene(mapAssetUrls(next));
       // honest UI: keeping the layer's geometry means a differently-proportioned
-      // artwork is STRETCHED into it — say so instead of letting the user discover it
+      // artwork is STRETCHED into it, say so instead of letting the user discover it
       const tw = (active.width ?? 0) * (active.scaleX ?? 1);
       const th = (active.height ?? 0) * (active.scaleY ?? 1);
       if (artwork.aspect > 0 && tw > 0 && th > 0) {
         const delta = Math.abs(artwork.aspect - tw / th) / (tw / th);
-        if (delta > ASPECT_TOLERANCE) setNotice("The new artwork has a different aspect ratio — it was stretched to fit the selected layer. Undo works if you prefer the original.");
+        if (delta > ASPECT_TOLERANCE) setNotice("The new artwork has a different aspect ratio, it was stretched to fit the selected layer. Undo works if you prefer the original.");
       }
     } catch (err) {
-      // never swallow silently — the oia:// poisoned-realpath bug hid for hours behind a mute catch
+      // never swallow silently, the oia:// poisoned-realpath bug hid for hours behind a mute catch
       console.error("[editor] variant replace failed:", err instanceof Error ? err.message : String(err));
       setAiError({ message: "The layer could not be replaced. Select the image layer again and retry." });
     }
   }
 
-  /** VA goal 4 — the variant becomes its own project (mirror of Home's openInEditor). */
+  /** VA goal 4, the variant becomes its own project (mirror of Home's openInEditor). */
   async function openVariantProject(v: VariantCard) {
     try {
-      const p = await oia().createProject({ name: `${projectName || "Variant"} — variant`, scene: v.canvas });
+      const p = await oia().createProject({ name: `${projectName || "Variant"}, variant`, scene: v.canvas });
       onOpenProject(p.id);
     } catch (e) {
       setAiError({ message: bridgeErrorMessage(e, "The editor could not be opened. Please try again.") });
@@ -1240,7 +1240,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           )}
         </aside>}
 
-        {/* AI dock — its own column; never overlaps the document */}
+        {/* AI dock, its own column; never overlaps the document */}
         {aiOpen && (
           <aside className="aiPanelFloating" data-testid="ai-dock">
             <div className="aiPanelHeader">
@@ -1265,7 +1265,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               />
             ) : (
               <>
-              {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>{hasTextLayer ? "Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit." : "The copy is baked into the artwork — ask for a repaint with your changes and the style stays."}</p>{(hasTextLayer
+              {!aiNarrative && !aiTimeline.length && <div className="aiPanelEmpty"><h3>What would you like to refine?</h3><p>{hasTextLayer ? "Change colors, edit copy, or explore a different layout. Select a layer for a more precise edit." : "The copy is baked into the artwork: ask for a repaint with your changes and the style stays."}</p>{(hasTextLayer
                 ? [{ label: "Try a softer color palette", prompt: "Try a softer color palette" }, { label: "Make the headline stand out", prompt: "Make the headline stand out" }]
                 : [{ label: "Change the text", prompt: "change the text: " }, { label: "New background, same drinks and text", prompt: "make the background " }]
               ).map((s) => <button key={s.label} className="aiSuggestion" onClick={() => setAiPrompt(s.prompt)}>{s.label}</button>)}</div>}
@@ -1280,7 +1280,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
               {aiTimeline.length > 0 && <RunSteps steps={stepsFromTimeline(aiTimeline)} />}
               {aiError && <div role="alert" className="notice error" style={{ margin: "8px 0", fontSize: 12 }}>{aiError.message}</div>}
               {aiNarrative && <div className="narrative" style={{ marginTop: 8, maxHeight: 200, overflowY: "auto" }}>{aiNarrative}</div>}
-              {/* A1 preview-apply — newest first; "Not now" only hides (VA-7), the
+              {/* A1 preview-apply, newest first; "Not now" only hides (VA-7), the
                   session record keeps every canvas (G5). */}
               {variants.some((v) => !hiddenVariants.has(v.id)) && (
                 <div className="variantTray" data-testid="variant-tray" aria-label="Variants">
@@ -1347,7 +1347,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                     onPointerDown={(e) => {
                       const p = markupPoint(e.clientX, e.clientY);
                       if (p) markupLiveRef.current = [p];
-                      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic/untracked pointers cannot capture — the stroke already started */ }
+                      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic/untracked pointers cannot capture, the stroke already started */ }
                     }}
                     onPointerMove={(e) => {
                       const live = markupLiveRef.current;
@@ -1488,7 +1488,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           {(exportScope === "all" ? pages : [pages[activePage] ?? pages[0]]).some(
             (p) => p?.canvas?.objects?.find((o) => o.name === "clip")?.fill === "transparent",
           ) && (
-            <p className="hintP" data-testid="alpha-hint" style={{ margin: "6px 0 0" }}>PNG keeps transparency — JPG flattens it.</p>
+            <p className="hintP" data-testid="alpha-hint" style={{ margin: "6px 0 0" }}>PNG keeps transparency, JPG flattens it.</p>
           )}
           <button className="primaryBtn wide" disabled={exporting} onClick={doExport} data-testid="export-download">
             {exporting ? "Exporting…" : "Download"}
@@ -1499,7 +1499,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   );
 }
 
-/** Rail icons — inline so the desktop adds zero icon deps (parity: lucide on web). */
+/** Rail icons, inline so the desktop adds zero icon deps (parity: lucide on web). */
 function PanelIcon({ p }: { p: Panel }) {
   const d: Record<Panel, string> = {
     templates: "M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z",
@@ -1514,7 +1514,7 @@ function PanelIcon({ p }: { p: Panel }) {
   return <I d={d[p]} size={21} />;
 }
 
-/** pptxgenjs resolves differently under Vite ESM — accept both module shapes. */
+/** pptxgenjs resolves differently under Vite ESM, accept both module shapes. */
 async function makePptx(images: { jpg: string; png: string; width: number; height: number }[], dims: { width: number; height: number }) {
   const mod = await import("pptxgenjs");
   const Ctor = ((mod as unknown as { default?: new () => PptxLike }).default ?? mod) as unknown as new () => PptxLike;
@@ -1545,7 +1545,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([arr], { type: mime });
 }
 
-/** fitArtboard/sceneSize — same math as the web studio-ui lib (transport-free). */
+/** fitArtboard/sceneSize, same math as the web studio-ui lib (transport-free). */
 function fitArtboard(width: number, height: number, availableWidth: number, availableHeight: number): number {
   const w = Math.max(1, width), h = Math.max(1, height);
   return Math.max(0.01, Math.min(1, Math.max(1, availableWidth - 64) / w, Math.max(1, availableHeight - 160) / h));
@@ -1570,7 +1570,7 @@ export class EditorErrorBoundary extends Component<{ children: ReactNode }, { er
       return (
         <main className="appShell">
           <div className="notice error" role="alert">
-            The editor hit a display error. Reopen the window and try again — your work is saved.
+            The editor hit a display error. Reopen the window and try again, your work is saved.
           </div>
         </main>
       );

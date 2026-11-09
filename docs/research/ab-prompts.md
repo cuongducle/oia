@@ -1,28 +1,28 @@
-# A/B prompt evidence — full prompts per round (2026-11-05)
+# A/B prompt evidence: full prompts per round (2026-11-05)
 
-Round 1 — no craft rules (A) vs IMAGE_CRAFT_RULES v1 (B), cùng user prompt, poster dọc 1360×2048:
+Round 1, no craft rules (A) vs IMAGE_CRAFT_RULES v1 (B), cùng user prompt, poster dọc 1360×2048:
 
 ```
-# A/B — DA-11 image-craft rules
+# A/B: DA-11 image-craft rules
 
 ## User prompt
 Làm banner quảng cáo trà sữa trân châu đường đen giảm 20% chỉ hôm nay, hình cô nhân viên trẻ tươi cười cầm ly trà sữa, phong cách hiện đại, để đăng Facebook
 
-## A — old planner prompt
+## A: old planner prompt
 ```
 Tạo banner quảng cáo Facebook tỷ lệ dọc 0.66 (1360×2048), phong cách hiện đại với bố cục dựa trên lưới, khoảng trắng thoáng, thứ bậc thị giác rõ và căn chỉnh mô-đun. Hình cô nhân viên trẻ tươi cười, thân thiện, cầm ly trà sữa trân châu đường đen nổi bật; ánh sáng tươi sáng, màu nâu caramel và kem, cảm giác ngon miệng, chuyên nghiệp. Render nguyên văn toàn bộ chữ tiếng Việt: tiêu đề lớn, đậm ở phía trên “TRÀ SỮA TRÂN CHÂU ĐƯỜNG ĐEN”; huy hiệu giảm giá nổi bật “GIẢM 20%”; dòng phụ “CHỈ HÔM NAY”. Đặt mọi chữ và chi tiết quan trọng trong vùng an toàn, cách mỗi mép ít nhất 10% để không bị cắt khi crop.
 ```
 
-## B — new planner prompt (with IMAGE_CRAFT_RULES)
+## B: new planner prompt (with IMAGE_CRAFT_RULES)
 ```
 Create a Facebook advertising banner in vertical 0.66 aspect ratio (1360×2048). Keep ALL text inside a safe area at least 10% clear of every edge. Modern grid-based layout with generous whitespace, strong focal hierarchy, and modular alignment. Feature a cheerful young female tea shop employee holding a clear cup of brown sugar bubble milk tea with visible tapioca pearls, medium shot at eye level; natural skin texture, a few stray hair strands, and realistic fabric weave on her uniform. Cup in sharp focus, softly detailed shop background. Dominant warm cream, secondary deep brown, 10% caramel accent. Single soft warm side-light from camera left, gentle shadows. Matte cream paper-like background with subtle printed texture; cup condensation and glossy tapioca pearls. Render these Vietnamese lines verbatim: “TRÀ SỮA TRÂN CHÂU ĐƯỜNG ĐEN” as a bold, clean headline near the top; “GIẢM 20%” oversized and high-impact below it; “CHỈ HÔM NAY” in a clear contrasting promotional badge. Keep all lettering crisp, correctly spelled, and legible.
 ```
 ```
 
-Round 2 — rules v1 (A) vs v2 (+15th rules, orientation language + zone skeleton) — cặp dọc và cặp ngang:
+Round 2, rules v1 (A) vs v2 (+15th rules, orientation language + zone skeleton), cặp dọc và cặp ngang:
 
 ```
-# A/B round 2 — DA-11 v1 vs v2 (poster skeleton + orientation language)
+# A/B round 2: DA-11 v1 vs v2 (poster skeleton + orientation language)
 
 ## p1-portrait / a-v1 (rules v1)
 

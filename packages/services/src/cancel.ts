@@ -1,5 +1,5 @@
 /**
- * TP-D2 (D1) — in-process jobId → AbortController registry, shared by both shells.
+ * TP-D2 (D1), in-process jobId → AbortController registry, shared by both shells.
  * The chat stream runs in the SAME process as the service (web request handler or the
  * Electron main process), so an in-memory map addresses every in-flight job.
  * Cross-process (worker/Redis) cancellation remains a web-deployment concern in

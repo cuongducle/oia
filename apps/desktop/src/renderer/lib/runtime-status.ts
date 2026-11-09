@@ -3,7 +3,7 @@ import type { RuntimeSnapshot } from "../../shared/bridge.js";
 export type StatusTone = "ok" | "warn" | "bad";
 
 /**
- * UI v1.1 R1 — the one-line runtime status the sidebar card shows. Pure so the
+ * UI v1.1 R1: the one-line runtime status the sidebar card shows. Pure so the
  * wording is pinned by a unit test: Trial must never read as "ready" (TP.6 mock
  * labeling), and a broken runtime must say what is missing, not just "error".
  */

@@ -3,7 +3,7 @@ import { IPC } from "../shared/channels.js";
 import type { OiaBridge, RuntimeEvent, AgentJobFrame } from "../shared/bridge.js";
 
 /**
- * Q7 — implements the ONE bridge contract (shared/bridge.ts). Explicit methods only;
+ * Q7: implements the ONE bridge contract (shared/bridge.ts). Explicit methods only;
  * runs sandboxed (contextBridge + ipcRenderer are available without node access).
  */
 const api: OiaBridge = {
@@ -60,7 +60,7 @@ contextBridge.exposeInMainWorld("oia", api);
 
 // Platform marker + traffic-light inset for chrome CSS (T1, macos-design-2026).
 // Sandbox-safe: the polyfilled `process` exposes platform without node access.
-// The preload can run BEFORE documentElement exists (probed on Electron 39) —
+// The preload can run BEFORE documentElement exists (probed on Electron 39),
 // defer to DOMContentLoaded then; the readyState guard is belt-and-braces for
 // late-running preloads (after DCL documentElement always exists, so the
 // immediate branch covers that case, but the guard keeps the intent explicit).

@@ -10,5 +10,5 @@ export function webImportSummary(counts: WebImportCounts): string {
     n(counts.brandKits, "brand kit"),
     n(counts.templates, "template"),
   ].filter(Boolean);
-  return parts.length ? `Imported ${parts.join(", ")}.` : "Nothing new to import — everything was already here.";
+  return parts.length ? `Imported ${parts.join(", ")}.` : "Nothing new to import, everything was already here.";
 }

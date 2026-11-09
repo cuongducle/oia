@@ -3,7 +3,7 @@
 
 One geometry constant set feeds BOTH renditions, so the macOS-26 layered icon
 (mark.png inside AppIcon.icon) and the legacy .icns can never drift apart:
-- mark.png: transparent canvas, white serif O + dot — the system supplies the
+- mark.png: transparent canvas, white serif O + dot, the system supplies the
   background and the glass treatment.
 - icon.icns / icon_1024.png: the same mark scaled into the purple gradient
   squircle (Big Sur template, ~824/1024 with transparent margin).

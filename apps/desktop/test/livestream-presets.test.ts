@@ -9,7 +9,7 @@ import {
 import { GUIDE_DEFAULT, GUIDE_STORAGE_KEY, guideFor, guideRects, readGuidePref, writeGuidePref } from "../src/renderer/lib/live-guides.js";
 import { ASPECT_TOLERANCE, isNineSixteen, sceneDims } from "../src/renderer/lib/scene-dims.js";
 
-/** C3 — live overlay presets (live-overlay-presets.md). Gate 1: the data must
+/** C3: live overlay presets (live-overlay-presets.md). Gate 1: the data must
  * parse against the real schemas and keep its honesty invariants (official
  * only where a spec exists; templates live inside the safe band). */
 describe("live artboard presets", () => {
@@ -24,7 +24,7 @@ describe("live artboard presets", () => {
     const tiktok = LIVE_ARTBOARDS.find((a) => a.id === "tiktok-live-cover")!;
     expect(tiktok).toMatchObject({ w: 1080, h: 1920, transparent: false, official: true });
 
-    // only the two covers may claim official — LV-10
+    // only the two covers may claim official, LV-10
     expect(LIVE_ARTBOARDS.filter((a) => a.official).map((a) => a.id).sort()).toEqual(["shopee-live-cover", "tiktok-live-cover"]);
   });
 
@@ -42,7 +42,7 @@ describe("live artboard presets", () => {
 
 describe("livestream template pack", () => {
   // Textbox heights are auto-computed by fabric at render time, so the static
-  // JSON carries no height — estimate fontSize × 1.2 per line or the band check
+  // JSON carries no height, estimate fontSize × 1.2 per line or the band check
   // goes blind for text (a Textbox with height undefined would count as zero).
   const estHeight = (o: { type: string; fontSize?: number; text?: string; height?: number }): number => {
     if (typeof o.height === "number") return o.height;
@@ -60,7 +60,7 @@ describe("livestream template pack", () => {
     }
   });
 
-  it("templates are native text only — no image layer, nothing to download (LV-8)", () => {
+  it("templates are native text only, no image layer, nothing to download (LV-8)", () => {
     for (const t of LIVESTREAM_TEMPLATES) {
       expect(t.scene.objects.some((o) => o.type === "Image")).toBe(false);
       expect(t.scene.objects.some((o) => o.type === "Textbox")).toBe(true);
@@ -78,7 +78,7 @@ describe("livestream template pack", () => {
     }
   });
 
-  it("no bare text on the transparent artboard — every label sits on a plate (teardown C3)", () => {
+  it("no bare text on the transparent artboard, every label sits on a plate (teardown C3)", () => {
     // Bare colored text is invisible over real stream footage: the overlay's
     // actual backdrop is a video, not a checkerboard. Every Textbox must have a
     // plate Rect covering its position in the same template.
@@ -156,7 +156,7 @@ describe("9:16 eligibility (LV-6)", () => {
     expect(isNineSixteen(1080, Math.round(1920 / (1 + ASPECT_TOLERANCE + 0.01)))).toBe(false);
   });
 
-  it("refuses non-9:16 artboards — posters and covers never get a lying guide", () => {
+  it("refuses non-9:16 artboards, posters and covers never get a lying guide", () => {
     expect(isNineSixteen(1360, 2048)).toBe(false); // default blank artboard
     expect(isNineSixteen(900, 1200)).toBe(false); // studio samples (3:4)
     expect(isNineSixteen(500, 500)).toBe(false); // Shopee cover

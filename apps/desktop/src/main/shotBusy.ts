@@ -4,16 +4,16 @@ import { fileURLToPath } from "node:url";
 
 /**
  * The busy-state capture gate (UI v1.1 R3): photographs the run-progress sheet
- * mid-run — Home AND the Editor AI dock, the two surfaces RunSteps paints.
+ * mid-run, Home AND the Editor AI dock, the two surfaces RunSteps paints.
  *
  * How the tempo is made photographable: NOT by intercepting events (a hold in
- * UtilityClient was tried and reverted — test hooks do not belong in the wire
+ * UtilityClient was tried and reverted, test hooks do not belong in the wire
  * client), but by pacing the mock pair itself (OIA_MOCK_STEP_DELAY_MS, injected
  * via contextEnv in this mode only). The REAL pipeline runs, just slow enough
- * to poll-and-shoot. The run must still complete — a capture that broke the
+ * to poll-and-shoot. The run must still complete, a capture that broke the
  * flow would photograph a lie (B7's UI cousin).
  *
- * Dev build only (F2, releaseGate pins the env flag); mock pair only — the
+ * Dev build only (F2, releaseGate pins the env flag); mock pair only, the
  * default-deny rule in resolveEffectiveMode forces mock for every
  * OIA_DESKTOP_* test flag.
  *
@@ -46,11 +46,11 @@ export async function runShotBusy(deps: ShotBusyDeps): Promise<void> {
   await waitForLoad(win);
   const hasBridge = await js(win, "typeof window.oia");
   if (hasBridge !== "object") {
-    console.error("[shot-busy] bridge missing — preload failed");
+    console.error("[shot-busy] bridge missing, preload failed");
     app.exit(2);
     return;
   }
-  // macOS throttles an unfocused window's compositor — capturePage would hand
+  // macOS throttles an unfocused window's compositor, capturePage would hand
   // back a stale pre-run frame. Keep presenting; never steal the user's focus.
   win.webContents.setBackgroundThrottling(false);
 
@@ -161,7 +161,7 @@ function waitForLoad(win: BrowserWindow): Promise<void> {
   });
 }
 
-/** Type the prompt and click Create — the same path a user drives. */
+/** Type the prompt and click Create, the same path a user drives. */
 async function submitPrompt(win: BrowserWindow, prompt: string): Promise<true | string> {
   return js<true | string>(win, `(() => {
     const ta = document.querySelector('[data-testid="design-idea"]');

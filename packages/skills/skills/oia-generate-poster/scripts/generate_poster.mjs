@@ -8,7 +8,7 @@ const cfg = loadConfig();
 if (!cfg.baseUrl) { console.error(JSON.stringify({ ok: false, error: "OIA_BASE_URL is not set (your self-hosted server)" })); process.exit(1); }
 
 // NOTE: the generate-poster schema has no `language` field (unlike generate-
-// presentation) — --language only tells the AGENT which language to write the
+// presentation), --language only tells the AGENT which language to write the
 // prompt in (see SKILL.md); it must not be forwarded to the API.
 const body = {
   prompt: flag("prompt") ?? "",

@@ -1,7 +1,7 @@
 import { sweepUnreferencedAssets, type AssetGcResult } from "@oia/tasks";
 import type { ServiceContext } from "./context.js";
 
-/** Every store that can point at an upload — the reachability roots for T11. */
+/** Every store that can point at an upload, the reachability roots for T11. */
 export function assetRoots(ctx: ServiceContext): unknown[] {
   const templates: unknown[] = [];
   for (let page = 1; ; page++) {

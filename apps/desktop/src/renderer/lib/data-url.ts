@@ -1,6 +1,6 @@
 /**
  * Fast data-URL → bytes (teardown fix #3): Uint8Array.from(atob, per-char
- * callback) is the slow decode path for multi-megabyte PNG exports — a plain
+ * callback) is the slow decode path for multi-megabyte PNG exports, a plain
  * indexed loop it is. Pure, no DOM import so it is unit-testable in node.
  */
 

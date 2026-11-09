@@ -10,7 +10,7 @@ beforeAll(async () => {
   store = new ApiKeyStore(path.join(dir, "keys.json"));
 });
 
-  describe("BR-KEY — API keys for agents (pf-... format)", () => {
+  describe("BR-KEY, API keys for agents (pf-... format)", () => {
   it("key format pf-<32hex>, hash sha256 deterministic", () => {
     const { plaintext, hashed } = generateApiKey();
     expect(plaintext).toMatch(/^pf-[0-9a-f]{32}$/);
@@ -39,7 +39,7 @@ beforeAll(async () => {
     await s2.load();
     expect(s2.list().length).toBeGreaterThanOrEqual(3);
   });
-  it("regression (reorg 4d): verify persists lastUsedAt — the For Agents table must not show a value the next boot contradicts", async () => {
+  it("regression (reorg 4d): verify persists lastUsedAt, the For Agents table must not show a value the next boot contradicts", async () => {
     const { plaintext } = await store.create("touched");
     expect(store.verify(plaintext)).not.toBeNull();
     await new Promise((r) => setTimeout(r, 150)); // fire-and-forget save settles
@@ -55,8 +55,8 @@ beforeAll(async () => {
   });
 });
 
-/** T2 regression — corrupt api-keys.json is quarantined (never blanked+overwritten); saves are atomic. */
-describe("TP.7 durable load — ApiKeyStore", () => {
+/** T2 regression, corrupt api-keys.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TP.7 durable load, ApiKeyStore", () => {
   it("corrupt file → quarantined; a fresh key round-trips on the NEW file", async () => {
     const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");

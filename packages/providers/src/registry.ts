@@ -19,14 +19,14 @@ function envInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number 
 /**
  * Registry as a plain map composed from env config (TP.11).
  *
- * T3 — the env object passed HERE is the single config source: every provider is
+ * T3: the env object passed HERE is the single config source: every provider is
  * constructed with explicit values from it. Constructors used to default to
- * process.env (keys, CODEX_BIN, models, timeouts), so in the utility process —
- * where main sends config via the init RPC, never via process.env — real keys
+ * process.env (keys, CODEX_BIN, models, timeouts), so in the utility process,
+ * where main sends config via the init RPC, never via process.env, real keys
  * silently went missing while a leaked shell key could ride along. Import-time
  * env consts (CODEX_IMAGE_TIMEOUT_MS …) are dead: knobs read here, at construction.
  *
- * Defaults stay mock/mock so a fresh clone runs keyless offline — but see
+ * Defaults stay mock/mock so a fresh clone runs keyless offline, but see
  * assertNoMixedMockConfig: a mock provider paired with a real provider in
  * EITHER direction never boots silently (B2: canned planner output must not
  * ride a real generation channel).
@@ -62,7 +62,7 @@ const MOCK_IMAGE_PROVIDERS = new Set(["mock", "", undefined]);
 const MOCK_LLM_PROVIDERS = new Set(["mock", "", undefined]);
 
 /**
- * TP.2/TP.4 — bidirectional mixed-config guard. A mock planner feeding a real image
+ * TP.2/TP.4: bidirectional mixed-config guard. A mock planner feeding a real image
  * channel (or the reverse) fails startup with an explicit message; this configuration
  * pair never boots. CI and offline demos set BOTH to mock explicitly.
  */
@@ -74,12 +74,12 @@ export function assertNoMixedMockConfig(env: NodeJS.ProcessEnv = process.env): v
   const mock = imageIsMock ? `IMAGE_PROVIDER=${env.IMAGE_PROVIDER ?? "mock"}` : `LLM_PROVIDER=${env.LLM_PROVIDER ?? "mock"}`;
   throw new Error(
     `Oia refuses a mixed mock/real provider config: ${mock} (mock) with ${real} (real). ` +
-    `Mock planner output must never reach a real generation channel silently — set both providers real ` +
+    `Mock planner output must never reach a real generation channel silently, set both providers real ` +
     `(e.g. IMAGE_PROVIDER=codex + LLM_PROVIDER=codex) or both mock.`,
   );
 }
 
-/** Provider matrix for the health panel (TP.6) — read the registry, don't hardcode. */
+/** Provider matrix for the health panel (TP.6), read the registry, don't hardcode. */
 export function providerMatrix(env: NodeJS.ProcessEnv = process.env): {
   image: { name: string; capabilities: ProviderCapabilities };
   llm: { name: string; capabilities: ProviderCapabilities };

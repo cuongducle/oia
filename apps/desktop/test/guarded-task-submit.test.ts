@@ -10,7 +10,7 @@ import {
 } from "../src/utility/guardedTaskSubmit.js";
 
 /**
- * G3 (reorg step 4c) — the guarded task submit core, extracted from loopback.ts so
+ * G3 (reorg step 4c), the guarded task submit core, extracted from loopback.ts so
  * the quick-tools IPC lane shares IDENTICAL semantics. These are the T1-guard
  * regressions re-run at the helper level (no HTTP): the TOCTOU window, the sync-mode
  * slot pin + spurious "failed", reservation leaks on validation errors, and the
@@ -18,10 +18,10 @@ import {
  *
  * Determinism rules (learned the hard way): every test gets a FRESH ServiceContext
  * (mock pair, temp dir) so task handlers never leak across tests, and every "held"
- * task is awaited to its TERMINAL EVENT before the test ends — no sleep-and-hope.
+ * task is awaited to its TERMINAL EVENT before the test ends, no sleep-and-hope.
  */
 
-/** A metered-looking provider whose generate must never run — the held task owns the slot. */
+/** A metered-looking provider whose generate must never run, the held task owns the slot. */
 function makeMeteredProvider() {
   return {
     name: "metered-stub",
@@ -63,7 +63,7 @@ function gateProcessor(ctx: ServiceContext): { open: () => void } {
   return { open: openGate };
 }
 
-/** Await the FIRST terminal frame for a task — deterministic settle barrier. */
+/** Await the FIRST terminal frame for a task, deterministic settle barrier. */
 async function awaitTerminal(events: GuardedJobEvent[], taskId: string, ms = 5000): Promise<GuardedJobEvent> {
   const t0 = Date.now();
   for (;;) {
@@ -75,15 +75,15 @@ async function awaitTerminal(events: GuardedJobEvent[], taskId: string, ms = 500
 }
 
 afterAll(() => {
-  // the guard set is globalThis-scoped — leave it clean for other suites in this run
+  // the guard set is globalThis-scoped, leave it clean for other suites in this run
   delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
 });
 afterEach(() => {
-  // the guard set is globalThis-scoped — never let one test's reservation bleed into the next
+  // the guard set is globalThis-scoped, never let one test's reservation bleed into the next
   delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
 });
 
-describe("guarded submit — the TOCTOU window stays closed", () => {
+describe("guarded submit, the TOCTOU window stays closed", () => {
   it("5 concurrent metered submits → exactly ONE admitted, 4 refused, nothing double-run", async () => {
     const ctx = await freshCtx();
     const events: GuardedJobEvent[] = [];
@@ -106,11 +106,11 @@ describe("guarded submit — the TOCTOU window stays closed", () => {
   });
 });
 
-describe("guarded submit — sync mode (noWait:true)", () => {
+describe("guarded submit, sync mode (noWait:true)", () => {
   it("does NOT pin the slot and never emits a spurious failed after a success", async () => {
     const ctx = await freshCtx();
     const events: GuardedJobEvent[] = [];
-    const s = makeSubmitter(ctx, events, 150); // tiny TTL — the OLD bug fired it after the settle
+    const s = makeSubmitter(ctx, events, 150); // tiny TTL, the OLD bug fired it after the settle
     ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/ok.png"], note: "fast" }));
     const t = await s.submit("generate-poster", { prompt: "sync run", noWait: true });
     expect(t.progress).toBe("succeeded");
@@ -118,19 +118,19 @@ describe("guarded submit — sync mode (noWait:true)", () => {
     await new Promise((r) => setTimeout(r, 320));
     const forTask = events.filter((e) => e.taskId === t.taskId);
     expect(forTask.some((e) => e.event === "failed")).toBe(false); // B7: records must not lie
-    // slot free again — the next submit is admitted immediately
+    // slot free again, the next submit is admitted immediately
     const t2 = await s.submit("generate-poster", { prompt: "again", noWait: true });
     expect(t2.progress).toBe("succeeded");
     s.dispose();
   });
 });
 
-describe("guarded submit — submit itself fails", () => {
+describe("guarded submit, submit itself fails", () => {
   it("a validation error releases the reservation (no leak) and emits nothing", async () => {
     const ctx = await freshCtx();
     const events: GuardedJobEvent[] = [];
     const s = makeSubmitter(ctx, events, 60_000);
-    // image-edit requires reference: string[] + prompt: string — junk types fail TaskStore validation
+    // image-edit requires reference: string[] + prompt: string, junk types fail TaskStore validation
     await expect(s.submit("image-edit", { prompt: 123, reference: "not-an-array", noWait: true })).rejects.toThrow();
     expect(events.length).toBe(0);
     // the slot was never pinned: a good submit still runs
@@ -140,7 +140,7 @@ describe("guarded submit — submit itself fails", () => {
     s.dispose();
   });
 
-  it("a THROWING event sink changes nothing — events are observability, never accounting", async () => {
+  it("a THROWING event sink changes nothing, events are observability, never accounting", async () => {
     const ctx = await freshCtx();
     const s = createGuardedSubmitter({
       ctx: () => ctx, lane: "agent", source: "agent", fallbackTtlMs: 60_000,
@@ -156,13 +156,13 @@ describe("guarded submit — submit itself fails", () => {
   });
 });
 
-describe("guarded submit — wedged background handler (fallback ONLY)", () => {
+describe("guarded submit, wedged background handler (fallback ONLY)", () => {
   it("the fallback TTL settles failed + releases the slot when onSettled never comes", async () => {
     const ctx = await freshCtx();
     const events: GuardedJobEvent[] = [];
     const s = makeSubmitter(ctx, events, 120);
     ctx.taskStore.register("generate-poster", async () => {
-      await new Promise(() => {}); // wedged forever — past every provider timeout
+      await new Promise(() => {}); // wedged forever, past every provider timeout
     });
     const t = await s.submit("generate-poster", { prompt: "wedged", noWait: false });
     expect(t.progress).toBe("processing");
@@ -175,7 +175,7 @@ describe("guarded submit — wedged background handler (fallback ONLY)", () => {
     s.dispose();
   });
 
-  it("dispose() clears armed fallbacks — no late events after the lane shuts down", async () => {
+  it("dispose() clears armed fallbacks, no late events after the lane shuts down", async () => {
     const ctx = await freshCtx();
     const events: GuardedJobEvent[] = [];
     const s = makeSubmitter(ctx, events, 120);

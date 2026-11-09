@@ -9,7 +9,7 @@ import { Sidebar, type SectionName } from "./components/Sidebar.js";
 import { CreateSheet } from "./components/CreateSheet.js";
 
 /**
- * Renderer shell — UI v1.1 R1 (docs/designs/ui-v11-redesign.md): a left sidebar
+ * Renderer shell, UI v1.1 R1 (docs/designs/ui-v11-redesign.md): a left sidebar
  * (New design, sections, recent projects, runtime + usage status) and the active
  * view on a raised content sheet. Every "New" (sidebar, ⌘N, Projects) opens the
  * Create sheet (R2, UX-2). The Editor stays a fullscreen view of its own.
@@ -39,7 +39,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
       return (
         <main className="appShell">
           <div className="notice error" role="alert">
-            The app hit a display error. Reopen the window and try again — your work is saved.
+            The app hit a display error. Reopen the window and try again, your work is saved.
           </div>
         </main>
       );

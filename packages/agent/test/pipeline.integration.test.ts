@@ -5,7 +5,7 @@ import { chatEventSchema, sceneCanvasSchema, type ChatEvent } from "@oia/schema"
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 
 /**
- * INTEGRATION: agent → SSE text → protocol decode → schema — the real production path
+ * INTEGRATION: agent → SSE text → protocol decode → schema, the real production path
  * (the server serializes events; the client decodes data: lines). Constraints = the protocol invariants.
  */
 const plan = JSON.stringify({

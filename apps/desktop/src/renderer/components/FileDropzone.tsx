@@ -4,7 +4,7 @@ import { acceptsFile, formatBytes } from "../lib/file-accept.js";
 /**
  * The Tools file picker: a drop area that turns into a preview card once a file is
  * chosen. The native <input type=file> stays mounted (hidden) and stays the source of
- * truth — the tool runners read `inputRef.current.files[0]` exactly as before.
+ * truth, the tool runners read `inputRef.current.files[0]` exactly as before.
  */
 
 interface Props {

@@ -12,7 +12,7 @@ import type { AgentJobEvent } from "../src/utility/loopback.js";
 const execFileAsync = promisify(execFile);
 
 /**
- * D9 (reorg step 4b) — the loopback agent API, end to end against a REAL
+ * D9 (reorg step 4b), the loopback agent API, end to end against a REAL
  * ServiceContext (mock provider pair, temp data dir). loopback.ts has zero
  * electron imports on purpose: this suite exercises the exact server the
  * utility process hosts, without Electron.
@@ -58,7 +58,7 @@ describe("loopback security gates (all fire BEFORE route logic)", () => {
     expect(bad.status).toBe(401);
   });
 
-  it("401 when the key travels in the query string — header only", async () => {
+  it("401 when the key travels in the query string, header only", async () => {
     const res = await fetch(`${base()}/api/tasks/generate-poster?key=${encodeURIComponent(key)}`, {
       method: "POST",
       headers: { authorization: "" },
@@ -89,7 +89,7 @@ describe("loopback security gates (all fire BEFORE route logic)", () => {
   });
 
   it("discovery file is private (POSIX 0600 / Windows user-only ACL) and carries the live port + pid", async () => {
-    // fs mode is a NO-OP on Windows (stat always reports 0666) — what 0600 MEANS
+    // fs mode is a NO-OP on Windows (stat always reports 0666), what 0600 MEANS
     // there is an ACL without inheritance and with only the current user, so the
     // gate asserts exactly that instead of mode bits it can never observe.
     if (process.platform === "win32") {
@@ -170,13 +170,13 @@ describe("loopback task API (skill contract: {code,data,msg} envelope)", () => {
 });
 
 /**
- * T1 regression — the metered in-flight guard is ONE shared slot (meteredGuard.ts).
+ * T1 regression, the metered in-flight guard is ONE shared slot (meteredGuard.ts).
  * It used to be two guards that could not see each other: chat's global set and
  * loopback's module-local counter. Failure mode: a chat job + an agent task ran
  * TWO paid codex generations at once. Here a held task owns the slot, so a second
  * agent submit AND a chat run must both be refused until the task settles.
  */
-describe("shared metered guard — chat and agent tasks contend on ONE slot", () => {
+describe("shared metered guard, chat and agent tasks contend on ONE slot", () => {
   it("task in flight → second submit 429 AND runChat refused; settle → slot released", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "oia-loopback-guard-"));
     const guardCtx = await createServiceContext({
@@ -185,7 +185,7 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
     });
     const guardKey = (await guardCtx.keys.create("guard-test")).plaintext;
 
-    // A METERED image provider (isMock:false) — exactly what codex mode looks like
+    // A METERED image provider (isMock:false), exactly what codex mode looks like
     // to the guard. Its generate is never called: the held task owns the slot first.
     (guardCtx.chat as { image: unknown }).image = {
       name: "held-metered",
@@ -222,7 +222,7 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
       const second = await submit();
       expect(second.status).toBe(429); // OLD code let a second metered run start (when the env said codex)
 
-      // Cross lane: chat must refuse too — the OLD chat guard could not see agent tasks
+      // Cross lane: chat must refuse too, the OLD chat guard could not see agent tasks
       const { outcome } = await runChat({ prompt: "chat while task runs" }, guardCtx, { sink: () => {} });
       expect(outcome).toBe("refused-rate-limited");
 
@@ -249,7 +249,7 @@ describe("shared metered guard — chat and agent tasks contend on ONE slot", ()
 
 /** Readiness-review hardening: client errors are 400s, 500s never leak internals, uploads share the IPC image allowlist. */
 describe("loopback error hygiene (T1 follow-ups)", () => {
-  it("a malformed JSON body is a 400 with a stable message — not a leaked 500", async () => {
+  it("a malformed JSON body is a 400 with a stable message, not a leaked 500", async () => {
     const res = await fetch(`${base()}/api/tasks/generate-poster`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: key },
@@ -260,7 +260,7 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     expect(body.msg).toBe("request body is not valid JSON");
   });
 
-  it("upload/direct accepts ONLY image extensions — same allowlist as the IPC path", async () => {
+  it("upload/direct accepts ONLY image extensions, same allowlist as the IPC path", async () => {
     const boundary = "oia-test-boundary";
     const part = `--${boundary}\r\ncontent-disposition: form-data; name="file"; filename="payload.exe"\r\n\r\nMZ\x00\x00\r\n--${boundary}--\r\n`;
     const res = await fetch(`${base()}/api/upload/direct`, {
@@ -273,7 +273,7 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     expect(body.msg).toContain("unsupported image type");
   });
 
-  it("file GETs: an invalid key is a 400, a missing file is a 404 — client errors, never leaked 500s", async () => {
+  it("file GETs: an invalid key is a 400, a missing file is a 404, client errors, never leaked 500s", async () => {
     // absolute key → the store refuses the shape itself → 400
     const absKey = await fetch(`${base()}/api/files/%2Fetc%2Fpasswd`, { headers: { authorization: key } });
     expect(absKey.status).toBe(400);
@@ -291,15 +291,15 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
 });
 
 /**
- * Regression of THIS round's own T1 fix — the track-AFTER-submit guard had two
+ * Regression of THIS round's own T1 fix, the track-AFTER-submit guard had two
  * defects, both reproduced here:
  * 1. noWait:true pinned the slot (onSettled released a never-tracked id, then the
- *    late track held it until the fallback TTL — and the TTL then emitted a
+ *    late track held it until the fallback TTL, and the TTL then emitted a
  *    spurious "failed" after a success, B7 violation);
  * 2. TOCTOU: concurrent submits each passed the busy check before any tracked.
  * The reservation is now made synchronously before the submit await.
  */
-describe("guard reservation — synchronous, exactly-once", () => {
+describe("guard reservation, synchronous, exactly-once", () => {
   const meteredCaps = () => ({
     referenceImages: true,
     sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
@@ -313,7 +313,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
       dataDir: path.join(root, "data"),
       env: { ...process.env, IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock" },
     });
-    // metered (isMock:false) image provider — what codex mode looks like to the guard
+    // metered (isMock:false) image provider, what codex mode looks like to the guard
     (gctx.chat as { image: unknown }).image = {
       name: "metered-probe",
       capabilities: meteredCaps(),
@@ -323,7 +323,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
     return { root, gctx, key: (await gctx.keys.create("res-test")).plaintext };
   }
 
-  it("noWait:true — slot free right after completion; NO spurious 'failed' after a success", async () => {
+  it("noWait:true, slot free right after completion; NO spurious 'failed' after a success", async () => {
     const { root, gctx, key } = await guardCtx();
     const events: AgentJobEvent[] = [];
     gctx.taskStore.register("generate-poster", async () => {
@@ -335,7 +335,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
       userDataDir: root,
       env: {},
       emit: (ev) => events.push(ev),
-      fallbackTtlMs: 150, // if the bug existed, the spurious "failed" lands here — observable
+      fallbackTtlMs: 150, // if the bug existed, the spurious "failed" lands here, observable
     });
     try {
       const g = `http://127.0.0.1:${srv.port}`;
@@ -364,7 +364,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
     }
   }, 30_000);
 
-  it("concurrent submits — exactly ONE wins the slot (no TOCTOU window)", async () => {
+  it("concurrent submits, exactly ONE wins the slot (no TOCTOU window)", async () => {
     const { root, gctx, key } = await guardCtx();
     let openGate!: () => void;
     const gate = new Promise<void>((r) => (openGate = r));
@@ -382,7 +382,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
           body: JSON.stringify({ prompt: "race" }),
         }).then((r) => r.status);
       const codes = await Promise.all([shot(), shot(), shot(), shot(), shot()]);
-      expect(codes.filter((c) => c === 200)).toHaveLength(1); // BROKEN code: several 200s — two paid runs at once
+      expect(codes.filter((c) => c === 200)).toHaveLength(1); // BROKEN code: several 200s, two paid runs at once
       expect(codes.filter((c) => c === 429)).toHaveLength(4);
       openGate();
     } finally {
@@ -398,7 +398,7 @@ describe("guard reservation — synchronous, exactly-once", () => {
     const srv = await startLoopback({ ctx: () => gctx, userDataDir: root, env: {}, emit: () => {} });
     try {
       const g = `http://127.0.0.1:${srv.port}`;
-      // image-edit requires reference[] + prompt — TaskStore.validate throws → 400
+      // image-edit requires reference[] + prompt, TaskStore.validate throws → 400
       const bad = await fetch(`${g}/api/tasks/image-edit`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: key },

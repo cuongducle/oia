@@ -2,13 +2,13 @@ import type { GenerationMode, PlanBlock } from "@oia/schema";
 import { COPY_ZONE_GEOMETRY, cleanPlateZoneClause } from "@oia/schema";
 
 /**
- * TP.1/TP.3/TP.8 — placement pairs with the clean-plate prompt through the SHARED
- * geometry in @oia/schema (COPY_ZONE_GEOMETRY) — the single source of truth both the
+ * TP.1/TP.3/TP.8: placement pairs with the clean-plate prompt through the SHARED
+ * geometry in @oia/schema (COPY_ZONE_GEOMETRY), the single source of truth both the
  * prompt clause and this placement derive from, so they cannot drift apart.
  *
  * Zone geometry (Stage-0 design, shared with the crop anchor):
- * - top band   = 8–24% of canvas height, full width
- * - side block = right 34% width, 28–72% height (upper/lower halves)
+ * - top band   = 8-24% of canvas height, full width
+ * - side block = right 34% width, 28-72% height (upper/lower halves)
  * Role→zone defaults: headline/title/subtitle → top band; price/discount → side
  * upper; date/name/slogan/unknown → side lower; styleHint overrides the default.
  * Overflow stacks downward with a 4%-height gap, clamped to the canvas.
@@ -31,11 +31,11 @@ export const COPY_ZONES: Record<ZoneId, ZoneRect> = {
   sideLower: { leftR: G.sideBlock.leftR, topR: G.sideBlock.topR + G.sideBlock.heightR / 2 + 0.01, widthR: G.sideBlock.widthR * 0.88, heightR: G.sideBlock.heightR / 2 - 0.01 },
 };
 
-/** The calm-space clause shared with the clean-plate image prompt — re-exported from
+/** The calm-space clause shared with the clean-plate image prompt, re-exported from
  *  @oia/schema (derived from the geometry; never hand-copied). */
 export const CLEAN_PLATE_ZONE_CLAUSE = cleanPlateZoneClause();
 
-/** styleHint keywords override the role default — Vietnamese sellers get Vietnamese
+/** styleHint keywords override the role default, Vietnamese sellers get Vietnamese
  *  hints from the planner ("trên", "bên phải", "dưới"…), so both languages match. */
 export function zoneForRole(role: string, styleHint?: string | null): ZoneId {
   const hint = (styleHint ?? "").toLowerCase();
@@ -97,14 +97,14 @@ export function placeBlocks(blocks: PlanBlock[], canvasW: number, canvasH: numbe
 }
 
 /**
- * TP.8 size policy — zone-anchored cover-crop for the Codex channel (exact pixels
+ * TP.8 size policy, zone-anchored cover-crop for the Codex channel (exact pixels
  * cannot be requested there). Mode-aware since DEF-1 (2026-11-03):
- * - CLEAN-PLATE: keep the side/edge carrying the copy zones (top + right) —
+ * - CLEAN-PLATE: keep the side/edge carrying the copy zones (top + right),
  *   naive center/top crops eat the top band and can cut the reference product.
- * - POSTER: text is baked ANYWHERE (including the left edge) — anchor crops are
+ * - POSTER: text is baked ANYWHERE (including the left edge), anchor crops are
  *   forbidden; horizontal overflow is split evenly (center). Paired with the
  *   planner's safe-area instruction this bounds the damage, but a center crop can
- *   still clip text that hugs an edge — the honest full fix (post-place verify)
+ *   still clip text that hugs an edge, the honest full fix (post-place verify)
  *   is DEF-1's open follow-up.
  */
 export interface CoverCrop {
@@ -134,19 +134,19 @@ export function fitCoverWithZones(
     return { cropX: 0, cropY: 0, cropW: imgW, cropH: imgH, scale };
   }
   if (imgRatio > canvasRatio) {
-    // image is wider — horizontal overflow.
-    // POSTER: center the crop — an anchored crop eats the leading letters of
+    // image is wider, horizontal overflow.
+    // POSTER: center the crop, an anchored crop eats the leading letters of
     // every line on the losing side (DEF-1: cropX=191 removed "BL"/"GI"/"2"/"H").
-    // CLEAN-PLATE: anchor RIGHT — the copy zones live top + right (sideBlock side).
+    // CLEAN-PLATE: anchor RIGHT, the copy zones live top + right (sideBlock side).
     const cropX = mode === "poster" ? (imgW - cropW) / 2 : imgW - cropW;
     return { cropX, cropY: 0, cropW, cropH, scale };
   }
-  // image is taller — vertical overflow: anchor TOP (the topBand side)
+  // image is taller, vertical overflow: anchor TOP (the topBand side)
   return { cropX: 0, cropY: 0, cropW, cropH, scale };
 }
 
 // NOTE (A7, deferred honestly): "never crop into the reference product's bounding box"
-// requires knowing where the product landed in the GENERATED image — no detector exists
+// requires knowing where the product landed in the GENERATED image, no detector exists
 // pre-generation and none ships in Stage 0. When a product-bbox source exists (desktop
 // era candidate: reference-position echo from the model, or a detection step), add the
 // window-shift logic back HERE, next to the anchors above.

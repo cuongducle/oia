@@ -1,6 +1,6 @@
 /**
- * UI v1.1 — the ONE icon set for app chrome (visual system v2: 1.7px stroke,
- * rounded joins, 18–20px). Views import from here instead of drawing their own.
+ * UI v1.1, the ONE icon set for app chrome (visual system v2: 1.7px stroke,
+ * rounded joins, 18-20px). Views import from here instead of drawing their own.
  */
 const s = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 

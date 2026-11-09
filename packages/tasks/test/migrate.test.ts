@@ -8,7 +8,7 @@ import { ProjectStore, ChatSessionStore } from "../src/projects.js";
 import type { SceneCanvas, Project } from "@oia/schema";
 import { OIA_SCHEMA_VERSION } from "@oia/schema";
 
-/** 1×1 PNG — a real decodable base64 payload. */
+/** 1×1 PNG, a real decodable base64 payload. */
 const PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==";
 const PNG_DATA_URL = `data:image/png;base64,${PNG_B64}`;
@@ -28,7 +28,7 @@ function sceneWith(src: string): SceneCanvas {
   };
 }
 
-describe("STAGE-0 TP.7: migrate-on-save — base64 → /api/files/<key>", () => {
+describe("STAGE-0 TP.7: migrate-on-save, base64 → /api/files/<key>", () => {
   it("extracts a data-URL src into the store and rewrites the reference (pinned syntax)", async () => {
     const { store } = makeStore();
     const scene = sceneWith(PNG_DATA_URL);
@@ -51,7 +51,7 @@ describe("STAGE-0 TP.7: migrate-on-save — base64 → /api/files/<key>", () => 
     expect(a.objects[1].src).toBe(b.objects[1].src);
   });
 
-  it("dedupe survives a store restart (hydrate) — migration after reload reuses the asset", async () => {
+  it("dedupe survives a store restart (hydrate), migration after reload reuses the asset", async () => {
     const { store, root } = makeStore();
     const a = sceneWith(PNG_DATA_URL);
     await migrateScene(a, store);
@@ -69,7 +69,7 @@ describe("STAGE-0 TP.7: migrate-on-save — base64 → /api/files/<key>", () => 
     expect(scene.objects[1].src).toBe("https://cdn.test/x.png");
   });
 
-  it("migrateProjectForSave enforces the rule — an unextractable data URL refuses the save", async () => {
+  it("migrateProjectForSave enforces the rule, an unextractable data URL refuses the save", async () => {
     const { store } = makeStore();
     const project: Project = {
       id: "p1",
@@ -132,7 +132,7 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
     const p = await projects.create({ name: "x" });
     const page = { id: "page_1", name: "Board 1", width: 100, height: 100, canvas: sceneWith(PNG_DATA_URL) };
     await projects.saveScene(p.id, { pages: [page] });
-    // zod re-creates page objects — assert on the STORE's copy, not the caller's
+    // zod re-creates page objects, assert on the STORE's copy, not the caller's
     const stored = projects.get(p.id)!.pages[0].canvas.objects.find((o) => o.type === "Image")!.src as string;
     expect(stored).toMatch(/^\/api\/files\//);
   });
@@ -171,7 +171,7 @@ describe("STAGE-0 TP.7: stores own the migration + atomic persistence", () => {
     expect(Array.isArray(raw)).toBe(false);
   });
 
-  it("ChatSessionStore.append migrates renderData — chat-sessions.json stops embedding data URLs", async () => {
+  it("ChatSessionStore.append migrates renderData, chat-sessions.json stops embedding data URLs", async () => {
     const { chat, root } = setup();
     await chat.load();
     const s = chat.create("banner trà sữa");

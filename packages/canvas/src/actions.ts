@@ -2,7 +2,7 @@
  * Toolbar and export behavior for the editor.
  */
 
-/** BR-ED4: text toolbar — color, font, B/I/U/S, align, size, 4 layer orders, spacing, duplicate. */
+/** BR-ED4: text toolbar, color, font, B/I/U/S, align, size, 4 layer orders, spacing, duplicate. */
 export const TEXT_TOOLBAR_ACTIONS = [
   "color", "font", "bold", "italic", "underline", "strike",
   "alignLeft", "alignCenter", "alignRight",
@@ -23,7 +23,7 @@ export type ExportScope = (typeof EXPORT_SCOPES)[number];
 export interface ExportPlan {
   format: ExportFormat;
   scope: ExportScope;
-/** zip/pdf/pptx support multiple pages — with current scope only one page is used */
+/** zip/pdf/pptx support multiple pages, with current scope only one page is used */
   pages: number;
 /** client-side render strategy */
   strategy: "canvas-dataurl" | "jspdf" | "pptxgenjs" | "jszip";

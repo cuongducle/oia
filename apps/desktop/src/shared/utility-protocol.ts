@@ -1,13 +1,13 @@
 /**
- * D11 (reorg step 4a) — the wire protocol between the Electron MAIN process and
+ * D11 (reorg step 4a), the wire protocol between the Electron MAIN process and
  * the UTILITY process that owns the service layer (ServiceContext: runChat, task
- * store, projects/templates/sessions, files, NSFW gate, and — later this step —
+ * store, projects/templates/sessions, files, NSFW gate, and, later this step,
  * the loopback agent API server).
  *
  * Shape: request/response by id (main → utility → main) + streamed events
  * (utility → main). MAIN validates all renderer input through shared/ipc.ts
  * BEFORE it crosses this wire; the utility trusts only its parent (main).
- * Bytes cross as Uint8Array — parentPort.postMessage is structured-clone.
+ * Bytes cross as Uint8Array, parentPort.postMessage is structured-clone.
  */
 import type { TaskType } from "@oia/schema";
 
@@ -22,7 +22,7 @@ export type UtilityCommand =
   | { cmd: "rebuild"; env: UtilityEnv }
   | { cmd: "chatRun"; req: unknown }
   | { cmd: "chatCancel"; jobId: string }
-  /** Window closed / app quitting — kill every in-flight generation (TP-D5). */
+  /** Window closed / app quitting, kill every in-flight generation (TP-D5). */
   | { cmd: "cancelAll" }
   | { cmd: "providerStatus" }
   | { cmd: "projects.create"; input: { name?: string; scene?: unknown; pages?: unknown; width?: number; height?: number } }
@@ -30,7 +30,7 @@ export type UtilityCommand =
   | { cmd: "projects.list" }
   | { cmd: "projects.save"; id: string; patch: { name?: string; pages?: unknown } }
   | { cmd: "projects.remove"; id: string }
-  /** G1 (goldfish T1 review): the list query rides input — page/pageSize/featured/category
+  /** G1 (goldfish T1 review): the list query rides input, page/pageSize/featured/category
    * through templateListQuery at the handler. Optional: absent = legacy first-page shape. */
   | { cmd: "templates.list"; input?: { page?: number; pageSize?: number; featured?: boolean; category?: string } }
   | { cmd: "templates.create"; input: { name: string; authorName?: string; scene: unknown } }
@@ -38,12 +38,12 @@ export type UtilityCommand =
   | { cmd: "sessions.get"; id: number }
   | { cmd: "files.put"; name: string; bytes: Uint8Array }
   | { cmd: "files.read"; key: string }
-  /** reorg step 4c — the quick-tools task lane (renderer IPC, NOT the loopback API).
+  /** reorg step 4c, the quick-tools task lane (renderer IPC, NOT the loopback API).
    *  Same TaskStore + same G3 metered guard; source "web" mirrors the web tools UI. */
   | { cmd: "tasks.submit"; type: TaskType; params: Record<string, unknown> }
   | { cmd: "tasks.get"; taskId: string }
   | { cmd: "tasks.cancel"; taskId: string }
-  /** reorg step 4d — brand kits + API keys (For Agents panel). */
+  /** reorg step 4d, brand kits + API keys (For Agents panel). */
   | { cmd: "brandKits.list" }
   | { cmd: "brandKits.upsert"; input: unknown }
   | { cmd: "brandKits.remove"; id: string }
@@ -52,11 +52,11 @@ export type UtilityCommand =
   | { cmd: "keys.revoke"; id: string }
   /** The live loopback port (For Agents shows the base URL; port changes per fork). */
   | { cmd: "loopback.port" }
-  /** Reorg step 5 — import a self-hosted web app's .data dir into this dataDir. */
+  /** Reorg step 5, import a self-hosted web app's .data dir into this dataDir. */
   | { cmd: "data.importWeb"; sourceDir: string };
 
 export type UtilityRequest = UtilityCommand & {
-  /** Correlation id (envelope) — the response echoes it. Named `rid` to never
+  /** Correlation id (envelope), the response echoes it. Named `rid` to never
    *  collide with business ids (sessions.get carries its own numeric `id`). */
   rid: string;
   /** For chatRun: which pending request streamed events belong to (event routing). */
@@ -66,7 +66,7 @@ export type UtilityRequest = UtilityCommand & {
 export type UtilityEvent =
   | { type: "chatEvent"; requestId: string; ev: unknown }
   | { type: "log"; line: string }
-  /** D9 — job lifecycle surfaced to the UI (For Agents feed): `lane` separates
+  /** D9: job lifecycle surfaced to the UI (For Agents feed): `lane` separates
    *  loopback agent runs from quick-tools runs (both are metered generations). */
   | { type: "agentJob"; lane: "agent" | "tool"; taskId: string; event: "submitted" | "succeeded" | "failed"; taskType: string };
 

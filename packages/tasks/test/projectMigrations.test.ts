@@ -11,7 +11,7 @@ import {
 } from "../src/projectMigrations.js";
 import type { Project } from "@oia/schema";
 
-/** Reorg step 5 — the schemaVersion migration runner (chain semantics + tolerance). */
+/** Reorg step 5, the schemaVersion migration runner (chain semantics + tolerance). */
 
 function makeFiles(): { files: FileStore; root: string } {
   const root = mkdtempSync(path.join(tmpdir(), "oia-pmigr-"));
@@ -46,7 +46,7 @@ describe("migration chain semantics", () => {
     const { files } = makeFiles();
     const p = { ...legacyProject(), schemaVersion: PROJECT_MIGRATIONS.at(-1)!.to };
     const out = await migrateProjectToCurrent(p, files);
-    expect(out).toBe(p); // same reference — nothing ran
+    expect(out).toBe(p); // same reference, nothing ran
   });
 
   it("a project from the FUTURE (higher schemaVersion) is read-tolerant, never downgraded", async () => {
@@ -56,7 +56,7 @@ describe("migration chain semantics", () => {
     expect(out.schemaVersion).toBe(99);
   });
 
-  it("a step that throws stops the chain — the caller decides read vs strict tolerance", async () => {
+  it("a step that throws stops the chain, the caller decides read vs strict tolerance", async () => {
     const { files } = makeFiles();
     const steps: ProjectMigration[] = [
       {

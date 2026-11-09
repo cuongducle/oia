@@ -1,10 +1,10 @@
 /**
- * ME (markup-edit.md) — "circle to edit": annotation strokes captured over the
+ * ME (markup-edit.md), "circle to edit": annotation strokes captured over the
  * selected image layer, stored in the layer's NATURAL pixel space so pan/zoom/
  * object transforms never distort them, then composited flat onto the artwork
  * for the codex channel's flatten-mode markup edit (probe P3, 2026-11-08).
  *
- * Pure math lives here without importing fabric — matrices are plain arrays so
+ * Pure math lives here without importing fabric, matrices are plain arrays so
  * the mapping is unit-testable; only `markupComposite` touches the DOM canvas.
  */
 
@@ -72,7 +72,7 @@ export function markerWidthFor(naturalWidth: number, naturalHeight: number): num
 /**
  * Composite the annotation strokes onto the artwork at natural size and return
  * a PNG data URL. This is the flatten-mode payload: referenceImages[0] of the
- * edit request. Red is the probe-verified marker color — not configurable in v1.
+ * edit request. Red is the probe-verified marker color, not configurable in v1.
  */
 export function markupComposite(
   src: string,
@@ -83,7 +83,7 @@ export function markupComposite(
   return new Promise((resolve, reject) => {
     const img = new Image();
     // oia:// is cross-origin from the page: without anonymous CORS the canvas
-    // taints and toDataURL throws INSIDE onload — the promise would hang forever.
+    // taints and toDataURL throws INSIDE onload, the promise would hang forever.
     // Same rule fabric uses when loading scene objects (main/index.ts protocol).
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -104,7 +104,7 @@ export function markupComposite(
         for (const stroke of strokes) {
           if (stroke.length < 2) {
             if (stroke.length === 1) {
-              // a tap still leaves a dot — better a visible dot than a lost tap
+              // a tap still leaves a dot, better a visible dot than a lost tap
               const p = stroke[0];
               ctx.beginPath();
               ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);

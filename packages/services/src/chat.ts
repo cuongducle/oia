@@ -8,23 +8,23 @@ import { registerJob, releaseJob } from "./cancel.js";
 import { isMeteredBusy, meteredBusy } from "./meteredGuard.js";
 
 /**
- * TP-D2 (D1) — the chat orchestration, transport-free. The web SSE route and the future
+ * TP-D2 (D1), the chat orchestration, transport-free. The web SSE route and the future
  * Electron IPC handler are thin adapters over THIS: they parse input, provide a sink,
  * and encode frames; everything below (pre-flight, G3 guard, budget, assetization,
  * stage-aware retry, terminal cancelled, session persistence) lives here exactly once.
  *
- * Carried over verbatim from the Stage-0 web route (slices 2–5 + remediation):
+ * Carried over verbatim from the Stage-0 web route (slices 2-5 + remediation):
  * - pre-flight probes BEFORE any metered attempt, attributed to the failing provider
  * - G3: one metered job in flight per app instance (mock providers bypass)
  * - 480 s internal budget (pre-flight 10 + planner 120 + image 300 + margin 30)
  * - jobId pre-generated + registered for Stop; AbortSignal threading end to end
- * - A1: events are assetized before the sink — no base64 blobs on any wire
+ * - A1: events are assetized before the sink, no base64 blobs on any wire
  * - A5: the plan is stashed per session; retryOf reuses it (zero planner turns)
  * - session persistence is awaited before completion so replay can never race
  */
 
 /**
- * The ONE request schema — the web adapter and the desktop IPC both parse raw input
+ * The ONE request schema, the web adapter and the desktop IPC both parse raw input
  * through THIS object (no hand-copied mirrors; unknown keys are stripped by zod, so a
  * new field here is the only place to add). Exported for parity tests.
  */
@@ -37,21 +37,21 @@ export const chatRequestSchema = z.object({
   referenceImages: z.array(z.string()).optional(),
   pages: z.number().int().positive().max(9).optional(),
   outlineMode: z.boolean().optional(),
-  /** C1 outline gate phase 1 — stop after the outline (docs/designs/outline-gate.md). */
+  /** C1 outline gate phase 1, stop after the outline (docs/designs/outline-gate.md). */
   outlineGate: z.boolean().optional(),
-  /** C1 phase 2 — the user-approved page outline; count is a hard contract.
-   * planPageSchema imported (not hand-inlined): the wire shape IS the plan shape —
+  /** C1 phase 2, the user-approved page outline; count is a hard contract.
+   * planPageSchema imported (not hand-inlined): the wire shape IS the plan shape,
    * a hand mirror here was the exact anti-pattern the A1 teardown killed. Cap 9 =
    * the composer's ceiling; >9 must fail at the BOUNDARY with a clear 400, not
    * deep inside the planner as a confusing plan_parse_failed. */
   approvedOutline: z.array(planPageSchema).max(9).optional(),
   skill: z.string().optional(),
   mode: z.enum(["clean-plate"]).optional(),
-  /** DA-1 — run the planner turn with live web search (capability-gated in the
+  /** DA-1: run the planner turn with live web search (capability-gated in the
    * agent: providers without webSearch generate from the prompt alone). */
   research: z.boolean().optional(),
   style: stylePresetIdSchema.optional(),
-  /** DA-3/DA-4 — Auto refine: after each image, a critic read checks it and a
+  /** DA-3/DA-4: Auto refine: after each image, a critic read checks it and a
    * failed check re-generates. `true` = the default round count; an explicit
    * rounds object is capped at the schema boundary (never deep inside the loop). */
   selfImprove: z
@@ -69,13 +69,13 @@ export const chatRequestSchema = z.object({
   /** A3-lite structured edit intent (2026-11-02): referenceImages[0] is the edit
    *  target. The AGENT layer appends the deterministic clauses (target
    *  declaration, dimension lock, lettering ban when the page overlays text
-   *  layers) — the renderer never welds English prose into the prompt string. */
+   *  layers), the renderer never welds English prose into the prompt string. */
   editMode: z.object({ targetName: z.string().max(120).optional(), textLayerOverlays: z.boolean().optional(), markup: z.literal("flatten").optional() }).optional(),
   retryOf: z.string().optional(),
 });
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
-/** DA-4 — normalize the wire forms to the round count the designer consumes:
+/** DA-4: normalize the wire forms to the round count the designer consumes:
  * undefined/false → null (off); true → the default; {rounds} → itself. */
 export function selfImproveRounds(v: ChatRequest["selfImprove"]): number | null {
   if (v === undefined || v === false) return null;
@@ -88,7 +88,7 @@ export function selfImproveRounds(v: ChatRequest["selfImprove"]): number | null 
 export type ChatOutcome = "completed" | "failed" | "cancelled" | "refused-rate-limited" | "refused-unavailable" | "outline";
 
 /** In-process references: `/api/files/<key>` (web-era canonical URL) and legacy
- *  `oia://files/<key>` resolve to the LOCAL FILE PATH through the FileStore —
+ *  `oia://files/<key>` resolve to the LOCAL FILE PATH through the FileStore,
  *  providers accept absolute paths directly, so no base64 round-trip of
  *  multi-megabyte assets. Unresolvable keys fail with the KEY named, never a
  *  leaked absolute path. */
@@ -118,7 +118,7 @@ const BUDGET_MS = 480_000;
 /** DA budget decision (owner teardown fix, 2026-11-06): refine multiplies the
  * worst case per page (~75s/image + ~20s/critic read + ~15s/refine turn, from
  * the REAL_SMOKE 221s/2-round datapoint). The safety cap therefore SCALES with
- * pages × rounds instead of aborting mid-deck at a flat 480s — a budget abort
+ * pages × rounds instead of aborting mid-deck at a flat 480s, a budget abort
  * mid-deck keeps the best pages but still kills the paid ones still queued. */
 export const REFINE_BUDGET_PER_PAGE_ROUND_MS = 150_000;
 
@@ -131,7 +131,7 @@ export function chatBudgetMs(req: ChatRequest): number {
   return BUDGET_MS + pages * rounds * REFINE_BUDGET_PER_PAGE_ROUND_MS;
 }
 
-/** A1: the sink never receives base64 artwork — bytes land in the asset store once. */
+/** A1: the sink never receives base64 artwork, bytes land in the asset store once. */
 async function assetizeEvent(ev: ChatEvent, files: FileStore): Promise<void> {
   for (const meta of ev.renderData.msgMeta ?? []) {
     if (typeof meta.thumbnail === "string" && meta.thumbnail.startsWith("data:")) {
@@ -141,7 +141,7 @@ async function assetizeEvent(ev: ChatEvent, files: FileStore): Promise<void> {
   }
 }
 
-/** G3: max ONE metered job in flight per app instance — the set lives in meteredGuard.ts, shared with the task lane (loopback). */
+/** G3: max ONE metered job in flight per app instance, the set lives in meteredGuard.ts, shared with the task lane (loopback). */
 
 /** A5: last successful plan per chat session (stage-aware retry). */
 const gPlans = globalThis as unknown as { __oiaSessionPlans?: Map<number, PlannerPlan> };
@@ -152,7 +152,7 @@ function sessionPlans(): Map<number, PlannerPlan> {
 
 /** The return adds `sessionId` (A1 preview-apply, VA-9): the editor dock pins its
  * conversation so variants + the A5 plan stash attach to ONE session across edits.
- * Exported — the IPC bridge types its return from HERE, not from a hand mirror. */
+ * Exported, the IPC bridge types its return from HERE, not from a hand mirror. */
 export interface ChatRunResult {
   jobId: string;
   outcome: ChatOutcome;
@@ -222,12 +222,12 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
 
     // A5: a cached plan skips the planner stage entirely
     const reusePlan = typeof req.retryOf === "string" ? sessionPlans().get(session.id) : undefined;
-    // DA-3: normalize the wire forms ONCE (teardown #14 — the double call read
+    // DA-3: normalize the wire forms ONCE (teardown #14 · the double call read
     // as two sources of truth for the same decision)
     const refineRounds = selfImproveRounds(req.selfImprove);
 
     // Desktop wire reality: the renderer canonicalizes canvas assets as `/api/files/<key>`
-    // (legacy `oia://files/<key>`) — there is no HTTP server in-process, so a provider
+    // (legacy `oia://files/<key>`), there is no HTTP server in-process, so a provider
     // bridge would treat that relative URL as a file path and the job dies at Painting
     // (live repro 2026-11-02: A1 variant edit on a real codex pair, "unknown reason").
     // Materialize local refs into data URLs via the same FileStore assetizeEvent uses.
@@ -264,7 +264,7 @@ export async function runChat(req: ChatRequest, ctx: ServiceContext, opts: RunCh
       terminalCancelled();
       outcome = "cancelled";
     } else if (req.outlineGate && outlineEmitted) {
-      outcome = "outline"; // C1 phase 1 landed — the UI shows the outline card
+      outcome = "outline"; // C1 phase 1 landed, the UI shows the outline card
     }
   } catch (err) {
     if (ac.signal.aborted) {

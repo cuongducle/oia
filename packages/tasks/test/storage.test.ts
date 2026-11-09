@@ -28,7 +28,7 @@ describe("BR-UP storage", () => {
   it("read blocks path traversal", async () => {
     await expect(store.read("../../etc/passwd")).rejects.toThrow();
   });
-  /** Reorg step 7 security gate — the oia://files surface must never leave the root.
+  /** Reorg step 7 security gate, the oia://files surface must never leave the root.
    *  Setup mirrors a real escape: the secret lives in a SIBLING of the store root
    *  (inside-root secrets prove nothing). Keys may normalize, but bytes outside
    *  the root must never come back. */
@@ -53,7 +53,7 @@ describe("BR-UP storage", () => {
     }
   });
   it("read rejects a symlink planted inside the tree that points outside the root", async () => {
-    if (process.platform === "win32") return; // symlinkSync needs admin/dev-mode on Windows — not a property of the code
+    if (process.platform === "win32") return; // symlinkSync needs admin/dev-mode on Windows, not a property of the code
     const parent = mkdtempSync(path.join(tmpdir(), "pf-symlink-parent-"));
     const root = path.join(parent, "store");
     const outside = path.join(parent, "outside.png");
@@ -65,18 +65,18 @@ describe("BR-UP storage", () => {
     await expect(s.read("uploads/escape.png")).rejects.toThrow("invalid key");
   });
   /** Regression (found live, 2026-10-30): the first read raced ahead of the first
-   *  upload — root not created yet — and the CACHED rejected realpath poisoned
+   *  upload, root not created yet, and the CACHED rejected realpath poisoned
    *  every later read (oia:// 404 forever). A failed root resolve must be retried. */
   it("a read before the root exists does not poison later reads after the upload creates it", async () => {
     const parent = mkdtempSync(path.join(tmpdir(), "pf-poison-parent-"));
     const root = path.join(parent, "store");
     const s = new LocalFileStore(root);
-    await expect(s.read("uploads/20261030/x.png")).rejects.toThrow(); // root missing — allowed to fail
+    await expect(s.read("uploads/20261030/x.png")).rejects.toThrow(); // root missing, allowed to fail
     const bytes = new Uint8Array([4, 2]);
     const { key } = await s.put(bytes, "png"); // creates the root NOW
     expect(await s.read(key)).toEqual(bytes); // the poisoned-cache bug failed HERE
   });
-  it("hydrate keeps every lane's key URL-shaped — a wire key never contains a path separator (7f Windows fix)", async () => {
+  it("hydrate keeps every lane's key URL-shaped, a wire key never contains a path separator (7f Windows fix)", async () => {
     // seed one file per naming lane: sha256, legacy full-md5, legacy 8-char prefix
     const dir2 = mkdtempSync(path.join(tmpdir(), "pf-store-keyshape-"));
     const day = dayStamp();
@@ -93,7 +93,7 @@ describe("BR-UP storage", () => {
 
     const s = new LocalFileStore(dir2);
     await s.hydrate();
-    // OLD code: hydrate stored path.join("uploads", day, f) — on Windows every
+    // OLD code: hydrate stored path.join("uploads", day, f), on Windows every
     // dedupe hit then returned "uploads\\…" keys, breaking /api/files/<key> (7f)
     for (const bytes of [shaBytes, fullMd5Bytes, prefixBytes]) {
       const r = await s.put(bytes, "png");
@@ -110,12 +110,12 @@ describe("BR-UP storage", () => {
 });
 
 /**
- * F3 regression — dedupe keyed on an 8-char md5 prefix (32 bits) returned the
+ * F3 regression, dedupe keyed on an 8-char md5 prefix (32 bits) returned the
  * WRONG image silently: two different uploads sharing the prefix got one URL.
  * The failure needs a REAL prefix collision to be honest, so we birthday-search
  * one (~2^16 small hashes, sub-second) instead of mocking hashes.
  */
-describe("F3 dedupe — prefix collisions can never alias two different files", () => {
+describe("F3 dedupe, prefix collisions can never alias two different files", () => {
   /** Two distinct buffers whose md5 share the first 8 hex chars. */
   function findPrefixCollision(): [Uint8Array, Uint8Array] {
     const seen = new Map<string, Uint8Array>();
@@ -136,7 +136,7 @@ describe("F3 dedupe — prefix collisions can never alias two different files", 
     const s = new LocalFileStore(dir2);
     const ra = await s.put(a, "png");
     const rb = await s.put(b, "png");
-    expect(ra.url).not.toBe(rb.url); // OLD code: rb.url === ra.url — the wrong image, no error
+    expect(ra.url).not.toBe(rb.url); // OLD code: rb.url === ra.url, the wrong image, no error
     expect(await s.read(ra.key)).toEqual(a);
     expect(await s.read(rb.key)).toEqual(b);
   });
@@ -148,7 +148,7 @@ describe("F3 dedupe — prefix collisions can never alias two different files", 
     const reborn = new LocalFileStore(dir2); // fresh process, index empty
     await reborn.hydrate();
     const again = await reborn.put(new Uint8Array([3, 1, 4, 1, 5]), "png");
-    expect(again.url).toBe(r.url); // hydrate from the FULL-md5 name — deterministic
+    expect(again.url).toBe(r.url); // hydrate from the FULL-md5 name, deterministic
   });
 
   it("LEGACY 8-char-prefix file: same bytes → dedupes (verified by hash); prefix collision → new file", async () => {
@@ -179,9 +179,9 @@ function dayStamp(): string {
   return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 }
 
-/** F4 — identity is sha256 now; a full-32-hex md5 legacy file still dedupes (its own guarantee level), then promotes. */
+/** F4: identity is sha256 now; a full-32-hex md5 legacy file still dedupes (its own guarantee level), then promotes. */
 describe("F4 sha256 identity + legacy full-md5 lane", () => {
-  it("two different files NEVER alias via md5 any more — sha256 is the identity", async () => {
+  it("two different files NEVER alias via md5 any more, sha256 is the identity", async () => {
     const dir2 = mkdtempSync(path.join(tmpdir(), "pf-store-f4-"));
     const s = new LocalFileStore(dir2);
     const ra = await s.put(new Uint8Array([1, 2, 3]), "png");
@@ -209,7 +209,7 @@ describe("F4 sha256 identity + legacy full-md5 lane", () => {
   });
 });
 
-describe("pathOf (P2 — local-path refs without base64 round-trips)", () => {
+describe("pathOf (P2: local-path refs without base64 round-trips)", () => {
   it("resolves a stored key to an absolute path whose bytes equal read()", async () => {
     const s2 = new LocalFileStore(dir);
     const { key } = await s2.put(new Uint8Array([1, 2, 3, 4]), "png");
@@ -219,7 +219,7 @@ describe("pathOf (P2 — local-path refs without base64 round-trips)", () => {
     const bytes = await import("node:fs/promises").then((fs) => fs.readFile(p!));
     expect([...bytes]).toEqual([1, 2, 3, 4]);
   });
-  it("missing keys and traversal attempts resolve to null — callers name the KEY in errors, never a leaked path", async () => {
+  it("missing keys and traversal attempts resolve to null, callers name the KEY in errors, never a leaked path", async () => {
     const s2 = new LocalFileStore(dir);
     expect(await s2.pathOf("uploads/20990101/nope.png")).toBeNull();
     expect(await s2.pathOf("../../etc/passwd")).toBeNull();

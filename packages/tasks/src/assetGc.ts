@@ -1,13 +1,13 @@
 import type { LocalFileStore } from "./storage.js";
 
 /**
- * T11 — asset garbage collection. Deleting a project used to leave every image it
+ * T11: asset garbage collection. Deleting a project used to leave every image it
  * used on disk forever (~2 MB per Codex generation), so userData only grew.
  *
  * Reachability is decided by TEXT, not by schema: every root (projects, chat
  * sessions, templates, brand kits) is serialized and scanned for `uploads/<day>/<file>`
  * keys, whatever prefix carries them (`/api/files/`, `oia://files/`, a bare key).
- * A schema field this code has never heard of still keeps its asset alive — the
+ * A schema field this code has never heard of still keeps its asset alive, the
  * failure mode of a wrong guess is a leaked file, never a deleted one.
  *
  * The grace window protects what is not in any store YET: an upload sitting in
@@ -34,7 +34,7 @@ export interface AssetGcResult {
   scanned: number;
   referenced: number;
   removed: string[];
-  /** Unreferenced but younger than the grace window — kept this round. */
+  /** Unreferenced but younger than the grace window, kept this round. */
   young: number;
 }
 

@@ -1,17 +1,17 @@
 import type { PlanPage } from "@oia/schema";
 
 /**
- * C1 outline gate — the card's edit model, pure part
+ * C1 outline gate, the card's edit model, pure part
  * (docs/designs/outline-gate.md). DOM-free so the row ops and the preference
  * read/write are unit-testable; Home renders what these build.
  *
- * `OutlineRow` mirrors `PlanPage` — the card edits the SAME shape the planner
+ * `OutlineRow` mirrors `PlanPage`, the card edits the SAME shape the planner
  * returns and phase 2 sends back. No second type drifting beside the contract.
  */
 
-/** OC-6: the default is a DECISION (spec Q2) — a named constant, greppable. */
+/** OC-6: the default is a DECISION (spec Q2), a named constant, greppable. */
 export const OUTLINE_GATE_DEFAULT = true;
-/** UI preference (not a record) — localStorage, one versioned key, no store sprawl. */
+/** UI preference (not a record), localStorage, one versioned key, no store sprawl. */
 export const OUTLINE_STORAGE_KEY = "oia.outlineGate";
 
 export type OutlineRow = PlanPage;
@@ -42,18 +42,18 @@ export function movePage(rows: OutlineRow[], index: number, dir: -1 | 1): Outlin
   return next;
 }
 
-/** Every row must carry a real title + summary — planPageSchema would reject a
+/** Every row must carry a real title + summary, planPageSchema would reject a
  * blank row at phase 2, so the button refuses BEFORE the planner turn. */
 export function outlineRowsValid(rows: OutlineRow[]): boolean {
   return rows.every((r) => r.title.trim().length > 0 && r.summary.trim().length > 0);
 }
 
-/** OC-9: the cost label is one string from one source — "N pages ≈ N images". */
+/** OC-9: the cost label is one string from one source, "N pages ≈ N images". */
 export function outlineCostLabel(n: number): string {
   return `${n} page${n === 1 ? "" : "s"} ≈ ${n} image${n === 1 ? "" : "s"}`;
 }
 
-/** Corrupt/absent stored value falls back to the default — a broken key never
+/** Corrupt/absent stored value falls back to the default, a broken key never
  * silently disables the owner-decided gate. */
 export function readOutlineGatePref(storage: Pick<Storage, "getItem"> = globalThis.localStorage): boolean {
   const raw = storage.getItem(OUTLINE_STORAGE_KEY);

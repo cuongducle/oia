@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
  * Liquid Glass icon (macos-design-2026): macOS 26+ can render a layered
  * `.icon` package (Icon Composer format) instead of the flat icns. Ship BOTH:
  * CFBundleIconFile points at the layered package; icon.icns stays for older
- * macOS via the CFBundleIconFiles array. extendInfo can't do this — the builder
- * computes CFBundleIconFile after merging it — so the plist is patched here.
+ * macOS via the CFBundleIconFiles array. extendInfo can't do this, the builder
+ * computes CFBundleIconFile after merging it, so the plist is patched here.
  * plutil is macOS-only, which is fine: this hook is darwin-gated.
  */
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -5,7 +5,7 @@ import { oia } from "./lib/bridge.js";
 import { runtimeViewModel, installPhaseText, runtimeErrorText, type RuntimeAction } from "./runtime-panel.js";
 
 /**
- * TP-D3 — the Codex runtime panel (diagnostics + zero-terminal onboarding):
+ * TP-D3: the Codex runtime panel (diagnostics + zero-terminal onboarding):
  * status → guided checksummed install → in-app ChatGPT login → provider-mode switch.
  * Every long flow streams progress over onRuntimeEvent; nothing here touches Node.
  * UI copy is English per Q11; concurrency is ONE busyRef (state renders, the ref guards).
@@ -33,7 +33,7 @@ export default function RuntimePanel({ onModeChanged }: Props) {
     try {
       setSnap(await oia().runtimeStatus());
     } catch {
-      /* panel is diagnostics — never blocks the composer */
+      /* panel is diagnostics, never blocks the composer */
     }
   }, []);
 
@@ -43,14 +43,14 @@ export default function RuntimePanel({ onModeChanged }: Props) {
       if (ev.type === "install") setInstallText(installPhaseText(ev.phase, ev.pct));
       if (ev.type === "login-url") {
         setLoginUrl(ev.url);
-        setLoginNote("Opening the browser to sign in — come back here once you're done.");
+        setLoginNote("Opening the browser to sign in, come back here once you're done.");
       }
       if (ev.type === "login-phase" && ev.phase === "starting") setLoginNote("Starting sign-in…");
     });
     return off;
   }, [refresh]);
 
-  /** The single action runner — ref-guarded, so double clicks and IPC races dead-end here. */
+  /** The single action runner, ref-guarded, so double clicks and IPC races dead-end here. */
   const run = useCallback(async (label: RuntimeAction | "mode", fn: () => Promise<void>): Promise<void> => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -131,7 +131,7 @@ export default function RuntimePanel({ onModeChanged }: Props) {
               className={`segBtn ${snap.providersMode === m ? "on" : ""}`}
               disabled={busy !== null}
               onClick={() => chooseMode(m)}
-              title={m === "auto" ? "Automatic: use Codex once you installed/signed in via the app, otherwise trial mode" : m === "codex" ? "Always use Codex (billed against your ChatGPT plan)" : "Trial mode — no quota used"}
+              title={m === "auto" ? "Automatic: use Codex once you installed/signed in via the app, otherwise trial mode" : m === "codex" ? "Always use Codex (billed against your ChatGPT plan)" : "Trial mode, no quota used"}
             >
               {m === "auto" ? "Auto" : m === "codex" ? "Codex" : "Trial"}
             </button>
@@ -147,7 +147,7 @@ export default function RuntimePanel({ onModeChanged }: Props) {
         <div className="runtimeRow progress" role="status">
           <span>{installText ?? loginNote}</span>
           {cancellable && (
-            <button type="button" className="runtimeBtn subtle" onClick={cancel} title={busy === "login" ? "Cancel sign-in — note: your previous session may already be cleared; you would need to sign in again" : "Cancel install"}>
+            <button type="button" className="runtimeBtn subtle" onClick={cancel} title={busy === "login" ? "Cancel sign-in, note: your previous session may already be cleared; you would need to sign in again" : "Cancel install"}>
               Cancel
             </button>
           )}

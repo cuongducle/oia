@@ -6,11 +6,11 @@ import {
   OUTLINE_GATE_DEFAULT, OUTLINE_MAX_PAGES, OUTLINE_STORAGE_KEY, type OutlineRow,
 } from "../src/renderer/lib/outline-card.js";
 
-/** C1 outline gate — the pure card model (docs/designs/outline-gate.md). */
+/** C1 outline gate, the pure card model (docs/designs/outline-gate.md). */
 const row = (title: string): OutlineRow => ({ title, summary: `${title} content` });
 const two = [row("Cover"), row("Price")];
 
-describe("row ops — edit/remove/add/move with hard bounds", () => {
+describe("row ops, edit/remove/add/move with hard bounds", () => {
   it("editPage patches one row copy-on-write; bad index is a no-op", () => {
     const next = editPage(two, 1, { title: "Deal" });
     expect(next[1].title).toBe("Deal");
@@ -60,7 +60,7 @@ describe("the gate preference (OC-6)", () => {
     };
   };
 
-  it("default ON is the owner decision (spec Q2) — a named constant", () => {
+  it("default ON is the owner decision (spec Q2), a named constant", () => {
     expect(OUTLINE_GATE_DEFAULT).toBe(true);
     expect(readOutlineGatePref(mem())).toBe(true); // absent key → default
   });
@@ -80,10 +80,10 @@ describe("the gate preference (OC-6)", () => {
 });
 
 /** Regression (ui-v11): the chatRun reply and the outline event cross unordered
- *  IPC channels — the renderer can hold outcome "outline" before the event lands
+ *  IPC channels, the renderer can hold outcome "outline" before the event lands
  *  (shot flake "outline card never appeared"). The grace-poll must recover the
  *  late payload and still return null for a REAL miss. */
-describe("waitForOutline — IPC reorder grace window", () => {
+describe("waitForOutline, IPC reorder grace window", () => {
   const rows = [{ title: "Cover", summary: "s" }, { title: "Price", summary: "s" }] as PlanPage[];
 
   it("recovers the outline when the event lands after the reply (the reorder)", async () => {
@@ -94,14 +94,14 @@ describe("waitForOutline — IPC reorder grace window", () => {
     expect(got).toBe(rows);
   });
 
-  it("returns null after the window when no event ever arrives — a real miss stays an error", async () => {
+  it("returns null after the window when no event ever arrives, a real miss stays an error", async () => {
     const t0 = Date.now();
     const got = await waitForOutline(() => null, 150, 20);
     expect(got).toBeNull();
     expect(Date.now() - t0).toBeGreaterThanOrEqual(140); // it waited, not failed fast
   });
 
-  it("an empty array is not an outline ([]) — only a non-empty payload counts", async () => {
+  it("an empty array is not an outline ([]), only a non-empty payload counts", async () => {
     const got = await waitForOutline(() => [] as PlanPage[], 100, 20);
     expect(got).toBeNull();
   });

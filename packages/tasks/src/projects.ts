@@ -6,7 +6,7 @@ import { migrateProjectForSave, migrateRenderData } from "./migrate.js";
 import { migrateProjectToCurrent } from "./projectMigrations.js";
 import type { FileStore } from "./storage.js";
 
-/** Reorg step 5 — per-project files: one bad file costs ONE project, never all of them. */
+/** Reorg step 5, per-project files: one bad file costs ONE project, never all of them. */
 const SAFE_PROJECT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/; // no separators, no leading dot
 
 function newProjectId(): string {
@@ -14,13 +14,13 @@ function newProjectId(): string {
 }
 
 /**
- * BR-PERSIST — project store (JSON-file self-hosting; postgres for multi-user).
+ * BR-PERSIST, project store (JSON-file self-hosting; postgres for multi-user).
  * - create blank or from a scene ("Edit as project")
  * - saveScene keeps pages[] fully intact
  * - list sorted by updatedAt DESC (recent projects)
  * - TP.7 (Slice 3): every save is atomic (temp+rename, EPERM/EBUSY retry, single writer)
  *   and migrate-on-save extracts base64 into the asset store (no base64 in new saves)
- * - reorg step 5: `dataDir/projects/<id>.json` — one file per project. The legacy
+ * - reorg step 5: `dataDir/projects/<id>.json`, one file per project. The legacy
  *   monolith `projects.json` is absorbed on load and archived (bytes never deleted);
  *   a corrupt single file is quarantined alone, every other project survives.
  */
@@ -38,7 +38,7 @@ export class ProjectStore {
   }
 
   private fileFor(id: string): string {
-    if (!SAFE_PROJECT_ID.test(id)) throw new Error(`unsafe project id "${id}" — refusing to build a file path from it`);
+    if (!SAFE_PROJECT_ID.test(id)) throw new Error(`unsafe project id "${id}", refusing to build a file path from it`);
     return path.join(this.projectsDir, `${id}.json`);
   }
 
@@ -46,7 +46,7 @@ export class ProjectStore {
     await atomicWriteJson(this.fileFor(p.id), p);
   }
 
-  /** Monotonic updatedAt seed — a same-ms burst made the stable sort keep the OLDER
+  /** Monotonic updatedAt seed, a same-ms burst made the stable sort keep the OLDER
    *  project in front (saveScene could not overtake a create in the same millisecond).
    *  Same fix ChatSessionStore already carries for its recent() ordering. */
   private __lastUpdated = 0;
@@ -56,25 +56,25 @@ export class ProjectStore {
     return t;
   }
 
-  /** Single sort invariant (updatedAt DESC) — one home, every mutation path uses it. */
+  /** Single sort invariant (updatedAt DESC), one home, every mutation path uses it. */
   private resort(): void {
     this.items.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   }
 
   /** Quarantine MUST NEVER take the whole store down: a failed rename (EACCES,
-   *  lock, full disk) is logged and the file is skipped — the per-file blast radius
+   *  lock, full disk) is logged and the file is skipped, the per-file blast radius
    *  stays per-file even on the quarantine path itself (found in self-review). */
   private async safeQuarantine(file: string, why: string): Promise<boolean> {
     try {
       const to = `${file}.corrupt-${Date.now()}`;
       await renameWithRetry(file, to);
       console.error(
-        `[projects] ${path.basename(file)} was ${why} — moved to ${path.basename(to)}; ` +
+        `[projects] ${path.basename(file)} was ${why}, moved to ${path.basename(to)}; ` +
           `the other projects are untouched. Recover what you need from the quarantined file.`,
       );
       return true;
     } catch (err) {
-      console.error(`[projects] could not quarantine ${path.basename(file)} (${why}): ${String(err)} — skipped, NOT loaded; fix the file/folder and restart.`);
+      console.error(`[projects] could not quarantine ${path.basename(file)} (${why}): ${String(err)}, skipped, NOT loaded; fix the file/folder and restart.`);
       return false;
     }
   }
@@ -87,7 +87,7 @@ export class ProjectStore {
   }
 
   /** Absorb the pre-split monolith: every project becomes its own file; the source
-   *  file is archived (never deleted). A per-project file with the same id wins —
+   *  file is archived (never deleted). A per-project file with the same id wins,
    *  it was saved AFTER the split, so it is newer by construction. */
   private async absorbLegacyMonolith(): Promise<void> {
     const legacy = await loadJsonArrayDurable<Project>(this.legacyFile); // corrupt → self-quarantines inside
@@ -95,14 +95,14 @@ export class ProjectStore {
       for (const raw of legacy) {
         const parsed = projectSchema.safeParse(raw);
         if (!parsed.success) {
-          console.error(`[projects] legacy monolith entry failed schema validation (${parsed.error.issues[0]?.path.join(".")}) — kept in the archive file, skipped`);
+          console.error(`[projects] legacy monolith entry failed schema validation (${parsed.error.issues[0]?.path.join(".")}), kept in the archive file, skipped`);
           continue;
         }
         let p = parsed.data;
         if (!SAFE_PROJECT_ID.test(p.id)) {
           const old = p.id;
           p = { ...p, id: newProjectId() };
-          console.error(`[projects] legacy id "${old}" is unsafe as a file name — re-issued as ${p.id}`);
+          console.error(`[projects] legacy id "${old}" is unsafe as a file name, re-issued as ${p.id}`);
         }
         const target = this.fileFor(p.id);
         if (await pathExists(target)) continue; // per-project file wins (newer)
@@ -134,8 +134,8 @@ export class ProjectStore {
         raw = await readFile(file, "utf8");
       } catch (err) {
         // per-file blast radius: an unreadable file (EACCES/EMFILE) is logged and
-        // skipped — it must never brick the whole store's boot (found in self-review)
-        console.error(`[projects] could not read ${path.basename(file)}: ${String(err)} — skipped`);
+        // skipped, it must never brick the whole store's boot (found in self-review)
+        console.error(`[projects] could not read ${path.basename(file)}: ${String(err)}, skipped`);
         continue;
       }
       let parsed: Project;
@@ -156,9 +156,9 @@ export class ProjectStore {
         }
         try {
           await renameWithRetry(file, canonical);
-          console.error(`[projects] ${path.basename(file)} did not match its id — recovered as ${path.basename(canonical)}`);
+          console.error(`[projects] ${path.basename(file)} did not match its id, recovered as ${path.basename(canonical)}`);
         } catch (err) {
-          console.error(`[projects] could not recover ${path.basename(file)}: ${String(err)} — skipped`);
+          console.error(`[projects] could not recover ${path.basename(file)}: ${String(err)}, skipped`);
           continue;
         }
       }
@@ -210,7 +210,7 @@ export class ProjectStore {
     if (patch.name !== undefined) p.name = patch.name.slice(0, 120);
     if (patch.pages !== undefined) {
       const parsed = projectSchema.pick({ pages: true }).parse({ pages: patch.pages });
-      // migrate the INCOMING copy before it becomes shared state — concurrent saves stay
+      // migrate the INCOMING copy before it becomes shared state, concurrent saves stay
       // self-consistent (p.pages is replaced only after its own migration+validation passed)
       if (this.files) await migrateProjectForSave({ ...p, pages: parsed.pages } as Project, this.files);
       p.pages = parsed.pages;
@@ -232,15 +232,15 @@ export class ProjectStore {
     return true;
   }
 
-  /** Reorg step 5 — web `.data` import lane: an external project joins the store
+  /** Reorg step 5, web `.data` import lane: an external project joins the store
    *  as its own file. Existing ids are refused (desktop data wins), returns false.
    *  Runs the schemaVersion chain read-tolerantly (a step that fails keeps the
-   *  project unmigrated but imported — strict refusal stays at save time). */
+   *  project unmigrated but imported, strict refusal stays at save time). */
   async addImported(project: Project): Promise<boolean> {
     let p = project;
     if (!SAFE_PROJECT_ID.test(p.id)) {
       p = { ...p, id: newProjectId() };
-      console.error(`[projects] imported id "${project.id}" is unsafe as a file name — re-issued as ${p.id}`);
+      console.error(`[projects] imported id "${project.id}" is unsafe as a file name, re-issued as ${p.id}`);
     }
     if (this.get(p.id)) return false;
     if (this.files) {
@@ -258,7 +258,7 @@ export class ProjectStore {
     return true;
   }
 
-/** Recent projects — newest first, limited to n. */
+/** Recent projects, newest first, limited to n. */
   recent(limit = 20): Project[] { return this.items.slice(0, limit); }
 }
 
@@ -271,9 +271,9 @@ export interface StoredMessage {
 }
 
 /**
- * BR-PERSIST’ — chat session store: names derive from the first prompt;
+ * BR-PERSIST’, chat session store: names derive from the first prompt;
  * messages keep renderData for timeline replay.
- * TP.7 (Slice 3): atomic writes + migrate-on-save — chat-sessions.json stops
+ * TP.7 (Slice 3): atomic writes + migrate-on-save, chat-sessions.json stops
  * embedding data-URL canvases (asset references instead, same rule as scenes).
  */
 let __chatSeq = 0;
@@ -302,7 +302,7 @@ export class ChatSessionStore {
     __chatSeq += 1;
   const id = Date.now() * 1000 + (__chatSeq % 1000); // unique even for back-to-back calls in the same ms
     this.data.set(id, { id, name: name?.slice(0, 80) || "New chat", messages: [], createdAt: id, updatedAt: id });
-    this.__lastUpdated = Math.max(this.__lastUpdated + 1, id); // monotonic — same-ms bursts must not tie
+    this.__lastUpdated = Math.max(this.__lastUpdated + 1, id); // monotonic, same-ms bursts must not tie
     fireAndForgetWrite(this.save()); // sync API: failure is recorded by atomicWriteJson (B7), not silently dropped
     return { id, name: this.data.get(id)!.name };
   }
@@ -318,7 +318,7 @@ export class ChatSessionStore {
     s.messages.push({ role: "user", content: user, createdAt: Date.now() });
     s.messages.push({ role: "assistant", content: assistant.content, renderData: assistant.renderData, canvas, createdAt: Date.now() });
     // monotonic updatedAt: equal timestamps in a same-ms burst made recent() return the
-    // OLDEST session first (stable sort keeps insertion order) — found via the retry test
+    // OLDEST session first (stable sort keeps insertion order), found via the retry test
     s.updatedAt = Math.max(this.__lastUpdated + 1, Date.now());
     this.__lastUpdated = s.updatedAt;
     await this.save();
@@ -330,10 +330,10 @@ export class ChatSessionStore {
   }
   async remove(id: number) { this.data.delete(id); await this.save(); }
 
-  /** Reorg step 5 — web `.data` import lane: external sessions join with FRESH ids
+  /** Reorg step 5, web `.data` import lane: external sessions join with FRESH ids
    *  (numeric ids from another install would collide). Idempotent: a session whose
    *  fingerprint (name + timestamps + message count) already exists is skipped and
-   *  COUNTED — a skip is information, never a silent drop. */
+   *  COUNTED, a skip is information, never a silent drop. */
   async importSessions(
     entries: Array<[number, { id: number; name: string; messages: StoredMessage[]; createdAt: number; updatedAt: number }]>,
   ): Promise<{ imported: number; skipped: number }> {
@@ -345,7 +345,7 @@ export class ChatSessionStore {
     let skipped = 0;
     for (const [, entry] of entries) {
       if (known.has(fingerprint(entry))) {
-        skipped++; // already imported in an earlier run (or a same-ms twin — deterministic either way)
+        skipped++; // already imported in an earlier run (or a same-ms twin, deterministic either way)
         continue;
       }
       const id = nextId++;

@@ -4,7 +4,7 @@ import { SCENE_VERSION, type SceneCanvas } from "@oia/schema";
  * Multi-page behavior:
  * - Pages are numbered from 1; at least one page always remains
  * - "+" appends a blank page after the current one
- * - "Designing board N/T" — board switcher theo index
+ * - "Designing board N/T", board switcher theo index
  * - Each page stores its own scene JSON
  */
 export interface EditorPage {
@@ -37,7 +37,7 @@ export function addPage(pages: EditorPage[], width = 1360, height = 2040): { pag
   return { pages: next, activeIndex: next.length - 1 };
 }
 
-/** BR-PG2: remove a page — the last page can never be deleted. */
+/** BR-PG2: remove a page, the last page can never be deleted. */
 export function removePage(pages: EditorPage[], index: number): { pages: EditorPage[]; activeIndex: number } {
   if (pages.length <= 1) return { pages, activeIndex: 0 };
   const next = pages.filter((_, i) => i !== index);
@@ -45,7 +45,7 @@ export function removePage(pages: EditorPage[], index: number): { pages: EditorP
   return { pages: next, activeIndex };
 }
 
-/** BR-PG3: duplicate a page — copied scene, new id, inserted right after the source. */
+/** BR-PG3: duplicate a page, copied scene, new id, inserted right after the source. */
 export function duplicatePage(pages: EditorPage[], index: number): { pages: EditorPage[]; activeIndex: number } {
   const src = pages[index];
   const copy: EditorPage = { id: newPageId(), canvas: JSON.parse(JSON.stringify(src.canvas)) };
@@ -58,7 +58,7 @@ export function switchTo(pages: EditorPage[], index: number): number {
   return Math.max(0, Math.min(index, pages.length - 1));
 }
 
-/** BR-ED3'': "Apply size to all pages" — resize every page: clip Rect + per-page width/height. */
+/** BR-ED3'': "Apply size to all pages", resize every page: clip Rect + per-page width/height. */
 export function applySizeToAllPages(
   pages: EditorPage[],
   width: number,

@@ -4,7 +4,7 @@ import { brandKitSchema, taskTypeSchema } from "@oia/schema";
 
 /**
  * MAIN-ONLY schemas (zod + @oia/services are not preload-loadable under sandbox).
- * The chat REQUEST schema is the single source from @oia/services — the web adapter
+ * The chat REQUEST schema is the single source from @oia/services, the web adapter
  * and the desktop main parse raw input through the same object.
  */
 export { chatRequestSchema };
@@ -33,15 +33,15 @@ export const templatesCreateSchema = z.object({
 });
 export const sessionsGetSchema = z.object({ id: z.number().int().positive() });
 
-/** Reorg step 5 — web `.data` import: an EMPTY sourceDir means "ask the user
+/** Reorg step 5, web `.data` import: an EMPTY sourceDir means "ask the user
  *  for a folder" (main opens the native picker); null back = canceled. */
 export const dataImportWebSchema = z.object({ sourceDir: z.string().max(1024) });
 
-/** Editor asset uploads — same image whitelist as the web upload route, bytes via structured clone. */
+/** Editor asset uploads, same image whitelist as the web upload route, bytes via structured clone. */
 import { IMAGE_EXTS } from "@oia/schema"; // single home for the upload allowlist (uploads.ts)
 
 export { IMAGE_EXTS };
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB — generous for product photos, small enough to guard IPC
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB, generous for product photos, small enough to guard IPC
 export const filesUploadSchema = z
   .object({
     name: z.string().min(1).max(255),
@@ -66,7 +66,7 @@ export const exportSaveSchema = z.object({
 
 /** ---- reorg step 4c: quick tools task lane ----------------------------------
  * Mirrors the web /api/tasks routes: MAIN admits a known task TYPE only; the strict
- * per-type params validation lives in TaskStore.submit (submitTaskSchemas — the ONE
+ * per-type params validation lives in TaskStore.submit (submitTaskSchemas, the ONE
  * home, same contract the loopback and skills speak). */
 export const taskSubmitSchema = z.object({
   type: taskTypeSchema,
@@ -86,10 +86,10 @@ export const apiKeyCreateSchema = z.object({
 });
 export const apiKeyRevokeSchema = z.object({ id: z.string().min(1) });
 /** Copy-to-clipboard rides MAIN (the deny-all permission handler blocks the
- *  renderer's navigator.clipboard) — cap it so the channel stays boring. */
+ *  renderer's navigator.clipboard), cap it so the channel stays boring. */
 export const clipboardWriteSchema = z.object({ text: z.string().max(10_000) });
 
-/** TP-D3 — provider mode is an explicit user choice persisted across launches. */
+/** TP-D3: provider mode is an explicit user choice persisted across launches. */
 export const runtimeSetModeSchema = z.object({
   mode: z.enum(["auto", "mock", "codex"]),
 });

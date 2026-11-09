@@ -7,7 +7,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { ProviderError } from "../types.js";
 
 /**
- * TP.8 — generic CliRuntime: provider-agnostic process management for any external
+ * TP.8: generic CliRuntime: provider-agnostic process management for any external
  * CLI tool (Codex today; rembg is an existing candidate consumer).
  *
  * Disciplines (bridge-level invariants, Stage 0 design):
@@ -17,15 +17,15 @@ import { ProviderError } from "../types.js";
  * - per-job scratch directories (ASCII UUID names)
  * - transcript capture with prompt/image content redacted by default (hashes only, 24 h retention)
  *
- * Knows nothing about Codex — the Codex bridge sits on top (codex/bridge.ts).
+ * Knows nothing about Codex, the Codex bridge sits on top (codex/bridge.ts).
  * Output is collected whole and returned on close; no streaming line API
- * (a chunk boundary can split a JSON line — parse from the completed stdout).
+ * (a chunk boundary can split a JSON line, parse from the completed stdout).
  */
 
 export interface CliRunOptions {
   bin: string;
   args: string[];
-  /** Prompt text travels via stdin — never argv. */
+  /** Prompt text travels via stdin, never argv. */
   stdin?: string;
   cwd?: string;
   timeoutMs: number;
@@ -34,10 +34,10 @@ export interface CliRunOptions {
   jobId?: string;
   env?: NodeJS.ProcessEnv;
   /**
-   * TP-D3/S6 — incremental stderr OBSERVATION for interactive child flows (the codex
+   * TP-D3/S6: incremental stderr OBSERVATION for interactive child flows (the codex
    * login server prints its auth URL before the process exits). Observability only:
    * result parsing still happens on the completed stdout/stderr, never on these lines
-   * (a chunk boundary can split a line — the runtime buffers and splits on \n here).
+   * (a chunk boundary can split a line, the runtime buffers and splits on \n here).
    */
   onStderrLine?: (line: string) => void;
 }
@@ -76,7 +76,7 @@ export async function writeTranscript(jobId: string, entry: Record<string, unkno
     }
     await writeFile(path.join(root, `${jobId}.jsonl`), `${JSON.stringify({ t: Date.now(), ...entry })}\n`, { flag: "a" });
   } catch {
-    /* transcripts are diagnostics — never fail a run on them */
+    /* transcripts are diagnostics, never fail a run on them */
   }
 }
 
@@ -98,13 +98,13 @@ export function asciiUuid(): string {
 
 /**
  * Kill a process and all its descendants. Windows runs `taskkill /T /F` itself
- * (what tree-kill does) but with windowsHide — tree-kill's exec() flashes a console
+ * (what tree-kill does) but with windowsHide, tree-kill's exec() flashes a console
  * window from a GUI app on every cancel. POSIX keeps tree-kill (process groups).
  */
 export function killTree(pid: number): void {
   if (process.platform === "win32") {
     const tk = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
-    tk.on("error", () => {}); // the root already exited — nothing left to kill
+    tk.on("error", () => {}); // the root already exited, nothing left to kill
     return;
   }
   kill(pid, "SIGKILL");
@@ -113,7 +113,7 @@ export function killTree(pid: number): void {
 export class CliRuntime {
   /**
    * Spawn `bin args` with stdin prompt support, timeout and abort ⇒ process-tree kill.
-   * Never throws for process-level outcomes — inspect the result (timedOut/aborted/code)
+   * Never throws for process-level outcomes, inspect the result (timedOut/aborted/code)
    * and map to error classes at the bridge level. Throws ProviderError("provider_missing")
    * only when the binary cannot be spawned (ENOENT).
    */
@@ -176,7 +176,7 @@ export class CliRuntime {
       opts.signal?.addEventListener("abort", onAbort, { once: true });
 
       // NOTE: stdout grows unboundedly in memory; a runaway binary could balloon it.
-      // Codex exec output is small (events + prose) — accepted risk, documented here.
+      // Codex exec output is small (events + prose), accepted risk, documented here.
       child.stdout?.on("data", (d: string) => (stdout += d));
       child.stderr?.on("data", (d: string) => {
         stderr += d;
@@ -186,7 +186,7 @@ export class CliRuntime {
         stderrTailBuf = lines.pop() ?? ""; // keep the partial tail until its \n arrives
         for (const line of lines) if (line.trim()) opts.onStderrLine(line);
       });
-      child.stdin?.on("error", () => {}); // EPIPE when the child exits early — close below decides
+      child.stdin?.on("error", () => {}); // EPIPE when the child exits early, close below decides
       if (opts.stdin !== undefined) {
         child.stdin?.write(opts.stdin);
       }

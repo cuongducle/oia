@@ -5,7 +5,7 @@ import path from "node:path";
 import { CliRuntime, envValue, resolveCodexBin } from "../src/index.js";
 
 /**
- * T5 — the CliRuntime paths Windows users hit first. Platform-neutral cases run
+ * T5: the CliRuntime paths Windows users hit first. Platform-neutral cases run
  * everywhere; the .cmd shim case runs only on win32 (CI `desktop-smoke-windows`
  * runs this suite on a real Windows runner).
  */
@@ -35,7 +35,7 @@ const isAlive = (pid: number): boolean => {
   }
 };
 
-describe("envValue — Windows names it `Path`", () => {
+describe("envValue, Windows names it `Path`", () => {
   it("finds PATH case-insensitively on a plain object copy", () => {
     expect(envValue({ Path: "C:\\bin" }, "PATH")).toBe("C:\\bin");
     expect(envValue({ PATH: "/usr/bin" }, "PATH")).toBe("/usr/bin");
@@ -59,11 +59,11 @@ describe("envValue — Windows names it `Path`", () => {
   });
 });
 
-describe("CliRuntime — Unicode paths and UTF-8 streams", () => {
+describe("CliRuntime, Unicode paths and UTF-8 streams", () => {
   const rt = new CliRuntime();
 
   it("passes a diacritic + space path through argv and Vietnamese copy through stdin intact", async () => {
-    const copy = "banner trà sữa giảm 20% ngày 8/11 — Ưu đãi đặc biệt";
+    const copy = "banner trà sữa giảm 20% ngày 8/11 · Ưu đãi đặc biệt";
     const res = await rt.run({
       bin: process.execPath,
       args: [echoScript, unicodeDir],
@@ -85,7 +85,7 @@ describe("CliRuntime — Unicode paths and UTF-8 streams", () => {
   });
 });
 
-describe("CliRuntime — cancel kills the whole tree", () => {
+describe("CliRuntime, cancel kills the whole tree", () => {
   it("aborting the root also kills its grandchild (no orphan keeps burning quota)", async () => {
     const pidFile = path.join(root, "grandchild.pid");
     const parent = path.join(root, "parent.cjs");
@@ -113,7 +113,7 @@ describe("CliRuntime — cancel kills the whole tree", () => {
   });
 });
 
-describe.runIf(process.platform === "win32")("CliRuntime — npm .cmd shim (win32 only)", () => {
+describe.runIf(process.platform === "win32")("CliRuntime, npm .cmd shim (win32 only)", () => {
   it("spawns a .cmd shim like `codex.cmd` with flag args and a Vietnamese stdin prompt", async () => {
     const shim = path.join(unicodeDir, "codex.cmd");
     writeFileSync(shim, `@echo off\r\n"${process.execPath}" "%~dp0echo.cjs" %*\r\n`);

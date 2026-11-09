@@ -2,7 +2,7 @@
  * The mock pair's optional step pacing. shot-busy photographs the mid-run UI;
  * a mock run finishes in ~1s, faster than any poll-and-capture. A per-call
  * delay (registry-only env knob, T3 pattern) stretches the SAME real pipeline
- * to a photographable tempo — no event interception, no test hooks anywhere in
+ * to a photographable tempo, no event interception, no test hooks anywhere in
  * the shipping wire path. Default 0 = instant, exactly the old behavior.
  */
 export const MOCK_STEP_DELAY_ENV = "OIA_MOCK_STEP_DELAY_MS";

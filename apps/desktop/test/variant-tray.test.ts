@@ -3,7 +3,7 @@ import type { SceneCanvas } from "@oia/schema";
 import { appendVariant, bindPromptForJob, bindTargetForJob, canReplaceVariant, variantKey, variantsFromSession, type VariantCard } from "../src/renderer/lib/variant-tray.js";
 
 /**
- * A1 preview-apply — the pure tray rules. The dedupe here is what the shot gate
+ * A1 preview-apply, the pure tray rules. The dedupe here is what the shot gate
  * counts on (exactly 1 card per canvas); the resume pairing is what
  * "reopening a conversation still shows the variants" (spec goal 5) stands on.
  */
@@ -14,11 +14,11 @@ function card(key: string, prompt: string, canvas?: SceneCanvas): VariantCard {
   return { id: `id-${key}`, key, jobId: key.split(":")[0] ?? "", prompt, thumbnail: "", canvas: canvas ?? scene(1) };
 }
 
-describe("appendVariant — one canvas, one card (dedupe by key)", () => {
+describe("appendVariant, one canvas, one card (dedupe by key)", () => {
   it("re-emitting the same canvas (same jobId + metaId) does not grow the tray", () => {
     const a = appendVariant([], card("job1:c1", "pastel"));
     const again = appendVariant(a, card("job1:c1", "pastel"));
-    expect(again).toBe(a); // same reference — not even a re-render
+    expect(again).toBe(a); // same reference, not even a re-render
     expect(again).toHaveLength(1);
   });
 
@@ -38,7 +38,7 @@ describe("appendVariant — one canvas, one card (dedupe by key)", () => {
   });
 });
 
-describe("bindPromptForJob — a card never shows a newer job's prompt (B7)", () => {
+describe("bindPromptForJob, a card never shows a newer job's prompt (B7)", () => {
   it("the first event binds the prompt submitted for that job; late events keep it", () => {
     const map = new Map<string, string>();
     expect(bindPromptForJob(map, "jobA", "edit one")).toBe("edit one");
@@ -54,7 +54,7 @@ describe("bindPromptForJob — a card never shows a newer job's prompt (B7)", ()
   });
 });
 
-describe("variantsFromSession — resume shows the conversation's canvases", () => {
+describe("variantsFromSession, resume shows the conversation's canvases", () => {
   it("pairs each assistant canvas with the user prompt right before it", () => {
     const cards = variantsFromSession(7, [
       { role: "user", content: "edit one" },

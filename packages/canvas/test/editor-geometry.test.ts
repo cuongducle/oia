@@ -14,7 +14,7 @@ function canvas() {
   return {getWidth:()=>450,getHeight:()=>600,getZoom:()=>0.5,add:vi.fn(),setActiveObject:vi.fn(),requestRenderAll:vi.fn(),fire:vi.fn(),setDimensions:vi.fn()} as unknown as Canvas;
 }
 
-describe("F4 follow-up — v6 origin defaults restored on the shared fabric class", () => {
+describe("F4 follow-up, v6 origin defaults restored on the shared fabric class", () => {
   it("fabric 7 ships center/center; this codebase's whole corpus is authored left/top", () => {
     fabricV6OriginDefaults();
     expect(FabricObject.ownDefaults.originX).toBe("left");

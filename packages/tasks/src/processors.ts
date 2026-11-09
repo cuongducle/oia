@@ -14,9 +14,9 @@ import {
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.
  * BR-PROC: processors resolve public URLs (via FileStore); huge data URLs are never returned.
  *
- * Providers are INJECTED via ProcCtx — the env-configured, quota-metered instances
+ * Providers are INJECTED via ProcCtx, the env-configured, quota-metered instances
  * built by createServiceContext. Processors used to call getImageProvider() bare,
- * which read the utility process's process.env (never set with IMAGE_PROVIDER —
+ * which read the utility process's process.env (never set with IMAGE_PROVIDER,
  * main sends it via the init RPC): every agent task silently ran MockImageProvider
  * and skipped the QuotaMeter, even in codex mode.
  */
@@ -69,7 +69,7 @@ export function makeRemoveBackground(ctx: ProcCtx) {
       const chunks: Buffer[] = [];
       p.stdout.on("data", (c) => chunks.push(c));
       p.stderr.on("data", (c) => process.stderr.write(c));
-    p.on("error", (e) => reject(new Error("rembg is not installed — run: pip install rembg (BR-RBG)")));
+    p.on("error", (e) => reject(new Error("rembg is not installed, run: pip install rembg (BR-RBG)")));
       p.on("close", (code) => (code === 0 ? resolve(new Uint8Array(Buffer.concat(chunks))) : reject(new Error(`rembg exit ${code}`))));
       p.stdin.end(Buffer.from(src));
     });
@@ -78,7 +78,7 @@ export function makeRemoveBackground(ctx: ProcCtx) {
   };
 }
 
-/** PNG IHDR size probe — 4 lines, no dependency; non-PNG returns null and the
+/** PNG IHDR size probe, 4 lines, no dependency; non-PNG returns null and the
  * caller falls back to a square (boxes are fractions, so positions stay honest). */
 function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
   if (bytes.length < 24 || bytes[12] !== 0x49 || bytes[13] !== 0x48 || bytes[14] !== 0x44 || bytes[15] !== 0x52) return null; // "IHDR"
@@ -87,7 +87,7 @@ function pngSize(bytes: Uint8Array): { width: number; height: number } | null {
 
 /** B1 deconstruct (deconstruct-import.md): vision read (1 LLM turn) → inpaint
  * (1 image). The order is a G2 invariant: a malformed read fails BEFORE any
- * image is generated — a doomed job never burns the seller's quota. */
+ * image is generated, a doomed job never burns the seller's quota. */
 export function makeDeconstruct(ctx: ProcCtx) {
   return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const fileUrl = String(params.fileUrl ?? "");
@@ -129,7 +129,7 @@ export function makeDeconstruct(ctx: ProcCtx) {
   };
 }
 
-/** Generic image tasks (logo/xhs/illustrations/storyboard) — type-specific buildPrompt → provider → file. */
+/** Generic image tasks (logo/xhs/illustrations/storyboard), type-specific buildPrompt → provider → file. */
 export function makeGenericImageTask(ctx: ProcCtx, opts: { buildPrompt: (p: Record<string, unknown>) => string }) {
   return async (params: Record<string, unknown>, tctx: TaskContext) => {
     const prompt = opts.buildPrompt(params);
@@ -193,13 +193,13 @@ interface PptxT {
   write(o: { outputType: string }): Promise<unknown>;
 }
 
-/** data: | http(s) | same-origin asset ref (/api/files/<key>) — resolved through the store when present. */
+/** data: | http(s) | same-origin asset ref (/api/files/<key>), resolved through the store when present. */
 async function fetchBytes(url: string, store?: FileStore): Promise<Uint8Array> {
   if (url.startsWith("data:")) {
     const b64 = url.split(",")[1] ?? "";
     return new Uint8Array(Buffer.from(b64, "base64"));
   }
-  // TP.7: scenes reference assets as /api/files/<key> — same-origin browser URLs that
+  // TP.7: scenes reference assets as /api/files/<key>, same-origin browser URLs that
   // Node fetch cannot resolve; read the bytes from the file store instead
   if (store && url.startsWith("/api/files/")) {
     return store.read(url.replace(/^\/api\/files\//, ""));

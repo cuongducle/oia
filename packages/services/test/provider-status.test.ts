@@ -6,7 +6,7 @@ import { createServiceContext, providerStatusSnapshot, type ServiceContext } fro
 import { MockImageProvider, MockLlmProvider } from "@oia/providers";
 
 /**
- * Reorg step 5 — coverage-matrix cell re-homed from the web chat-cancel test
+ * Reorg step 5, coverage-matrix cell re-homed from the web chat-cancel test
  * ("provider status exposes capabilities + quota counters, mock labeled isMock").
  * The desktop runtime panel renders this snapshot over IPC; it needs a gate too.
  */
@@ -20,7 +20,7 @@ async function ctxWithMockProviders(): Promise<ServiceContext> {
 }
 
 describe("TP.6 providerStatusSnapshot (the runtime panel's data source)", () => {
-  it("exposes both providers with capabilities — and a mock provider is labeled isMock", async () => {
+  it("exposes both providers with capabilities, and a mock provider is labeled isMock", async () => {
     const ctx = await ctxWithMockProviders();
     const snap = await providerStatusSnapshot(ctx);
     expect(snap.image.name).toBeTruthy();

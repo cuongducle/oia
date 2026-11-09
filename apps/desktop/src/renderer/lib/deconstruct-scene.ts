@@ -1,9 +1,9 @@
 import type { DeconstructText, FabricObject, SceneCanvas } from "@oia/schema";
 
 /**
- * B1 — build the deconstructed scene (deconstruct-import.md DC-6): white clip at
+ * B1: build the deconstructed scene (deconstruct-import.md DC-6): white clip at
  * the ORIGINAL image size, the cleaned plate as the artwork layer, and one native
- * Textbox per read text line, placed by its normalized box. Pure — no fabric
+ * Textbox per read text line, placed by its normalized box. Pure, no fabric
  * import, no engine change; the editor loads this like any scene.
  */
 
@@ -21,11 +21,11 @@ export function deconstructScene(input: { imageUrl: string; w: number; h: number
   ];
   for (const t of texts) {
     // clamp placement INSIDE the artboard: models can return boxes whose x+w
-    // exceeds 1 (0.98 + 0.05) — data stays as-read, only placement is clamped
+    // exceeds 1 (0.98 + 0.05), data stays as-read, only placement is clamped
     const left = Math.min(Math.round(t.box.x * w), Math.max(0, w - 24));
     const top = Math.min(Math.round(t.box.y * h), Math.max(0, h - 24));
     const width = Math.max(24, Math.min(Math.round(t.box.w * w), w - left));
-    // Font size from the box height — a starting point the seller tunes for free
+    // Font size from the box height, a starting point the seller tunes for free
     // in the editor; clamped so a stray tiny/huge box never makes unusable text.
     const fontSize = clamp(Math.round(t.box.h * h * 0.75), 12, 200);
     objects.push({

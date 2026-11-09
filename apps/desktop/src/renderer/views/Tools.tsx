@@ -3,7 +3,7 @@ import { QUICK_TOOLS, type QuickTool } from "../lib/tools-registry.js";
 import { ToolRunner } from "../components/ToolRunner.js";
 
 /**
- * reorg step 4c — the Toolbox view (web /toolbox + /tools/[slug] in one): category
+ * reorg step 4c, the Toolbox view (web /toolbox + /tools/[slug] in one): category
  * grid on the left of the flow, selected tool with its runner below. Pure EN UI.
  */
 
@@ -39,7 +39,7 @@ export function Tools({ onOpenProject, initialTool = null }: { onOpenProject: (i
     <main className="studioPage toolsView" data-testid="tools-view">
       <header className="studioHero" style={{ marginBottom: 34 }}>
         <h1>Quick tools.</h1>
-        <p>Convert, resize, chart, and create — without leaving the app.</p>
+        <p>Convert, resize, chart, and create, without leaving the app.</p>
       </header>
       {categories.map((cat) => (
         <section key={cat} className="toolSection" aria-labelledby={`cat-${cat}`}>

@@ -2,10 +2,10 @@ import type { ErrorClass, GenerationMode, ProviderCapabilities } from "@oia/sche
 
 export type { ErrorClass, GenerationMode, ProviderCapabilities };
 
-/** BYOK adapter contracts — providers know nothing about scenes/agents. */
+/** BYOK adapter contracts, providers know nothing about scenes/agents. */
 
 /**
- * TP.4 — the error taxonomy vehicle. Adapters normalize their quirks into the
+ * TP.4: the error taxonomy vehicle. Adapters normalize their quirks into the
  * 14 stable classes; rate limits must never be rewritten as timeouts and vice versa.
  */
 export class ProviderError extends Error {
@@ -32,7 +32,7 @@ export class ProviderError extends Error {
   }
 }
 
-/** TP.6 — structured availability diagnostic (binary / version / login / last error). */
+/** TP.6: structured availability diagnostic (binary / version / login / last error). */
 export interface ProviderDiagnostic {
   ok: boolean;
   /** The error class when not ok (undefined when ok). */
@@ -47,13 +47,13 @@ export interface ImageGenInput {
   prompt: string;
   width: number;
   height: number;
-  /** TP.9 — reference images (product photos): http(s) URLs, data URLs, or absolute file paths. */
+  /** TP.9: reference images (product photos): http(s) URLs, data URLs, or absolute file paths. */
   referenceImages?: string[];
-  /** TP.3 — generation mode; providers default to "poster" when absent. */
+  /** TP.3: generation mode; providers default to "poster" when absent. */
   mode?: GenerationMode;
-  /** TP.5 — cooperative cancellation, threaded end to end. */
+  /** TP.5: cooperative cancellation, threaded end to end. */
   signal?: AbortSignal;
-  /** TP.4 — correlation id from the designer/route; providers forward it to CLI transcripts. */
+  /** TP.4: correlation id from the designer/route; providers forward it to CLI transcripts. */
   jobId?: string;
 }
 
@@ -61,18 +61,18 @@ export interface ImageGenResult {
   url: string; // http(s) or data:
   provider: string;
   model: string;
-  /** TP.8 — the actual output size, when knowable (PNG IHDR for the Codex channel). */
+  /** TP.8: the actual output size, when knowable (PNG IHDR for the Codex channel). */
   width?: number;
   height?: number;
   /** How the output file was located (Codex channel): "parsed" (session dir) > "hint" (stdout marker) > "fallback-scan". */
   provenance?: "parsed" | "hint" | "fallback-scan";
-  /** A6 — non-fatal diagnostics (e.g. "format_drift" when the locator fell back repeatedly). */
+  /** A6: non-fatal diagnostics (e.g. "format_drift" when the locator fell back repeatedly). */
   warnings?: string[];
 }
 
 export interface ImageProvider {
   readonly name: string;
-  /** TP.11 — capabilities are data: Home/editor read the declaration instead of hardcoding. */
+  /** TP.11: capabilities are data: Home/editor read the declaration instead of hardcoding. */
   readonly capabilities: ProviderCapabilities;
   generate(input: ImageGenInput): Promise<ImageGenResult>;
   isAvailable(): Promise<ProviderDiagnostic>;
@@ -86,9 +86,9 @@ export interface LlmMessage {
 export interface LlmChatOpts {
   json?: boolean;
   signal?: AbortSignal;
-  /** TP.4 — correlation id forwarded to CLI transcripts. */
+  /** TP.4: correlation id forwarded to CLI transcripts. */
   jobId?: string;
-  /** DA-1 — run the turn with live web search when the provider supports it
+  /** DA-1: run the turn with live web search when the provider supports it
    * (capability `webSearch`). Ignored by providers without the capability. */
   search?: boolean;
 }
@@ -100,7 +100,7 @@ export interface LlmProvider {
   isAvailable(): Promise<ProviderDiagnostic>;
   /** B1 deconstruct: one image + prompt → a JSON string the CALLER validates
    * (codex pins it via --output-schema with the passed schema object).
-   * Optional + capability-gated by `referenceImages` — consumers must check
+   * Optional + capability-gated by `referenceImages`, consumers must check
    * (TP.11), an unsupported provider must fail loudly, never silently skip. */
   readImage?(prompt: string, image: Uint8Array, schema: object, opts?: LlmChatOpts): Promise<string>;
 }

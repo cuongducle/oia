@@ -1,17 +1,17 @@
 import type { FabricObject, SceneCanvas, ObjectOrigin } from "@oia/schema";
 
 /**
- * TP.10 (Slice 5) — the non-destruction rule.
+ * TP.10 (Slice 5), the non-destruction rule.
  *
  * Provenance: scene objects carry `origin: "user" | "agent" | "generated"`.
- * Legacy objects WITHOUT `origin` default to "user" — the conservative choice that
+ * Legacy objects WITHOUT `origin` default to "user", the conservative choice that
  * keeps this rule protecting old projects. The survival rule is enforced on
  * `origin === "user"`: agent refinement NEVER deletes or replaces user-added layers
  * (uploads, product photos, hand-placed text).
  *
  * A1 preview-apply (docs/designs/variant-preview-apply.md): the editor dock no
  * longer merges a refined scene onto the page. Non-destruction now means the apply
- * step touches EXACTLY ONE property of ONE user-designated object — its `src`.
+ * step touches EXACTLY ONE property of ONE user-designated object, its `src`.
  */
 
 export const CLIP_NAME = "clip";
@@ -23,10 +23,10 @@ export function stampUser<T extends object>(obj: T): T {
 }
 
 export function objectOrigin(obj: FabricObject): ObjectOrigin {
-  return obj.origin ?? "user"; // legacy default — conservative
+  return obj.origin ?? "user"; // legacy default, conservative
 }
 
-/** VA-5 — the artwork image a generated variant would swap in: candidates are
+/** VA-5: the artwork image a generated variant would swap in: candidates are
  * non-clip, non-user objects carrying a `src`. Largest displayed area wins
  * (deterministic; right for collages too). Null when the variant has no image.
  * `aspect` (display width/height) lets the apply step warn when the swap would
@@ -48,7 +48,7 @@ export function variantArtworkObject(scene: SceneCanvas): { src: string; aspect:
   return { src: best.src as string, aspect: h > 0 ? w / h : 0 };
 }
 
-/** VA-4 — copy-on-write `src` swap for ONE object (by index): geometry, every other
+/** VA-4: copy-on-write `src` swap for ONE object (by index): geometry, every other
  * object, and the scene envelope stay untouched. Throws on a bad index so a stale
  * index can never corrupt the page silently. */
 export function replaceObjectSrc(scene: SceneCanvas, index: number, src: string): SceneCanvas {

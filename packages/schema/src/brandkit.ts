@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * BR-BK — Brand kit ("Set up once — logos, colors, fonts, and guidance"):
+ * BR-BK, Brand kit ("Set up once, logos, colors, fonts, and guidance"):
  * - guidance ≤ 2000 characters
  * - logos ≤ 3 (URL sau upload)
  * - colors ≤ 10, formatted as #RRGGBB
@@ -11,10 +11,10 @@ import { z } from "zod";
 export const HEX_COLOR = /^#([0-9a-fA-F]{6})$/;
 
 /** Logo references: either an external http(s) URL or the CANONICAL stored-asset form
- *  `/api/files/<key>` — the shape LocalFileStore.put returns (oia:// is renderer-only).
+ *  `/api/files/<key>`, the shape LocalFileStore.put returns (oia:// is renderer-only).
  *  The absolute-URL-only rule silently rejected every logo uploaded through the app's
- *  own uploader (zod .url() refuses relative refs) — found while porting the Brand Kit
- *  panel in reorg step 4d. Path segments must be alnum-first (no leading dot — so no
+ *  own uploader (zod .url() refuses relative refs), found while porting the Brand Kit
+ *  panel in reorg step 4d. Path segments must be alnum-first (no leading dot, so no
  *  `..` traversal can be spelled); the store's safeKey() remains the second wall. */
 export const LOGO_REF = /^(?:https?:\/\/[^\s]+|\/api\/files\/(?:[A-Za-z0-9][A-Za-z0-9._-]*\/)*[A-Za-z0-9][A-Za-z0-9._-]*)$/;
 

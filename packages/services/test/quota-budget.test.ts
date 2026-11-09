@@ -7,9 +7,9 @@ import { ProviderError } from "@oia/providers";
 import { QuotaMeter, meterImage, meterLlm, createServiceContext } from "../src/index.js";
 
 /**
- * Hard rule 6 (quota is money) — the meter ENFORCES optional daily budgets now;
+ * Hard rule 6 (quota is money), the meter ENFORCES optional daily budgets now;
  * it used to only count. The invariant under test: counters equal turns that
- * actually REACHED a provider. A refused turn throws quota_exceeded for free —
+ * actually REACHED a provider. A refused turn throws quota_exceeded for free,
  * the provider is never called, so no money can burn past the budget.
  */
 
@@ -55,7 +55,7 @@ describe("QuotaMeter daily budgets (enforcement)", () => {
     await expect(image.generate({ prompt: "three" })).rejects.toMatchObject({
       errorClass: "quota_exceeded",
     });
-    expect(calls).toHaveLength(2); // the refusal reached no provider — no money burned
+    expect(calls).toHaveLength(2); // the refusal reached no provider, no money burned
     const snap = meter.snapshot();
     expect(snap.image).toBe(2); // counters == turns that actually ran
     expect(snap.limitHits).toBe(1);
@@ -92,7 +92,7 @@ describe("QuotaMeter daily budgets (enforcement)", () => {
     expect(chats).toBe(1);
   });
 
-  it("budgets reset at the UTC day roll (injected clock — no wall-clock waits)", async () => {
+  it("budgets reset at the UTC day roll (injected clock, no wall-clock waits)", async () => {
     let now = new Date("2026-10-30T12:00:00Z");
     const meter = new QuotaMeter({ imageDailyLimit: 1, clock: { now: () => now } });
     const image = meterImage(probeImage([]), meter);
@@ -127,7 +127,7 @@ describe("task lane under a budget (integration)", () => {
 });
 
 describe("budget knob validation (fail fast at boot)", () => {
-  it("a typo must not silently mean unlimited — createServiceContext refuses to boot", async () => {
+  it("a typo must not silently mean unlimited, createServiceContext refuses to boot", async () => {
     const dataDir = mkdtempSync(path.join(tmpdir(), "oia-quota-boot-"));
     await expect(
       createServiceContext({ dataDir, env: { IMAGE_PROVIDER: "mock", LLM_PROVIDER: "mock", OIA_DAILY_IMAGE_LIMIT: "twelve" } }),

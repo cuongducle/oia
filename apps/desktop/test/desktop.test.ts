@@ -9,7 +9,7 @@ import { IPC } from "../src/shared/channels.js";
 import { filesUploadSchema, exportSaveSchema, projectsSaveSchema, taskSubmitSchema, brandKitUpsertSchema, apiKeyCreateSchema, clipboardWriteSchema } from "../src/shared/ipc.js";
 
 /**
- * D2 remediation tests — the contract guards that made the first shell pass look green
+ * D2 remediation tests, the contract guards that made the first shell pass look green
  * while the canvas was actually broken. Extended for the D2 renderer port (editor /
  * workspace / templates / upload / export IPC) and the asset URL mapping both ways.
  */
@@ -34,7 +34,7 @@ describe("chatRequestSchema (the ONE schema shared by web adapter + desktop IPC)
   });
 });
 
-describe("mapAssetUrls (oia:// mapping — the fix for the invisible-artwork bug)", () => {
+describe("mapAssetUrls (oia:// mapping, the fix for the invisible-artwork bug)", () => {
   it("rewrites /api/files scene srcs to oia://files and leaves everything else untouched", () => {
     const scene = {
       version: "7.3.1",
@@ -124,7 +124,7 @@ describe("task lane + brand kit + api key IPC schemas", () => {
     expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 0 }).success).toBe(false);
     expect(apiKeyCreateSchema.safeParse({ name: "k", ttlDays: 1.5 }).success).toBe(false);
   });
-  it("clipboardWriteSchema caps the payload (main-side copy lane — see cross-platform doc)", () => {
+  it("clipboardWriteSchema caps the payload (main-side copy lane, see cross-platform doc)", () => {
     expect(clipboardWriteSchema.safeParse({ text: "http://127.0.0.1:52359/api" }).success).toBe(true);
     expect(clipboardWriteSchema.safeParse({ text: "" }).success).toBe(true);
     expect(clipboardWriteSchema.safeParse({ text: "x".repeat(10_001) }).success).toBe(false);
@@ -203,7 +203,7 @@ describe("runtimeViewModel (the panel action matrix, Q11 English copy)", () => {
 
 // ---- D3 hardening: consent-gated auto mode + English (Q11) error mapping ----
 
-describe("normalizeProvidersSettings (D13 — fresh installs default to auto + GRANTED consent)", () => {
+describe("normalizeProvidersSettings (D13: fresh installs default to auto + GRANTED consent)", () => {
   it("missing/corrupt file → auto + consent granted (zero-config real mode, owner's call)", () => {
     expect(normalizeProvidersSettings(null)).toEqual({ providers: "auto", codexConsent: true });
     expect(normalizeProvidersSettings("garbage")).toEqual({ providers: "auto", codexConsent: true });
@@ -228,7 +228,7 @@ describe("resolveEffectiveMode (quota consent: a brew-installed codex never auto
   it("auto + ready + consent → codex (the seller who acted through the panel)", () => {
     expect(resolveEffectiveMode({ ...base, consent: true })).toBe("codex");
   });
-  it("consent alone is not enough — the runtime must be ready", () => {
+  it("consent alone is not enough, the runtime must be ready", () => {
     expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: "not_logged_in" })).toBe("mock");
     expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: "missing" })).toBe("mock");
     expect(resolveEffectiveMode({ ...base, consent: true, runtimeState: null })).toBe("mock");
@@ -243,7 +243,7 @@ describe("resolveEffectiveMode (quota consent: a brew-installed codex never auto
     expect(resolveEffectiveMode({ choice: "auto", consent: false, runtimeState: "ready", env: { OIA_DESKTOP_REAL_SMOKE: "1" } })).toBe("codex"); // explicit owner run
     expect(resolveEffectiveMode({ choice: "codex", consent: false, runtimeState: null, env: {} })).toBe("codex");
   });
-  it("default-deny: a FUTURE OIA_DESKTOP_* test flag is mock too — the quota trap cannot recur", () => {
+  it("default-deny: a FUTURE OIA_DESKTOP_* test flag is mock too, the quota trap cannot recur", () => {
     expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_HYPOTHETICAL_FUTURE_MODE: "1" } })).toBe("mock");
     expect(resolveEffectiveMode({ ...base, consent: true, env: { OIA_DESKTOP_SI_SMOKE: "1" } })).toBe("mock"); // was unpinned before the prefix rule
   });
@@ -265,12 +265,12 @@ describe("runtimeErrorText (Q11 English; errorClass crosses IPC, not raw dumps)"
 });
 
 /**
- * D11 (reorg step 4a) — the main↔utility wire protocol. Error shape must survive
+ * D11 (reorg step 4a), the main↔utility wire protocol. Error shape must survive
  * the roundtrip: name/errorClass are the renderer's stable mapping contracts.
  */
 import { serializeUtilityError, deserializeUtilityError } from "../src/shared/utility-protocol.js";
 
-describe("utility protocol — error shape survives the wire", () => {
+describe("utility protocol, error shape survives the wire", () => {
   it("keeps name + errorClass so renderer maps stay stable", () => {
     const err = new Error("codex timeout sau 360s") as Error & { errorClass?: string };
     err.name = "ProviderError";
@@ -290,7 +290,7 @@ describe("utility protocol — error shape survives the wire", () => {
   });
 });
 
-/** T3 — the pure service-env builder (main never mutates process.env anymore). */
+/** T3: the pure service-env builder (main never mutates process.env anymore). */
 describe("buildServiceEnv (T3 pure builder)", () => {
   it("mode is written, a detected codex bin is threaded, and the BASE env is never mutated", async () => {
     const { buildServiceEnv } = await import("../src/shared/providers-mode.js");
@@ -300,7 +300,7 @@ describe("buildServiceEnv (T3 pure builder)", () => {
     expect(env.LLM_PROVIDER).toBe("codex");
     expect(env.CODEX_BIN).toBe("/managed/current/bin/codex");
     expect(env.MY_MARKER).toBe("x");
-    expect(base.CODEX_BIN).toBeUndefined(); // frozen base untouched — the old code mutated process.env
+    expect(base.CODEX_BIN).toBeUndefined(); // frozen base untouched, the old code mutated process.env
   });
 
   it("mock mode carries NO CODEX_BIN decision (the base value passes through untouched)", async () => {
@@ -311,19 +311,19 @@ describe("buildServiceEnv (T3 pure builder)", () => {
   });
 });
 
-describe("web .data import — the error lane survives the wire (self-review follow-up)", () => {
+describe("web .data import, the error lane survives the wire (self-review follow-up)", () => {
   it("a DataImportError keeps its name + message across the utility wire and surfaces in the UI", async () => {
     const { serializeUtilityError, deserializeUtilityError } = await import("../src/shared/utility-protocol.js");
     const { DataImportError } = await import("@oia/tasks");
     const { bridgeErrorMessage } = await import("../src/renderer/lib/bridge.js");
 
-    const original = new DataImportError("the source projects.json is corrupt (unparseable JSON) — nothing was imported.");
+    const original = new DataImportError("the source projects.json is corrupt (unparseable JSON), nothing was imported.");
     const shape = serializeUtilityError(original);
-    expect(shape.name).toBe("DataImportError"); // renderer maps on the NAME — it must survive
+    expect(shape.name).toBe("DataImportError"); // renderer maps on the NAME, it must survive
     expect(shape.message).toContain("nothing was imported");
 
     const revived = deserializeUtilityError(shape);
-    const shown = bridgeErrorMessage(revived, "Import failed — check the folder and try again.");
+    const shown = bridgeErrorMessage(revived, "Import failed, check the folder and try again.");
     expect(shown).toContain("nothing was imported"); // the honest message reaches the notice, not just the fallback
   });
 });

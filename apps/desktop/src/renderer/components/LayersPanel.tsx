@@ -4,8 +4,8 @@ import { layerRows, moveLayer, setLocked, type LayerObject, type LayerRow } from
 import { useCanvasRev } from "../lib/canvas-rev.js";
 
 /**
- * UI v1.1 R4 — the Fabric stack as a list, top first. Click selects (locked
- * layers too — the panel is how you reach them), eye hides, padlock locks, drag
+ * UI v1.1 R4: the Fabric stack as a list, top first. Click selects (locked
+ * layers too, the panel is how you reach them), eye hides, padlock locks, drag
  * reorders. Every change fires object:modified so undo and autosave see it.
  */
 
@@ -50,7 +50,7 @@ export function LayersPanel({ canvas }: { canvas: fabricNS.Canvas | null }) {
     touch(obj);
   };
   const toggleLock = (obj: fabricNS.FabricObject, locked: boolean) => {
-    // SAFETY: see LayerObject above — setLocked only writes locked/selectable/evented.
+    // SAFETY: see LayerObject above, setLocked only writes locked/selectable/evented.
     setLocked(obj as unknown as LayerObject, !locked);
     touch(obj);
   };
@@ -65,7 +65,7 @@ export function LayersPanel({ canvas }: { canvas: fabricNS.Canvas | null }) {
 
   return (
     <div className="layersPanel" data-testid="layers-panel">
-      {rows.length === 0 && <p className="hintP">No layers yet — add text, shapes or images.</p>}
+      {rows.length === 0 && <p className="hintP">No layers yet, add text, shapes or images.</p>}
       <ul className="layerList" aria-label="Layers, top first">
         {rows.map((r) => {
           const obj = objects[r.index];
@@ -84,7 +84,7 @@ export function LayersPanel({ canvas }: { canvas: fabricNS.Canvas | null }) {
               <button className="layerMain" aria-pressed={selected} onClick={() => select(obj)} title={r.visible ? "Select layer" : "Show the layer to select it"}>
                 <span className="layerIcon"><Svg d={KIND_ICON[r.kind]} /></span>
                 <span className="layerName">{r.label}</span>
-                {r.user && <span className="layerYou" title="Added by you — AI edits never remove it">You</span>}
+                {r.user && <span className="layerYou" title="Added by you, AI edits never remove it">You</span>}
               </button>
               <button className="layerToggle" aria-label={`${r.visible ? "Hide" : "Show"} ${r.label}`} aria-pressed={!r.visible} onClick={() => toggleVisible(obj)}><Svg d={r.visible ? EYE : EYE_OFF} /></button>
               <button className={`layerToggle ${r.locked ? "on" : ""}`} aria-label={`${r.locked ? "Unlock" : "Lock"} ${r.label}`} aria-pressed={r.locked} onClick={() => toggleLock(obj, r.locked)}><Svg d={r.locked ? LOCK : UNLOCK} /></button>

@@ -8,7 +8,7 @@ import { imageGenAccessForPlan, planTypeFromAuthJson, readCodexAccount } from ".
 import { CodexBridge, imageToolUnavailable } from "../src/codex/bridge.js";
 import { CodexImageProvider } from "../src/image/codex.js";
 
-/** D17 — a Free ChatGPT login has no Codex image tool; the app must say so before any spend. */
+/** D17: a Free ChatGPT login has no Codex image tool; the app must say so before any spend. */
 
 const FREE_PLAN_STDOUT = readFileSync(new URL("./fixtures/stdout-imagegen-unavailable.jsonl", import.meta.url), "utf8");
 

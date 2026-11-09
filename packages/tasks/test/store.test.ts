@@ -97,7 +97,7 @@ describe("BR-12 CommonResult envelope", () => {
   });
 });
 
-/** 4f (reorg) — a task left "processing" by a dead process must not lie forever. */
+/** 4f (reorg), a task left "processing" by a dead process must not lie forever. */
 describe("TaskStore.load marks stale processing jobs as interrupted", () => {
   it("records mid-flight at crash become failed + taskNote on the next boot", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "oia-interrupt-"));
@@ -124,7 +124,7 @@ describe("TaskStore.load marks stale processing jobs as interrupted", () => {
   });
 });
 
-/** Step 4b fix: onSettled — exact completion accounting for concurrency guards. */
+/** Step 4b fix: onSettled, exact completion accounting for concurrency guards. */
 describe("SubmitOptions.onSettled fires exactly once with the terminal status", () => {
   it("background (noWait=false): fires with succeeded after completion", async () => {
     const store = new TaskStore();

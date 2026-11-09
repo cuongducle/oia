@@ -4,7 +4,7 @@ data:{"msgId":1793165492119,"content":"<Collapse>[[task::node::93274982eb6f45a6b
 
 data:[Heartbeat]
 
-data:{"msgId":1793165492119,"content":"Creating coffee milk tea poster 20% off pastel — please hold on.","status":0,"error":"","renderData":{"msgMeta":[],"fileMeta":[],"taskMeta":[{"id":"93274982eb6f45a6b11379731c499f1f","content":"Designer Agent","type":"node","status":"0"}],"exportMeta":null},"brandId":0}
+data:{"msgId":1793165492119,"content":"Creating coffee milk tea poster 20% off pastel, please hold on.","status":0,"error":"","renderData":{"msgMeta":[],"fileMeta":[],"taskMeta":[{"id":"93274982eb6f45a6b11379731c499f1f","content":"Designer Agent","type":"node","status":"0"}],"exportMeta":null},"brandId":0}
 
 data:[Heartbeat]
 

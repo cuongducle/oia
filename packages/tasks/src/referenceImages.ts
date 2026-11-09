@@ -3,7 +3,7 @@ import type { FileStore } from "./storage.js";
 /**
  * Reference images handed to an image provider. Scenes and uploads name stored assets
  * by ADDRESS (`/api/files/<key>`, or the renderer's `oia://files/<key>`), which no
- * provider can open — the codex CLI read `/api/files/…` as a disk path and failed.
+ * provider can open, the codex CLI read `/api/files/…` as a disk path and failed.
  * Store addresses travel as data: URLs; every other form (data:, http(s), file:,
  * a path) passes through for the provider to materialize.
  */

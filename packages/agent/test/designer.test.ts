@@ -184,7 +184,7 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it blue", referenceImages: ["https://ref/1.png"] }, { llm: llmStub, image: imgSpy })) void _;
     expect(gotRefs).toEqual(["https://ref/1.png"]);
   });
-  it("D16 poster mode: the copy is baked by the model — planner blocks are NEVER placed as overlays (no doubled text)", async () => {
+  it("D16 poster mode: the copy is baked by the model, planner blocks are NEVER placed as overlays (no doubled text)", async () => {
     const planWithBlocks = JSON.stringify({
       title: "Milk tea flash sale",
       imagePrompt: "milk tea banner with bold condensed 'FLASH SALE' and '20% OFF TODAY' rendered large",
@@ -201,7 +201,7 @@ describe("BR-CTRL composer controls", () => {
     const canvas = evs.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas")).at(-1) as { canvas: { objects: { type: string; name?: string }[] } } | undefined;
     expect(canvas?.canvas.objects.filter((o) => o.type === "Textbox")).toEqual([]); // half-complying planner ≠ doubled text
     expect(canvas?.canvas.objects.some((o) => o.name === "artwork")).toBe(true);
-    // B7: dropped blocks are ANNOUNCED, never silent — the seller learns copy may be missing
+    // B7: dropped blocks are ANNOUNCED, never silent, the seller learns copy may be missing
     const warn = evs.find((e) => e.content.includes("were not drawn"));
     expect(warn?.content).toContain("2 planned text blocks");
     expect(warn?.content).toContain("ask for a repaint");
@@ -225,7 +225,7 @@ describe("BR-CTRL composer controls", () => {
     expect(boxes.length).toBe(1);
     expect(boxes[0]).toMatchObject({ name: "block:discount" });
   });
-  it("narrative counts refs with correct pluralization — '1 reference image' / '2 reference images' (live grammar fix)", async () => {
+  it("narrative counts refs with correct pluralization, '1 reference image' / '2 reference images' (live grammar fix)", async () => {
     const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate() { return { url: "https://x/y.png", provider: "s", model: "m" }; } };
     const llmStub: LlmProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { return planSpy; } };
     const narrativeWith = async (n: number): Promise<string> => {
@@ -240,7 +240,7 @@ describe("BR-CTRL composer controls", () => {
     expect(await narrativeWith(1)).not.toContain("1 reference images");
     expect(await narrativeWith(2)).toContain("adjusted for 2 reference images");
   });
-  it("A3-lite: editMode clauses are welded in the AGENT layer — deterministic, planner-proof", async () => {
+  it("A3-lite: editMode clauses are welded in the AGENT layer, deterministic, planner-proof", async () => {
     let gotPrompt = "";
     const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { gotPrompt = i.prompt; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
     for await (const _ of runDesignerAgent({ prompt: "make it warmer", referenceImages: ["https://ref/1.png"], editMode: { targetName: "artwork", textLayerOverlays: true } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
@@ -265,7 +265,7 @@ describe("BR-CTRL composer controls", () => {
     for await (const _ of runDesignerAgent({ prompt: "make it warmer", editMode: { targetName: "artwork" } }, { llm: stubLlmReturning(plan), image: imgSpy })) void _;
     expect(gotPrompt).not.toContain("Edit Image 1");
   });
-  it("ME flatten: markup editMode welds the marker-removal clause — and ONLY then", async () => {
+  it("ME flatten: markup editMode welds the marker-removal clause, and ONLY then", async () => {
     let withMarkup = ""; let without = "";
     const spy = (set: (s: string) => void): ImageProvider => ({ name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { set(i.prompt); return { url: "https://x/y.png", provider: "s", model: "m" }; } });
     for await (const _ of runDesignerAgent({ prompt: "clean this up", referenceImages: ["https://r/1.png"], editMode: { targetName: "artwork", markup: "flatten" } }, { llm: stubLlmReturning(plan), image: spy((s) => { withMarkup = s; }) })) void _;
@@ -301,12 +301,12 @@ describe("STAGE-0 TP.1: blocks → named editable textboxes placed in copy zones
     return out;
   }
 
-  it("each block becomes a named Textbox (block:<role>) on the first page — the fixed 72% overlay is gone", async () => {
+  it("each block becomes a named Textbox (block:<role>) on the first page, the fixed 72% overlay is gone", async () => {
     const events = await collectBlocks();
     const canvas = events.flatMap((e) => e.renderData.msgMeta).at(-1)!.canvas;
     const boxes = canvas.objects.filter((o) => o.type === "Textbox");
     expect(boxes.map((o) => o.name)).toEqual(["block:headline", "block:price", "block:date", "block:name"]);
-    // zone placement: headline in the top band (≤24% h), price in the side upper (28–50% h)
+    // zone placement: headline in the top band (≤24% h), price in the side upper (28-50% h)
     const byName = Object.fromEntries(boxes.map((o) => [o.name!, o]));
     expect(byName["block:headline"].top!).toBeLessThanOrEqual(1360 * 0.24);
     expect(byName["block:price"].left!).toBeGreaterThan(1360 * 0.6); // right side block
@@ -325,7 +325,7 @@ describe("STAGE-0 TP.1: blocks → named editable textboxes placed in copy zones
     expect(box.fontFamily).toBe("Be Vietnam Pro");
   });
 
-  it("legacy copy plan still yields one editable textbox (backward compat — clean-plate; D16: poster bakes, blocks never overlay)", async () => {
+  it("legacy copy plan still yields one editable textbox (backward compat, clean-plate; D16: poster bakes, blocks never overlay)", async () => {
     const out: ChatEvent[] = [];
     for await (const ev of runDesignerAgent({ prompt: "poster", mode: "clean-plate" }, { llm, image })) out.push(ev);
     const canvas = out.flatMap((e) => e.renderData.msgMeta).at(-1)!.canvas;
@@ -350,7 +350,7 @@ describe("STAGE-0 TP.4/TP.5: jobId, failure taxonomy, abort-before-image", () =>
     expect(events[0].jobId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("planner failure aborts BEFORE image generation — one attempt, explicit errorClass, no canvas (G2)", async () => {
+  it("planner failure aborts BEFORE image generation, one attempt, explicit errorClass, no canvas (G2)", async () => {
     const failing = new FailingMockLlmProvider({ errorClass: "plan_parse_failed" });
     let imageCalls = 0;
     const imgSpy: ImageProvider = { name: "s", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async generate(i) { imageCalls++; return { url: "https://x/y.png", provider: "s", model: "m" }; } };
@@ -390,7 +390,7 @@ describe("STAGE-0 TP.4/TP.5: jobId, failure taxonomy, abort-before-image", () =>
     expect(imgCalls).toBe(0);
   });
 
-  it("CUJ 2 (designer level): a plan with distinct blocks yields independently editable textboxes — no regeneration needed to differ", async () => {
+  it("CUJ 2 (designer level): a plan with distinct blocks yields independently editable textboxes, no regeneration needed to differ", async () => {
     const blockPlan = JSON.stringify({
       title: "T",
       imagePrompt: "p",
@@ -437,13 +437,13 @@ describe("STAGE-0 TP.3/TP.8: mode passthrough + zone-anchored cover crop", () =>
     const canvas = out.flatMap((e) => e.renderData.msgMeta).at(-1)!.canvas;
     const artwork = canvas.objects.find((o) => o.type === "Image")!;
     expect(artwork.name).toBe("artwork");
-    expect(artwork.cropY).toBe(0); // top anchored — the top band survives
+    expect(artwork.cropY).toBe(0); // top anchored, the top band survives
     expect(artwork.cropX).toBeGreaterThanOrEqual(0);
   });
 });
 
 describe("STAGE-0 remediation: A5 reusePlan / B3 provider attribution / A4 resetAt", () => {
-  it("A5: reusePlan skips the planner entirely — zero llm turns on a stage-aware retry", async () => {
+  it("A5: reusePlan skips the planner entirely, zero llm turns on a stage-aware retry", async () => {
     let llmCalls = 0;
     const llmSpy: LlmProvider = { name: "planner-x", capabilities: stubCaps, async isAvailable() { return { ok: true }; }, async chat() { llmCalls++; return plan; } };
     const out: ChatEvent[] = [];
@@ -464,7 +464,7 @@ describe("STAGE-0 remediation: A5 reusePlan / B3 provider attribution / A4 reset
 
   it("B3: a planner failure is attributed to the PLANNER, never the image provider", async () => {
     const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in" });
-    // the mock throws ProviderError carrying its own name — verify a GENERIC Error path too
+    // the mock throws ProviderError carrying its own name, verify a GENERIC Error path too
     const genericLlm: LlmProvider = {
       name: "planner-real", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
       async chat() { throw new Error("boom"); },
@@ -495,7 +495,7 @@ describe("STAGE-0 remediation: A5 reusePlan / B3 provider attribution / A4 reset
 
 /* ---------- C1 outline gate (docs/designs/outline-gate.md) ---------- */
 
-/** Image stub that COUNTS calls — the gate's whole promise is "zero image calls". */
+/** Image stub that COUNTS calls, the gate's whole promise is "zero image calls". */
 function countingImage(maxCalls = Infinity): { provider: ImageProvider; calls: () => number } {
   let n = 0;
   return {
@@ -524,8 +524,8 @@ async function run(input: Parameters<typeof runDesignerAgent>[0], deps: Designer
   return out;
 }
 
-describe("C1 phase 1 — outlineGate stops before the first image call (OC-1/OC-2)", () => {
-  it("emits the outline event with exactly N rows, closes the node, ends </Content> — ZERO image calls", async () => {
+describe("C1 phase 1, outlineGate stops before the first image call (OC-1/OC-2)", () => {
+  it("emits the outline event with exactly N rows, closes the node, ends </Content>, ZERO image calls", async () => {
     const img = countingImage();
     const out = await run({ prompt: "deck", pages: 3, outlineGate: true }, { llm: llmReturning(gatePlan(3)), image: img.provider });
     expect(img.calls()).toBe(0); // the whole point of the gate
@@ -534,7 +534,7 @@ describe("C1 phase 1 — outlineGate stops before the first image call (OC-1/OC-
     expect(outlineEv?.renderData.outline?.[0]).toEqual({ title: "Page 1", summary: "content 1" });
     expect(out.at(-1)?.content).toBe("</Content>");
     const nodeDone = outlineEv?.renderData.taskMeta.find((t) => t.content === "Designer Agent");
-    expect(nodeDone?.status).toBe("1"); // timeline closes — no dangling "running…"
+    expect(nodeDone?.status).toBe("1"); // timeline closes, no dangling "running…"
   });
 
   it("error path: wrong outline count fails plan_parse_failed and still burns NOTHING", async () => {
@@ -553,7 +553,7 @@ describe("C1 phase 1 — outlineGate stops before the first image call (OC-1/OC-
   });
 });
 
-describe("C1 phase 2 — approvedOutline is the page-count contract (OC-2/OC-3)", () => {
+describe("C1 phase 2, approvedOutline is the page-count contract (OC-2/OC-3)", () => {
   const approved = [
     { title: "Cover", summary: "hook" },
     { title: "Price", summary: "20% off" },
@@ -562,7 +562,7 @@ describe("C1 phase 2 — approvedOutline is the page-count contract (OC-2/OC-3)"
     const img = countingImage();
     const out = await run({ prompt: "deck", approvedOutline: approved }, { llm: llmReturning(gatePlan(2)), image: img.provider });
     expect(img.calls()).toBe(2);
-    // terminal events RE-emit the last canvas — count DISTINCT canvas ids, not events
+    // terminal events RE-emit the last canvas, count DISTINCT canvas ids, not events
     const canvasIds = new Set(out.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas").map((m) => m.id)));
     expect(canvasIds.size).toBe(2);
   });
@@ -577,9 +577,9 @@ describe("C1 phase 2 — approvedOutline is the page-count contract (OC-2/OC-3)"
 });
 
 describe("C1 teardown fix: a deck trimmed to ONE page still generates (regression)", () => {
-  it("1-row approvedOutline completes with exactly 1 image — was plan_parse_failed 0/1", async () => {
+  it("1-row approvedOutline completes with exactly 1 image, was plan_parse_failed 0/1", async () => {
     const img = countingImage();
-    // MockLlmProvider is instruction-aware — the real repro of the 0/1 failure
+    // MockLlmProvider is instruction-aware, the real repro of the 0/1 failure
     const out = await run(
       { prompt: "deck", approvedOutline: [{ title: "Only page", summary: "the one page" }] },
       { llm: new MockLlmProvider(), image: img.provider },
@@ -590,7 +590,7 @@ describe("C1 teardown fix: a deck trimmed to ONE page still generates (regressio
     expect(canvasIds.size).toBe(1);
   });
 
-  it("the planner prompt embeds the SHARED constants — the mock's matchers depend on them", async () => {
+  it("the planner prompt embeds the SHARED constants, the mock's matchers depend on them", async () => {
     const systems: string[] = [];
     const spy: LlmProvider = {
       name: "spy", capabilities: stubCaps, async isAvailable() { return { ok: true }; },
@@ -599,14 +599,14 @@ describe("C1 teardown fix: a deck trimmed to ONE page still generates (regressio
     await run({ prompt: "deck", pages: 2, outlineGate: true }, { llm: spy, image: countingImage().provider });
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.imagePrompts(2));
     expect(systems[0]).toContain(PLANNER_INSTRUCTIONS.pageOutline(2));
-    // style vocabulary (adapted from SurgePix agent-skills, MIT) — concrete phrases, never labels alone
+    // style vocabulary (adapted from SurgePix agent-skills, MIT), concrete phrases, never labels alone
     expect(systems[0]).toContain("Style vocabulary");
     expect(systems[0]).toContain("oversized typography");
     expect(systems[0]).toContain("Swiss grid");
   });
 });
 
-describe("C1/OC-4 — cancel mid-deck stops BETWEEN pages; generated pages survive", () => {
+describe("C1/OC-4: cancel mid-deck stops BETWEEN pages; generated pages survive", () => {
   it("aborting after page 1 of 3 never calls page 2, and page 1 was already yielded", async () => {
     const ac = new AbortController();
     let n = 0;
@@ -625,7 +625,7 @@ describe("C1/OC-4 — cancel mid-deck stops BETWEEN pages; generated pages survi
   });
 });
 
-describe("Style preset — CODE injects the concrete phrases (surgepix pattern)", () => {
+describe("Style preset, CODE injects the concrete phrases (surgepix pattern)", () => {
   it("style='bold' puts oversized-typography phrases into the planner system prompt", async () => {
     const systems: string[] = [];
     const spy: LlmProvider = {
@@ -633,7 +633,7 @@ describe("Style preset — CODE injects the concrete phrases (surgepix pattern)"
       async chat(msgs) { systems.push(msgs.find((m) => m.role === "system")?.content ?? ""); return plan; },
     };
     for await (const _ of runDesignerAgent({ prompt: "flash sale", style: "bold" }, { llm: spy, image: countingImage().provider })) void _;
-    expect(systems[0]).toContain("Style preset selected by the user — 'bold'");
+    expect(systems[0]).toContain("Style preset selected by the user, 'bold'");
     expect(systems[0]).toContain("oversized typography, dynamic text layering, high impact");
   });
   it("no style = no injection (Auto stays out of the prompt)", async () => {

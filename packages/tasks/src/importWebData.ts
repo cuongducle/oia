@@ -9,12 +9,12 @@ import type { ChatSessionStore, ProjectStore, StoredMessage } from "./projects.j
 import type { TemplateStore } from "./templates.js";
 
 /**
- * Reorg step 5 — import a self-hosted WEB app's `.data` directory into the desktop
+ * Reorg step 5, import a self-hosted WEB app's `.data` directory into the desktop
  * store. The owner has real data there; this is the one-way bridge before the web
  * app is deleted (step 6).
  *
  * Rules:
- * - The SOURCE is read-only (it is the owner's only copy — nothing in it moves).
+ * - The SOURCE is read-only (it is the owner's only copy, nothing in it moves).
  * - Two-phase: validate every source file BEFORE mutating the desktop store, so a
  *   broken source aborts with nothing half-imported.
  * - Desktop wins on id collisions; a re-run imports nothing new (idempotent).
@@ -27,7 +27,7 @@ import type { TemplateStore } from "./templates.js";
 export interface WebImportCounts {
   assets: number;
   assetsSkipped: number;
-  /** Name collision with DIFFERENT bytes (legacy 8-hex prefix era) — desktop
+  /** Name collision with DIFFERENT bytes (legacy 8-hex prefix era), desktop
    *  copy won, the source file is untouched in its folder. */
   assetsConflicted: number;
   projects: number;
@@ -64,17 +64,17 @@ function pickSchemaKeys(raw: Record<string, unknown>, shape: Record<string, unkn
   return out;
 }
 
-/** Never mutate the source to quarantine a corrupt file — abort loudly instead. */
+/** Never mutate the source to quarantine a corrupt file, abort loudly instead. */
 async function readSourceArray<T>(file: string, what: string): Promise<T[] | null> {
   if (!(await pathExists(file))) return null;
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(file, "utf8"));
   } catch {
-    throw new DataImportError(`the source ${what} (${path.basename(file)}) is corrupt (unparseable JSON) — nothing was imported. Fix or remove the file and try again.`);
+    throw new DataImportError(`the source ${what} (${path.basename(file)}) is corrupt (unparseable JSON), nothing was imported. Fix or remove the file and try again.`);
   }
   if (!Array.isArray(parsed)) {
-    throw new DataImportError(`the source ${what} (${path.basename(file)}) is corrupt (not a JSON array) — nothing was imported.`);
+    throw new DataImportError(`the source ${what} (${path.basename(file)}) is corrupt (not a JSON array), nothing was imported.`);
   }
   return parsed as T[];
 }
@@ -86,7 +86,7 @@ export async function resolveWebDataDir(sourceDir: string): Promise<string> {
   if (await markers(sourceDir)) return sourceDir;
   const child = path.join(sourceDir, ".data");
   if (await markers(child)) return child;
-  throw new DataImportError(`"${sourceDir}" does not look like a web app data folder — expected projects.json, chat-sessions.json, or files/uploads inside it.`);
+  throw new DataImportError(`"${sourceDir}" does not look like a web app data folder, expected projects.json, chat-sessions.json, or files/uploads inside it.`);
 }
 
 async function* walkFiles(dir: string): AsyncGenerator<string> {
@@ -110,7 +110,7 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
     if (parsed.success) projects.push(parsed.data);
     else {
       projectsInvalid++;
-      console.error(`[import] source project entry failed schema validation (${parsed.error.issues[0]?.path.join(".")}) — skipped`);
+      console.error(`[import] source project entry failed schema validation (${parsed.error.issues[0]?.path.join(".")}), skipped`);
     }
   }
 
@@ -120,7 +120,7 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
     if (Array.isArray(raw) && typeof raw[0] === "number" && raw[1] && typeof raw[1] === "object" && Array.isArray(raw[1].messages)) {
       sessions.push([raw[0], raw[1]]);
     } else {
-      console.error("[import] source chat-session entry has an unexpected shape — skipped");
+      console.error("[import] source chat-session entry has an unexpected shape, skipped");
     }
   }
 
@@ -129,13 +129,13 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
   let brandKitsInvalid = 0;
   for (const raw of rawKits ?? []) {
     // brandKitSchema is .strict() but web-era files carry extra metadata keys (updatedAt)
-    // — pick only the schema's own fields rather than rejecting real data.
+    //, pick only the schema's own fields rather than rejecting real data.
     const candidate = pickSchemaKeys(raw as Record<string, unknown>, brandKitSchema.shape);
     const parsed = brandKitSchema.safeParse(candidate);
     if (parsed.success) kits.push(parsed.data);
     else {
       brandKitsInvalid++;
-      console.error(`[import] source brand kit failed schema validation (${parsed.error.issues[0]?.path.join(".")}) — skipped`);
+      console.error(`[import] source brand kit failed schema validation (${parsed.error.issues[0]?.path.join(".")}), skipped`);
     }
   }
 
@@ -147,15 +147,15 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
     if (parsed.success) templates.push(parsed.data);
     else {
       templatesInvalid++;
-      console.error(`[import] source template failed schema validation (${parsed.error.issues[0]?.path.join(".")}) — skipped`);
+      console.error(`[import] source template failed schema validation (${parsed.error.issues[0]?.path.join(".")}), skipped`);
     }
   }
 
   if (!rawProjects && !rawSessions && !rawKits && !rawTemplates && !(await pathExists(path.join(source, "files", "uploads")))) {
-    throw new DataImportError(`"${source}" contains nothing importable — no projects, sessions, brand kits, templates, or assets found.`);
+    throw new DataImportError(`"${source}" contains nothing importable, no projects, sessions, brand kits, templates, or assets found.`);
   }
 
-  // ── phase 2: apply — copy assets under their original keys, then merge stores ─
+  // ── phase 2: apply, copy assets under their original keys, then merge stores ─
   const counts: WebImportCounts = {
     assets: 0, assetsSkipped: 0, assetsConflicted: 0,
     projects: 0, projectsSkipped: 0, projectsInvalid,
@@ -170,12 +170,12 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
       const rel = path.relative(srcUploads, file);
       const dest = path.join(t.files.root, rel);
       if (await pathExists(dest)) {
-        // F3 lesson: legacy 8-hex names are hints, NOT identity — verify the bytes
+        // F3 lesson: legacy 8-hex names are hints, NOT identity, verify the bytes
         // before claiming "already here"; a silent mismatch would alias two images.
         if (await sameBytes(file, dest)) counts.assetsSkipped++;
         else {
           counts.assetsConflicted++;
-          console.error(`[import] ${rel}: name exists with DIFFERENT bytes (legacy prefix collision?) — desktop copy wins, source file kept untouched in the source folder`);
+          console.error(`[import] ${rel}: name exists with DIFFERENT bytes (legacy prefix collision?), desktop copy wins, source file kept untouched in the source folder`);
         }
         continue;
       }
@@ -192,7 +192,7 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
   }
   const sessionsResult = await t.chatSessions.importSessions(sessions);
   counts.sessions = sessionsResult.imported;
-  counts.sessionsSkipped = sessionsResult.skipped; // fingerprint matches — already here (or an unlucky same-ms twin)
+  counts.sessionsSkipped = sessionsResult.skipped; // fingerprint matches, already here (or an unlucky same-ms twin)
   for (const k of kits) {
     if (await t.brandKits.addImported(k)) counts.brandKits++;
   }
@@ -203,7 +203,7 @@ export async function importWebData(opts: { sourceDir: string; target: WebImport
   return counts;
 }
 
-/** Size-first, then sha256 — collision verification for the skip lane. */
+/** Size-first, then sha256, collision verification for the skip lane. */
 async function sameBytes(a: string, b: string): Promise<boolean> {
   const [sa, sb] = await Promise.all([stat(a).catch(() => null), stat(b).catch(() => null)]);
   if (!sa || !sb || sa.size !== sb.size) return false;

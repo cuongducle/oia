@@ -1,7 +1,7 @@
 import { CREATE_SIZES } from "./create-sheet.js";
 
 /**
- * UI v1.1 R6 — the composer's size pill resolves to real dimensions the same way
+ * UI v1.1 R6: the composer's size pill resolves to real dimensions the same way
  * the Create sheet's "Start from a size" lane does: platform presets grouped the
  * way sellers name them, plus the plain ratios. One source of truth (CREATE_SIZES);
  * only the official covers keep the ★ (LV-10) when shown as options.

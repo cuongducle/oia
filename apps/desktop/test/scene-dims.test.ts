@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SceneCanvas } from "@oia/schema";
 import { sceneDims } from "../src/renderer/lib/scene-dims.js";
 
-/** The clip Rect is the artboard ground truth — dims must come from ONE place
+/** The clip Rect is the artboard ground truth, dims must come from ONE place
  * (the preview, the PNG export and the result card all call this). */
 function canvas(objects: unknown[]): SceneCanvas {
   return { version: "7.3.1", objects } as unknown as SceneCanvas;

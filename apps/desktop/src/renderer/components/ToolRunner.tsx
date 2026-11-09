@@ -7,11 +7,11 @@ import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { FileDropzone } from "./FileDropzone.js";
 
 /**
- * reorg step 4c — the web ToolRunner (app/tools/[slug]/runner.tsx) ported to the
+ * reorg step 4c, the web ToolRunner (app/tools/[slug]/runner.tsx) ported to the
  * desktop bridge: the four fetch lanes become IPC (uploadAsset / submitTask+poll /
  * createProject), browser download anchors become the native save dialog
  * (saveExport), and editor links become onOpenProject handoffs. Conversion logic
- * (canvas, jsPDF, heic2any, pdf.js) is unchanged — it already ran
+ * (canvas, jsPDF, heic2any, pdf.js) is unchanged, it already ran
  * client-side on the web.
  */
 
@@ -27,7 +27,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [vennLabels, setVennLabels] = useState("Food\nDrinks");
-  /** View-lifetime flag: leaving the Tools view STOPS THE POLL but never the task —
+  /** View-lifetime flag: leaving the Tools view STOPS THE POLL but never the task,
    *  the generation keeps running (B7) and its lifecycle stays visible in the
    *  For Agents feed (lane "tool"). */
   const aliveRef = useRef(true);
@@ -42,13 +42,13 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     return arr;
   }
 
-  /** Native save dialog — the desktop replacement for the browser download anchor. */
+  /** Native save dialog, the desktop replacement for the browser download anchor. */
   async function download(bytes: Uint8Array, name: string): Promise<void> {
     setError("");
     try {
       const res = await oia().saveExport(name, bytes);
       if (res.saved && res.path) setSavedPath(res.path);
-      else setSavedPath(null); // user canceled — not an error
+      else setSavedPath(null); // user canceled, not an error
     } catch {
       setError("The file could not be saved. Please try again.");
     }
@@ -153,20 +153,20 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
           ctx.fillStyle = palette[i % palette.length];
           ctx.fillRect(600, 100 + i * 36, 18, 18);
           ctx.fillStyle = "#18181b"; ctx.font = "16px Inter, sans-serif"; ctx.textAlign = "left";
-          ctx.fillText(`${d.label} — ${d.value}`, 628, 115 + i * 36);
+          ctx.fillText(`${d.label}, ${d.value}`, 628, 115 + i * 36);
         });
       }
       await download(dataUrlToBytes(canvas.toDataURL("image/png")), `chart-${kind}.png`);
     } catch { setError("The chart could not be created. Please check your data (one “label: value” per line)."); } finally { setBusy(false); }
   }
 
-  /** Background submit + poll — never one long-lived RPC for a 1–6 min generation.
+  /** Background submit + poll, never one long-lived RPC for a 1-6 min generation.
    *  Stops silently when the view unmounts (the task itself keeps running); a
    *  succeeded record WITHOUT a download is an error, never an empty result. */
   async function pollTask(taskId: string): Promise<string> {
     setAiTaskId(taskId);
     for (let i = 0; i < 240; i++) {
-      if (!aliveRef.current) throw new Error("poll stopped — the view was closed (the task keeps running)");
+      if (!aliveRef.current) throw new Error("poll stopped, the view was closed (the task keeps running)");
       const t = await oia().getTask(taskId);
       if (!t) throw new Error("the task record is gone (expired or unknown)");
       if (t.progress === "succeeded") {
@@ -232,7 +232,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     } catch { setError("The PDF could not be rendered. Please try another file."); } finally { setBusy(false); }
   }
 
-  /** ONE busy/error owner for both AI tools — param building (upload included)
+  /** ONE busy/error owner for both AI tools, param building (upload included)
    *  happens inside, so failure paths cannot double-manage state. */
   async function runAiTask(type: "generate-poster" | "image-edit", buildParams: () => Promise<Record<string, unknown>>) {
     setError(""); setAiResult(null); setAiTaskId(null); setBusy(true);
@@ -242,9 +242,9 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       const url = await pollTask(t.taskId);
       setAiResult(url);
     } catch (e) {
-      if (!aliveRef.current) return; // view gone — nothing to render
+      if (!aliveRef.current) return; // view gone, nothing to render
       const message = e instanceof Error ? e.message : String(e);
-      // G3: the shared metered slot is held (chat or agent run) — honest, retryable
+      // G3: the shared metered slot is held (chat or agent run), honest, retryable
       setError(message.includes("already running")
         ? "A generation is already running (chat or another tool). Wait for it to finish and try again."
         : `The task failed: ${message}`);
@@ -271,13 +271,13 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     });
   }
 
-  /** Stop the in-flight generation — every paid path must be cancellable (hard rule 6). */
+  /** Stop the in-flight generation, every paid path must be cancellable (hard rule 6). */
   async function stopAi() {
     if (!aiTaskId) return;
     try {
       await oia().cancelTask(aiTaskId);
     } catch {
-      setError("The task could not be cancelled — it will finish on its own.");
+      setError("The task could not be cancelled, it will finish on its own.");
     }
   }
 
@@ -373,7 +373,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
           <div className="toolRow">
             {busy ? (
               <>
-                <span className="hintP" role="status">Creating — this can take a few minutes…</span>
+                <span className="hintP" role="status">Creating, this can take a few minutes…</span>
                 <button className="secondaryBtn" onClick={() => void stopAi()}>Stop</button>
               </>
             ) : (

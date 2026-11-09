@@ -42,8 +42,8 @@ describe("BR-TPL community templates (Publish to Community)", () => {
   });
 });
 
-/** T2 regression — corrupt templates.json is quarantined (never blanked+overwritten); saves are atomic. */
-describe("TPL-T1 — category taxonomy rides the store + the boundary query", () => {
+/** T2 regression, corrupt templates.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TPL-T1: category taxonomy rides the store + the boundary query", () => {
   it("templateListQuery parses a known category and rejects junk (the taxonomy is closed)", async () => {
     const { templateListQuery, templateCategorySchema } = await import("@oia/schema");
     expect(templateListQuery.safeParse({ category: "flash-sale" }).success).toBe(true);
@@ -64,11 +64,11 @@ describe("TPL-T1 — category taxonomy rides the store + the boundary query", ()
     expect(only.total).toBe(1);
     expect(only.items[0].name).toBe("A");
     const all = st.list({});
-    expect(all.total).toBe(4); // unfiltered sees everything — published + the sanitized import
+    expect(all.total).toBe(4); // unfiltered sees everything, published + the sanitized import
   });
 });
 
-describe("TP.7 durable load — TemplateStore", () => {
+describe("TP.7 durable load, TemplateStore", () => {
   it("corrupt file → quarantined; publish works on the fresh file", async () => {
     const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
@@ -90,8 +90,8 @@ describe("TP.7 durable load — TemplateStore", () => {
   });
 });
 
-/** SC-2 — style family: same edge/loose pattern as category (social-card-style-presets.md). */
-describe("SC-2 template style — store edge + filter + legacy sanitize", () => {
+/** SC-2: style family: same edge/loose pattern as category (social-card-style-presets.md). */
+describe("SC-2 template style, store edge + filter + legacy sanitize", () => {
   it("publish parses the closed style set at the edge; junk style 400s", async () => {
     const { TemplateStore } = await import("../src/templates.js");
     const { mkdtempSync } = await import("node:fs");
@@ -123,8 +123,8 @@ describe("SC-2 template style — store edge + filter + legacy sanitize", () => 
   });
 });
 
-/** SC-5 — pack membership: same edge/loose pattern as category+style. */
-describe("SC-5 template pack — store edge + filter + legacy sanitize", () => {
+/** SC-5: pack membership: same edge/loose pattern as category+style. */
+describe("SC-5 template pack, store edge + filter + legacy sanitize", () => {
   it("publish parses the closed pack set; junk pack 400s; list filters by pack", async () => {
     const { TemplateStore } = await import("../src/templates.js");
     const { mkdtempSync } = await import("node:fs");

@@ -10,7 +10,7 @@ import { CliRuntime } from "./runtime.js";
 import { codexHomeDir, readCodexAccount, type ImageGenAccess } from "./codex-account.js";
 
 /**
- * TP-D3 — RuntimeProvisioner: zero-terminal Codex runtime management.
+ * TP-D3: RuntimeProvisioner: zero-terminal Codex runtime management.
  *
  * Spike findings baked into this code (2026-10-30, live-verified):
  * - S5: openai/codex is Apache-2.0; official releases ship `codex-package-<target>.tar.gz`
@@ -22,20 +22,20 @@ import { codexHomeDir, readCodexAccount, type ImageGenAccess } from "./codex-acc
  * - S6: `codex login` prints its auth URL to STDERR while still running
  *   ("Starting local login server on http://localhost:1455." + the auth URL), opens the
  *   browser itself, exits 0 on success. HAZARD (live-verified): the flow rotates/clears
- *   the saved session at START — killing `codex login` mid-flow leaves the user logged
- *   out. Cancel is therefore an explicit, warned action — never a cleanup side effect.
+ *   the saved session at START, killing `codex login` mid-flow leaves the user logged
+ *   out. Cancel is therefore an explicit, warned action, never a cleanup side effect.
  *
  * Detection order (Q4, revised D12): CODEX_BIN env → BUNDLED binary shipped with the
- * app (resources/codex — the pair this build was tested with) → PATH (+ well-known
+ * app (resources/codex, the pair this build was tested with) → PATH (+ well-known
  * dirs: GUI apps do not inherit the shell PATH) → managed install at
  * <managedDir>/current/bin/codex.
- * Guided download is an explicit user action from the runtime panel — never automatic.
+ * Guided download is an explicit user action from the runtime panel, never automatic.
  *
  * Swap discipline (D3 hardening): staging extract → rename current→.old → rename
  * staging→current, with (a) a locked-binary precheck BEFORE anything is moved,
  * (b) best-effort restore on the second rename's failure, and (c) detect()-time
  * recovery when a crash fell into the window between the two renames (.old exists,
- * current missing). "Atomic" is a lie for two renames on a directory — this is the
+ * current missing). "Atomic" is a lie for two renames on a directory, this is the
  * honest version: bounded window + recovery.
  */
 
@@ -55,9 +55,9 @@ export interface RuntimeStatus {
   version?: string;
   loggedIn?: boolean;
   loginMethod?: LoginMethod | null;
-  /** D17 — ChatGPT plan claim of the signed-in account (null: unreadable / API key). */
+  /** D17: ChatGPT plan claim of the signed-in account (null: unreadable / API key). */
   planType?: string | null;
-  /** D17 — whether that plan can run `$imagegen`; "unknown" never warns. */
+  /** D17: whether that plan can run `$imagegen`; "unknown" never warns. */
   imageGen?: ImageGenAccess;
   detail?: string;
 }
@@ -79,7 +79,7 @@ export interface ManagedManifest {
 }
 
 export interface LoginHandlers {
-  /** The auth URL as printed by the CLI — origin-checked against the allowlist. */
+  /** The auth URL as printed by the CLI, origin-checked against the allowlist. */
   onAuthUrl?: (url: string) => void;
   onPhase?: (phase: "starting" | "url" | "exchanging", detail?: string) => void;
 }
@@ -109,23 +109,23 @@ export function codexPackageAsset(platform: NodeJS.Platform, arch: string): stri
 /**
  * Extract an auth URL from CLI output with a STRICT host check. Substring matching
  * (`url.includes("auth.openai.com")`) would let `https://evil.com/?x=auth.openai.com`
- * through — this parses the URL and compares the hostname exactly.
+ * through, this parses the URL and compares the hostname exactly.
  */
 export function extractAuthUrl(text: string): string | null {
   for (const m of text.matchAll(/https?:\/\/\S+/g)) {
     try {
       if (AUTH_HOSTS.has(new URL(m[0]).hostname)) return m[0];
     } catch {
-      /* not a parseable URL — keep scanning */
+      /* not a parseable URL, keep scanning */
     }
   }
   return null;
 }
 
-/** GUI processes do not inherit the interactive shell PATH — probe the usual suspects too. */
+/** GUI processes do not inherit the interactive shell PATH, probe the usual suspects too. */
 function wellKnownBinDirs(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string[] {
   if (platform === "win32") {
-    // `npm i -g @openai/codex` drops codex.cmd in %APPDATA%\npm — on the user PATH
+    // `npm i -g @openai/codex` drops codex.cmd in %APPDATA%\npm, on the user PATH
     // in a fresh shell, but not always in an app launched before that PATH change
     const appData = envValue(env, "APPDATA");
     return appData ? [path.join(appData, "npm")] : [];
@@ -137,7 +137,7 @@ function wellKnownBinDirs(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): st
 /**
  * Case-insensitive env lookup. Windows names the variable `Path`; `process.env` itself
  * hides that, but any COPY of it (`{ ...process.env }`, an env object sent over RPC)
- * is a plain object where `env.PATH` is undefined — PATH resolution would silently find nothing.
+ * is a plain object where `env.PATH` is undefined, PATH resolution would silently find nothing.
  */
 export function envValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
   if (env[name] !== undefined) return env[name];
@@ -149,7 +149,7 @@ export function envValue(env: NodeJS.ProcessEnv, name: string): string | undefin
 async function canExecute(file: string, platform: NodeJS.Platform): Promise<boolean> {
   // X_OK only means something when probing the REAL running OS. A simulated
   // platform (tests cross-checking darwin layouts on a Windows runner) cannot
-  // borrow the host's X_OK semantics — on Windows fs.access(X_OK) is false for
+  // borrow the host's X_OK semantics, on Windows fs.access(X_OK) is false for
   // extension-less files regardless of what platform we pretend to probe, which
   // broke every darwin-path test on the windows runner. Windows itself never
   // needs X_OK (PATHEXT names are executable by construction).
@@ -164,7 +164,7 @@ async function canExecute(file: string, platform: NodeJS.Platform): Promise<bool
 
 export interface DetectOptions {
   env?: NodeJS.ProcessEnv;
-  /** D12 — codex shipped INSIDE the app package (read-only; same layout as a managed
+  /** D12: codex shipped INSIDE the app package (read-only; same layout as a managed
    *  install: <bundledDir>/current/bin/codex). Beats PATH: the bundled pair is the one
    *  this build was tested against (the OpenAI-SDK philosophy). */
   bundledDir?: string;
@@ -198,7 +198,7 @@ export async function resolveCodexBin(opts: DetectOptions = {}): Promise<Runtime
 
   const pathVar = envValue(env, "PATH") ?? "";
   // Split on the REAL OS delimiter, not the simulated platform's. In production
-  // platform always equals process.platform, so this changes nothing there — but a
+  // platform always equals process.platform, so this changes nothing there, but a
   // darwin simulation on a Windows runner would otherwise shred every `C:\…` dir
   // at the drive-letter colon and find nothing (the windows-runner failures).
   const dirs = [
@@ -239,9 +239,9 @@ async function recoverManagedSwap(managedDir: string): Promise<void> {
 export interface ProvisionerOptions {
   /** Root for the managed install (Electron userData/codex on the desktop). */
   managedDir: string;
-  /** D12 — codex shipped inside the app package; probed before PATH (see DetectOptions). */
+  /** D12: codex shipped inside the app package; probed before PATH (see DetectOptions). */
   bundledDir?: string;
-  /** D17 — where codex keeps auth.json; defaults to $CODEX_HOME or ~/.codex. */
+  /** D17: where codex keeps auth.json; defaults to $CODEX_HOME or ~/.codex. */
   codexHome?: string;
   env?: NodeJS.ProcessEnv;
   runtime?: CliRuntime;
@@ -310,7 +310,7 @@ export class RuntimeProvisioner {
       const res = await this.runtime.run({ bin: det.bin, args: ["--version"], timeoutMs: 10_000 });
       version = res.stdout.match(/(\d+\.\d+\.\d+[^\s]*)/)?.[1];
     } catch {
-      /* binary exists but would not run — surfaced via login probe below */
+      /* binary exists but would not run, surfaced via login probe below */
     }
     const login = await this.probeLogin(det.bin);
     const account =
@@ -344,8 +344,8 @@ export class RuntimeProvisioner {
   }
 
   /**
-   * S6 — the in-app `codex login` wrapper. The CLI opens the browser itself and prints
-   * the auth URL to stderr; we forward it (origin-checked — see extractAuthUrl) and
+   * S6: the in-app `codex login` wrapper. The CLI opens the browser itself and prints
+   * the auth URL to stderr; we forward it (origin-checked, see extractAuthUrl) and
    * wait for the process to finish. Default timeout is generous (5 min) on purpose: the
    * session is already rotated when this flow starts, so killing it early only loses
    * more. Concurrent calls share the in-flight flow (two `codex login` processes would
@@ -366,7 +366,7 @@ export class RuntimeProvisioner {
     opts: { timeoutMs?: number; signal?: AbortSignal },
   ): Promise<{ ok: boolean; status: RuntimeStatus; detail?: string }> {
     const det = await this.detect();
-    if (!det.bin) throw new ProviderError("provider_missing", "codex binary not found — install first");
+    if (!det.bin) throw new ProviderError("provider_missing", "codex binary not found, install first");
     let urlSent = false;
     const res = await this.runtime.run({
       bin: det.bin,
@@ -386,8 +386,8 @@ export class RuntimeProvisioner {
     });
     const status = await this.status({ force: true });
     if (res.aborted) {
-      // the session was rotated at flow START — an interrupted login means logged out
-      throw new ProviderError("cancelled", "codex login was interrupted — the previous session was already rotated; log in again", {
+      // the session was rotated at flow START, an interrupted login means logged out
+      throw new ProviderError("cancelled", "codex login was interrupted, the previous session was already rotated; log in again", {
         detail: res.stderr.slice(0, 300),
       });
     }
@@ -412,10 +412,10 @@ export class RuntimeProvisioner {
   }
 
   /**
-   * S5 — guided download of the official checksummed package into the managed dir.
+   * S5: guided download of the official checksummed package into the managed dir.
    * Layout kept intact (bin/ + codex-path/ + codex-resources/) so relative lookups
    * inside the package keep working. Download (abortable mid-flight) → sha256 against
-   * the published sums (streamed — a 166 MB archive never sits whole in the heap) →
+   * the published sums (streamed, a 166 MB archive never sits whole in the heap) →
    * tar extract (bsdtar ships with Win10+, GNU tar everywhere else) → recoverable
    * swap of `current/`. Concurrent calls share one install. On any failure the
    * previous install survives (locked-binary precheck + best-effort restore + detect-
@@ -548,8 +548,8 @@ export class RuntimeProvisioner {
       try {
         await rename(current, old);
       } catch (err) {
-        // EBUSY/EPERM: a codex process is running off current/ — abort with current intact
-        throw new ProviderError("unknown", "the installed codex is busy (a job may be running) — close it and retry", {
+        // EBUSY/EPERM: a codex process is running off current/, abort with current intact
+        throw new ProviderError("unknown", "the installed codex is busy (a job may be running), close it and retry", {
           detail: { reason: "binary_busy", cause: err instanceof Error ? err.message : String(err) },
         });
       }
@@ -563,7 +563,7 @@ export class RuntimeProvisioner {
     await rm(old, { recursive: true, force: true });
   }
 
-  /** Latest release: { tag, assets: name → { url, size } } (unauthenticated API — a one-shot install is within rate limits). */
+  /** Latest release: { tag, assets: name → { url, size } } (unauthenticated API, a one-shot install is within rate limits). */
   /** "latest" or an explicit release tag (D12 bundle pinning). */
   private async resolveRelease(ref: string, signal?: AbortSignal): Promise<{ tag: string; assets: Record<string, { url: string; size: number }> }> {
     const endpoint = ref === "latest" ? "releases/latest" : `releases/tags/${encodeURIComponent(ref)}`;
@@ -577,7 +577,7 @@ export class RuntimeProvisioner {
       throw new ProviderError("network", `cannot reach the release API: ${err instanceof Error ? err.message : String(err)}`);
     }
     if (res.status === 403 || res.status === 429) {
-      throw new ProviderError("rate_limited", "GitHub API rate limit hit — wait a minute and retry the install", {
+      throw new ProviderError("rate_limited", "GitHub API rate limit hit, wait a minute and retry the install", {
         detail: { reason: "github_rate_limited" },
       });
     }
@@ -662,7 +662,7 @@ export function parseSum(sums: string, asset: string): string | null {
   return null;
 }
 
-/** Streaming sha256 — the ~166 MB archive is hashed in chunks, never held whole. */
+/** Streaming sha256, the ~166 MB archive is hashed in chunks, never held whole. */
 async function sha256File(file: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);

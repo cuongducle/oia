@@ -20,7 +20,7 @@ import {
 import { readdir } from "node:fs/promises";
 import { writeRunnableCli } from "./fakeCli.js";
 
-/** Shallow walk — test-only replacement for the removed production export. */
+/** Shallow walk, test-only replacement for the removed production export. */
 async function listFiles(root: string): Promise<string[]> {
   const out: string[] = [];
   async function walk(dir: string): Promise<void> {
@@ -77,7 +77,7 @@ function makeFetcher(fx: { archive: Buffer; sha256: string; asset: string }, opt
 const exec = promisify(execFile);
 
 /**
- * TP-D3 — RuntimeProvisioner tests. Everything subprocess-shaped is faked at the
+ * TP-D3: RuntimeProvisioner tests. Everything subprocess-shaped is faked at the
  * CliRuntime boundary; the login fixture is the REAL stderr captured from codex
  * 0.163.0 on macOS (S6 ground truth), and the install fixture is a real tar.gz
  * built with the system tar so extraction runs the actual code path.
@@ -110,7 +110,7 @@ class FakeRuntime extends CliRuntime {
   }
 }
 
-describe("codexPackageAsset (S5 — always the checksummed package variant)", () => {
+describe("codexPackageAsset (S5: always the checksummed package variant)", () => {
   it("maps platforms/arches to codex-package-<target>.tar.gz", () => {
     expect(codexPackageAsset("darwin", "arm64")).toBe("codex-package-aarch64-apple-darwin.tar.gz");
     expect(codexPackageAsset("darwin", "x64")).toBe("codex-package-x86_64-apple-darwin.tar.gz");
@@ -127,7 +127,7 @@ describe("resolveCodexBin (env → bundled → PATH+wellKnown → managed)", () 
     const det = await resolveCodexBin({ env: { CODEX_BIN: bin, PATH: "" }, platform: "darwin", includeWellKnown: false });
     expect(det).toEqual({ source: "env", bin });
   });
-  it("D12 — the BUNDLED binary wins over a PATH hit (the shipped pair is the tested pair)", async () => {
+  it("D12: the BUNDLED binary wins over a PATH hit (the shipped pair is the tested pair)", async () => {
     const binDir = path.join(dir, "pathbin-d12");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(path.join(binDir, "codex"), "#!/bin/sh\n", { mode: 0o755 });
@@ -137,7 +137,7 @@ describe("resolveCodexBin (env → bundled → PATH+wellKnown → managed)", () 
     const det = await resolveCodexBin({ env: { PATH: binDir }, bundledDir: bundled, platform: "darwin", includeWellKnown: false });
     expect(det).toEqual({ source: "bundled", bin: path.join(bundled, "current", "bin", "codex") });
   });
-  it("D12 — bundled survives an EMPTY PATH (the Dock/Finder launch: no shell PATH)", async () => {
+  it("D12: bundled survives an EMPTY PATH (the Dock/Finder launch: no shell PATH)", async () => {
     const bundled = path.join(dir, "bundled-alone");
     mkdirSync(path.join(bundled, "current", "bin"), { recursive: true });
     writeFileSync(path.join(bundled, "current", "bin", "codex"), "#!/bin/sh\n", { mode: 0o755 });
@@ -210,7 +210,7 @@ describe("status() parsing", () => {
   });
 });
 
-describe("login() — S6 wrapper over the REAL captured stderr (fixtures/login-start-stderr.txt)", () => {
+describe("login(), S6 wrapper over the REAL captured stderr (fixtures/login-start-stderr.txt)", () => {
   const fixture = () => readFileSync(new URL("./fixtures/login-start-stderr.txt", import.meta.url), "utf8");
 
   it("extracts the auth URL and reports success via the refreshed status", async () => {
@@ -235,11 +235,11 @@ describe("login() — S6 wrapper over the REAL captured stderr (fixtures/login-s
     expect(status.loggedIn).toBe(true);
     expect(urls).toHaveLength(1);
     expect(urls[0]).toMatch(/^https:\/\/auth\.openai\.com\/oauth\/authorize\?/);
-    expect(urls[0]).toContain("code_challenge"); // PKCE — the real flow, not a hand-built URL
+    expect(urls[0]).toContain("code_challenge"); // PKCE, the real flow, not a hand-built URL
     expect(phases).toContain("starting");
     expect(phases).toContain("url");
   });
-  it("an interrupted login (aborted) is a ProviderError — the session-rotation hazard is in the message", async () => {
+  it("an interrupted login (aborted) is a ProviderError, the session-rotation hazard is in the message", async () => {
     const binDir = path.join(dir, "lg2");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(path.join(binDir, "codex"), "#!/bin/sh\n", { mode: 0o755 });
@@ -261,7 +261,7 @@ describe("login() — S6 wrapper over the REAL captured stderr (fixtures/login-s
   });
 });
 
-describe("install() — fake GitHub, real tar.gz, real checksum discipline", () => {
+describe("install(), fake GitHub, real tar.gz, real checksum discipline", () => {
   it("downloads, verifies, extracts into current/, writes the manifest, reports ready", async () => {
     const fx = await buildPackageFixture();
     const managed = path.join(dir, "m-ok");
@@ -335,7 +335,7 @@ describe("install() — fake GitHub, real tar.gz, real checksum discipline", () 
 
 // ---- D3 hardening: origin check, parseSum format, recovery, serialization, abort ----
 
-describe("extractAuthUrl (strict origin — substring matches are an injection vector)", () => {
+describe("extractAuthUrl (strict origin, substring matches are an injection vector)", () => {
   const realUrl = () =>
     "https://auth.openai.com/oauth/authorize?response_type=code&code_challenge=xyz&state=s";
   it("accepts the real auth host", () => {

@@ -11,7 +11,7 @@ import type { DeconstructText } from "@oia/schema";
 /**
  * Projects (UI v1.1 R2; the old Workspace): every project with shape filters, and
  * the AI history tab (recent conversations). Creating lives in the Create sheet
- * (UX-2) — "Make its text editable" lands here with the file, so the B1 confirm
+ * (UX-2), "Make its text editable" lands here with the file, so the B1 confirm
  * dialog and its cancel/teardown rules stay exactly as they were. Web import
  * moved to Settings › Data.
  */
@@ -32,7 +32,7 @@ export interface WorkspaceProps {
   onOpenSession: (id: number) => void;
   /** Opens the Create sheet. */
   onNew: () => void;
-  /** From the Create sheet's "Make its text editable" — opens the B1 confirm dialog. */
+  /** From the Create sheet's "Make its text editable", opens the B1 confirm dialog. */
   initialDeconFile?: File;
 }
 
@@ -44,7 +44,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-  // per-card management: rename (inline) + delete (confirm) — projects:save/remove over IPC
+  // per-card management: rename (inline) + delete (confirm), projects:save/remove over IPC
   const [renaming, setRenaming] = useState<Project | null>(null);
   const [renameName, setRenameName] = useState("");
   const [deleting, setDeleting] = useState<Project | null>(null);
@@ -76,10 +76,10 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
 
   const deconTaskRef = useRef<string | null>(null);
   const deconRunRef = useRef(0);
-  /** Teardown B1 (spec deviation): "cancel is always available" — the run must
+  /** Teardown B1 (spec deviation): "cancel is always available", the run must
    * be cancellable mid-flight. Cancelling closes the dialog, but the poll loop
    * KEEPS WATCHING: if the task had already finished, the paid result still
-   * becomes a project (quota-is-money — no orphaned paid generation). */
+   * becomes a project (quota-is-money, no orphaned paid generation). */
   async function cancelDecon() {
     const id = deconTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
@@ -89,7 +89,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
   async function runDeconstruct() {
     if (!decon) return;
     // snapshot: cancel() nulls `decon` mid-run, but a task that SUCCEEDED before
-    // the cancel landed still owes the seller its project (quota-is-money) — the
+    // the cancel landed still owes the seller its project (quota-is-money), the
     // success path must not depend on live dialog state.
     const pick = decon;
     const myRun = ++deconRunRef.current;
@@ -100,16 +100,16 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
       deconTaskRef.current = started.taskId;
       const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
-        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "deconstruct was cancelled — nothing was imported"));
+        throw new Error(final.taskNote || final.msg || (final.progress === "failed" ? "deconstruct failed" : "deconstruct was cancelled, nothing was imported"));
       }
       const texts = (final.taskResult.texts ?? []) as DeconstructText[];
       const scene = deconstructScene({ imageUrl: final.taskResult.download, w: pick.w, h: pick.h, texts });
       const p = await oia().createProject({ name: pick.file.name.replace(/\.[^.]+$/, "") || "Deconstructed design", scene });
-      if (deconRunRef.current !== myRun) return; // a newer run owns the UI — the project stays in the workspace list
+      if (deconRunRef.current !== myRun) return; // a newer run owns the UI, the project stays in the workspace list
       closeDecon();
       onOpenProject(p.id);
     } catch (e) {
-      setError(bridgeErrorMessage(e, "Deconstruct failed — the design was not imported."));
+      setError(bridgeErrorMessage(e, "Deconstruct failed, the design was not imported."));
     } finally {
       deconTaskRef.current = null;
       setDeconBusy(false);
@@ -258,7 +258,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
           <h2>Make this design editable?</h2>
           <p style={{ fontSize: 13, color: "var(--muted)", margin: "4px 0 12px" }}>
             Oia reads the text in the image, cleans it off the background, and rebuilds each line as an editable text layer.
-            Everything else stays a flat image — objects are not separated.
+            Everything else stays a flat image, objects are not separated.
           </p>
           <div className="deconPreview">
             <img src={decon.previewUrl} alt="Old design preview" />
@@ -268,7 +268,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
               {imageMock === false && <span data-testid="decon-cost">≈ 1 image + 1 read</span>}
             </div>
           </div>
-          {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading and cleaning — this usually takes 1–3 minutes…</p>}
+          {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading and cleaning, this usually takes 1-3 minutes…</p>}
           <div className="dialogActions">
             <button className="secondaryBtn" onClick={() => void cancelDecon()}>{deconBusy ? "Cancel run" : "Cancel"}</button>
             <button className="primaryBtn" disabled={deconBusy} data-testid="decon-confirm" onClick={() => void runDeconstruct()}>

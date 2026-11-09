@@ -29,15 +29,15 @@ import { runShotBusy } from "./shotBusy.js";
 import { buildServiceEnv } from "../shared/providers-mode.js";
 
 /**
- * D11 (reorg step 4a) — the Electron MAIN process owns windows, menus, dialogs,
+ * D11 (reorg step 4a), the Electron MAIN process owns windows, menus, dialogs,
  * the oia://files protocol, and the codex runtime controller. The SERVICE layer
  * (ServiceContext: runChat, task store, projects/templates/sessions, files, NSFW)
  * lives in a separate utility process (src/utility) reached through the typed
- * RPC in main/utilityClient — a services crash can no longer take the window
+ * RPC in main/utilityClient, a services crash can no longer take the window
  * down, and the main thread never blocks on provider work.
  *
  * Renderer contract is UNCHANGED: the same IPC channels, the same zod validation
- * in shared/ipc.ts — main validates, then forwards to the utility process.
+ * in shared/ipc.ts, main validates, then forwards to the utility process.
  *
  * TP-D3 (unchanged): the codex runtime is managed in-app; this process owns the
  * provider-mode choice (settings.json in userData) and rebuilds the utility's
@@ -46,9 +46,9 @@ import { buildServiceEnv } from "../shared/providers-mode.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 let ctxMode: "mock" | "codex" | null = null; // what the CURRENT utility context was built with
-let ctxGeneration = -1; // which utility FORK built it — mismatch (crash+restart) forces re-init
+let ctxGeneration = -1; // which utility FORK built it, mismatch (crash+restart) forces re-init
 
-/** Serialize context builds — concurrent IPC must never build two contexts. */
+/** Serialize context builds, concurrent IPC must never build two contexts. */
 let buildLock: Promise<unknown> = Promise.resolve();
 function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = buildLock.then(fn);
@@ -57,13 +57,13 @@ function withBuildLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** The provider env the utility context builds from: mode + resolved codex binary.
- *  T3 — assembled by the PURE builder in shared/providers-mode; main never mutates
+ *  T3: assembled by the PURE builder in shared/providers-mode; main never mutates
  *  process.env (the old set-then-restore CODEX_BIN dance leaked global state). */
 async function contextEnv(): Promise<Record<string, string | undefined>> {
   const mode = await effectiveMode();
   const det = mode === "codex" ? await getProvisionerSafe() : null;
   const env = buildServiceEnv(process.env, mode, det);
-  // shot-busy paces the mock pair so the mid-run UI stays photographable —
+  // shot-busy paces the mock pair so the mid-run UI stays photographable,
   // registry-only knob (T3 pattern), injected here, never via process.env mutation.
   if (smokeModeFromEnv(process.env, app.isPackaged) === "shot-busy") env.OIA_MOCK_STEP_DELAY_MS = "350";
   return env;
@@ -71,7 +71,7 @@ async function contextEnv(): Promise<Record<string, string | undefined>> {
 
 /** Boot (or rebuild) the utility service context under the build lock.
  *  Cached by (mode, generation): re-init only on the first call, a mode change,
- *  or after a utility crash (a new fork has no context — generation mismatch). */
+ *  or after a utility crash (a new fork has no context, generation mismatch). */
 async function ensureUtility(): Promise<void> {
   return withBuildLock(async () => {
     utility.start();
@@ -93,7 +93,7 @@ async function rebuildContext(): Promise<void> {
   });
 }
 
-/** detect() without side effects — no status probe, no login round trip. */
+/** detect() without side effects, no status probe, no login round trip. */
 async function getProvisionerSafe(): Promise<string | null> {
   const { getProvisioner } = await import("./runtime.js");
   return (await getProvisioner().detect()).bin;
@@ -111,7 +111,7 @@ function ipcError(err: unknown): never {
 
 // the oia:// scheme must be registered before app ready
 protocol.registerSchemesAsPrivileged([
-  { scheme: "oia", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }, // corsEnabled: scene images load with crossOrigin=anonymous — without it ACAO is treated as opaque and every image fails
+  { scheme: "oia", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }, // corsEnabled: scene images load with crossOrigin=anonymous, without it ACAO is treated as opaque and every image fails
 ]);
 
 function createWindow(): BrowserWindow {
@@ -119,16 +119,16 @@ function createWindow(): BrowserWindow {
     width: 1440,
     height: 900,
     title: "Oia",
-    // T1 (macos-design-2026.md): native-feel chrome on macOS — traffic lights
+    // T1 (macos-design-2026.md): native-feel chrome on macOS, traffic lights
     // inline with the app's top bars (padding + drag region in app.css); the
     // system title bar stays intact on Windows/Linux. x + the bar inset share
-    // TRAFFIC_LIGHTS (shared/trafficLights.ts) — the shot gate pins the pair.
+    // TRAFFIC_LIGHTS (shared/trafficLights.ts), the shot gate pins the pair.
     ...(process.platform === "darwin" ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: TRAFFIC_LIGHTS.x, y: 21 } } : {}),
     webPreferences: {
-      preload: path.join(here, "../preload/index.cjs"), // .cjs — see electron.vite.config note
+      preload: path.join(here, "../preload/index.cjs"), // .cjs, see electron.vite.config note
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true, // preload only needs contextBridge/ipcRenderer — sandboxed works
+      sandbox: true, // preload only needs contextBridge/ipcRenderer, sandboxed works
     },
   });
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -139,7 +139,7 @@ function createWindow(): BrowserWindow {
   // hardening: the renderer never navigates away nor opens windows
   win.webContents.on("will-navigate", (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  // TP-D5: closing the window kills in-flight generations — quota never burns unseen
+  // TP-D5: closing the window kills in-flight generations, quota never burns unseen
   win.on("closed", cancelAllJobs);
   return win;
 }
@@ -148,7 +148,7 @@ function cancelAllJobs(): void {
   void utility.call({ cmd: "cancelAll" }).catch(() => {});
 }
 
-/** Agent-job frames seen since app start (newest first, capped) — the For Agents
+/** Agent-job frames seen since app start (newest first, capped), the For Agents
  *  panel gets history even for jobs that ran while it was closed. */
 const agentJobRing: (AgentJobFrame & { at: number })[] = [];
 
@@ -157,7 +157,7 @@ function registerIpc(): void {
     rebuildContext,
     currentEffective: () => ctxMode,
   });
-  // F2 — every IPC handler first admits only OUR renderer windows; a foreign
+  // F2: every IPC handler first admits only OUR renderer windows; a foreign
   // sender (should none ever exist) gets a stable ForbiddenSender error.
   const handle = (ch: string, fn: (event: IpcMainInvokeEvent, raw: unknown) => unknown): void => {
     ipcMain.handle(ch, async (event, raw) => {
@@ -167,9 +167,9 @@ function registerIpc(): void {
   };
   handle(IPC.chatRun, async (event, raw: unknown) => {
     try {
-      const req = chatRequestSchema.parse(raw); // validated HERE — the utility trusts main
+      const req = chatRequestSchema.parse(raw); // validated HERE, the utility trusts main
       await ensureUtility();
-      // requestId: random UUID — two rapid chats from one sender must NEVER share
+      // requestId: random UUID, two rapid chats from one sender must NEVER share
       // a routing key (Date.now() collided on double-submit and dropped events)
       const result = await utility.call(
         { cmd: "chatRun", req },
@@ -235,7 +235,7 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
-  // reorg step 5 — import a self-hosted web app's .data dir; an empty sourceDir
+  // reorg step 5, import a self-hosted web app's .data dir; an empty sourceDir
   // opens the native folder picker (null = user canceled, nothing ran)
   handle(IPC.dataImportWeb, async (event, raw: unknown) => {
     try {
@@ -243,7 +243,7 @@ function registerIpc(): void {
       if (!sourceDir) {
         const win = BrowserWindow.fromWebContents(event.sender);
         const pick = await dialog.showOpenDialog(win!, {
-          title: "Import from web app — choose the .data folder",
+          title: "Import from web app, choose the .data folder",
           properties: ["openDirectory", "showHiddenFiles"],
         });
         if (pick.canceled || !pick.filePaths[0]) return null;
@@ -378,8 +378,8 @@ function registerIpc(): void {
     }
   });
   // agentJob events: buffered in main (survive a utility crash+refork) and streamed
-  // to every live window — the For Agents feed reads both. `lane` separates agent-API
-  // runs from quick-tools runs (both metered, both must stay visible — hard rule 6).
+  // to every live window, the For Agents feed reads both. `lane` separates agent-API
+  // runs from quick-tools runs (both metered, both must stay visible, hard rule 6).
   utility.onUtilityEvent((ev) => {
     if (ev.type !== "agentJob") return;
     const frame: AgentJobFrame = { taskId: ev.taskId, event: ev.event, taskType: ev.taskType, lane: ev.lane };
@@ -407,7 +407,7 @@ function registerIpc(): void {
 }
 
 /** Serve /api/files/<key> scene references over the privileged oia:// scheme.
- *  file:// cannot hit the LocalFileStore — without this, the canvas renders empty. */
+ *  file:// cannot hit the LocalFileStore, without this, the canvas renders empty. */
 function registerAssetProtocol(): void {
   protocol.handle("oia", async (request) => {
     try {
@@ -426,14 +426,14 @@ function registerAssetProtocol(): void {
         },
       });
     } catch (err) {
-      // Log, then 404 — a swallow-everything catch hid the poisoned-realpath bug for hours.
+      // Log, then 404, a swallow-everything catch hid the poisoned-realpath bug for hours.
       console.error("[oia://] handler error:", err instanceof Error ? err.stack : String(err));
       return new Response(null, { status: 404 });
     }
   });
 }
 
-/** Scripted end-to-end check without a human — now through the REAL main→utility
+/** Scripted end-to-end check without a human, now through the REAL main→utility
  *  boundary (that is the point of D11): mock pair → fork utility → chatRun → assert. */
 async function smoke(): Promise<void> {
   await ensureUtility();
@@ -458,14 +458,14 @@ async function smoke(): Promise<void> {
 
 /**
  * CRASH-SMOKE (the error-path gate the happy-path smoke cannot be): kill the
- * services process mid-session, then make a normal call — the client MUST detect
+ * services process mid-session, then make a normal call, the client MUST detect
  * the dead generation, fork a fresh utility, re-init the context, and answer.
  * This is the regression test for the "one crash bricked the app" bug.
  */
 async function crashSmoke(): Promise<void> {
   await ensureUtility();
   // reorg step 5 gate: a project that exists BEFORE the crash must come back intact
-  // after the crash + refork (per-project files — the store reloads from disk).
+  // after the crash + refork (per-project files, the store reloads from disk).
   await utility.call({ cmd: "projects.create", input: { name: "crash-smoke survivor" } });
   const before = (await utility.call({ cmd: "projects.list" })) as { name?: string }[];
   utility.kill(); // simulate a services crash
@@ -475,7 +475,7 @@ async function crashSmoke(): Promise<void> {
     app.exit(1);
     return;
   }
-  // the same path every IPC handler takes — must self-heal via the generation check
+  // the same path every IPC handler takes, must self-heal via the generation check
   await ensureUtility();
   const after = (await utility.call({ cmd: "projects.list" }).catch((e) => e)) as { name?: string }[];
   const ok = Array.isArray(before) && Array.isArray(after) &&
@@ -488,15 +488,15 @@ async function crashSmoke(): Promise<void> {
 }
 
 /**
- * TP-D3 exit check — the REAL run through the shell wiring (quota-billed, opt-in via
+ * TP-D3 exit check, the REAL run through the shell wiring (quota-billed, opt-in via
  * OIA_DESKTOP_REAL_SMOKE=1, never in CI): auto mode must resolve codex from the live
  * runtime state, one real banner completes, assets land in the store with bytes on disk.
  *
  * DA gates (designer-agent-loop.md, owner-approved quota 2026-11-06) run in the SAME
  * invocation so a future pin bump re-verifies every paid surface in one go (D12 rule):
- * - DA-RESEARCH: one poster whose facts need a web lookup — codex `--search` must run
+ * - DA-RESEARCH: one poster whose facts need a web lookup, codex `--search` must run
  *   through the BUNDLED binary and researchNotes[] must come back with real sources.
- * - DA-REFINE: one poster whose exact copy is deliberately hard to render — the critic
+ * - DA-REFINE: one poster whose exact copy is deliberately hard to render, the critic
  *   must really read the image (readImage) and the verdict must be honest; rounds ≥ 1
  *   additionally proves the refine→re-generate path on the real pair.
  */
@@ -520,7 +520,7 @@ async function realSmoke(): Promise<void> {
     console.error(line);
     app.exit(1);
   };
-  /** Asset bytes on disk behind a job's canvas — a canvas meta without stored
+  /** Asset bytes on disk behind a job's canvas, a canvas meta without stored
    * bytes is not a banner (job 0's old inline loop, shared with the DA gates). */
   const assetBytesOf = async (events: Ev[]): Promise<number> => {
     const canvas = events.flatMap((e) => (e.renderData?.msgMeta ?? []) as { type?: string; canvas?: { objects?: { src?: string }[] } }[]).find((m) => m.type === "canvas");
@@ -554,23 +554,23 @@ async function realSmoke(): Promise<void> {
       `${err0 ? `error=${err0.errorClass}` : "no-error"} jobId=${job0.jobId} took=${Math.round((Date.now() - t0) / 1000)}s`,
   );
   if (!ok0) {
-    failFast("DESKTOP_REAL_SMOKE FAILED — pair check (job 0) failed; skipping the DA gates");
+    failFast("DESKTOP_REAL_SMOKE FAILED, pair check (job 0) failed; skipping the DA gates");
     return;
   }
 
   // ---- DA-RESEARCH (slice 1 gate): facts that need a live lookup. ALSO runs
-  // refine (rounds 1) — the DEFAULT combination (research + selfImprove together,
+  // refine (rounds 1), the DEFAULT combination (research + selfImprove together,
   // teardown #7) must be proven on the real pair, not just each loop alone ----
   const t1 = Date.now();
   const job1 = await collect({
     prompt:
-      "banner quảng bá ngày Black Friday 2026 cho shop trà sữa — phải tra web lấy NGÀY Black Friday 2026 chính xác in lên banner, kèm giảm giá 35%",
+      "banner quảng bá ngày Black Friday 2026 cho shop trà sữa, phải tra web lấy NGÀY Black Friday 2026 chính xác in lên banner, kèm giảm giá 35%",
     research: true,
     selfImprove: { rounds: 1 },
   });
   const notesEv = job1.events.find((e) => (e.content ?? "").includes("Research notes:"));
   const noteLines = (notesEv?.content ?? "").split("\n").filter((l) => l.trim().startsWith("-"));
-  // teardown #17: "sourced" means a domain-ish or URL citation — any trailing
+  // teardown #17: "sourced" means a domain-ish or URL citation, any trailing
   // parenthesis (e.g. "(mock planner)") must NOT pass
   const sourced = noteLines.filter((l) => /\((?:[^)]*https?:\/\/[^)]*|[^)]*[a-z0-9-]+\.[a-z]{2,}[^)]*)\)\s*$/i.test(l.trim())).length;
   const researchNode = job1.events.at(-1)?.renderData?.taskMeta?.find((tm) => tm.content === "Researching the web");
@@ -585,7 +585,7 @@ async function realSmoke(): Promise<void> {
       `jobId=${job1.jobId} took=${Math.round((Date.now() - t1) / 1000)}s`,
   );
   if (!ok1) {
-    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED — --search did not yield sourced notes, or the combined research+refine run produced no honest verdict");
+    failFast("DESKTOP_REAL_SMOKE_DA_RESEARCH FAILED, --search did not yield sourced notes, or the combined research+refine run produced no honest verdict");
     return;
   }
 
@@ -612,13 +612,13 @@ async function realSmoke(): Promise<void> {
       `jobId=${job2.jobId} took=${Math.round((Date.now() - t2) / 1000)}s`,
   );
   if (!ok2) {
-    failFast("DESKTOP_REAL_SMOKE_DA_REFINE FAILED — no honest selfImprove verdict on the winning canvas");
+    failFast("DESKTOP_REAL_SMOKE_DA_REFINE FAILED, no honest selfImprove verdict on the winning canvas");
     return;
   }
   if (verdict && verdict.rounds < 1) {
-    // not a failure — the critic passed the first image; but the refine turn itself stayed
+    // not a failure, the critic passed the first image; but the refine turn itself stayed
     // unproven this run. Loud, because the doc gate wants ≥1 recorded round.
-    console.log("DESKTOP_REAL_SMOKE_DA_REFINE NOTE: critic passed the first image — the refine→re-generate path was NOT exercised this run (rerun to prove it)");
+    console.log("DESKTOP_REAL_SMOKE_DA_REFINE NOTE: critic passed the first image, the refine→re-generate path was NOT exercised this run (rerun to prove it)");
   }
   console.log(`DESKTOP_REAL_SMOKE_ALL_OK took=${Math.round((Date.now() - t0) / 1000)}s`);
   app.exit(0);
@@ -629,9 +629,9 @@ async function realSmoke(): Promise<void> {
  * the renderer bridge, wait for the canvas, capture a PNG to out/desktop-*.png.
  * Exit codes: 2 bridge missing · 3 home verify · 4/5 editor · 6 autosave · 7/8 workspace
  * · 9 tools · 10 brand kit · 11 for-agents · 12 tool AI · 13 clipboard gate
- * · 17 A1 variant gate (preview-apply — docs/designs/variant-preview-apply.md)
+ * · 17 A1 variant gate (preview-apply, docs/designs/variant-preview-apply.md)
  * · 18 C1 outline gate (docs/designs/outline-gate.md)
- * · 22 R6 composer (platform size menu + Skills ▾ + Recent designs — ui-v11)
+ * · 22 R6 composer (platform size menu + Skills ▾ + Recent designs, ui-v11)
  * · 23 R6 Skills click-through (a menu item opens THAT tool in the Tools view).
  */
 async function shot(): Promise<void> {
@@ -651,7 +651,7 @@ async function shot(): Promise<void> {
   });
   console.log("[shot] loaded; probing oia:// image load…");
   // T1 chrome gate (darwin): the traffic-light padding shipped GREEN while broken
-  // once — the marker wasn't set and no assert noticed. Pin the PAIR now: marker
+  // once, the marker wasn't set and no assert noticed. Pin the PAIR now: marker
   // present AND the bar's computed padding equals the shared constant exactly.
   if (process.platform === "darwin") {
     const chrome = await win.webContents.executeJavaScript(`(() => {
@@ -669,7 +669,7 @@ async function shot(): Promise<void> {
       return;
     }
     // Dark-mode: a gate here was REMOVED (2026-10-31 teardown). It flipped
-    // nativeTheme and asserted the nav pill color — but nothing in this stack
+    // nativeTheme and asserted the nav pill color, but nothing in this stack
     // flips (probe: neither themeSource=dark nor real system dark moves ANY
     // computed color, explicit or UA-default). The gate could never fail; it
     // was theater shipped against a symptom that was never reproduced. The
@@ -692,11 +692,11 @@ async function shot(): Promise<void> {
   const hasBridge = await win.webContents.executeJavaScript("typeof window.oia", true).catch((e) => `ERR ${e}`);
   console.log("[shot] typeof window.oia =", hasBridge);
   if (hasBridge !== "object") {
-    console.error("[shot] bridge missing — preload failed (sandbox/CSP/format?)");
+    console.error("[shot] bridge missing, preload failed (sandbox/CSP/format?)");
     app.exit(2);
     return;
   }
-  // drive the SAME UI a user would: type into the composer and click Create —
+  // drive the SAME UI a user would: type into the composer and click Create,
   // gates the real submit path (progress chips, ✓ summary, result card), not just the bridge.
   // (smoke mode intentionally drives the bridge instead: it gates the ENGINE e2e without UI)
   await win.webContents.executeJavaScript(
@@ -749,7 +749,7 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-home.png");
 
-  // ---- DA (designer-agent-loop): auto refine default ON — badge on the result,
+  // ---- DA (designer-agent-loop): auto refine default ON, badge on the result,
   // the cost-label law (DA-5), switch OFF remembered + label gone (DA-4) ----
   const da = await win.webContents.executeJavaScript(`(async () => {
     const badge = document.querySelector('[data-testid="auto-refined-badge"]')?.textContent ?? null;
@@ -767,7 +767,7 @@ async function shot(): Promise<void> {
     da.switchOn !== "true" || !da.hasResearch || da.researchOn !== "true" ||
     !da.researchNote.includes("Research unavailable on mock") // default ON announces honestly on a pair that cannot search
   ) {
-    console.error("DESKTOP_SHOT DA FAILED — auto-refine badge, cost label, or the default-on switch is missing");
+    console.error("DESKTOP_SHOT DA FAILED, auto-refine badge, cost label, or the default-on switch is missing");
     app.exit(23);
     return;
   }
@@ -779,14 +779,14 @@ async function shot(): Promise<void> {
     const costOff = document.querySelector('[data-testid="cost-hint"]')?.textContent ?? null;
     sw?.click(); // restore the decided default for the gates that follow
     await new Promise((r) => setTimeout(r, 80));
-    // close the advanced panel — the C1 gate below toggles it open itself
+    // close the advanced panel, the C1 gate below toggles it open itself
     if (document.querySelector('.advancedSettings')) document.querySelector('.advancedToggle')?.click();
     await new Promise((r) => setTimeout(r, 80));
     return { off, costOff, restored: sw?.getAttribute('aria-checked'), panelClosed: !document.querySelector('.advancedSettings') };
   })()`, true);
   console.log("[shot] DA off:", JSON.stringify(daOff));
   if (!daOff || daOff.off !== "false" || (daOff.costOff ?? "") !== "" || daOff.restored !== "true") {
-    console.error("DESKTOP_SHOT DA FAILED — switching auto refine off did not clear the cost label or remember the choice");
+    console.error("DESKTOP_SHOT DA FAILED, switching auto refine off did not clear the cost label or remember the choice");
     app.exit(24);
     return;
   }
@@ -814,7 +814,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] style preset:", JSON.stringify(styleGate));
   if (!styleGate || !styleGate.ok) {
-    console.error("DESKTOP_SHOT STYLE PRESET FAILED — select missing, choice not persisted, or Auto did not clean the key");
+    console.error("DESKTOP_SHOT STYLE PRESET FAILED, select missing, choice not persisted, or Auto did not clean the key");
     app.exit(25);
     return;
   }
@@ -840,7 +840,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] R6 chips:", JSON.stringify(r6));
   if (!r6 || r6.liveAspect !== "9:16" || r6.deckAspect !== "16:9" || r6.deckPages !== "3 pages" || !r6.prompt) {
-    console.error("DESKTOP_SHOT R6 FAILED — a use-case chip did not set its ratio/pages");
+    console.error("DESKTOP_SHOT R6 FAILED, a use-case chip did not set its ratio/pages");
     app.exit(21);
     return;
   }
@@ -875,7 +875,7 @@ async function shot(): Promise<void> {
     r6c.skillItems.length < 3 || !r6c.skillItems.includes("All tools") || !r6c.menuClosed ||
     r6c.recentCards < 1 || !r6c.seeAll
   ) {
-    console.error("DESKTOP_SHOT R6 COMPOSER FAILED — size menu not platform-grouped, Skills menu missing, or Recent designs row absent");
+    console.error("DESKTOP_SHOT R6 COMPOSER FAILED, size menu not platform-grouped, Skills menu missing, or Recent designs row absent");
     app.exit(22);
     return;
   }
@@ -900,9 +900,9 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C1 setup:", JSON.stringify(c1Setup));
   // DA-5: the deck label keeps C1's contract AND appends the per-page refine
-  // worst case (2 pages × (1 round + 1) = 4) — auto refine was restored ON above.
+  // worst case (2 pages × (1 round + 1) = 4), auto refine was restored ON above.
   if (!c1Setup || c1Setup.switchDefaultOn !== "true" || c1Setup.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
-    console.error("DESKTOP_SHOT C1 FAILED — switch not default-on or cost label missing");
+    console.error("DESKTOP_SHOT C1 FAILED, switch not default-on or cost label missing");
     app.exit(18);
     return;
   }
@@ -918,7 +918,7 @@ async function shot(): Promise<void> {
     return "submitted";
   })()`, true);
   if (c1Submitted !== "submitted") {
-    console.error(`DESKTOP_SHOT C1 FAILED — could not submit deck (${c1Submitted})`);
+    console.error(`DESKTOP_SHOT C1 FAILED, could not submit deck (${c1Submitted})`);
     app.exit(18);
     return;
   }
@@ -937,7 +937,7 @@ async function shot(): Promise<void> {
       pages: document.querySelector("#advanced-settings select")?.value ?? null,
       prompt: document.querySelector('[data-testid="design-idea"]')?.value ?? null,
     })`, true).catch(() => null);
-    console.error(`DESKTOP_SHOT C1 FAILED — outline card never appeared (${JSON.stringify(why)})`);
+    console.error(`DESKTOP_SHOT C1 FAILED, outline card never appeared (${JSON.stringify(why)})`);
     app.exit(18);
     return;
   }
@@ -950,9 +950,9 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C1 card:", JSON.stringify(c1Card));
   // teardown #1: the card where the user APPROVES the spend shows the SAME cost
-  // law as the composer — with auto refine default-on that includes the worst case
+  // law as the composer, with auto refine default-on that includes the worst case
   if (!c1Card || c1Card.rows.length !== 2 || c1Card.resultHiddenWhileReviewing !== true || c1Card.genEnabled !== true || c1Card.cost !== "2 pages ≈ 2 images · Auto refine on · up to 4 images + 4 reads") {
-    console.error("DESKTOP_SHOT C1 FAILED — card state wrong (rows/hidden-result/enabled/cost)");
+    console.error("DESKTOP_SHOT C1 FAILED, card state wrong (rows/hidden-result/enabled/cost)");
     app.exit(18);
     return;
   }
@@ -982,7 +982,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C1 deck:", JSON.stringify(deckVerify));
   if (!deckVerify || !deckVerify.ok) {
-    console.error("DESKTOP_SHOT C1 FAILED — deck did not generate after approval");
+    console.error("DESKTOP_SHOT C1 FAILED, deck did not generate after approval");
     app.exit(18);
     return;
   }
@@ -1014,7 +1014,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C1-off setup:", JSON.stringify(offSetup));
   if (!offSetup || offSetup.off !== "false" || offSetup.cost !== "3 pages ≈ 3 images · Auto refine on · up to 6 images + 6 reads") {
-    console.error(`DESKTOP_SHOT C1 FAILED — off-branch setup wrong (${JSON.stringify(offSetup)})`);
+    console.error(`DESKTOP_SHOT C1 FAILED, off-branch setup wrong (${JSON.stringify(offSetup)})`);
     app.exit(18);
     return;
   }
@@ -1027,7 +1027,7 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 200));
   }
   if (!goneSeen) {
-    console.error("DESKTOP_SHOT C1 FAILED — off-branch: previous result never unmounted");
+    console.error("DESKTOP_SHOT C1 FAILED, off-branch: previous result never unmounted");
     app.exit(18);
     return;
   }
@@ -1049,7 +1049,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C1-off verify:", JSON.stringify(offVerify));
   if (!offVerify || offVerify.noCard !== true || offVerify.canvas !== true || offVerify.err) {
-    console.error("DESKTOP_SHOT C1 FAILED — gate off must skip the card and generate directly");
+    console.error("DESKTOP_SHOT C1 FAILED, gate off must skip the card and generate directly");
     app.exit(18);
     return;
   }
@@ -1064,7 +1064,7 @@ async function shot(): Promise<void> {
     return true;
   })()`, true);
   if (!clicked) {
-    console.error("DESKTOP_SHOT EDITOR FAILED — open-editor button missing");
+    console.error("DESKTOP_SHOT EDITOR FAILED, open-editor button missing");
     app.exit(4);
     return;
   }
@@ -1146,12 +1146,12 @@ async function shot(): Promise<void> {
   };
   const submitted = await submitEdit("make the background pastel");
   if (submitted !== "submitted") {
-    console.error(`DESKTOP_SHOT A1 FAILED — could not submit edit (${submitted})`);
+    console.error(`DESKTOP_SHOT A1 FAILED, could not submit edit (${submitted})`);
     app.exit(17);
     return;
   }
   if (!(await waitCards(1))) {
-    console.error("DESKTOP_SHOT A1 FAILED — first variant card never arrived");
+    console.error("DESKTOP_SHOT A1 FAILED, first variant card never arrived");
     app.exit(17);
     return;
   }
@@ -1165,7 +1165,7 @@ async function shot(): Promise<void> {
     return {
       cards,
       replaceDisabledNoSelection: replace ? replace.disabled : null,
-      canvasUntouched: JSON.stringify(after) === JSON.stringify(before), // VA-3 — the core pin
+      canvasUntouched: JSON.stringify(after) === JSON.stringify(before), // VA-3: the core pin
       costHintHiddenInMock: !document.querySelector('[data-testid="cost-hint"]'),
     };
   })()`, true);
@@ -1177,7 +1177,7 @@ async function shot(): Promise<void> {
   }
   // select the artwork image → Replace must swap EXACTLY ONE src (VA-4). The mock
   // placeholder is deterministic per prompt, so the edit's artwork is a DIFFERENT
-  // asset than the Home generation the canvas came from — the flagship behavior is
+  // asset than the Home generation the canvas came from, the flagship behavior is
   // proven e2e here, not just in unit tests.
   const selected = await win.webContents.executeJavaScript(`(async () => {
     const c = (window).__oiaCanvas;
@@ -1189,18 +1189,18 @@ async function shot(): Promise<void> {
     const replace = document.querySelector('[data-testid="variant-replace"]');
     const undo = document.querySelector('.edTop [title="Undo"]');
     // painted-pixel proxy: a white-on-white label passed every DOM assert before
-    // (the dark-mode lesson — element-exists gates cannot see color). Contrast check:
+    // (the dark-mode lesson, element-exists gates cannot see color). Contrast check:
     // enabled Replace must not share background and text color.
     const cs = replace ? getComputedStyle(replace) : null;
     return { enabled: Boolean(replace && !replace.disabled), undoDisabledBefore: undo ? undo.disabled : null, bg: cs ? cs.backgroundColor : null, fg: cs ? cs.color : null };
   })()`, true);
   if (!selected || selected.enabled !== true || selected.undoDisabledBefore !== true) {
-    console.error(`DESKTOP_SHOT A1 FAILED — Replace enable state wrong (${JSON.stringify(selected)})`);
+    console.error(`DESKTOP_SHOT A1 FAILED, Replace enable state wrong (${JSON.stringify(selected)})`);
     app.exit(17);
     return;
   }
   if (!selected.bg || !selected.fg || selected.bg.replace(/\s/g, "") === selected.fg.replace(/\s/g, "")) {
-    console.error(`DESKTOP_SHOT A1 FAILED — Replace label invisible (bg=${selected.bg} fg=${selected.fg})`);
+    console.error(`DESKTOP_SHOT A1 FAILED, Replace label invisible (bg=${selected.bg} fg=${selected.fg})`);
     app.exit(17);
     return;
   }
@@ -1217,7 +1217,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] A1 swap:", JSON.stringify(swapVerify));
   if (!swapVerify || swapVerify.countKept !== true || swapVerify.changedSrcs !== 1 || swapVerify.undoEnabledAfter !== true || swapVerify.err) {
-    console.error("DESKTOP_SHOT A1 SWAP FAILED — must change EXACTLY one src, keep count, flip undo on, no error");
+    console.error("DESKTOP_SHOT A1 SWAP FAILED, must change EXACTLY one src, keep count, flip undo on, no error");
     app.exit(17);
     return;
   }
@@ -1225,25 +1225,25 @@ async function shot(): Promise<void> {
   // conversation (sessions grow by 1 across BOTH edits) and add a second card.
   const second = await submitEdit("make it warmer and bolder");
   if (second !== "submitted") {
-    console.error(`DESKTOP_SHOT A1 FAILED — second edit could not be submitted (${second})`);
+    console.error(`DESKTOP_SHOT A1 FAILED, second edit could not be submitted (${second})`);
     app.exit(17);
     return;
   }
   if (!(await waitCards(2))) {
-    console.error("DESKTOP_SHOT A1 FAILED — second variant card never arrived");
+    console.error("DESKTOP_SHOT A1 FAILED, second variant card never arrived");
     app.exit(17);
     return;
   }
   await new Promise((r) => setTimeout(r, 600));
   const sessionsAfter = await win.webContents.executeJavaScript(`window.oia.listSessions().then((s) => s.length)`, true);
   if (sessionsAfter !== sessionsBefore + 1) {
-    console.error(`DESKTOP_SHOT A1 FAILED — session pinning broken (before=${sessionsBefore} after=${sessionsAfter} — expected +1)`);
+    console.error(`DESKTOP_SHOT A1 FAILED, session pinning broken (before=${sessionsBefore} after=${sessionsAfter}, expected +1)`);
     app.exit(17);
     return;
   }
-  // snap WITH the tray visible — the artifact must show the feature it certifies
+  // snap WITH the tray visible, the artifact must show the feature it certifies
   await snap(win, "desktop-editor.png");
-  // "Not now" hides every card (VA-7) — the record stays in the session either way
+  // "Not now" hides every card (VA-7), the record stays in the session either way
   await win.webContents.executeJavaScript(`(async () => {
     for (let i = 0; i < 10; i++) {
       const b = document.querySelector('[data-testid="variant-dismiss"]');
@@ -1258,13 +1258,13 @@ async function shot(): Promise<void> {
     true,
   );
   if (dismissed !== true) {
-    console.error("DESKTOP_SHOT A1 FAILED — Not now did not hide the cards");
+    console.error("DESKTOP_SHOT A1 FAILED, Not now did not hide the cards");
     app.exit(17);
     return;
   }
   console.log("[shot] A1 preview-apply OK (deduped cards + untouched canvas + exact-one-src swap + session pinning + dismiss)");
 
-  // ---- ME (markup-edit.md): Circle-to-edit — capability-gated toolbar button,
+  // ---- ME (markup-edit.md): Circle-to-edit, capability-gated toolbar button,
   // annotate overlay strokes, ask panel, dispatched edit → 3rd variant card, and
   // the C3-lesson pin: the annotation NEVER enters the scene JSON. ----
   const meEntry = await win.webContents.executeJavaScript(`(async () => {
@@ -1275,13 +1275,13 @@ async function shot(): Promise<void> {
     c.requestRenderAll();
     await new Promise((r) => setTimeout(r, 250));
     const btn = document.querySelector('[data-testid="ctx-circle-edit"]');
-    if (!btn) return { ok: false, why: "no circle button — markup capability not wired" };
+    if (!btn) return { ok: false, why: "no circle button, markup capability not wired" };
     btn.click();
     await new Promise((r) => setTimeout(r, 200));
     return { ok: Boolean(document.querySelector('[data-testid="markup-overlay"]') && document.querySelector('[data-testid="markup-bar"]')) };
   })()`, true);
   if (!meEntry || meEntry.ok !== true) {
-    console.error(`DESKTOP_SHOT ME FAILED — annotate session did not open (${JSON.stringify(meEntry)})`);
+    console.error(`DESKTOP_SHOT ME FAILED, annotate session did not open (${JSON.stringify(meEntry)})`);
     app.exit(30);
     return;
   }
@@ -1312,7 +1312,7 @@ async function shot(): Promise<void> {
              };
   })()`, true);
   if (!meDrew || meDrew.ok !== true || meDrew.doneLabel !== "Done circling" || meDrew.painted < 40 || meDrew.red < 3) {
-    console.error(`DESKTOP_SHOT ME FAILED — stroke did not arm Done / paint truth failed (${JSON.stringify(meDrew)})`);
+    console.error(`DESKTOP_SHOT ME FAILED, stroke did not arm Done / paint truth failed (${JSON.stringify(meDrew)})`);
     app.exit(30);
     return;
   }
@@ -1335,7 +1335,7 @@ async function shot(): Promise<void> {
     return { ok: true, costHiddenInMock: !ask.querySelector(".mono") };
   })()`, true);
   if (!meSent || meSent.ok !== true || meSent.costHiddenInMock !== true) {
-    console.error(`DESKTOP_SHOT ME FAILED — ask/run flow wrong (${JSON.stringify(meSent)})`);
+    console.error(`DESKTOP_SHOT ME FAILED, ask/run flow wrong (${JSON.stringify(meSent)})`);
     app.exit(30);
     return;
   }
@@ -1346,7 +1346,7 @@ async function shot(): Promise<void> {
       ask: Boolean(document.querySelector('[data-testid="markup-ask"]')),
       overlay: Boolean(document.querySelector('[data-testid="markup-overlay"]')),
     }))()`, true);
-    console.error(`DESKTOP_SHOT ME FAILED — the markup edit never produced a variant card (${JSON.stringify(meDbg)})`);
+    console.error(`DESKTOP_SHOT ME FAILED, the markup edit never produced a variant card (${JSON.stringify(meDbg)})`);
     app.exit(30);
     return;
   }
@@ -1359,7 +1359,7 @@ async function shot(): Promise<void> {
     return { sceneUntouched: now === (window).__oiaShotBefore2, overlayGone, err };
   })()`, true);
   if (!mePurity || mePurity.sceneUntouched !== true || mePurity.overlayGone !== true || mePurity.err) {
-    console.error(`DESKTOP_SHOT ME FAILED — scene purity broken (${JSON.stringify(mePurity)})`);
+    console.error(`DESKTOP_SHOT ME FAILED, scene purity broken (${JSON.stringify(mePurity)})`);
     app.exit(30);
     return;
   }
@@ -1374,7 +1374,7 @@ async function shot(): Promise<void> {
     return true;
   })()`, true);
   if (!wentBack) {
-    console.error("DESKTOP_SHOT WORKSPACE FAILED — editor back button missing");
+    console.error("DESKTOP_SHOT WORKSPACE FAILED, editor back button missing");
     app.exit(7);
     return;
   }
@@ -1401,7 +1401,7 @@ async function shot(): Promise<void> {
     const preview = Boolean(document.querySelector(".projectGrid .projectPreview .scenePreview"));
     const samples = document.querySelectorAll(".projectGrid article[data-sample] .sampleBadge").length;
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box —
+    // VISUAL FIT gate: every rendered thumbnail canvas must sit INSIDE its card box,
     // the fabric wrapper's inline px sizes used to overflow and clip half the artwork.
     const fits = [...document.querySelectorAll(".projectGrid .projectPreview .scenePreview")].map((s) => {
       const box = s.closest(".projectPreview").getBoundingClientRect();
@@ -1436,7 +1436,7 @@ async function shot(): Promise<void> {
   await snap(win, "desktop-workspace.png");
 
   // ---- C3: livestream overlay preset + safe-zone guides + export purity ----------
-  // Pins live-overlay-presets.md gates 2–4: transparent PNG survives the real
+  // Pins live-overlay-presets.md gates 2-4: transparent PNG survives the real
   // fabric toDataURL lane; guides (DOM layer) never leak into rendered bytes;
   // the guide toggle refuses a non-9:16 artboard instead of lying.
   console.log("[shot] C3: creating a livestream overlay project…");
@@ -1454,7 +1454,7 @@ async function shot(): Promise<void> {
     return liveItems === 3 && stars === 2 ? "open" : "live-" + liveItems + "-stars-" + stars;
   })()`, true);
   if (sheetOpen !== "open") {
-    console.error(`DESKTOP_SHOT R2 FAILED — create sheet (${sheetOpen})`);
+    console.error(`DESKTOP_SHOT R2 FAILED, create sheet (${sheetOpen})`);
     app.exit(22);
     return;
   }
@@ -1467,7 +1467,7 @@ async function shot(): Promise<void> {
     return "clicked";
   })()`, true);
   if (liveCreated !== "clicked") {
-    console.error(`DESKTOP_SHOT C3 FAILED — create sheet item (${liveCreated})`);
+    console.error(`DESKTOP_SHOT C3 FAILED, create sheet item (${liveCreated})`);
     app.exit(19);
     return;
   }
@@ -1482,7 +1482,7 @@ async function shot(): Promise<void> {
   }
   await new Promise((r) => setTimeout(r, 1200));
   if (!liveReady) {
-    console.error("DESKTOP_SHOT C3 FAILED — overlay artboard never mounted transparent");
+    console.error("DESKTOP_SHOT C3 FAILED, overlay artboard never mounted transparent");
     app.exit(19);
     return;
   }
@@ -1531,11 +1531,11 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C3 alpha/guides gate:", JSON.stringify(alphaGate));
   if (!alphaGate || !alphaGate.ok) {
-    console.error("DESKTOP_SHOT C3 FAILED — alpha corners must be 0 and guides must not change rendered bytes");
+    console.error("DESKTOP_SHOT C3 FAILED, alpha corners must be 0 and guides must not change rendered bytes");
     app.exit(19);
     return;
   }
-  // Template pack: apply "Flash sale price" — native text on the transparent artboard.
+  // Template pack: apply "Flash sale price", native text on the transparent artboard.
   const tplApplied = await win.webContents.executeJavaScript(`(async () => {
     const rail = [...document.querySelectorAll('.railBtn')].find((b) => b.getAttribute("aria-label") === "Templates");
     if (!rail) return "no-rail";
@@ -1554,11 +1554,11 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C3 template gate:", JSON.stringify(tplApplied));
   if (!tplApplied || !tplApplied.ok) {
-    console.error("DESKTOP_SHOT C3 FAILED — Flash sale template did not land as native text on a transparent clip");
+    console.error("DESKTOP_SHOT C3 FAILED, Flash sale template did not land as native text on a transparent clip");
     app.exit(19);
     return;
   }
-  // Snap WITH guides visible — the artifact must show the feature it certifies
+  // Snap WITH guides visible, the artifact must show the feature it certifies
   // (same rule as the A1 tray snap). Guides were switched off in the alpha gate.
   await win.webContents.executeJavaScript(`(async () => {
     const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
@@ -1586,7 +1586,7 @@ async function shot(): Promise<void> {
     tpl.click();
     await new Promise((r) => setTimeout(r, 900));
     const btn = document.querySelector('[aria-label="Toggle platform safe-zone guides"]');
-    // Teardown C3: applying an opaque template must flip the wrap OFF transparent —
+    // Teardown C3: applying an opaque template must flip the wrap OFF transparent,
     // the attr drives the checkerboard AND the export alpha hint; a stale pages
     // state would keep lying "transparent" after the scene went white.
     const wrap = document.querySelector('[data-testid="editor-root"] .canvasWrap');
@@ -1594,7 +1594,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] C3 refusal gate:", JSON.stringify(refused));
   if (!refused || !refused.ok) {
-    console.error("DESKTOP_SHOT C3 FAILED — guide toggle must refuse a non-9:16 artboard");
+    console.error("DESKTOP_SHOT C3 FAILED, guide toggle must refuse a non-9:16 artboard");
     app.exit(19);
     return;
   }
@@ -1606,7 +1606,7 @@ async function shot(): Promise<void> {
   })()`, true);
   await new Promise((r) => setTimeout(r, 800));
 
-  // ---- B1: deconstruct import — old banner in, editable text layers out (mock pair)
+  // ---- B1: deconstruct import, old banner in, editable text layers out (mock pair)
   // Pins deconstruct-import.md: price hidden in mock, two-phase task, texts ride
   // the result, the scene opens in the editor with native Textboxes (DC-1/DC-8).
   console.log("[shot] B1: deconstructing a fixture banner…");
@@ -1618,7 +1618,7 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
     const input = document.querySelector('input[aria-label="Bring an image"]');
     if (!input) return "no-input";
-    // real PNG bytes (the shared shot fixture) — a garbage blob would fail the preview Image load
+    // real PNG bytes (the shared shot fixture), a garbage blob would fail the preview Image load
     const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
     const file = new File([bytes], "old-banner.png", { type: "image/png" });
     const dt = new DataTransfer();
@@ -1633,7 +1633,7 @@ async function shot(): Promise<void> {
     return "picked";
   })()`, true);
   if (deconStarted !== "picked") {
-    console.error(`DESKTOP_SHOT B1 FAILED — picker (${deconStarted})`);
+    console.error(`DESKTOP_SHOT B1 FAILED, picker (${deconStarted})`);
     app.exit(20);
     return;
   }
@@ -1650,7 +1650,7 @@ async function shot(): Promise<void> {
     return { dialog: Boolean(cost === null && img) }; // mock provider → cost label HIDDEN
   })()`, true);
   if (!deconDialog || !deconDialogState?.dialog) {
-    console.error(`DESKTOP_SHOT B1 FAILED — confirm dialog (open=${deconDialog}, state=${JSON.stringify(deconDialogState)})`);
+    console.error(`DESKTOP_SHOT B1 FAILED, confirm dialog (open=${deconDialog}, state=${JSON.stringify(deconDialogState)})`);
     app.exit(20);
     return;
   }
@@ -1662,7 +1662,7 @@ async function shot(): Promise<void> {
     return btn ? { present: true, disabled: btn.disabled, label: btn.textContent.trim() } : { present: false };
   })()`, true);
   if (!cancelAlive?.present || cancelAlive.disabled !== false) {
-    console.error(`DESKTOP_SHOT B1 FAILED — cancel must stay alive mid-run (${JSON.stringify(cancelAlive)})`);
+    console.error(`DESKTOP_SHOT B1 FAILED, cancel must stay alive mid-run (${JSON.stringify(cancelAlive)})`);
     app.exit(20);
     return;
   }
@@ -1677,7 +1677,7 @@ async function shot(): Promise<void> {
     })()`, true).catch(() => null);
     if (deconDone && (deconDone as { open: boolean }).open) break;
   }
-  // the scene load is async (loadFromJSON + fonts) — poll until objects land, not just the root
+  // the scene load is async (loadFromJSON + fonts), poll until objects land, not just the root
   for (let i = 0; i < 20; i++) {
     const n = await win.webContents.executeJavaScript(
       `((window).__oiaCanvas ? (window).__oiaCanvas.toObject().objects.length : 0)`,
@@ -1699,7 +1699,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] B1 verify:", JSON.stringify(deconVerify));
   if (!deconVerify || !deconVerify.ok) {
-    console.error("DESKTOP_SHOT B1 VERIFY FAILED — expected 3 native textboxes (SALE 50 present) + clean-plate artwork");
+    console.error("DESKTOP_SHOT B1 VERIFY FAILED, expected 3 native textboxes (SALE 50 present) + clean-plate artwork");
     app.exit(20);
     return;
   }
@@ -1759,7 +1759,7 @@ async function shot(): Promise<void> {
   })()`, true);
   console.log("[shot] R4/R5 verify:", JSON.stringify(r45));
   if (!r45 || !r45.ok) {
-    console.error("DESKTOP_SHOT R4/R5 FAILED — layers order, toolbar, inspector commit or Edit with AI");
+    console.error("DESKTOP_SHOT R4/R5 FAILED, layers order, toolbar, inspector commit or Edit with AI");
     app.exit(23);
     return;
   }
@@ -1772,9 +1772,9 @@ async function shot(): Promise<void> {
   })()`, true);
   await new Promise((r) => setTimeout(r, 800));
 
-  // ---- reorg 4c: Tools view — grid + one real runner ----------------------------
+  // ---- reorg 4c: Tools view, grid + one real runner ----------------------------
   // Entered via the R6 Skills ▾ click-through (Home → Skills → item): the menu item
-  // must land on THAT tool, not just the library — then back out to the grid for the
+  // must land on THAT tool, not just the library, then back out to the grid for the
   // list gate below.
   console.log("[shot] opening Tools via the composer Skills menu…");
   const skillNav = await win.webContents.executeJavaScript(`(async () => {
@@ -1788,13 +1788,13 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 500));
     const h1 = document.querySelector('[data-testid="tools-view"] h1')?.textContent ?? null;
     const back = document.querySelector('[data-testid="tools-view"] .ghostBtn');
-    back?.click(); // "← All tools" — return to the grid for the list gate
+    back?.click(); // "← All tools", return to the grid for the list gate
     await new Promise((r) => setTimeout(r, 400));
     return { label, openedTool: label && h1 === label, gridBack: Boolean(document.querySelector(".toolGrid")) };
   })()`, true);
   console.log("[shot] R6 skills nav:", JSON.stringify(skillNav));
   if (!skillNav || !skillNav.openedTool || !skillNav.gridBack) {
-    console.error("DESKTOP_SHOT R6 SKILLS NAV FAILED — a Skills item did not open its tool");
+    console.error("DESKTOP_SHOT R6 SKILLS NAV FAILED, a Skills item did not open its tool");
     app.exit(23);
     return;
   }
@@ -1894,7 +1894,7 @@ async function shot(): Promise<void> {
     ta.dispatchEvent(new Event("input", { bubbles: true }));
     return true;
   })()`, true);
-  // React re-renders asynchronously — POLL for the enabled button instead of racing it
+  // React re-renders asynchronously, POLL for the enabled button instead of racing it
   let genClicked = false;
   for (let i = 0; i < 20 && !genClicked; i++) {
     genClicked = await win.webContents.executeJavaScript(`(() => {
@@ -1926,7 +1926,7 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-tools-ai.png");
 
-  // ---- reorg 4d: Brand kit panel — kit form over the real store -----------------
+  // ---- reorg 4d: Brand kit panel, kit form over the real store -----------------
   console.log("[shot] opening Brand kit…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
@@ -1957,7 +1957,7 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-brandkit.png");
 
-  // ---- reorg 4d: For Agents — keys form + live loopback base URL ----------------
+  // ---- reorg 4d: For Agents, keys form + live loopback base URL ----------------
   console.log("[shot] opening For agents…");
   await win.webContents.executeJavaScript(`(() => {
     const pills = [...document.querySelectorAll(".viewNav .navPill")];
@@ -2000,7 +2000,7 @@ async function shot(): Promise<void> {
     return;
   }
   // Clipboard e2e gate: the renderer's navigator.clipboard is DENIED by the F2
-  // permission handler — Copy must ride the main-side bridge and confirm visibly.
+  // permission handler, Copy must ride the main-side bridge and confirm visibly.
   const copyBtn = await win.webContents.executeJavaScript(`(() => {
     const btn = document.querySelector('.baseUrlCode ~ .iconBtn, .agentSection .toolRow .iconBtn[aria-label="Copy base URL"]');
     if (!btn) return false;
@@ -2044,9 +2044,9 @@ async function snap(win: BrowserWindow, name: string): Promise<void> {
     const target = Math.max(600, Math.min(Number(height) || 600, 4200));
     const dbg = await win.webContents.executeJavaScript(`window.__snapDebug ?? ''`, true).catch(() => "");
     console.log(`[snap] ${name}: ${String(dbg)} (target=${target})`);
-    // macOS clamps windows to the screen — when the page is taller than the CSS viewport,
+    // macOS clamps windows to the screen, when the page is taller than the CSS viewport,
     // zoom out so the WHOLE page (result card + gallery below the fold) fits one capture.
-    // NOTE: getContentSize() is DEVICE px; scrollHeight is CSS px — compare in CSS px only.
+    // NOTE: getContentSize() is DEVICE px; scrollHeight is CSS px, compare in CSS px only.
     const cssH = await win.webContents.executeJavaScript("window.innerHeight", true).catch(() => 0);
     const pageH = Number(height) || 0;
     if (cssH && pageH > cssH) {
@@ -2068,20 +2068,20 @@ async function snap(win: BrowserWindow, name: string): Promise<void> {
 }
 
 function registerMenu(): void {
-  // F2: explicit View submenu — role:"viewMenu" shipped Toggle Developer Tools
+  // F2: explicit View submenu, role:"viewMenu" shipped Toggle Developer Tools
   // + Reload to sellers. Dev builds (unpackaged) keep reload/devtools for development.
   Menu.setApplicationMenu(Menu.buildFromTemplate(appMenuTemplate(process.platform === "darwin", !app.isPackaged)));
 }
 
 /**
- * F1 — ONE app instance, ever. Without the lock, a second launch forked a second
+ * F1: ONE app instance, ever. Without the lock, a second launch forked a second
  * utility process against the SAME userData: the atomic-write queue is per-process,
  * so two writers saved over each other (last-writer-wins data loss), and two loopback
  * servers fought over one discovery file + one quota guard.
  *
  * EVERY test mode sandboxes its userData in a fresh temp dir (found the hard way:
  * smoke/shot runs against the real userData seeded the owner's Workspace with
- * dozens of "banner smoke"/"New banner" junk projects). The SI smoke isolates too —
+ * dozens of "banner smoke"/"New banner" junk projects). The SI smoke isolates too,
  * it never races a real running instance on a dev machine.
  */
 if (smokeModeFromEnv(process.env, app.isPackaged)) {
@@ -2090,7 +2090,7 @@ if (smokeModeFromEnv(process.env, app.isPackaged)) {
 const gotInstanceLock = app.requestSingleInstanceLock();
 if (!gotInstanceLock) {
   // Marker line asserted by the SI smoke gate (and useful in bug reports).
-  console.log("[single-instance] another Oia owns this userData — focusing it and exiting");
+  console.log("[single-instance] another Oia owns this userData, focusing it and exiting");
   app.quit();
 } else {
   app.on("second-instance", () => {
@@ -2106,7 +2106,7 @@ app.whenReady().then(async () => {
   initRuntimeController(path.join(app.getPath("userData")));
   registerIpc();
   registerMenu();
-  // F2 — the app loads ONLY local content; no permission has a legitimate
+  // F2: the app loads ONLY local content; no permission has a legitimate
   // requester. Deny every request (camera/clipboard-read/geolocation/…) instead
   // of Electron's default grant-all.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
@@ -2178,10 +2178,10 @@ app.on("window-all-closed", () => {
 }
 
 /**
- * F1 gate — the single-instance lock, end to end with a REAL second process:
+ * F1 gate, the single-instance lock, end to end with a REAL second process:
  * spawn this same app (env flags stripped, same userData); it must hit the lock,
  * print the secondary marker and exit quickly instead of booting a second
- * utility process. Old behavior: the child fully started — two writers on the
+ * utility process. Old behavior: the child fully started, two writers on the
  * same stores (the failure mode this gate exists to catch).
  */
 async function singleInstanceSmoke(): Promise<void> {
@@ -2192,7 +2192,7 @@ async function singleInstanceSmoke(): Promise<void> {
     if (!k.startsWith("OIA_DESKTOP_") && v !== undefined) childEnv[k] = v;
   }
   const appRoot = app.getAppPath();
-  // The lock is keyed on the user data dir — the child MUST contend for the SAME
+  // The lock is keyed on the user data dir, the child MUST contend for the SAME
   // isolated dir the parent setPath'd, never the dev machine's real one.
   const child = spawn(
     process.execPath,

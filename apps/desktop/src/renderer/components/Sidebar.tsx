@@ -6,7 +6,7 @@ import { Icons } from "./icons.js";
 import { runtimeStatusLine, type StatusTone } from "../lib/runtime-status.js";
 
 /**
- * UI v1.1 R1 — the app shell sidebar: New design, the main sections, the three most
+ * UI v1.1 R1: the app shell sidebar: New design, the main sections, the three most
  * recent projects, and a status card that carries the infrastructure the Home hero
  * used to show (runtime state + today's image usage). Clicking the card opens Settings.
  */

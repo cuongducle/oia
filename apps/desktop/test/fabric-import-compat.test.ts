@@ -3,9 +3,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
- * F4-fix enforcement — the fabric 7 center-origin default broke every scene render
+ * F4-fix enforcement, the fabric 7 center-origin default broke every scene render
  * until fabricV6OriginDefaults() restored v6 semantics. That fix lives in
- * @oia/canvas and runs at module scope — which means every file that imports
+ * @oia/canvas and runs at module scope, which means every file that imports
  * fabric directly is safe ONLY IF it also pulls in @oia/canvas (or calls the
  * helper). That invariant held "by accident of the import graph" (self-review);
  * this gate makes it structural: a new direct fabric consumer that forgets the
@@ -37,7 +37,7 @@ describe("every direct fabric consumer goes through the v6 origin compat", () =>
     const offenders: string[] = [];
     let fabricConsumers = 0;
     for (const file of files) {
-      // `import type` is erased at compile time — it cannot load fabric, so it cannot skip the compat
+      // `import type` is erased at compile time, it cannot load fabric, so it cannot skip the compat
       const src = readFileSync(file, "utf8").replace(/^import type [^;]*from\s+["']fabric["'];?$/gm, "");
       if (!/["']fabric["']/.test(src)) continue; // not a fabric consumer
       if (/from\s+["']fabric["']/.test(src) === false && /import\(\s*["']fabric["']\s*\)/.test(src) === false && !src.includes('import * as fabric from "fabric"')) continue;

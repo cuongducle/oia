@@ -1,5 +1,5 @@
 /**
- * Channel names ONLY — pure data, safe for the sandboxed preload (no runtime deps;
+ * Channel names ONLY, pure data, safe for the sandboxed preload (no runtime deps;
  * a sandboxed preload may require nothing except electron).
  */
 export const IPC = {
@@ -18,11 +18,11 @@ export const IPC = {
   sessionsGet: "sessions:get",
   filesUpload: "files:upload",
   exportSave: "export:save",
-  // reorg step 4c — quick tools run tasks over IPC (the web fetch lanes, ported)
+  // reorg step 4c, quick tools run tasks over IPC (the web fetch lanes, ported)
   taskSubmit: "task:submit",
   taskGet: "task:get",
   taskCancel: "task:cancel",
-  // reorg step 4d — brand kits + the For Agents panel (keys, loopback endpoint, live jobs)
+  // reorg step 4d, brand kits + the For Agents panel (keys, loopback endpoint, live jobs)
   brandKitsList: "brandkits:list",
   brandKitsUpsert: "brandkits:upsert",
   brandKitsRemove: "brandkits:remove",
@@ -32,9 +32,9 @@ export const IPC = {
   agentStatus: "agent:status",
   agentJobEvent: "agentJob:event", // main → renderer (loopback + tool job lifecycle)
   clipboardWrite: "clipboard:write",
-  // reorg step 5 — import a self-hosted web app's .data directory
+  // reorg step 5, import a self-hosted web app's .data directory
   dataImportWeb: "data:importWeb",
-  // TP-D3 — codex runtime management (status / guided download / in-app login)
+  // TP-D3: codex runtime management (status / guided download / in-app login)
   runtimeStatus: "runtime:status",
   runtimeInstall: "runtime:install",
   runtimeLogin: "runtime:login",

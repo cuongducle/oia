@@ -1,8 +1,8 @@
-# Oia style guide — conventions for code and changes
+# Oia style guide: conventions for code and changes
 
 Companion to [`AGENTS.md`](../AGENTS.md) (operational rules) and
 [`designs/design-direction.md`](designs/design-direction.md) (visual direction).
-This file records the conventions the codebase already follows — keep new code
+This file records the conventions the codebase already follows, keep new code
 inside them or change them here first.
 
 ## Traceability tags
@@ -23,12 +23,12 @@ A tag in code is a POINTER to the spec, not a replacement for it.
 
 - Name files after the domain concept they hold (`copy-zones.ts`, `retry`-free
   naming after deletion, `utilityClient.ts`), never after their role
-  (`helpers`, `utils`, `common`, `misc`) — those become dumping grounds.
+  (`helpers`, `utils`, `common`, `misc`), those become dumping grounds.
 - Wire contracts (IPC channel names, error `name`s, `errorClass` values) are
   public API: rename = migration, not a refactor.
 - One hằng số một nguồn sự thật: `SCENE_VERSION` / `OIA_SCHEMA_VERSION` live in
   `@oia/schema` only. No raw literals elsewhere (test fixtures recorded from the
-  wire are exempt — they are data).
+  wire are exempt, they are data).
 
 ## Persistence
 
@@ -63,7 +63,7 @@ A tag in code is a POINTER to the spec, not a replacement for it.
   (see `docs/bug-reproductions/`).
 - No low-value tests: snapshotting what the code already says, or asserting a
   mock was called. Prefer running the real store/server/protocol against a temp
-  dir (see `test/loopback.test.ts` for the pattern — a real ServiceContext, no
+  dir (see `test/loopback.test.ts` for the pattern, a real ServiceContext, no
   Electron).
 - Scripted e2e gates live in the repo (`smoke`, `crash-smoke`, `shot`) and run in
   CI. A gate that only ran once on a developer machine is not a gate.
@@ -87,28 +87,28 @@ A tag in code is a POINTER to the spec, not a replacement for it.
   Cite the spec tag (`TP.7`, `B7`, `D9`) as a pointer; the decision itself lives
   in the plan doc, never only in the comment.
 - Type assertions are avoided except `as const`. An unavoidable one carries a
-  line-specific `SAFETY:` note explaining why the cast cannot lie — reviewers
+  line-specific `SAFETY:` note explaining why the cast cannot lie, reviewers
   grep for this word; if it is missing, the cast is a bug waiting.
 
 ## Review records (format cho doc review độc lập)
 
 Khi một design doc được review độc lập (ngoài agent đang implement), kết quả
-thành file cặp `<tên-doc>-review.md` cùng thư mục — theo format đã học từ Orca
+thành file cặp `<tên-doc>-review.md` cùng thư mục, theo format đã học từ Orca
 (`native-chat-setup-provisioning-review.md`):
 
-1. **Verdict** lên đầu — accepted / accepted-with-conditions / rejected, kèm
+1. **Verdict** lên đầu, accepted / accepted-with-conditions / rejected, kèm
    trạng thái P0/P1 còn mở (nếu có).
-2. **Root cause / simplest mechanism** — đoạn ngắn giải thích cơ chế thật của
+2. **Root cause / simplest mechanism**: đoạn ngắn giải thích cơ chế thật của
    vấn đề lớn nhất, không liệt kê triệu chứng.
-3. **Bảng concerns** — mỗi dòng: mối quan tâm | severity (P0–P2) | disposition
+3. **Bảng concerns**: mỗi dòng: mối quan tâm | severity (P0-P2) | disposition
    (accepted / withdrawn / fixed-now / deferred-với-lý-do). Không có concern
    nào "treo" không disposition.
-4. **Invariants checked** — những bất biến đã xác nhận không vỡ.
-5. **Final verification** — gate nào đã chạy, con số thật (test count), và
-   đặc biệt: **phạm vi claim** — ghi rõ cái gì KHÔNG được kiểm chứng
+4. **Invariants checked**: những bất biến đã xác nhận không vỡ.
+5. **Final verification**: gate nào đã chạy, con số thật (test count), và
+   đặc biệt: **phạm vi claim**: ghi rõ cái gì KHÔNG được kiểm chứng
    ("no Windows validation is claimed", "reviewer launched no window").
    Overclaim trong review doc là lỗi nghiêm trọng ngang overclaim trong UI.
 
 Tiền lệ trong repo: review 11 điểm từ ngoài (2026-10-30) được hấp thụ trực tiếp
-vào plan v2 chứ chưa tách file — vì reviewer là một phần luồng làm việc. Từ nay:
+vào plan v2 chứ chưa tách file, vì reviewer là một phần luồng làm việc. Từ nay:
 review độc lập đứng ngoài luồng implement → tách file cặp.

@@ -2,8 +2,8 @@ import type { RuntimeStatus } from "@oia/providers";
 import type { RuntimeModeChoice } from "../shared/ipc.js";
 
 /**
- * TP-D3 — the pure view-model for the Codex runtime panel. UI copy is ENGLISH by
- * owner decision Q11 (Vietnamese stays content/font level only — banner text, Be
+ * TP-D3: the pure view-model for the Codex runtime panel. UI copy is ENGLISH by
+ * owner decision Q11 (Vietnamese stays content/font level only, banner text, Be
  * Vietnam Pro). Kept DOM-free so the action matrix per runtime state and the error
  * mapping are testable without Electron.
  */
@@ -14,7 +14,7 @@ export interface RuntimeViewModel {
   badge: "ok" | "warn" | "err";
   /** Short status line for the panel header. */
   headline: string;
-  /** Version · login method · source — the diagnostics surface (TP.6 posture). */
+  /** Version · login method · source, the diagnostics surface (TP.6 posture). */
   detail: string;
   /** What to do about a degraded-but-signed-in state (D17). */
   notice?: string;
@@ -44,7 +44,7 @@ export function runtimeViewModel(
   if (runtime.state === "missing") {
     return {
       badge: "err",
-      headline: "Codex is not installed — needed for real banners",
+      headline: "Codex is not installed, needed for real banners",
       // no byte count: it drifts per platform/release; the checksum promise is the contract
       detail: "The app will download the official Codex package and verify its checksum before installing.",
       actions: ["install"],
@@ -112,12 +112,12 @@ export function runtimeErrorText(err: unknown): string {
   const e = err as { name?: string; message?: string };
   const isRuntime = e?.name === "RuntimeProviderError";
   const code = isRuntime ? (e.message ?? "") : "";
-  if (code === "provider_missing") return "Codex was not found on this machine — click “Install Codex” first.";
-  if (code === "network") return "Network error while downloading Codex — check your connection and retry.";
-  if (code === "rate_limited") return "GitHub is rate-limiting requests — wait about a minute and retry.";
-  if (code === "timeout") return "Timed out — please try again.";
-  if (code === "cancelled") return "Cancelled. Note: cancelling a sign-in mid-flow may sign you out — if that happened, sign in again.";
-  if (code === "checksum_mismatch" || /checksum/i.test(e?.message ?? "")) return "Download failed the checksum check — nothing was installed. Please retry.";
+  if (code === "provider_missing") return "Codex was not found on this machine, click “Install Codex” first.";
+  if (code === "network") return "Network error while downloading Codex, check your connection and retry.";
+  if (code === "rate_limited") return "GitHub is rate-limiting requests, wait about a minute and retry.";
+  if (code === "timeout") return "Timed out, please try again.";
+  if (code === "cancelled") return "Cancelled. Note: cancelling a sign-in mid-flow may sign you out, if that happened, sign in again.";
+  if (code === "checksum_mismatch" || /checksum/i.test(e?.message ?? "")) return "Download failed the checksum check, nothing was installed. Please retry.";
   if (code === "capability_unsupported") return "This platform is not supported for the Codex install yet.";
   if (e?.name === "IpcValidationError") return "Invalid request.";
   const detail = e?.message ? ` (${e.message.slice(0, 120)})` : "";

@@ -1,9 +1,9 @@
 /**
- * BR-NSFW — upload content-moderation hook ("check NSFW content on upload;
+ * BR-NSFW, upload content-moderation hook ("check NSFW content on upload;
  * sensitive content → error.file.sensitive_content").
- * Oia keeps it pluggable — OIA_NSFW=off (default; self-hosters decide) | stub.
+ * Oia keeps it pluggable, OIA_NSFW=off (default; self-hosters decide) | stub.
  * T3: mode comes from the CALLER's env object (the same one that configured the
- * providers) — defaulting to process.env only for direct/web callers.
+ * providers), defaulting to process.env only for direct/web callers.
  */
 export type NsfwDecision = { allowed: true } | { allowed: false; error: "error.file.sensitive_content" };
 

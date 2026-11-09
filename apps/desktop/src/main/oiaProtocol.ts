@@ -1,5 +1,5 @@
 /**
- * Reorg step 7 security gate — the URL half of the oia://files protocol.
+ * Reorg step 7 security gate, the URL half of the oia://files protocol.
  * Pure on purpose: the traversal suite needs to run without Electron. The sink
  * half (path containment, symlink escape) is gated in packages/tasks storage.
  */
@@ -15,7 +15,7 @@ export function oiaFilesKey(rawUrl: string): string | null {
   try {
     key = decodeURIComponent(url.pathname.replace(/^\//, ""));
   } catch {
-    return null; // malformed percent-encoding — never guess a fallback
+    return null; // malformed percent-encoding, never guess a fallback
   }
   return key || null;
 }

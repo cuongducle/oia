@@ -1,4 +1,4 @@
-// Shared env loader — never hardcodes the host (BYOK/self-host friendly).
+// Shared env loader, never hardcodes the host (BYOK/self-host friendly).
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -40,7 +40,7 @@ function discoverBaseUrl() {
       try {
         if (typeof info.pid === "number") process.kill(info.pid, 0); // alive?
       } catch {
-        continue; // stale discovery — the app is closed
+        continue; // stale discovery, the app is closed
       }
       return `http://127.0.0.1:${info.port}`;
     } catch {}

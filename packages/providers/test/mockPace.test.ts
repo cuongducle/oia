@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { parseMockStepDelayMs, MOCK_STEP_DELAY_MAX_MS } from "../src/mockPace.js";
 
 /**
- * The shot-busy pace knob — the ONLY mechanism that makes the mid-run UI
+ * The shot-busy pace knob, the ONLY mechanism that makes the mid-run UI
  * photographable. It must never misparse into a gate-hanging value.
  */
-describe("mockPace — OIA_MOCK_STEP_DELAY_MS parsing", () => {
+describe("mockPace, OIA_MOCK_STEP_DELAY_MS parsing", () => {
   it("unset, empty, invalid, zero and negative all mean instant", () => {
     expect(parseMockStepDelayMs(undefined)).toBe(0);
     expect(parseMockStepDelayMs("")).toBe(0);

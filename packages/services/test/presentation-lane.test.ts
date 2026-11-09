@@ -5,7 +5,7 @@ import path from "node:path";
 import { createServiceContext, type ServiceContext } from "../src/index.js";
 
 /**
- * F4 gate — the presentation lane end to end over the REAL pptxgenjs (and its
+ * F4 gate, the presentation lane end to end over the REAL pptxgenjs (and its
  * image-size dependency, forced across a major by the root override): mock
  * providers produce the slide image, the processor must emit a readable .pptx.
  * This is also the lane's first integration test at all.

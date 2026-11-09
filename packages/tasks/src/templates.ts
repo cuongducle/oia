@@ -13,7 +13,7 @@ export class TemplateStore {
     await atomicWriteJson(this.file, this.items);
   }
 
-/** Publish: scene JSON stored intact (BR-TPL1) — thumbnail taken from the first Image object. */
+/** Publish: scene JSON stored intact (BR-TPL1), thumbnail taken from the first Image object. */
   async publish(input: { name: string; authorName?: string; scene: unknown; featured?: boolean; category?: string; style?: string; pack?: string }): Promise<{ template: Template; warnings: string[] }> {
     const tpl = templateSchema.parse({
       id: `tpl_${Date.now().toString(36)}`,
@@ -58,11 +58,11 @@ export class TemplateStore {
 
   get(id: string): Template | undefined { return this.items.find((t) => t.id === id); }
 
-  /** Reorg step 5 — web `.data` import lane: an external template joins the store.
+  /** Reorg step 5, web `.data` import lane: an external template joins the store.
    *  Existing ids are refused (desktop data wins), returns false. */
   async addImported(tpl: Template): Promise<boolean> {
     if (this.items.some((t) => t.id === tpl.id)) return false;
-    // G4 (goldfish): legacy free-text categories enter as undefined — the closed
+    // G4 (goldfish): legacy free-text categories enter as undefined, the closed
     // taxonomy is forward-looking; imports never silently match a filter they don't mean.
     if (tpl.category !== undefined && !templateCategorySchema.safeParse(tpl.category).success) {
       tpl = { ...tpl, category: undefined };
@@ -81,14 +81,14 @@ export class TemplateStore {
   }
 }
 
-/** TPL-T4 (soft, owner Q2 2026-11-03): doctrine notes ride the publish result —
+/** TPL-T4 (soft, owner Q2 2026-11-03): doctrine notes ride the publish result,
  *  PosterMyWall rejects at publish; we warn first release, harden later. */
 export function templatePublishWarnings(tpl: Template): string[] {
   const warnings: string[] = [];
-  if (!tpl.category) warnings.push("no category — the template will not surface in category filters");
-  if (!tpl.scene.objects.some((o) => o.type === "Textbox")) warnings.push("no editable text layer — buyers can only swap the artwork, not the copy");
+  if (!tpl.category) warnings.push("no category, the template will not surface in category filters");
+  if (!tpl.scene.objects.some((o) => o.type === "Textbox")) warnings.push("no editable text layer, buyers can only swap the artwork, not the copy");
   const art = tpl.scene.objects.find((o) => o.type === "Image");
   if (!art || typeof (art as { src?: unknown }).src !== "string" || (art as { src: string }).src.startsWith("data:"))
-    warnings.push("artwork is missing or inline — set a stored /studio or /api/files source");
+    warnings.push("artwork is missing or inline, set a stored /studio or /api/files source");
   return warnings;
 }

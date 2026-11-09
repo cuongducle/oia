@@ -1,7 +1,7 @@
 /**
  * Layer stack operations for the editor's Layers panel and contextual toolbar
  * (UI v1.1 R4). Index 0 is the bottom of the Fabric stack; the artboard `clip`
- * Rect is the page itself and must stay beneath every layer — "send to back"
+ * Rect is the page itself and must stay beneath every layer, "send to back"
  * means "just above the clip", never under it (that hid the layer entirely).
  *
  * `locked` is a scene property (whitelisted in createEditor like `origin`):
@@ -33,7 +33,7 @@ export interface LayerRow {
   kind: "text" | "image" | "group" | "shape";
   visible: boolean;
   locked: boolean;
-  /** TP.10: user-added layers survive AI refinement — the panel says so. */
+  /** TP.10: user-added layers survive AI refinement, the panel says so. */
   user: boolean;
 }
 
@@ -55,7 +55,7 @@ export function layerLabel(o: LayerObject): string {
   return kind === "image" ? "Image" : kind === "group" ? "Group" : kind === "text" ? "Text" : `${(o.type ?? "Shape").replace(/^./, (c) => c.toUpperCase())}`;
 }
 
-/** Top of the stack first — the order a Layers panel reads. The clip is not a layer. */
+/** Top of the stack first, the order a Layers panel reads. The clip is not a layer. */
 export function layerRows(objects: LayerObject[]): LayerRow[] {
   const rows: LayerRow[] = [];
   objects.forEach((o, index) => {

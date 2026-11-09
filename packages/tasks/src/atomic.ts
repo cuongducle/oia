@@ -4,7 +4,7 @@ import path from "node:path";
 import { noteWriteFailure, noteWriteSuccess } from "./persistenceHealth.js";
 
 /**
- * TP.7 (Slice 3) — atomic JSON persistence for the file-backed stores.
+ * TP.7 (Slice 3), atomic JSON persistence for the file-backed stores.
  *
  * A crash mid-`writeFile` on `projects.json` used to corrupt EVERY project in one
  * shot (whole-file rewrite). Now: temp file + rename, with retry/backoff on
@@ -37,10 +37,10 @@ export async function renameWithRetry(
   }
 }
 
-/** Per-file single-writer chains — concurrent writers serialize, never interleave. */
+/** Per-file single-writer chains, concurrent writers serialize, never interleave. */
 const chains = new Map<string, Promise<unknown>>();
 
-/** Async existence check — the stores run on the utility process's event loop
+/** Async existence check, the stores run on the utility process's event loop
  *  (loopback server + task queue live there too); existsSync would block it. */
 export async function pathExists(file: string): Promise<boolean> {
   try {
@@ -79,7 +79,7 @@ export async function atomicWriteJson(file: string, data: unknown): Promise<void
       }
       noteWriteSuccess(file); // B7: a recovered store stops alarming
     } catch (err) {
-      noteWriteFailure(file, err); // B7: the write failure is recorded, never silent — then it still throws to the caller
+      noteWriteFailure(file, err); // B7: the write failure is recorded, never silent, then it still throws to the caller
       throw err;
     }
   });
@@ -92,19 +92,19 @@ export async function atomicWriteJson(file: string, data: unknown): Promise<void
 }
 
 /** For sync store methods that cannot await their save (ChatSessionStore.create).
- *  The failure is NOT swallowed: atomicWriteJson records it in persistenceHealth —
+ *  The failure is NOT swallowed: atomicWriteJson records it in persistenceHealth,
  *  this catch only prevents an unhandled promise rejection. */
 export function fireAndForgetWrite(save: Promise<void>): void {
   save.catch(() => {});
 }
 
 /**
- * TP.7 read side — durable load for the array-backed JSON stores.
+ * TP.7 read side, durable load for the array-backed JSON stores.
  *
  * The old pattern was `try { parse } catch { items = [] }`: one unparseable byte
  * (disk hiccup, partial write from an older non-atomic code path, manual edit)
  * blanked the store in memory, and the NEXT autosave wrote `[]` over the real
- * file — silent total data loss. Atomic writes only prevent torn files; they do
+ * file, silent total data loss. Atomic writes only prevent torn files; they do
  * not protect an already-corrupt one from being overwritten.
  *
  * Now: missing file → null (a fresh start is legitimate); unreadable → throw
@@ -133,7 +133,7 @@ export async function loadJsonArrayDurable<T>(file: string): Promise<T[] | null>
   const quarantine = `${file}.corrupt-${Date.now()}`;
   await renameWithRetry(file, quarantine);
   console.error(
-    `[store] ${path.basename(file)} was corrupt (unparseable or not a JSON array) — ` +
+    `[store] ${path.basename(file)} was corrupt (unparseable or not a JSON array), ` +
       `moved to ${path.basename(quarantine)}; starting empty rather than overwriting your data. ` +
       `Recover what you need from the quarantined file.`,
   );

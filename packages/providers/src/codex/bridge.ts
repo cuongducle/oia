@@ -7,14 +7,14 @@ import type { ErrorClass } from "@oia/schema";
 import { CliRuntime, createScratchDir, removeScratchDir, writeTranscript } from "../cli/runtime.js";
 
 /**
- * TP.2/TP.8 — the Codex bridge over the generic CliRuntime. One login, one channel, two uses:
+ * TP.2/TP.8: the Codex bridge over the generic CliRuntime. One login, one channel, two uses:
  * text-only planner (`codex exec` + `--output-schema`) and `$imagegen` artwork.
  *
  * Bridge-level invariants on EVERY invocation (Stage-0 design, prompt-injection hardening):
- * - prompt travels via stdin (`codex exec -`) — never argv
- * - `--ignore-user-config` (auth still honored) — a personal config.toml cannot change
+ * - prompt travels via stdin (`codex exec -`), never argv
+ * - `--ignore-user-config` (auth still honored), a personal config.toml cannot change
  *   planner quality/latency/cost between machines
- * - pinned `-m <model>` and reasoning effort — never inherit the user's default
+ * - pinned `-m <model>` and reasoning effort, never inherit the user's default
  * - role-scoped sandbox: `read-only` for the planner, `workspace-write` scoped to the
  *   job scratch directory for the image path (which must write the PNG)
  *
@@ -26,7 +26,7 @@ import { CliRuntime, createScratchDir, removeScratchDir, writeTranscript } from 
 
 export interface CodexExecOptions {
   role: "planner" | "image";
-  /** The full prompt text — travels via stdin. */
+  /** The full prompt text, travels via stdin. */
   prompt: string;
   /** Image role only: absolute paths of ASCII-named reference files (`-i`). */
   images?: string[];
@@ -34,7 +34,7 @@ export interface CodexExecOptions {
   schemaFile?: string;
   /** Planner only: absolute path the final message is written to (`-o`). */
   lastMessageFile?: string;
-  /** Planner only (DA-1): `codex exec --search` — live web search inside the
+  /** Planner only (DA-1): `codex exec --search`, live web search inside the
    * turn. Available in the pinned rust-v0.166.0; re-verify on every pin bump (D12). */
   search?: boolean;
   timeoutMs: number;
@@ -52,7 +52,7 @@ export interface CodexExecResult {
   durationMs: number;
   /** The role-scoped scratch dir (planner: empty -C dir; image: writable job dir). */
   scratchDir: string;
-  /** Correlation: the caller's jobId (TP.4 — one banner attempt reconstructable). */
+  /** Correlation: the caller's jobId (TP.4: one banner attempt reconstructable). */
   jobId: string;
 }
 
@@ -60,7 +60,7 @@ export const CODEX_DEFAULT_MODEL = process.env.CODEX_LLM_MODEL ?? "gpt-6-luna";
 export const CODEX_IMAGE_DEFAULT_MODEL = process.env.CODEX_IMAGE_MODEL ?? "gpt-6-luna";
 export const CODEX_REASONING_EFFORT = process.env.CODEX_REASONING_EFFORT ?? "low";
 
-/** Parse a `--json` stream for the session id (thread.started) — deterministic, no mtime guessing. */
+/** Parse a `--json` stream for the session id (thread.started), deterministic, no mtime guessing. */
 export function parseThreadId(stdout: string): string | null {
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim();
@@ -69,7 +69,7 @@ export function parseThreadId(stdout: string): string | null {
       const evt = JSON.parse(trimmed) as { type?: string; thread_id?: string };
       if (evt.type === "thread.started" && evt.thread_id) return evt.thread_id;
     } catch {
-      /* non-JSON line — ignore */
+      /* non-JSON line, ignore */
     }
   }
   return null;
@@ -77,7 +77,7 @@ export function parseThreadId(stdout: string): string | null {
 
 /**
  * Best-effort `File: [name](path)` stdout hint. Accepts POSIX, `C:\…`, and `C:/…` forms.
- * Format drift is real (absent in the S1 run) — this is a cross-check, never the locator.
+ * Format drift is real (absent in the S1 run), this is a cross-check, never the locator.
  */
 export function parseImagePathHint(stdout: string): string | null {
   const posix = stdout.match(/File:\s*\[[^\]]*\]\((\/[^\s)]+\.(?:png|jpg|jpeg|webp))\)/);
@@ -116,10 +116,10 @@ export async function findSessionImage(threadId: string, rootOverride?: string):
 }
 
 /**
- * TP.5/A8 — cancel ledger: a killed image job may still flush its PNG moments later.
+ * TP.5/A8: cancel ledger: a killed image job may still flush its PNG moments later.
  * The fallback scan ignores files whose mtime sits at/below a cancel mark (+1s tolerance):
  * a LATER job's image always lands strictly after the kill, the killed job's late write
- * does not — no cross-job misattribution.
+ * does not, no cross-job misattribution.
  */
 const gLedger = globalThis as unknown as { __oiaCodexCancelMarks?: number[] };
 export function noteCancelledImageJob(at: number = Date.now()): void {
@@ -131,7 +131,7 @@ function notFromACancelledJob(mtimeMs: number): boolean {
   return !(gLedger.__oiaCodexCancelMarks ?? []).some((m) => mtimeMs <= m + 1000);
 }
 
-/** Wait for a just-written file to settle (size stable across two reads) — a codex exit
+/** Wait for a just-written file to settle (size stable across two reads), a codex exit
  *  code does not guarantee the PNG flush finished (B8). Returns false on timeout. */
 export async function waitForStableFile(file: string, maxMs = 2000, probeMs = 150): Promise<boolean> {
   const size = async () => (await stat(file).catch(() => null))?.size ?? -1;
@@ -170,7 +170,7 @@ export async function newestGeneratedImage(withinMs = 10 * 60_000, rootOverride?
 }
 
 /**
- * D17 — codex exits 0 and only SAYS the image tool is missing (Free plan, live
+ * D17: codex exits 0 and only SAYS the image tool is missing (Free plan, live
  * 2026-11-04: "the built-in image generation tool isn't available").
  */
 export function imageToolUnavailable(stdout: string): boolean {
@@ -208,7 +208,7 @@ export function classifyCodexFailure(res: { code: number | null; stdout: string;
 
 export interface CodexBridgeOptions {
   bin?: string;
-  /** Pinned for every invocation (invariant) — planner model. */
+  /** Pinned for every invocation (invariant), planner model. */
   model?: string;
   /** Pinned model for the image path. */
   imageModel?: string;
@@ -237,7 +237,7 @@ export class CodexBridge {
   private baseArgs(model: string): string[] {
     return [
       "exec",
-      "-", // prompt from stdin — user text never enters argv
+      "-", // prompt from stdin, user text never enters argv
       "--skip-git-repo-check",
       "--ignore-user-config",
       "--json",
@@ -252,10 +252,10 @@ export class CodexBridge {
     const args = this.baseArgs(model);
     if (opts.role === "planner") {
       // empty scratch dir as working root; the planner agent can never write state.
-      // B1: the vision read attaches its image here too — an image is PROMPT INPUT,
+      // B1: the vision read attaches its image here too, an image is PROMPT INPUT,
       // not state; read-only sandbox still blocks every write.
       args.push("--sandbox", "read-only", "-C", scratchDir);
-      // 0.166.0: --search is a TOP-LEVEL flag — it must precede the `exec`
+      // 0.166.0: --search is a TOP-LEVEL flag, it must precede the `exec`
       // subcommand (`codex exec --search` exits non-zero instantly, classified
       // `unknown`). Re-verify the position on every pin bump (D12).
       if (opts.search) args.unshift("--search");
@@ -263,7 +263,7 @@ export class CodexBridge {
       if (opts.lastMessageFile) args.push("-o", opts.lastMessageFile);
       for (const img of opts.images ?? []) args.push("-i", img);
     } else {
-      // the image path must write the PNG — workspace-write scoped to the job scratch
+      // the image path must write the PNG, workspace-write scoped to the job scratch
       args.push("--sandbox", "workspace-write", "-C", scratchDir);
       for (const img of opts.images ?? []) args.push("-i", img);
     }
@@ -280,7 +280,7 @@ export class CodexBridge {
         cwd: scratchDir,
       });
     } catch (err) {
-      // B2: the scratch dir existed before spawn — an ENOENT/unknown spawn failure must not leak it
+      // B2: the scratch dir existed before spawn, an ENOENT/unknown spawn failure must not leak it
       await removeScratchDir(scratchDir);
       throw err;
     }
@@ -290,7 +290,7 @@ export class CodexBridge {
       scratchDir,
       jobId: opts.jobId,
     };
-    // failed runs clean their own scratch — no orphan dirs from aborted/errored jobs
+    // failed runs clean their own scratch, no orphan dirs from aborted/errored jobs
     if (out.code !== 0 || out.timedOut || out.aborted) await removeScratchDir(scratchDir);
     return out;
   }
@@ -301,7 +301,7 @@ export class CodexBridge {
   }
 
   /**
-   * TP.6 — structured diagnostic: binary found / version / login state / last error.
+   * TP.6: structured diagnostic: binary found / version / login state / last error.
    * Cached ~60 s so every request does not pay the cold `login status` round trip.
    */
   async diagnose(force = false): Promise<ProviderDiagnostic> {

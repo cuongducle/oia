@@ -8,7 +8,7 @@ import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderErro
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
 
 /**
- * TP-D2 (D1) — the ONE context both shells construct. Everything the chat loop, the
+ * TP-D2 (D1), the ONE context both shells construct. Everything the chat loop, the
  * editor, and the task API need is built here (stores + metered providers + task store
  * + optional Redis cancel publisher). The web `getRuntime()` is a thin singleton over
  * this; the Electron main process will call it with `userData` as the data dir.
@@ -33,13 +33,13 @@ export class ProviderConfigError extends Error {
   }
 }
 
-/** Hard rule 6 — a budget knob that fails to parse must NEVER silently mean "unlimited". */
+/** Hard rule 6, a budget knob that fails to parse must NEVER silently mean "unlimited". */
 function parseDailyLimit(env: NodeJS.ProcessEnv, name: string): number | undefined {
   const raw = env[name]?.trim();
   if (raw === undefined || raw === "") return undefined; // unset = unlimited (today's behavior)
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 0) {
-    throw new ProviderConfigError(`${name} must be a non-negative integer (got "${raw}") — refusing to boot rather than guessing an unlimited budget`);
+    throw new ProviderConfigError(`${name} must be a non-negative integer (got "${raw}"), refusing to boot rather than guessing an unlimited budget`);
   }
   return n;
 }
@@ -55,7 +55,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
 
   const dataDir = opts.dataDir ?? path.join(process.cwd(), ".data");
   const files = new LocalFileStore(path.join(dataDir, "files"));
-  await files.hydrate(); // md5 dedupe survives restarts — migrate-on-save reuses existing assets
+  await files.hydrate(); // md5 dedupe survives restarts, migrate-on-save reuses existing assets
 
   const keys = new ApiKeyStore(path.join(dataDir, "api-keys.json"));
   await keys.load();
@@ -78,12 +78,12 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
     meter,
   };
 
-  // TP.5: durable task records — cancel is in-process only (worker deployment removed, reorg step 3)
+  // TP.5: durable task records, cancel is in-process only (worker deployment removed, reorg step 3)
   const taskStore = new TaskStore({
     logFile: path.join(dataDir, "task-log.jsonl"),
   });
 
-  // task processors registered ONCE here — both shells share them (banner lane: poster/
+  // task processors registered ONCE here, both shells share them (banner lane: poster/
   // image-edit/reference tasks/presentation + generic image tasks; image-translate is a
   // clear failure, never a hang). Providers come from `chat` (env-configured + metered):
   // tasks must burn the SAME quota ledger as chat, never a bare registry lookup.
@@ -98,7 +98,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   taskStore.register("generate-illustrations", makeGenericImageTask(procCtx, { buildPrompt: (p) => `16:9 editorial illustration about: ${p.prompt ?? ""}, hand-drawn` }));
   taskStore.register("generate-storyboard", makeGenericImageTask(procCtx, { buildPrompt: (p) => `film storyboard frame: ${p.prompt ?? ""}, sketch style` }));
   taskStore.register("image-translate", async () => {
-    throw new ProviderError("capability_unsupported", "image-translate needs the vision (OCR) module — scheduled later", { provider: "oia" });
+    throw new ProviderError("capability_unsupported", "image-translate needs the vision (OCR) module, scheduled later", { provider: "oia" });
   });
 
   const ctx: ServiceContext = {

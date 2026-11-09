@@ -3,7 +3,7 @@ import { viewportToNatural, markerWidthFor } from "../src/renderer/lib/markup-an
 
 const IDENTITY = [1, 0, 0, 1, 0, 0];
 
-describe("ME viewportToNatural — pure mapping math", () => {
+describe("ME viewportToNatural, pure mapping math", () => {
   it("identity everywhere: viewport point lands on the same natural pixel", () => {
     const p = viewportToNatural({ x: 120, y: 60 }, IDENTITY, IDENTITY, 1000, 800, 1000, 800);
     expect(p).toEqual({ x: 120, y: 60 });

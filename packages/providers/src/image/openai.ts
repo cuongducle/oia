@@ -3,7 +3,7 @@ import { ProviderError } from "../types.js";
 import { OPENAI_IMAGE_CAPABILITIES, OPENAI_IMAGE_MODEL_DEFAULT, openAiImages } from "../wire/openai-images.js";
 
 /**
- * OpenAI Images adapter (BYOK: OPENAI_API_KEY) — a thin adapter over the shared
+ * OpenAI Images adapter (BYOK: OPENAI_API_KEY), a thin adapter over the shared
  * openai-images wire (TP.9/TP.11): generations without references, edits with them,
  * both pinning one configured model. True-ratio sizes replace the old 3-size snapping.
  */

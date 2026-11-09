@@ -3,18 +3,18 @@ import { oia } from "../lib/bridge.js";
 import type { AgentJobFrame } from "../../shared/bridge.js";
 
 /**
- * reorg step 4d — For Agents (web /for-agents ported): API keys for the loopback
+ * reorg step 4d, For Agents (web /for-agents ported): API keys for the loopback
  * agent API (create/view/revoke; plaintext shown ONCE), the live base URL (the
  * port re-rolls on every utility fork), and the runs feed.
  *
  * The feed merges lifecycle frames PER TASK (a sync-mode submit settles before its
- * "submitted" frame is emitted — arrival order cannot be the display order) and
+ * "submitted" frame is emitted, arrival order cannot be the display order) and
  * covers BOTH lanes: agent-API runs and quick-tools runs are all metered
  * generations and must stay visible even after the view that started them closed
  * (hard rule 6). Frames are buffered in main, so history survives a closed panel
  * or a services crash+refork.
  *
- * Copy buttons ride the MAIN-side clipboard IPC — the renderer's
+ * Copy buttons ride the MAIN-side clipboard IPC, the renderer's
  * navigator.clipboard is denied by the F2 deny-all permission handler, and a
  * swallowed failure there would silently copy nothing.
  */
@@ -79,7 +79,7 @@ export function ForAgents() {
     return off;
   }, [loadAgentStatus]);
 
-  /** Keyed merge — newest change wins per task; rows sorted by last change. */
+  /** Keyed merge, newest change wins per task; rows sorted by last change. */
   function mergeRuns(prev: RunRow[], incoming: (AgentJobFrame & { at: number })[]): RunRow[] {
     const byId = new Map(prev.map((r) => [r.taskId, r]));
     for (const f of incoming) {
@@ -117,7 +117,7 @@ export function ForAgents() {
     }
   }
 
-  /** Main-side clipboard — visible confirmation, never a silent no-op. */
+  /** Main-side clipboard, visible confirmation, never a silent no-op. */
   async function copy(label: string, text: string) {
     setCopied(null);
     try {
@@ -126,7 +126,7 @@ export function ForAgents() {
       setCopied(label);
       setTimeout(() => setCopied((c) => (c === label ? null : c)), 1600);
     } catch {
-      setError("Copy failed — select the text and copy it manually.");
+      setError("Copy failed, select the text and copy it manually.");
     }
   }
 
@@ -146,7 +146,7 @@ export function ForAgents() {
       <section className="agentSection" aria-labelledby="keys-title">
         <h2 id="keys-title">API keys</h2>
         <p className="hintP">
-          Keys authenticate against the local agent API (127.0.0.1 only). Keep them private —
+          Keys authenticate against the local agent API (127.0.0.1 only). Keep them private,
           anyone with a key can start metered generations.
         </p>
         <div className="apiKeyForm">
@@ -185,8 +185,8 @@ export function ForAgents() {
                     <td>{k.name}</td>
                     <td><code>{k.preview}…</code></td>
                     <td>{fmtDateTime(k.createdAt)}</td>
-                    <td>{k.expiresAt ? fmtDateTime(k.expiresAt) : "—"}</td>
-                    <td>{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "—"}</td>
+                    <td>{k.expiresAt ? fmtDateTime(k.expiresAt) : "N/A"}</td>
+                    <td>{k.lastUsedAt ? fmtDateTime(k.lastUsedAt) : "N/A"}</td>
                     <td><button className="iconBtn danger" aria-label={`Revoke key ${k.name}`} title="Revoke key" onClick={() => void revoke(k.id, k.name)}>Revoke</button></td>
                   </tr>
                 ))}
@@ -211,7 +211,7 @@ export function ForAgents() {
           <p className="hintP" role="status">Finding the local agent API…</p>
         ) : (
           <div className="notice warn" role="status">
-            The local agent API is not responding — agents cannot connect right now.
+            The local agent API is not responding, agents cannot connect right now.
             <button className="secondaryBtn" style={{ marginLeft: 10 }} onClick={loadAgentStatus}>Retry</button>
           </div>
         )}

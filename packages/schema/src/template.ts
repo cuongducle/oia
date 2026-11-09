@@ -2,7 +2,7 @@ import { z } from "zod";
 import { sceneCanvasSchema } from "./scene.js";
 
 /**
- * BR-TPL — Community templates ("Sharing your design as template";
+ * BR-TPL, Community templates ("Sharing your design as template";
  * gallery: 1/N thumbnail, name, author, tip credits).
  */
 export const templateSchema = z.object({
@@ -12,27 +12,27 @@ export const templateSchema = z.object({
   scene: sceneCanvasSchema,
   featured: z.boolean().default(false),
   tipCredits: z.number().int().min(0).default(0),
-  /** Optional grouping for template galleries ("livestream" — live-overlay-presets.md LV-7).
+  /** Optional grouping for template galleries ("livestream", live-overlay-presets.md LV-7).
    * Deliberately LOOSE here (G6, goldfish): legacy free-text categories must keep parsing
    * on read (D14); the CLOSED taxonomy (templateCategorySchema) is enforced at write edges
    * (TemplateStore.publish) and sanitized on import lanes (addImported). */
   category: z.string().trim().min(1).max(40).optional(),
-  /** SC-2 — style family (social-card-style-presets.md). Same loose-on-read /
+  /** SC-2: style family (social-card-style-presets.md). Same loose-on-read /
    * closed-at-edges pattern as category (G6, D14). */
   style: z.string().trim().min(1).max(40).optional(),
-  /** SC-5 — curated pack membership (niche bundles). Loose read / edge-enforced. */
+  /** SC-5: curated pack membership (niche bundles). Loose read / edge-enforced. */
   pack: z.string().trim().min(1).max(60).optional(),
   createdAt: z.number(),
 });
 export type Template = z.infer<typeof templateSchema>;
 
 /**
- * SC-2 — the template style families. Two systems, each with font pairing and
+ * SC-2: the template style families. Two systems, each with font pairing and
  * the laws the critic enforces (docs/designs/social-card-style-presets.md).
  */
 export const TEMPLATE_STYLES = [
   { id: "editorial", label: "Editorial", fontPair: "Georgia + Be Vietnam Pro", laws: "serif display headline, italic deck, textured paper background (never flat), hairline rules, restrained warm palette" },
-  { id: "swiss", label: "Swiss", fontPair: "Be Vietnam Pro (display weight 200)", laws: "one saturated accent used exactly once, very large light-weight display type, hairline dividers, flat surfaces — no gradients, no shadows, no rounded corners" },
+  { id: "swiss", label: "Swiss", fontPair: "Be Vietnam Pro (display weight 200)", laws: "one saturated accent used exactly once, very large light-weight display type, hairline dividers, flat surfaces, no gradients, no shadows, no rounded corners" },
 ] as const;
 export type TemplateStyleId = (typeof TEMPLATE_STYLES)[number]["id"];
 export const templateStyleSchema = z.enum(
@@ -40,7 +40,7 @@ export const templateStyleSchema = z.enum(
 );
 
 /**
- * SC-5 — preset packs: curated bundles by seller niche (a pack bundles templates
+ * SC-5: preset packs: curated bundles by seller niche (a pack bundles templates
  * + the prompts that grew them; see social-card-style-presets.md). Same
  * closed-at-edges pattern as category/style.
  */
@@ -55,7 +55,7 @@ export const templatePackSchema = z.enum(
 );
 
 /**
- * TPL-T1 — the template taxonomy, single home. Ids match the Home composer's
+ * TPL-T1: the template taxonomy, single home. Ids match the Home composer's
  * category chips (flash sale / new product / livestream / menu / social post /
  * deck) so a chip can later route to matching templates; labels are UI EN (D8).
  */

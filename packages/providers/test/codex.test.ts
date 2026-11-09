@@ -45,7 +45,7 @@ describe("BR-CODEX path parsing: POSIX + both Windows forms (B4 fixtures)", () =
       "c:/Users/seller/.codex/generated_images/aa11bb22-cc33-dd44-ee55-ff6677889900/exec-deadbeef-1234-5678-9abc-def012345678.png",
     );
   });
-  it("degraded output (no File: marker) → null — format drift is real", () => {
+  it("degraded output (no File: marker) → null, format drift is real", () => {
     expect(parseImagePath(fx("stdout-degraded.txt"))).toBeNull();
     expect(parseImagePath("some random output")).toBeNull();
   });
@@ -144,8 +144,8 @@ describe("TP.3 mode-aware prompt templates", () => {
 describe("CliRuntime with a fake binary (resolution / timeout / abort / stdin)", () => {
   const fakeDir = path.join(tmpdir(), `oia-fake-bin-${Date.now()}`);
   mkdirSync(fakeDir, { recursive: true });
-  // echoes args + stdin, then exits 0 — lets tests pin the bridge invariants
-  // (portable node fake — see fakeCli.ts; sh scripts cannot run on Windows)
+  // echoes args + stdin, then exits 0, lets tests pin the bridge invariants
+  // (portable node fake, see fakeCli.ts; sh scripts cannot run on Windows)
   const fakeBin = writeRunnableCli(
     fakeDir,
     "fakecodex",
@@ -220,7 +220,7 @@ process.stdin.on("end", () => process.stdout.write("STDIN_END\\n"));
     expect(argsLine).not.toContain("$imagegen");
   });
 
-  it("DA-1/--search is a TOP-LEVEL flag: it must PRECEDE the exec subcommand (teardown #19 — the bug real quota caught, argv order is now pinned for free)", async () => {
+  it("DA-1/--search is a TOP-LEVEL flag: it must PRECEDE the exec subcommand (teardown #19 · the bug real quota caught, argv order is now pinned for free)", async () => {
     const bridge = new CodexBridge({ bin: fakeBin, model: "test-model" });
     const schemaFile = path.join(fakeDir, "plan.schema.json");
     const lastMsg = path.join(fakeDir, "plan.json");
@@ -282,7 +282,7 @@ describe("INTEGRATION codex (real CLI, real ChatGPT login)", () => {
   it("generates a real image when logged in to codex", { timeout: 360_000 }, async () => {
     const p = new CodexImageProvider();
     const diag = await p.isAvailable();
-    if (!diag.ok) return; // soft skip — never fails CI
+    if (!diag.ok) return; // soft skip, never fails CI
     const result = await p.generate({ prompt: "pastel poster, big bold text 'OIA OK'", width: 1024, height: 1365 });
     expect(result.provider).toBe("codex");
     expect(result.url).toMatch(/^data:image\/png;base64,/);
@@ -301,7 +301,7 @@ describe("INTEGRATION codex (real CLI, real ChatGPT login)", () => {
     ]);
     expect(plan.title.length).toBeGreaterThan(0);
     expect(plan.blocks?.length ?? 0).toBeGreaterThan(0);
-    // roles are free-form by contract — accept price OR discount for the offer value
+    // roles are free-form by contract, accept price OR discount for the offer value
     const roles = (plan.blocks ?? []).map((b) => b.role.toLowerCase());
     expect(roles.some((r) => /price|discount|percent|sale/.test(r))).toBe(true);
     expect(roles.some((r) => /date/.test(r))).toBe(true);
@@ -309,7 +309,7 @@ describe("INTEGRATION codex (real CLI, real ChatGPT login)", () => {
 });
 
 describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
-  it("B1: a RELATIVE file path ref is read from the cwd — never an unwritten temp file", async () => {
+  it("B1: a RELATIVE file path ref is read from the cwd, never an unwritten temp file", async () => {
     const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
     const { materializeReference } = await import("../src/image/codex.js");
     const src = await createScratchDir("b1-src");
@@ -325,7 +325,7 @@ describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
     }
   });
 
-  it("a file: URL ref (packaged renderer artwork) is read via its path and copied out — never path.resolve'd", async () => {
+  it("a file: URL ref (packaged renderer artwork) is read via its path and copied out, never path.resolve'd", async () => {
     const { createScratchDir, removeScratchDir } = await import("../src/cli/runtime.js");
     const { materializeReference } = await import("../src/image/codex.js");
     const { pathToFileURL } = await import("node:url");
@@ -361,7 +361,7 @@ describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
     }
   });
 
-  it("A2: the clean-plate clause is DERIVED from the shared geometry — provider and placement share one source", async () => {
+  it("A2: the clean-plate clause is DERIVED from the shared geometry, provider and placement share one source", async () => {
     const { COPY_ZONE_GEOMETRY, cleanPlateZoneClause } = await import("@oia/schema");
     const { buildCleanPlatePrompt } = await import("../src/index.js");
     const clause = cleanPlateZoneClause(COPY_ZONE_GEOMETRY);
@@ -383,7 +383,7 @@ describe("STAGE-0 remediation: B1/A2/A4/A9/B8 fixes", () => {
     expect(res.jobId).toBe("job-correlation-1");
   });
 
-  it("B8: pngSize rejects a truncated PNG (missing IEND) — a partial flush cannot reach the canvas", () => {
+  it("B8: pngSize rejects a truncated PNG (missing IEND), a partial flush cannot reach the canvas", () => {
     const truncated = PNG_1PX.subarray(0, PNG_1PX.length - 8); // cut the CRC tail
     expect(pngSize(truncated)).toBeUndefined();
     expect(pngSize(PNG_1PX)).toEqual({ width: 1, height: 1 });

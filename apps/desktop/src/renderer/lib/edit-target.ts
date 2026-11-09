@@ -3,11 +3,11 @@ import type { SceneCanvas } from "@oia/schema";
 /**
  * A3-lite target resolution, pure part (teardown fix #1): fabric can drop the
  * active object between the user's layer click and the send (observed live in
- * the v3 experiment — the edit silently fell into the no-selection branch and
+ * the v3 experiment, the edit silently fell into the no-selection branch and
  * shipped the whole canvas as references). The LAST image selection survives
  * in a ref; resolution prefers the live selection, falls back to the layer the
  * user last picked by NAME. A fallback that no longer exists on the canvas is
- * ignored — a stale name must never fabricate a target.
+ * ignored, a stale name must never fabricate a target.
  */
 
 export interface TargetLayerLike {

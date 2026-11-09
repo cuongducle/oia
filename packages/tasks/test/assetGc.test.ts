@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { LocalFileStore, collectAssetRefs, sweepUnreferencedAssets, ASSET_GC_GRACE_MS } from "../src/index.js";
 
-/** T11 — deleting a project used to leave its images on disk forever. */
+/** T11: deleting a project used to leave its images on disk forever. */
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -21,7 +21,7 @@ function age(root: string, key: string, ms: number): void {
   utimesSync(path.join(root, key), t, t);
 }
 
-describe("collectAssetRefs — text reachability, whatever prefix carries the key", () => {
+describe("collectAssetRefs, text reachability, whatever prefix carries the key", () => {
   it("finds keys behind /api/files/, oia://files/ and bare, at any depth", () => {
     const refs = collectAssetRefs([
       { pages: [{ canvas: { objects: [{ src: "/api/files/uploads/20261030/aaa-1.png" }] } }] },
@@ -54,7 +54,7 @@ describe("sweepUnreferencedAssets", () => {
     expect(existsSync(path.join(root, young.key))).toBe(true);
   });
 
-  it("a removed file is FORGOTTEN by dedupe — the same bytes uploaded again get a real file", async () => {
+  it("a removed file is FORGOTTEN by dedupe, the same bytes uploaded again get a real file", async () => {
     const { files, root } = await store();
     const bytes = new Uint8Array([9, 9, 9]);
     const first = await files.put(bytes, "png");
@@ -63,7 +63,7 @@ describe("sweepUnreferencedAssets", () => {
     expect(existsSync(path.join(root, first.key))).toBe(false);
 
     const again = await files.put(bytes, "png");
-    // the stale index would have returned first.key — a URL to a deleted file
+    // the stale index would have returned first.key, a URL to a deleted file
     expect(existsSync(path.join(root, again.key))).toBe(true);
     expect(await files.read(again.key)).toEqual(bytes);
   });

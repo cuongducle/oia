@@ -3,18 +3,18 @@ import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, 
 import { holdMockPace } from "../mockPace.js";
 
 /**
- * Default provider — needs no key and NEVER calls the network (tests stay stable offline).
- * Returns an embedded 8×8 placeholder PNG (data URL) — the canvas scales it; enough for the pipeline, demos, and CI.
+ * Default provider, needs no key and NEVER calls the network (tests stay stable offline).
+ * Returns an embedded 8×8 placeholder PNG (data URL), the canvas scales it; enough for the pipeline, demos, and CI.
  * TP.6: declares `isMock: true` (the 8×8 placeholder is what a keyless first-run user
- * actually sees) so Home can label "Trial mode — placeholder images, not real AI".
+ * actually sees) so Home can label "Trial mode, placeholder images, not real AI".
  *
  * The placeholder is DETERMINISTIC PER PROMPT (fnv1a hash → color): "different
  * request → different image" is what a mock owes the gates that watch asset
- * identity (A1 preview-apply pins "exactly one src changed" on it — one fixed
+ * identity (A1 preview-apply pins "exactly one src changed" on it, one fixed
  * PNG for everything deduped to the same URL and made swap vs no-op identical).
  */
 
-/** 32-bit FNV-1a — tiny, stable, no dependencies. */
+/** 32-bit FNV-1a, tiny, stable, no dependencies. */
 function fnv1a(input: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < input.length; i++) {
@@ -87,14 +87,14 @@ export function placeholderPng(prompt: string): string {
 }
 
 const MOCK_CAPABILITIES: ProviderCapabilities = {
-  // The mock accepts (and ignores) reference inputs — it returns a deterministic
+  // The mock accepts (and ignores) reference inputs, it returns a deterministic
   // placeholder for ANY generate() call, so declaring "cannot" was a lie about
   // itself; B1's deconstruct lane runs on mock pairs in every gate.
   referenceImages: true,
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },
   transparentBg: false,
   isMock: true,
-  // ME — the whole markup UI flow must run on mock pairs (CI + offline gates);
+  // ME, the whole markup UI flow must run on mock pairs (CI + offline gates);
   // the payload is accepted and ignored like every other reference input.
   markupEdit: "flatten",
 };
@@ -104,10 +104,10 @@ export class MockImageProvider implements ImageProvider {
   readonly capabilities: ProviderCapabilities = MOCK_CAPABILITIES;
   constructor(private readonly paceMs = 0) {}
   async generate(input: ImageGenInput): Promise<ImageGenResult> {
-    await holdMockPace(this.paceMs); // shot-busy only — 0 in every other mode
+    await holdMockPace(this.paceMs); // shot-busy only, 0 in every other mode
     return { url: placeholderPng(input.prompt ?? ""), provider: "mock", model: "placeholder-offline", width: 8, height: 8 };
   }
   async isAvailable(): Promise<ProviderDiagnostic> {
-    return { ok: true, detail: "mock image provider — offline, no network" };
+    return { ok: true, detail: "mock image provider, offline, no network" };
   }
 }

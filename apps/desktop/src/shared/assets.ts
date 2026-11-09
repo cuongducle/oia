@@ -1,6 +1,6 @@
 /**
  * Scene srcs reference /api/files/<key> (same-origin on the web shell). On desktop there
- * is no HTTP server — the oia://files/<key> protocol serves the LocalFileStore instead.
+ * is no HTTP server, the oia://files/<key> protocol serves the LocalFileStore instead.
  * Shipped studio artwork (/studio/*.webp) is served by the renderer's own origin, so it
  * maps to a RELATIVE path (absolute paths break under file:// in the packaged app).
  *
@@ -17,7 +17,7 @@ export function mapAssetUrls<T extends { objects?: { src?: unknown }[] }>(scene:
   return { ...scene, objects };
 }
 
-/** Inverse of mapAssetUrls — renderer display form back to the canonical store/provider form. */
+/** Inverse of mapAssetUrls, renderer display form back to the canonical store/provider form. */
 export function unmapAssetUrls<T extends { objects?: { src?: unknown }[] }>(scene: T): T {
   const objects = (scene.objects ?? []).map((o) =>
     typeof o.src === "string"
@@ -30,7 +30,7 @@ export function unmapAssetUrls<T extends { objects?: { src?: unknown }[] }>(scen
 /** Single-URL form (reference images, asset panel entries). */
 export function toDisplayUrl(url: string): string {
   if (url.startsWith("/api/files/")) return `oia://files/${url.slice("/api/files/".length)}`;
-  if (url.startsWith("/studio/")) return url.slice(1); // relative — survives file:// and dev-server origins
+  if (url.startsWith("/studio/")) return url.slice(1); // relative, survives file:// and dev-server origins
   return url;
 }
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * The generation result, presented as a design artifact — not a chat message.
+ * The generation result, presented as a design artifact, not a chat message.
  * Name + pixel dims badge + primary "Open in editor"; secondary actions muted.
  * (gap-table P0 presentation, docs/reference/design-product-ui-2026.md)
  */
@@ -12,9 +12,9 @@ export function ResultCard(props: {
   ready: boolean;
   canvasRef: React.Ref<HTMLCanvasElement>;
   actions: ReactNode;
-  /** DA-6 — "auto-refined · round N" when a refine round actually ran. */
+  /** DA-6: "auto-refined · round N" when a refine round actually ran. */
   badge?: string | null;
-  /** DA-6/B7 — defects the critic still flagged on the shipped image (best-effort
+  /** DA-6/B7: defects the critic still flagged on the shipped image (best-effort
    * verdicts); the record must be visible, not only persisted. */
   refineIssues?: string[] | null;
 }) {

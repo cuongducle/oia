@@ -7,7 +7,7 @@ import { BrandKitStore, ChatSessionStore, LocalFileStore, ProjectStore, Template
 import { DataImportError, importWebData, resolveWebDataDir, type WebImportTarget } from "../src/importWebData.js";
 import type { BrandKit, Template } from "@oia/schema";
 
-/** Reorg step 5 — the web `.data` import lane (owner's real data crosses here). */
+/** Reorg step 5, the web `.data` import lane (owner's real data crosses here). */
 
 const PNG_BYTES = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c63f8cfc0f01f0005050201edb5ca9f0000000049454e44ae426082",
@@ -130,7 +130,7 @@ describe("resolveWebDataDir", () => {
   });
 });
 
-describe("importWebData — the happy lane", () => {
+describe("importWebData, the happy lane", () => {
   it("imports projects + assets + sessions + kits + templates; every reference still resolves", async () => {
     const web = makeWebData();
     const { dataDir, target } = makeDesktop();
@@ -162,7 +162,7 @@ describe("importWebData — the happy lane", () => {
     expect(target.templates.list().items.map((t: Template) => t.id)).toContain("tpl_web");
   });
 
-  it("a reopen (app restart) sees the imported data intact — the step-5 persistence gate", async () => {
+  it("a reopen (app restart) sees the imported data intact, the step-5 persistence gate", async () => {
     const web = makeWebData();
     const { dataDir } = makeDesktop();
     const first: WebImportTarget = (() => {
@@ -193,7 +193,7 @@ describe("importWebData — the happy lane", () => {
   });
 });
 
-describe("importWebData — safety lanes", () => {
+describe("importWebData, safety lanes", () => {
   it("is IDEMPOTENT: a second run imports nothing and duplicates nothing", async () => {
     const web = makeWebData();
     const { target } = makeDesktop();
@@ -209,7 +209,7 @@ describe("importWebData — safety lanes", () => {
     expect(target.chatSessions.recent(100)).toHaveLength(before.sessions);
   });
 
-  it("desktop WINS on a project id collision — imported data never overwrites", async () => {
+  it("desktop WINS on a project id collision, imported data never overwrites", async () => {
     const web = makeWebData();
     const { dataDir, target } = makeDesktop();
     await boot(target);

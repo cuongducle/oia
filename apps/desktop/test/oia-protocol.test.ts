@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { oiaFilesKey } from "../src/main/oiaProtocol.js";
 
-/** Reorg step 7 security gate, URL half — oia://files must yield only clean keys.
+/** Reorg step 7 security gate, URL half, oia://files must yield only clean keys.
  *  The sink half (containment + symlink escape) lives in packages/tasks storage tests. */
 describe("oiaFilesKey (oia://files URL parsing)", () => {
   it("parses a normal asset URL", () => {
@@ -12,7 +12,7 @@ describe("oiaFilesKey (oia://files URL parsing)", () => {
     expect(oiaFilesKey("https://files/uploads/x.png")).toBeNull();
     expect(oiaFilesKey("not a url")).toBeNull();
   });
-  it("decodes percent-encoding — the traversal arrives DECODED at the store (which must reject it)", () => {
+  it("decodes percent-encoding, the traversal arrives DECODED at the store (which must reject it)", () => {
     expect(oiaFilesKey("oia://files/%2e%2e%2fsecret.png")).toBe("../secret.png");
     expect(oiaFilesKey("oia://files/uploads%2F..%2F..%2Fx")).toBe("uploads/../../x");
   });

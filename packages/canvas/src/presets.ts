@@ -25,7 +25,7 @@ export const SHAPES = [
 export type ShapeKind = (typeof SHAPES)[number];
 
 /** BR-ED3: Settings "Recommended Size" presets (px). Stage 0 (Slice 5): Vietnamese marketplace
- *  sizes — sellers think "khung Shopee", not pixel dimensions. Dimensions follow the marketplaces'
+ *  sizes, sellers think "khung Shopee", not pixel dimensions. Dimensions follow the marketplaces'
  *  current seller guides; re-verified against each seller center when this slice ships.
  *  Codex-channel ratio availability is gated by spike S1's observed set; ratios outside it
  *  route through the zone-anchored crop path (TP.8). */

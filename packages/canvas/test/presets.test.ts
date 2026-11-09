@@ -25,7 +25,7 @@ describe("BR-ED2 Shapes (9 shapes in 3 rows)", () => {
 });
 
 describe("BR-ED3 Settings (Recommended Size table)", () => {
-  it("all 15 presets with the exact pixel sizes (9 original + 3 Vietnamese marketplace frames + 3 international — SC-1)", () => {
+  it("all 15 presets with the exact pixel sizes (9 original + 3 Vietnamese marketplace frames + 3 international, SC-1)", () => {
     expect(SIZE_PRESETS["Instagram Post (1:1)"]).toEqual({ width: 1080, height: 1080 });
     expect(SIZE_PRESETS["YouTube Thumbnail (16:9)"]).toEqual({ width: 2560, height: 1440 });
     expect(SIZE_PRESETS["TikTok (9:16)"]).toEqual({ width: 1080, height: 1920 });
@@ -43,7 +43,7 @@ describe("BR-ED3 Settings (Recommended Size table)", () => {
   });
 });
 
-/** SC-1 — international board sizes (social-card-style-presets.md). */
+/** SC-1: international board sizes (social-card-style-presets.md). */
 describe("SC-1 international size presets", () => {
   it("Instagram Portrait 4:5, Pinterest 2:3, X 16:9 ship with exact pixels", () => {
     expect(SIZE_PRESETS["Instagram Portrait (4:5)"]).toEqual({ width: 1080, height: 1350 });

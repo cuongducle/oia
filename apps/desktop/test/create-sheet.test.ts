@@ -5,7 +5,7 @@ import { CREATE_SIZES, sizeScene } from "../src/renderer/lib/create-sheet.js";
 import { sceneDims, sceneShape } from "../src/renderer/lib/scene-dims.js";
 
 /**
- * UI v1.1 R2 — the Create sheet's size lane. A preset must open a project at
+ * UI v1.1 R2: the Create sheet's size lane. A preset must open a project at
  * exactly its size (the clip is the document ground truth, TP.3), and the sheet
  * must not upgrade any size into an "official" platform spec (LV-10).
  */

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RunStep } from "../lib/run-steps.js";
 import { RunSteps } from "./RunSteps.js";
 
-/** Streamed events may each end with their own newline — collapse the pile-ups
+/** Streamed events may each end with their own newline, collapse the pile-ups
  *  so the feed keeps one quiet blank line between entries, not two. */
 function normalizeFeed(text: string): string {
   return text.trim().replace(/\n{3,}/g, "\n\n");
@@ -13,7 +13,7 @@ function normalizeFeed(text: string): string {
 const FOLLOW_MARGIN_PX = 48;
 
 /**
- * UI v1.1 R3 pass 2 — the run-progress sheet: stepper + streaming notes live in
+ * UI v1.1 R3 pass 2, the run-progress sheet: stepper + streaming notes live in
  * ONE raised card (the same sheet language as the composer), so the mid-run
  * state reads as a designed moment instead of two floating fragments. While
  * busy: centered steps + a live-following notes feed with a live dot and an
@@ -27,7 +27,7 @@ export function RunPanel(props: {
   narrative: string;
   notesOpen: boolean;
   onToggleNotes: (open: boolean) => void;
-  /** Run start (ms epoch) — drives the elapsed seconds while busy. */
+  /** Run start (ms epoch), drives the elapsed seconds while busy. */
   startedAt: number | null;
   /** Generation wall-time once the result has landed; null before/while busy. */
   summarySeconds: number | null;
@@ -44,7 +44,7 @@ export function RunPanel(props: {
     return () => clearInterval(t);
   }, [busy, startedAt]);
 
-  // follow the feed only while the reader is at the tail — scrolling up to read
+  // follow the feed only while the reader is at the tail, scrolling up to read
   // must win over the stream yanking the position back down
   useEffect(() => {
     const el = bodyRef.current;

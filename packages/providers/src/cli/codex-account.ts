@@ -3,12 +3,12 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 /**
- * D17 — what the signed-in ChatGPT plan lets Codex do, read from the login's own
+ * D17: what the signed-in ChatGPT plan lets Codex do, read from the login's own
  * id_token claim (`chatgpt_plan_type` in `$CODEX_HOME/auth.json`). Offline and
  * free: no generation is spent to find out the account cannot generate images.
  *
  * Only a plan we KNOW lacks the built-in image tool reads as "unavailable"; any
- * other plan, a missing file, or a malformed token reads as "unknown" — a false
+ * other plan, a missing file, or a malformed token reads as "unknown", a false
  * warning would push a paying seller away from a working account.
  */
 
@@ -37,7 +37,7 @@ export function codexHomeDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.CODEX_HOME?.trim() || path.join(homedir(), ".codex");
 }
 
-/** Decodes the JWT payload only — the token is never verified, logged, or forwarded. */
+/** Decodes the JWT payload only, the token is never verified, logged, or forwarded. */
 export function planTypeFromAuthJson(raw: string): string | null {
   let auth: unknown;
   try {

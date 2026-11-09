@@ -25,10 +25,10 @@ describe("BR-PERSIST Project store", () => {
     expect(projects.recent()[0].name).toBe("A2");
     expect(projects.get(b.id)!.name).toBe("B");
   });
-  it("regression (CI 41136672187): a same-ms burst — saveScene still overtakes the newer create", async () => {
+  it("regression (CI 41136672187): a same-ms burst, saveScene still overtakes the newer create", async () => {
     // Freeze the clock: create A, create B, saveScene A all inside ONE millisecond.
     // Before the monotonic updatedAt fix, A.updatedAt == B.updatedAt and the stable
-    // sort kept B (created later) in front — the "touched project moves to the front"
+    // sort kept B (created later) in front, the "touched project moves to the front"
     // promise broke. Deterministic reproduction of the flaky CI failure.
     const fixed = Date.now();
     const spy = vi.spyOn(Date, "now").mockImplementation(() => fixed);
@@ -72,14 +72,14 @@ describe("BR-PERSIST' Chat session store", () => {
 });
 
 /**
- * T2 regression — a corrupt store file must never be silently blanked and then
+ * T2 regression, a corrupt store file must never be silently blanked and then
  * overwritten with `[]` by the next autosave (the old `catch { items = [] }`
  * pattern destroyed every project the first time one byte went bad).
  */
 const quarantineOf = (dir: string, base: string) =>
   readdirSync(dir).find((f) => f.startsWith(`${base}.corrupt-`));
 
-describe("TP.7 durable load — corrupt file is quarantined, not overwritten", () => {
+describe("TP.7 durable load, corrupt file is quarantined, not overwritten", () => {
   it("projects.json (legacy monolith) corrupt → bytes preserved in a .corrupt sibling; store starts empty and SAVES do not destroy them", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-corrupt-prj-"));
     const file = path.join(dir, "projects.json");
@@ -89,7 +89,7 @@ describe("TP.7 durable load — corrupt file is quarantined, not overwritten", (
     const store = new ProjectStore(dir);
     await store.load();
     expect(store.recent()).toHaveLength(0); // starts empty
-    // load() MOVED the poison aside (rename) — the bytes were never overwritten or deleted
+    // load() MOVED the poison aside (rename), the bytes were never overwritten or deleted
     const moved = quarantineOf(dir, "projects.json");
     expect(moved).toBeDefined();
     expect(readFileSync(path.join(dir, moved!), "utf8")).toBe(poison);
@@ -108,7 +108,7 @@ describe("TP.7 durable load — corrupt file is quarantined, not overwritten", (
     const store = new ChatSessionStore(file);
     await store.load();
     expect(quarantineOf(dir, "chats.json")).toBeDefined(); // load() moved the poison
-    store.create("after corruption"); // save() is fire-and-forget here — poll for the fresh file
+    store.create("after corruption"); // save() is fire-and-forget here, poll for the fresh file
     let fresh = false;
     for (let i = 0; i < 40 && !fresh; i++) {
       await new Promise((r) => setTimeout(r, 25));
@@ -128,7 +128,7 @@ describe("TP.7 durable load — corrupt file is quarantined, not overwritten", (
     expect(quarantineOf(dir, "projects.json")).toBeDefined();
   });
 
-  it("a MISSING store is a legitimate fresh start — no quarantine noise", async () => {
+  it("a MISSING store is a legitimate fresh start, no quarantine noise", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-fresh-"));
     const store = new ProjectStore(dir);
     await store.load();
@@ -138,7 +138,7 @@ describe("TP.7 durable load — corrupt file is quarantined, not overwritten", (
   });
 });
 
-/** Reorg step 5 — per-project files: the blast radius of any single bad file is ONE project. */
+/** Reorg step 5, per-project files: the blast radius of any single bad file is ONE project. */
 describe("per-project files (reorg step 5)", () => {
   const prjDir = (dir: string) => path.join(dir, "projects");
 
@@ -172,13 +172,13 @@ describe("per-project files (reorg step 5)", () => {
     await first.create({ name: "B" });
     await first.saveScene(a.id, { name: "A-renamed" });
 
-    const reopened = new ProjectStore(dir); // "process restarted" — nothing in memory
+    const reopened = new ProjectStore(dir); // "process restarted", nothing in memory
     await reopened.load();
     expect(reopened.recent().map((p) => p.name)).toEqual(["A-renamed", "B"]);
     expect(reopened.get(a.id)!.name).toBe("A-renamed");
   });
 
-  it("ONE corrupt project file is quarantined ALONE — every other project survives (the step-5 blast-radius gate)", async () => {
+  it("ONE corrupt project file is quarantined ALONE, every other project survives (the step-5 blast-radius gate)", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "pf-blast-"));
     mkdirSync(prjDir(dir), { recursive: true });
     writeProjectFile(dir, "prj_ok1");
@@ -199,7 +199,7 @@ describe("per-project files (reorg step 5)", () => {
     writeProjectFile(dir, "prj_wrongname", { id: "prj_misnamed", name: "misnamed copy" });
     const store = new ProjectStore(dir);
     await store.load();
-    // recovered under the id it declares — visible, exactly one copy
+    // recovered under the id it declares, visible, exactly one copy
     expect(store.recent().map((p) => p.id).sort()).toEqual(["prj_misnamed", "prj_real"]);
     expect(readdirSync(prjDir(dir)).sort()).toEqual(["prj_misnamed.json", "prj_real.json"]);
 
@@ -211,12 +211,12 @@ describe("per-project files (reorg step 5)", () => {
     expect(quarantineOf(prjDir(dir), "extra_copy.json")).toBeDefined(); // duplicate bytes preserved
   });
 
-  it("a FAILED quarantine never bricks the store — the other projects still load (blast radius stays per-file)", async () => {
-    if (process.getuid?.() === 0 || process.platform === "win32") return; // root ignores mode bits AND chmod is a no-op on Windows — the persistenceHealth precedent
+  it("a FAILED quarantine never bricks the store, the other projects still load (blast radius stays per-file)", async () => {
+    if (process.getuid?.() === 0 || process.platform === "win32") return; // root ignores mode bits AND chmod is a no-op on Windows, the persistenceHealth precedent
     const dir = mkdtempSync(path.join(tmpdir(), "pf-quarantine-fail-"));
     mkdirSync(prjDir(dir), { recursive: true });
     writeProjectFile(dir, "prj_ok1");
-    writeFileSync(path.join(prjDir(dir), "prj_bad1.json"), '{"broken": '); // poison — quarantine will try and FAIL
+    writeFileSync(path.join(prjDir(dir), "prj_bad1.json"), '{"broken": '); // poison, quarantine will try and FAIL
     writeFileSync(path.join(prjDir(dir), "prj_bad2.json"), "{");
     // make the directory read-only: the quarantine RENAME inside must fail (EACCES)
     chmodSync(prjDir(dir), 0o500);
@@ -230,7 +230,7 @@ describe("per-project files (reorg step 5)", () => {
     }
   });
 
-  it("an UNREADABLE file is skipped — the store still boots (per-file blast radius)", async () => {
+  it("an UNREADABLE file is skipped, the store still boots (per-file blast radius)", async () => {
     if (process.getuid?.() === 0 || process.platform === "win32") return; // chmod is a no-op on Windows
     const dir = mkdtempSync(path.join(tmpdir(), "pf-read-fail-"));
     mkdirSync(prjDir(dir), { recursive: true });

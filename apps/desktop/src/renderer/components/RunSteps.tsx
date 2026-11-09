@@ -1,14 +1,14 @@
 import { Fragment } from "react";
 import type { RunStep } from "../lib/run-steps.js";
 
-/** Done steps keep their icon slot filled — a check reads "finished" at a glance
+/** Done steps keep their icon slot filled, a check reads "finished" at a glance
  *  where same-shape dots made done vs running a hue-guessing game. */
 const CheckIcon = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
 );
 
 /**
- * UI v1.1 R3 — the single progress line every metered flow shows: Planning ›
+ * UI v1.1 R3: the single progress line every metered flow shows: Planning ›
  * Painting › Composing. Quota is money (AGENTS.md): the control that cancels a
  * running paid step lives in the composer right above this line, never in it.
  */

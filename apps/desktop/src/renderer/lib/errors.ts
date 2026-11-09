@@ -3,10 +3,10 @@ import type { I18nKey } from "./i18n.js";
 
 /**
  * Owner decision FINAL (2026-10-30, recorded as D8 in docs/designs/desktop-only-reorg.md):
- * the desktop UI ships ENGLISH — no Vietnamese UI strings anywhere in renderer code.
+ * the desktop UI ships ENGLISH, no Vietnamese UI strings anywhere in renderer code.
  * Vietnamese is supported at the CONTENT level only (Be Vietnam Pro font renders seller
  * text in banners). provider-errors maps errorClass→i18n KEY only; the English copy
- * lives here. i18n.ts gets trimmed to en-only (reorg step 4e) — I18nKey union unchanged.
+ * lives here. i18n.ts gets trimmed to en-only (reorg step 4e), I18nKey union unchanged.
  */
 const EN: Partial<Record<I18nKey, string>> = {
   "error.provider_missing": "The AI tool (Codex CLI) is not installed yet. Install it, then try again.",
@@ -15,7 +15,7 @@ const EN: Partial<Record<I18nKey, string>> = {
   "error.rate_limited": "Too many requests at once. Wait a moment, then try again.",
   "error.content_refused": "The request was declined by the safety policy. Try rewording it.",
   "error.timeout": "Image generation took too long and timed out. Please try again.",
-  "error.format_drift": "The AI tool's output format changed — Oia needs an update.",
+  "error.format_drift": "The AI tool's output format changed, Oia needs an update.",
   "error.no_output": "No image was received from the AI tool. Please try again.",
   "error.plan_parse_failed": "The planning step returned an error. Please try again.",
   "error.capability_unsupported": "Not available with the current provider or account. Codex image generation needs ChatGPT Go or higher.",
@@ -23,7 +23,7 @@ const EN: Partial<Record<I18nKey, string>> = {
   "error.network": "Network error. Check your connection, then try again.",
   "error.cancelled": "Image generation was stopped at your request.",
   "error.unknown": "Something went wrong for an unknown reason. Please try again.",
-  "error.invalidRequest": "Invalid request — please try again.",
+  "error.invalidRequest": "Invalid request, please try again.",
   "error.configMismatch": "Provider configuration is invalid (mock mixed with real). See the README.",
   "error.action.retry": "Retry",
   "error.action.login": "Log in again",
@@ -47,7 +47,7 @@ export function presentErrorEn(errorClass?: string | null): ErrorPresentationEn 
   };
 }
 
-/** The resetAt suffix (`quota resets: …`) — English copy for the shared key. */
+/** The resetAt suffix (`quota resets: …`), English copy for the shared key. */
 export function resetAtLabel(resetAt: string): string {
   return (EN["error.resetAt"] ?? "quota resets: {time}").replace("{time}", resetAt);
 }

@@ -3,16 +3,16 @@ import { migrateScene } from "./migrate.js";
 import type { FileStore } from "./storage.js";
 
 /**
- * Reorg step 5 — the project-format migration runner.
+ * Reorg step 5, the project-format migration runner.
  *
  * A project file carries `schemaVersion` (absent = 0 = the legacy web format).
  * Each migration step moves the file one version forward; `load()` runs the
  * chain read-tolerantly (a step that fails keeps the project UNMIGRATED but
- * open — the strict refusal still happens at save time), and every save stamps
+ * open, the strict refusal still happens at save time), and every save stamps
  * the current version, so the next boot skips the chain entirely.
  */
 
-/** Raised when a step cannot complete — the caller decides read vs strict tolerance. */
+/** Raised when a step cannot complete, the caller decides read vs strict tolerance. */
 export class MigrationError extends Error {
   readonly violations: string[];
   constructor(message: string, violations: string[]) {
@@ -25,7 +25,7 @@ export class MigrationError extends Error {
 export interface ProjectMigration {
   from: number;
   to: number;
-  /** May throw — load keeps the unmigrated project (read-tolerant); save stays strict. */
+  /** May throw, load keeps the unmigrated project (read-tolerant); save stays strict. */
   migrate(project: Project, files: FileStore): Promise<Project>;
 }
 
@@ -42,7 +42,7 @@ const legacyBase64ToAssets: ProjectMigration = {
         violations,
       );
     }
-    return project; // the RUNNER stamps the step's version — steps never hardcode it
+    return project; // the RUNNER stamps the step's version, steps never hardcode it
   },
 };
 
@@ -54,7 +54,7 @@ export const PROJECT_MIGRATIONS: readonly ProjectMigration[] = [legacyBase64ToAs
  * Apply consecutive steps starting at `project.schemaVersion ?? 0`. Returns the
  * migrated project with the last applied step's version stamped. A project
  * already at/above every step's `from` passes through untouched (read-tolerant
- * toward future versions). Throws MigrationError — the caller picks tolerance.
+ * toward future versions). Throws MigrationError, the caller picks tolerance.
  */
 export async function migrateProjectToCurrent(
   project: Project,

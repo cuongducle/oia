@@ -1,7 +1,7 @@
 /**
- * SC-5 — template provenance: the exact prompts that grew the AI-plated studio
+ * SC-5: template provenance: the exact prompts that grew the AI-plated studio
  * templates (social-card-style-presets.md). A preset pack's differentiator is
- * reproducibility: the artwork is not stock — it grew from a recorded prompt
+ * reproducibility: the artwork is not stock, it grew from a recorded prompt
  * the user can rerun, remix, or point at their own subject. Data only; the
  * site pack pages and any future in-app provenance surface read from here.
  *

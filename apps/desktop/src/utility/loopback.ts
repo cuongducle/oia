@@ -7,19 +7,19 @@ import path from "node:path";
 import type { ServiceContext } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
-import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path — single home in @oia/schema
+import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path, single home in @oia/schema
 import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "./guardedTaskSubmit.js";
 
 const execFileAsync = promisify(execFile);
 
 /**
- * D9 (reorg step 4b) — the loopback agent API, served from the UTILITY process.
+ * D9 (reorg step 4b), the loopback agent API, served from the UTILITY process.
  *
  * Security posture (all checks BEFORE any route logic):
- * 1. Bind 127.0.0.1 only; Host header must be exactly `127.0.0.1:<port>` — kills
+ * 1. Bind 127.0.0.1 only; Host header must be exactly `127.0.0.1:<port>`, kills
  *    DNS-rebinding (an attacker page on evil.com resolving to 127.0.0.1 sends its
  *    own Host and dies here).
- * 2. Any request carrying an Origin header is rejected — browsers always send it
+ * 2. Any request carrying an Origin header is rejected, browsers always send it
  *    on cross-origin fetches; curl/agents never do. No CORS headers are EVER set.
  * 3. The API key rides the Authorization header ONLY (raw key, same as the web
  *    API the skills already speak). A key in the query string is an explicit 401.
@@ -29,7 +29,7 @@ const execFileAsync = promisify(execFile);
  * - Random port + discovery file `<userData>/agent-api.json` (mode 0600): agents
  *   read the port from disk instead of guessing; removed on close.
  * - Per-key rate limit (token bucket) + at most ONE metered generation in flight
- *   app-wide — the SAME guard chat uses (meteredGuard), reserved SYNCHRONOUSLY
+ *   app-wide, the SAME guard chat uses (meteredGuard), reserved SYNCHRONOUSLY
  *   before the submit await and released exactly once (onSettled, or the fallback
  *   TTL for a wedged background handler; sync-mode submits arm no timer).
  * - Agent jobs are surfaced to the UI as `agentJob` events.
@@ -38,8 +38,8 @@ const execFileAsync = promisify(execFile);
  * same routes) so the 15 skills work unchanged with OIA_BASE_URL swapped.
  */
 
-/** The Windows ACL owner — domain-qualified when the account has one.
- *  (`domain` exists only on the Windows overload of userInfo — widen the type.) */
+/** The Windows ACL owner, domain-qualified when the account has one.
+ *  (`domain` exists only on the Windows overload of userInfo, widen the type.) */
 async function currentUserName(): Promise<string> {
   const os = await import("node:os");
   const u = os.userInfo() as { username: string; domain?: string };
@@ -57,7 +57,7 @@ export interface AgentJobEvent extends GuardedJobEvent {
 interface LoopbackDeps {
   ctx: () => ServiceContext;
   userDataDir: string;
-  /** T3 — the SAME env object that configured the providers (NSFW mode rides it). */
+  /** T3: the SAME env object that configured the providers (NSFW mode rides it). */
   env: Record<string, string | undefined>;
   emit: (ev: AgentJobEvent) => void;
   /** Test seam: production wants FALLBACK_TTL_MS (15 min); gates inject ms so the
@@ -112,7 +112,7 @@ function parseMultipart(body: Buffer, contentType: string): { name: string; byte
 
 export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number; discoveryFile: string; close: () => Promise<void> }> {
   const { ctx, emit } = deps;
-  // G3 — the metered in-flight guard is the SHARED guardedTaskSubmit core (the same
+  // G3: the metered in-flight guard is the SHARED guardedTaskSubmit core (the same
   // one chat and the quick-tools IPC lane use), keyed on the live provider
   // capabilities (isMock), not on an env flag: the env flag missed the real provider
   // and let a chat job + an agent task run two paid generations at once.
@@ -138,14 +138,14 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
 
   const server: Server = createServer(async (req, res) => {
     try {
-      // Gate 1 — Host must be the literal loopback origin (DNS-rebinding kill).
+      // Gate 1, Host must be the literal loopback origin (DNS-rebinding kill).
       const expectedHost = `127.0.0.1:${port}`;
       if (req.headers.host !== expectedHost) return json(res, 403, 403, null, "forbidden host");
 
-      // Gate 2 — no browser origins, ever.
+      // Gate 2, no browser origins, ever.
       if (req.headers.origin !== undefined) return json(res, 403, 403, null, "browser origins are not allowed");
 
-      // Gate 3 — key via Authorization header only.
+      // Gate 3, key via Authorization header only.
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
       if (url.searchParams.has("key") || url.searchParams.has("access_token") || url.searchParams.has("apiKey")) {
         return json(res, 401, 401, null, "api key must not travel in the query string");
@@ -157,8 +157,8 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
 
       const segments = url.pathname.split("/").filter(Boolean); // ["api", ...]
 
-      // ---- GET /api/files/:key — authed bytes for agents (oia:// is Electron-only).
-      //      Keys contain path segments (uploads/20261030/xxx.png) — take the REST.
+      // ---- GET /api/files/:key, authed bytes for agents (oia:// is Electron-only).
+      //      Keys contain path segments (uploads/20261030/xxx.png), take the REST.
       if (req.method === "GET" && segments[0] === "api" && segments[1] === "files" && segments.length >= 3) {
         const key = decodeURIComponent(segments.slice(2).join("/"));
         let bytes: Uint8Array;
@@ -185,7 +185,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         return;
       }
 
-      // ---- POST /api/tasks/:type — submit (skill contract: source "skill"/"agent")
+      // ---- POST /api/tasks/:type, submit (skill contract: source "skill"/"agent")
       if (req.method === "POST" && segments[0] === "api" && segments[1] === "tasks" && segments.length === 3) {
         const type = segments[2];
         if (type === "cancel") {
@@ -205,11 +205,11 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         try {
           body = JSON.parse(raw.toString("utf8") || "{}") as Record<string, unknown>;
         } catch {
-          // a malformed body is the CLIENT's error — 400, not a leaked 500
+          // a malformed body is the CLIENT's error, 400, not a leaked 500
           return json(res, 400, 1, null, "request body is not valid JSON");
         }
 
-        // G3 — synchronous reservation + exactly-once release live in the shared
+        // G3: synchronous reservation + exactly-once release live in the shared
         // guardedTaskSubmit core (extracted from this file in reorg step 4c so the
         // quick-tools IPC lane keeps IDENTICAL semantics).
         let t: { taskId: string; progress: string };
@@ -224,12 +224,12 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         return json(res, 200, 0, t, "");
       }
 
-      // ---- GET /api/tasks/:id — poll
+      // ---- GET /api/tasks/:id, poll
       if (req.method === "GET" && segments[0] === "api" && segments[1] === "tasks" && segments.length === 3) {
         try {
           return json(res, 200, 0, ctx().taskStore.get(segments[2]), "");
         } catch (err) {
-          // TaskNotFound crosses the bundle boundary as a plain Error — its message
+          // TaskNotFound crosses the bundle boundary as a plain Error, its message
           // ("task not found") + taskId property are the stable contract (24h TTL).
           const e = err as Error & { taskId?: string };
           if (e instanceof Error && e.message === "task not found" && e.taskId === segments[2]) {
@@ -239,13 +239,13 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         }
       }
 
-      // ---- POST /api/upload/direct — multipart file → FileStore (NSFW-gated)
+      // ---- POST /api/upload/direct, multipart file → FileStore (NSFW-gated)
       if (req.method === "POST" && segments[0] === "api" && segments[1] === "upload" && segments[2] === "direct") {
         const raw = await readBody(req);
         if (raw === null) return json(res, 413, 413, null, "body too large");
         const file = parseMultipart(raw, req.headers["content-type"] ?? "");
         if (!file) return json(res, 400, 1, null, "file required (multipart form-data)");
-        // SAME allowlist as the renderer IPC path (@oia/schema uploads.ts) — the
+        // SAME allowlist as the renderer IPC path (@oia/schema uploads.ts), the
         // loopback used to accept any extension an agent chose to send
         const ext = (file.name.split(".").pop() ?? "").toLowerCase();
         if (!isImageExt(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
@@ -257,7 +257,7 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
 
       return json(res, 404, 404, null, "not found");
     } catch (err) {
-      // 500s must not leak internals (err.message can carry paths/providers) —
+      // 500s must not leak internals (err.message can carry paths/providers),
       // the detail goes to OUR log, the client gets a stable generic message.
       console.error(`[loopback] 500 ${req.method} ${req.url}:`, err);
       return json(res, 500, 1, null, "internal error");
@@ -270,11 +270,11 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
     server.listen(0, "127.0.0.1", () => resolve(server.address() === null ? 0 : (server.address() as { port: number }).port));
   });
 
-  // discovery file — agents read the port from here (OIA_BASE_URL stays optional).
-  // Atomic (temp + rename): a crash mid-write must never leave a truncated file —
+  // discovery file, agents read the port from here (OIA_BASE_URL stays optional).
+  // Atomic (temp + rename): a crash mid-write must never leave a truncated file,
   // the same TP.7 discipline the stores follow.
-  // POSIX: mode 0600 (belt & braces chmod — umask can mask the writeFile mode).
-  // Windows: fs mode is a NO-OP (stat always reports 0666) — enforce with an ACL:
+  // POSIX: mode 0600 (belt & braces chmod, umask can mask the writeFile mode).
+  // Windows: fs mode is a NO-OP (stat always reports 0666), enforce with an ACL:
   // strip inheritance and grant only the current user, which is what 0600 MEANS
   // there. The windows CI gate asserts the ACL, not the mode bits.
   const discoveryFile = path.join(deps.userDataDir, "agent-api.json");

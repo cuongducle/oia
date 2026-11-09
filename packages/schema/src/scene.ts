@@ -2,13 +2,13 @@ import { z } from "zod";
 
 /**
  * SCENE_VERSION pins the Fabric.js serialized-JSON interchange version this code
- * targets. "7.3.1" is Fabric's version string, not Oia's. Single source of truth —
+ * targets. "7.3.1" is Fabric's version string, not Oia's. Single source of truth,
  * previously duplicated as a raw literal in 5 places (designer, canvas, tasks, web runner).
  */
 export const SCENE_VERSION = "7.3.1";
 
 /**
- * OIA_SCHEMA_VERSION is Oia's OWN project-format version — an integer, bumped on
+ * OIA_SCHEMA_VERSION is Oia's OWN project-format version, an integer, bumped on
  * breaking changes to the project/scene format, INDEPENDENT from Fabric's scene
  * version above. Legacy projects without it are read-tolerant; every save stamps
  * the current version so future migrations have a key to switch on.
@@ -38,7 +38,7 @@ export const fabricObjectSchema = z
     fontSize: z.number().nullable().optional(),
     name: z.string().nullable().optional(),
     selectable: z.boolean().nullable().optional(),
-    /** TP.10 provenance — objects without `origin` (legacy scenes) default to "user". */
+    /** TP.10 provenance, objects without `origin` (legacy scenes) default to "user". */
     origin: z.enum(["user", "agent", "generated"]).nullable().optional(),
     /** Fabric crop fields (zone-anchored cover-crop, TP.8 size policy). */
     cropX: z.number().nullable().optional(),
@@ -83,11 +83,11 @@ export type Page = z.infer<typeof pageSchema>;
 export type Project = z.infer<typeof projectSchema>;
 
 /**
- * TP.7 — the no-base64 rule is enforced ON SAVE, not on load: legacy projects and
+ * TP.7: the no-base64 rule is enforced ON SAVE, not on load: legacy projects and
  * sessions containing data URLs still open (read-tolerant); a migrate-on-save pass
  * extracts embedded bytes into the asset store and rewrites references.
  * Asset-reference syntax: scene `src`/`thumbnail` hold `/api/files/<key>` exactly
- * as `LocalFileStore.put()` returns it — same-origin, browser-loadable.
+ * as `LocalFileStore.put()` returns it, same-origin, browser-loadable.
  */
 const DATA_URL_RE = /^data:/i;
 const ASSET_REF_RE = /^\/api\/files\//;

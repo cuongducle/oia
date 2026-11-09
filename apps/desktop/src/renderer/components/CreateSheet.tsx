@@ -10,7 +10,7 @@ import type { LiveArtboard } from "../lib/livestream-presets.js";
 import { unmapAssetUrls } from "../../shared/assets.js";
 
 /**
- * UI v1.1 R2 (UX-2) — the one place a new project starts outside the Home
+ * UI v1.1 R2 (UX-2), the one place a new project starts outside the Home
  * composer. Four lanes: Describe it (hands the prompt to Home, where generation
  * runs), Start from a size, Start from a template, Bring an image. "Make its
  * text editable" hands the file to the B1 confirm dialog unchanged.

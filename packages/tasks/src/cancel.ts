@@ -1,5 +1,5 @@
 /**
- * TP.5 (reorg step 3) — the in-process cancel registry.
+ * TP.5 (reorg step 3), the in-process cancel registry.
  *
  * Cancellation is now purely in-process (the BullMQ worker deployment is gone with
  * the web sunset): every job registers its AbortController here, and cancel(taskId)

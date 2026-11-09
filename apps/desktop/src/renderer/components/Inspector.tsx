@@ -4,7 +4,7 @@ import { layerKind, layerLabel, type LayerObject } from "@oia/canvas";
 import { commitObject, useCanvasRev } from "../lib/canvas-rev.js";
 
 /**
- * UI v1.1 R5 — the Design tab: what the selection is and every number that
+ * UI v1.1 R5: the Design tab: what the selection is and every number that
  * places it. Edits commit on Enter/blur through commitObject (object:modified →
  * undo + autosave). Nothing selected → the page's own properties.
  */
@@ -17,7 +17,7 @@ interface Props {
   onReplaceImage: (file: File) => void;
 }
 
-/** A number input that edits a draft and commits once — per-keystroke commits flood undo. */
+/** A number input that edits a draft and commits once, per-keystroke commits flood undo. */
 function NumberField({ label, value, onCommit, disabled, suffix, min }: {
   label: string; value: number; onCommit: (v: number) => void; disabled?: boolean; suffix?: string; min?: number;
 }) {
@@ -74,7 +74,7 @@ export function Inspector({ canvas, page, onOpenPage, onEditWithAi, onReplaceIma
   const h = (active.height ?? 0) * (active.scaleY ?? 1);
   const isText = kind === "text";
   const fill = typeof active.fill === "string" ? active.fill : null;
-  // SAFETY: only read when isText — fontSize/fontWeight/textAlign/charSpacing exist on fabric Textbox.
+  // SAFETY: only read when isText, fontSize/fontWeight/textAlign/charSpacing exist on fabric Textbox.
   const text = active as unknown as { fontSize?: number; fontWeight?: string | number; textAlign?: string; charSpacing?: number; fontFamily?: string };
   const bold = text.fontWeight === "bold" || Number(text.fontWeight) >= 600;
 
@@ -84,7 +84,7 @@ export function Inspector({ canvas, page, onOpenPage, onEditWithAi, onReplaceIma
         <strong>{kind === "selection" ? `${canvas.getActiveObjects().length} layers` : layerLabel(lo)}</strong>
         <span>{kind === "selection" ? "Selection" : kind[0].toUpperCase() + kind.slice(1)}</span>
       </div>
-      {locked && <p className="notice" role="status">Locked — unlock it in Layers to edit.</p>}
+      {locked && <p className="notice" role="status">Locked, unlock it in Layers to edit.</p>}
 
       <section className="inspSection" aria-label="Position">
         <h4>Position</h4>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * F4 — the dependency audit gate for the SHIPPED tree (everything: reorg
+ * F4: the dependency audit gate for the SHIPPED tree (everything: reorg
  * step 6 deleted the frozen reference apps, their transitive vulns died with
  * them). Fails when a HIGH/CRITICAL advisory touches any workspace project.
  *
@@ -10,10 +10,10 @@
 import { spawnSync } from "node:child_process";
 
 /** advisory → why it is currently accepted, and what removes it.
- *  Empty since T10 (zod 3 → 4 removed GHSA-mrhx-c7xc-m3w5) — keep it that way. */
+ *  Empty since T10 (zod 3 → 4 removed GHSA-mrhx-c7xc-m3w5), keep it that way. */
 const ACKNOWLEDGED = {};
 
-// audit exits non-zero whenever ANY vuln exists (incl. frozen-only) — the stdout
+// audit exits non-zero whenever ANY vuln exists (incl. frozen-only), the stdout
 // JSON is what we judge, not the exit code.
 const proc = spawnSync("pnpm", ["audit", "--prod", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
 const advisories = JSON.parse(proc.stdout || "{}").advisories ?? {};
@@ -29,7 +29,7 @@ for (const a of Object.values(advisories)) {
   const shipped = [...projects];
   if (shipped.length === 0) continue;
   if (ACKNOWLEDGED[adv.github_advisory_id]) {
-    console.log(`acknowledged ${adv.github_advisory_id} (${adv.module_name}) — ${ACKNOWLEDGED[adv.github_advisory_id]}`);
+    console.log(`acknowledged ${adv.github_advisory_id} (${adv.module_name}), ${ACKNOWLEDGED[adv.github_advisory_id]}`);
     continue;
   }
   failures.push(`${adv.severity.toUpperCase()} ${adv.module_name} ${adv.github_advisory_id} in ${shipped.join(", ")}`);

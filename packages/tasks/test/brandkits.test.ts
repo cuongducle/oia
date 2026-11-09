@@ -26,7 +26,7 @@ beforeAll(async () => {
     expect(() => store.validate({ name: "x", colors: ["#12g45z"] })).toThrow(/colors/);
     expect(() => store.validate({ name: "x", colors: ["#A1B2C3"] })).not.toThrow();
   });
-    it("regression (reorg 4d): a logo uploaded through the app's own store VALIDATES — the canonical /api/files form used to fail zod .url()", () => {
+    it("regression (reorg 4d): a logo uploaded through the app's own store VALIDATES, the canonical /api/files form used to fail zod .url()", () => {
       expect(() => store.validate({ name: "x", logos: ["/api/files/uploads/20261106/logo-1.png"] })).not.toThrow();
       expect(() => store.validate({ name: "x", logos: ["https://cdn.example/logo.png"] })).not.toThrow();
       expect(() => store.validate({ name: "x", logos: ["file:///etc/passwd"] })).toThrow(/logos/);
@@ -70,8 +70,8 @@ describe("BR-EX Extract-from-file (auto-build brand kit)", () => {
   });
 });
 
-/** T2 regression — corrupt brandkits.json is quarantined (never blanked+overwritten); saves are atomic. */
-describe("TP.7 durable load — BrandKitStore", () => {
+/** T2 regression, corrupt brandkits.json is quarantined (never blanked+overwritten); saves are atomic. */
+describe("TP.7 durable load, BrandKitStore", () => {
   it("corrupt file → quarantined; the store still works afterwards", async () => {
     const { mkdtempSync, writeFileSync, readFileSync, readdirSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");

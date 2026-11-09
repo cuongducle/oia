@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
-/** Keyboard-safe modal shell — port of the web Dialog (transport-free, no next deps). */
+/** Keyboard-safe modal shell, port of the web Dialog (transport-free, no next deps). */
 export function Dialog({ children, onClose, labelledBy, label, wide = false }: {
   children: ReactNode; onClose: () => void; labelledBy?: string; label?: string; wide?: boolean;
 }) {

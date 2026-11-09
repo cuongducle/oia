@@ -3,7 +3,7 @@ import { getImageProvider, getLlmProvider } from "../src/registry.js";
 import { OPENAI_IMAGE_MODEL_DEFAULT } from "../src/index.js";
 
 /**
- * T3 — the env OBJECT passed to the registry is the single config source.
+ * T3: the env OBJECT passed to the registry is the single config source.
  * Constructors used to default to process.env, so in the utility process
  * (where main sends config via the init RPC env object, never process.env):
  * a real key in the env object was IGNORED, and a key leaked from the
@@ -33,10 +33,10 @@ afterEach(() => {
 });
 
 describe("registry env isolation (T3)", () => {
-  it("openai image: an EMPTY key in the env object means NOT CONFIGURED — a leaked shell key must not ride along", async () => {
+  it("openai image: an EMPTY key in the env object means NOT CONFIGURED, a leaked shell key must not ride along", async () => {
     const p = getImageProvider({ IMAGE_PROVIDER: "openai", OPENAI_API_KEY: "" }); // poisoned process.env has one
     const diag = await p.isAvailable();
-    expect(diag.ok).toBe(false); // OLD code: ok — the constructor defaulted to process.env
+    expect(diag.ok).toBe(false); // OLD code: ok, the constructor defaulted to process.env
     expect(diag.detail).toContain("OPENAI_API_KEY");
   });
 
@@ -45,7 +45,7 @@ describe("registry env isolation (T3)", () => {
     expect((await p.isAvailable()).ok).toBe(true);
   });
 
-  // IM26-1: the pinned default is a decision, not an accident — a bump must touch this line (and the plan doc).
+  // IM26-1: the pinned default is a decision, not an accident, a bump must touch this line (and the plan doc).
   it("openai image: model default stays pinned to the approved Images 2.6 model", () => {
     expect(OPENAI_IMAGE_MODEL_DEFAULT).toBe("gpt-image-2.6-sunburst");
   });
@@ -53,7 +53,7 @@ describe("registry env isolation (T3)", () => {
   it("fal image: same isolation", async () => {
     const p = getImageProvider({ IMAGE_PROVIDER: "fal", FAL_KEY: "" });
     const diag = await p.isAvailable();
-    expect(diag.ok).toBe(false); // OLD code: ok — process.env.FAL_KEY leaked in
+    expect(diag.ok).toBe(false); // OLD code: ok, process.env.FAL_KEY leaked in
   });
 
   it("openai llm: same isolation", async () => {

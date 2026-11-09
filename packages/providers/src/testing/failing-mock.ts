@@ -2,7 +2,7 @@ import type { ImageProvider, LlmProvider, ImageGenInput, ImageGenResult, Provide
 import { ProviderError } from "../index.js";
 import type { ErrorClass } from "@oia/schema";
 
-/** Sleep that cuts short on abort — mirrors cooperative providers (TP.5). */
+/** Sleep that cuts short on abort, mirrors cooperative providers (TP.5). */
 function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve) => {
@@ -13,7 +13,7 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /** Injectable failing providers (Group F): a configurable errorClass and latency,
- * shared by agent/tasks/web test suites — CI can exercise every failure path
+ * shared by agent/tasks/web test suites, CI can exercise every failure path
  * without network or credentials.
  */
 
@@ -56,7 +56,7 @@ export class FailingMockImageProvider implements ImageProvider {
     if (this.opts.available === false) {
       return { ok: false, errorClass: this.opts.errorClass ?? "provider_missing", detail: "failing mock: configured unavailable" };
     }
-    return { ok: true, detail: "failing mock — always available, generate() throws" };
+    return { ok: true, detail: "failing mock, always available, generate() throws" };
   }
 }
 
@@ -82,6 +82,6 @@ export class FailingMockLlmProvider implements LlmProvider {
     if (this.opts.available === false) {
       return { ok: false, errorClass: this.opts.errorClass ?? "provider_missing", detail: "failing mock: configured unavailable" };
     }
-    return { ok: true, detail: "failing mock — always available, chat() throws" };
+    return { ok: true, detail: "failing mock, always available, chat() throws" };
   }
 }

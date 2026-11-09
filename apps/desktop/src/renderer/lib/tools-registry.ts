@@ -1,5 +1,5 @@
 /**
- * BR-QT — quick tools registry (4 categories). Ported from the web app's
+ * BR-QT, quick tools registry (4 categories). Ported from the web app's
  * libs/tools-registry.ts (reorg step 4c): the desktop owns its lib copies; the
  * web app is the frozen reference and will be deleted.
  * kind picks the ToolRunner UI; implemented = really works, landing = descriptive page.

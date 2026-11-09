@@ -1,5 +1,5 @@
 /**
- * Upload policy — the single home for what the app accepts as an upload.
+ * Upload policy, the single home for what the app accepts as an upload.
  * Both intake paths (renderer IPC and the loopback agent API) must enforce
  * the SAME allowlist; it used to live only in shared/ipc.ts while loopback
  * accepted any extension an agent chose to send.

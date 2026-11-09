@@ -5,7 +5,7 @@ import { oia, bridgeErrorMessage } from "../lib/bridge.js";
 import { webImportSummary } from "../lib/web-import.js";
 
 /**
- * UI v1.1 R1 — Settings: the infrastructure that used to sit on the Home hero
+ * UI v1.1 R1: Settings: the infrastructure that used to sit on the Home hero
  * (runtime panel, usage) and the developer-facing surfaces (For agents, web data
  * import) move here. Nothing new is wired: every section reuses an existing bridge
  * call or component.
@@ -50,7 +50,7 @@ export function Settings({ initialTab = "generation", onChanged }: { initialTab?
       const counts = await oia().importWebData(""); // empty → main opens the native folder picker
       if (counts) setNotice(webImportSummary(counts));
     } catch (e) {
-      setError(bridgeErrorMessage(e, "Import failed — check the folder and try again."));
+      setError(bridgeErrorMessage(e, "Import failed, check the folder and try again."));
     } finally {
       setImporting(false);
     }

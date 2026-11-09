@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { STUDIO_TEMPLATES } from "../src/shared/studio-templates.js";
 import { TEMPLATE_PROVENANCE } from "../src/shared/template-provenance.js";
 
-/** SC-5 — provenance records must point at templates that actually exist, and
+/** SC-5: provenance records must point at templates that actually exist, and
  * every AI-plated studio template must carry its prompt (records must not lie:
  * a provenance gap is a missing asset, not a silent blank). */
 describe("SC-5 template provenance", () => {

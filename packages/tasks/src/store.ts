@@ -28,7 +28,7 @@ export interface SubmitOptions {
   source?: "skill" | "web" | "agent";
   /** G3: a user-initiated retry links to the original task, never an automatic re-run. */
   retryOf?: string;
-  /** Called ONCE when the run reaches a terminal state (succeeded|failed) — exact
+  /** Called ONCE when the run reaches a terminal state (succeeded|failed), exact
    *  completion accounting for callers that guard concurrency (loopback agent API).
    *  runToCompletion never rejects, so this ALWAYS fires. */
   onSettled?: (status: TaskStatus) => void;
@@ -60,7 +60,7 @@ export class TaskStore {
     private opts: {
       ttlMs?: number;
       clock?: Clock;
-      /** JSONL job log — task records survive restarts (swept by TTL on load). */
+      /** JSONL job log, task records survive restarts (swept by TTL on load). */
       logFile?: string;
     } = {},
   ) {
@@ -89,12 +89,12 @@ export class TaskStore {
         const sess = this.sessions.get(rec.sessionId)!;
         if (!sess.taskIds.includes(rec.taskId)) sess.taskIds.push(rec.taskId);
       } catch {
-        /* malformed line — skip */
+        /* malformed line, skip */
       }
     }
     // 4f (reorg): records that were mid-flight when the previous process died must
-    // not lie as "processing" forever. load() runs at context build — BEFORE any
-    // new submit — so every "processing" record here is stale by construction.
+    // not lie as "processing" forever. load() runs at context build, BEFORE any
+    // new submit, so every "processing" record here is stale by construction.
     // B7 rule: the record must not lie; the quota was likely already spent.
     const interrupted: TaskStatus[] = [];
     for (const entry of this.tasks.values()) {
@@ -112,7 +112,7 @@ export class TaskStore {
       await mkdir(path.dirname(this.opts.logFile), { recursive: true });
       await appendFile(this.opts.logFile, `${JSON.stringify({ taskId: status.taskId, sessionId: status.sessionId, status, createdAt: this.now() })}\n`);
     } catch {
-      /* the durable log is diagnostics — never fail a task on it */
+      /* the durable log is diagnostics, never fail a task on it */
     }
   }
 
@@ -174,11 +174,11 @@ export class TaskStore {
       status.taskResult = { download: this.finalDownload(type, result), ...(result.texts ? { texts: result.texts } : {}) };
       if (result.note) status.taskNote = result.note;
       if (ac.signal.aborted) {
-        // B7: the handler finished but was cancelled after completion — the quota was spent,
+        // B7: the handler finished but was cancelled after completion, the quota was spent,
         // so the result is kept (afterCompletion principle) and the outcome stays honest
         status.progress = "failed";
         status.errorClass = "cancelled";
-        status.msg = "cancelled after completion — result kept";
+        status.msg = "cancelled after completion, result kept";
       } else {
         status.progress = "succeeded";
       }
@@ -188,7 +188,7 @@ export class TaskStore {
       const pe = ProviderError.from(err);
       status.errorClass = pe.errorClass;
       status.provider = pe.provider ?? null;
-      status.attemptNumber = 1; // metered jobs run exactly once (G3) — retries are new tasks (retryOf)
+      status.attemptNumber = 1; // metered jobs run exactly once (G3), retries are new tasks (retryOf)
     } finally {
       releaseCancelable(status.jobId!);
       await this.persist(status);
@@ -196,8 +196,8 @@ export class TaskStore {
     return status;
   }
 
-  /** TP.5: cancel a running task — in-process abort (the registry is shared per process).
-   *  B7: this does NOT write a terminal status — the completion path records the cancelled
+  /** TP.5: cancel a running task, in-process abort (the registry is shared per process).
+   *  B7: this does NOT write a terminal status, the completion path records the cancelled
    *  outcome (a handler that ignores the signal may still finish; the record must not lie). */
   async cancel(taskId: string): Promise<boolean> {
     const entry = this.tasks.get(taskId);

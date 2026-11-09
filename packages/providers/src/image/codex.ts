@@ -13,36 +13,36 @@ import { asciiUuid, createScratchDir, removeScratchDir } from "../cli/runtime.js
 import { sniffImageExt } from "../llm/codex.js";
 
 /**
- * Codex `$imagegen` channel — the keyless artwork path over the user's ChatGPT login.
+ * Codex `$imagegen` channel, the keyless artwork path over the user's ChatGPT login.
  * Refactored onto the shared bridge (TP.2/TP.8): stdin prompts, pinned model,
  * `--ignore-user-config`, workspace-write sandbox scoped to the job scratch.
  *
  * Mode-aware prompts (TP.3): poster keeps the text fidelity guard (baked text is
  * deliberate design); clean-plate forbids ADDED typography and reserves calm copy
- * zones — the zone clause is DERIVED from the shared geometry in @oia/schema
- * (single source of truth — prompt and canvas placement cannot drift apart).
+ * zones, the zone clause is DERIVED from the shared geometry in @oia/schema
+ * (single source of truth, prompt and canvas placement cannot drift apart).
  * Reference images (TP.9): materialized to ASCII-named temp files and attached via `-i`.
  * Output location (spike S1): session directory via --json thread id; the stdout
  * `File:` marker is a hint; the shared-tree scan is a provenance-marked last resort
- * (A8: never an image written around a cancelled job — see the bridge cancel ledger).
+ * (A8: never an image written around a cancelled job, see the bridge cancel ledger).
  */
 
-/** Default image-call budget — the registry threads CODEX_IMAGE_TIMEOUT_MS per provider instance (T3: no import-time env reads). */
+/** Default image-call budget, the registry threads CODEX_IMAGE_TIMEOUT_MS per provider instance (T3: no import-time env reads). */
 export const CODEX_IMAGE_TIMEOUT_DEFAULT = 300_000;
 
 const IMAGE_CAPABILITIES: ProviderCapabilities = {
   referenceImages: true,
-  // exact pixels cannot be requested on this channel — the prompt carries orientation only
+  // exact pixels cannot be requested on this channel, the prompt carries orientation only
   sizePolicy: { trueRatio: false, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: true },
   transparentBg: false,
   isMock: false,
-  // ME — markup edit via the flatten variant: probe P3 (2026-11-08, pin 0.167.0)
+  // ME, markup edit via the flatten variant: probe P3 (2026-11-08, pin 0.167.0)
   // proved the channel understands a flattened red-circle annotation as the
   // edit region AND removes the marker from the result.
   markupEdit: "flatten",
 };
 
-/** TP.3 — poster mode: text renders in the artwork, fidelity-guarded (today's behavior). */
+/** TP.3: poster mode: text renders in the artwork, fidelity-guarded (today's behavior). */
 export function buildPosterPrompt(input: ImageGenInput): string {
   const orientation = orientationFor(input.width, input.height);
   return (
@@ -50,28 +50,28 @@ export function buildPosterPrompt(input: ImageGenInput): string {
     `Subject: ${input.prompt}. ` +
     `Render all text exactly as written, keep it sharp and readable. ` +
     // DEF-1: this channel cannot receive exact pixels, so the render is cover-cropped
-    // to the page — text hugging an edge gets cut. The ratio above narrows the
+    // to the page, text hugging an edge gets cut. The ratio above narrows the
     // mismatch; the safe area keeps the letters out of the crop zone.
     `Keep all text at least 10% clear of every edge of the image.`
   );
 }
 
-/** TP.3 — clean-plate mode: text-free artwork with reserved copy zones (no duplicated copy).
- *  The clause comes from the shared zone geometry (@oia/schema) — never hand-copied here. */
+/** TP.3: clean-plate mode: text-free artwork with reserved copy zones (no duplicated copy).
+ *  The clause comes from the shared zone geometry (@oia/schema), never hand-copied here. */
 export function buildCleanPlatePrompt(input: ImageGenInput): string {
   const orientation = orientationFor(input.width, input.height);
   return (
     `$imagegen Create a ${orientation} image with a ${aspectFor(input.width, input.height)} aspect ratio (width:height). ` +
     `Subject: ${input.prompt}. ` +
-    `Do NOT add any text, lettering, numbers, words, captions, logos, or watermarks to the artwork — the copy will be added later as separate editable layers. ` +
+    `Do NOT add any text, lettering, numbers, words, captions, logos, or watermarks to the artwork, the copy will be added later as separate editable layers. ` +
     cleanPlateZoneClause() +
     (input.referenceImages?.length
-      ? ` Any text that is part of the product's own packaging or printed label must be preserved exactly and remain legible — never alter brand lettering.`
+      ? ` Any text that is part of the product's own packaging or printed label must be preserved exactly and remain legible, never alter brand lettering.`
       : "")
   );
 }
 
-/** TP.9 — documented reference-image patterns: identify by order, state what stays the same. */
+/** TP.9: documented reference-image patterns: identify by order, state what stays the same. */
 export function referenceClauses(referenceImages: string[]): string {
   const described = referenceImages
     .map((_, i) => `Image ${i + 1}`)
@@ -80,7 +80,7 @@ export function referenceClauses(referenceImages: string[]): string {
     ` References: ${described} is a reference. Use the reference image(s) as the visual subject of the scene: ` +
     `keep the product, camera angle, lighting, and proportions consistent with the reference; preserve the product's own packaging and printed labels exactly; ` +
     // DA-11 (cookbook pattern): a reference dropped into a new scene reads pasted-in unless the
-    // prompt forces it into the scene's own light — shadows and color temperature included.
+    // prompt forces it into the scene's own light, shadows and color temperature included.
     `integrate the product into the scene's own lighting, shadows and color temperature so it reads photographed in place, never pasted on; ` +
     `build the composition around the actual product.` + (referenceImages.length > 1 ? ` Image 1 is the primary subject.` : "")
   );
@@ -91,9 +91,9 @@ function orientationFor(width: number, height: number): "landscape" | "vertical"
   return ratio > 1.1 ? "landscape" : ratio < 0.9 ? "vertical" : "square";
 }
 
-/** DEF-1 — the model cannot receive exact pixels on this channel, so the ratio
+/** DEF-1, the model cannot receive exact pixels on this channel, so the ratio
  * rides the prompt in named form (models follow "2:3" far more reliably than a
- * bare orientation word — "vertical" alone happily returns 4:5 for a 2:3 page). */
+ * bare orientation word, "vertical" alone happily returns 4:5 for a 2:3 page). */
 const COMMON_RATIOS: [number, string][] = [
   [1, "1:1"], [4 / 5, "4:5"], [3 / 4, "3:4"], [2 / 3, "2:3"], [9 / 16, "9:16"],
   [4 / 3, "4:3"], [3 / 2, "3:2"], [16 / 9, "16:9"],
@@ -104,8 +104,8 @@ function aspectFor(width: number, height: number): string {
   return `${r.toFixed(2)}:1`;
 }
 
-/** PNG IHDR reader + IEND check — the actual output size recorded on the job result (TP.8),
- *  and a complete-PNG guard (a truncated flush fails the IEND check — B8). */
+/** PNG IHDR reader + IEND check, the actual output size recorded on the job result (TP.8),
+ *  and a complete-PNG guard (a truncated flush fails the IEND check, B8). */
 export function pngSize(buf: Buffer): { width: number; height: number } | undefined {
   if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return undefined;
   const iend = Buffer.from("IEND");
@@ -118,9 +118,9 @@ export function pngSize(buf: Buffer): { width: number; height: number } | undefi
  * Materialize a reference (data URL / http URL / file: URL / file path) into an
  * ASCII-named temp file (TP.9) whose extension matches the real bytes.
  * Local sources are COPIED, never passed through: the packaged renderer's own
- * artwork lives inside app.asar, which only Electron can read — codex cannot.
+ * artwork lives inside app.asar, which only Electron can read, codex cannot.
  * A file: URL must go through fileURLToPath; path.resolve on it glued the URL onto
- * the cwd (`…\file:\C:\…\app.asar` on Windows — the first packaged real-codex run).
+ * the cwd (`…\file:\C:\…\app.asar` on Windows, the first packaged real-codex run).
  */
 export async function materializeReference(ref: string, dir: string): Promise<string> {
   let bytes: Uint8Array;
@@ -131,7 +131,7 @@ export async function materializeReference(ref: string, dir: string): Promise<st
     if (!res?.ok) throw new ProviderError("network", `could not fetch reference image (HTTP ${res?.status ?? "network"})`, { provider: "codex" });
     bytes = new Uint8Array(await res.arrayBuffer());
   } else {
-    // a relative path resolves absolute — never an unwritten temp file (B1: that attached a 0-byte png to `-i`)
+    // a relative path resolves absolute, never an unwritten temp file (B1: that attached a 0-byte png to `-i`)
     bytes = await readFile(ref.startsWith("file:") ? fileURLToPath(ref) : path.resolve(ref));
   }
   if (bytes.length === 0) throw new Error("reference image is empty");
@@ -140,14 +140,14 @@ export async function materializeReference(ref: string, dir: string): Promise<st
   return file;
 }
 
-/** A6 — format_drift watch: consecutive fallback-scan locates mean the documented output
+/** A6: format_drift watch: consecutive fallback-scan locates mean the documented output
  *  shape moved; surface a warning (log + result.warnings) instead of silence. */
 const gDrift = globalThis as unknown as { __oiaCodexFallbackStreak?: number };
 function noteLocatorProvenance(provenance: ImageGenResult["provenance"], jobId: string | undefined): string[] {
   if (provenance === "fallback-scan") {
     gDrift.__oiaCodexFallbackStreak = (gDrift.__oiaCodexFallbackStreak ?? 0) + 1;
     if (gDrift.__oiaCodexFallbackStreak >= 2) {
-      console.warn(`[codex] format_drift: output locator fell back to the mtime scan ${gDrift.__oiaCodexFallbackStreak}× in a row (jobId=${jobId ?? "n/a"}) — stdout shape may have changed`);
+      console.warn(`[codex] format_drift: output locator fell back to the mtime scan ${gDrift.__oiaCodexFallbackStreak}× in a row (jobId=${jobId ?? "n/a"}), stdout shape may have changed`);
       return ["format_drift"];
     }
     return [];
@@ -216,17 +216,17 @@ export class CodexImageProvider implements ImageProvider {
         if (imageToolUnavailable(res.stdout)) {
           throw new ProviderError(
             "capability_unsupported",
-            "this ChatGPT plan has no image generation in Codex — sign in with a Go or higher plan",
+            "this ChatGPT plan has no image generation in Codex, sign in with a Go or higher plan",
             { provider: "codex", detail: res.stdout.slice(-300) },
           );
         }
-        throw new ProviderError("no_output", "codex produced no image file — run `codex exec` manually to inspect it", {
+        throw new ProviderError("no_output", "codex produced no image file, run `codex exec` manually to inspect it", {
           provider: "codex",
           detail: res.stdout.slice(-300),
         });
       }
 
-      // B8: exit 0 does not guarantee the PNG flush finished — wait for a stable size
+      // B8: exit 0 does not guarantee the PNG flush finished, wait for a stable size
       await waitForStableFile(file);
       const buf = await readFile(file);
       await this.bridge.cleanup(res);

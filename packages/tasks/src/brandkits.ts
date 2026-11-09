@@ -20,7 +20,7 @@ export class BrandKitStore {
     await atomicWriteJson(this.file, this.kits);
   }
 
-/** Zod validation (BR-BK1..4) — errors carry clear messages. */
+/** Zod validation (BR-BK1..4), errors carry clear messages. */
   validate(input: unknown): BrandKit {
     const parsed = brandKitSchema.safeParse({
   id: (input as Record<string, unknown>)?.id ?? uniqueId("bk"), // keep id on update; unique even within the same ms
@@ -47,7 +47,7 @@ export class BrandKitStore {
   get(id: string): BrandKit | undefined { return this.kits.find((k) => k.id === id); }
   active(): BrandKit | undefined { return this.kits.find((k) => k.applyByDefault); }
 
-  /** Reorg step 5 — web `.data` import lane: an external kit joins the store.
+  /** Reorg step 5, web `.data` import lane: an external kit joins the store.
    *  Existing ids are refused (desktop data wins), returns false. */
   async addImported(kit: BrandKit): Promise<boolean> {
     if (this.kits.some((k) => k.id === kit.id)) return false;
@@ -82,7 +82,7 @@ export async function extractBrandKit(
   ], { json: true });
 
   const draft = JSON.parse(raw) as Partial<BrandKit>;
-    // safe clamp — extraction never exceeds the limits (BR-EX2)
+    // safe clamp, extraction never exceeds the limits (BR-EX2)
   return {
     id: uniqueId("bk"),
     name: (draft.name ?? "Extracted kit").slice(0, 80),

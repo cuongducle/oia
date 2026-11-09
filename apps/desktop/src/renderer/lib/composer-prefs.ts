@@ -1,14 +1,14 @@
 import { AUTO_REFINE_DEFAULT, STYLE_PRESETS, type StylePresetId } from "@oia/schema";
 
 /**
- * DA — composer switch preferences (designer-agent-loop.md DA-4/DA-5).
+ * DA, composer switch preferences (designer-agent-loop.md DA-4/DA-5).
  * UI preferences, NOT records: localStorage, one versioned key each, corrupt
- * values fall back to the decided default (readOutlineGatePref pattern — a
+ * values fall back to the decided default (readOutlineGatePref pattern, a
  * broken key must never silently flip an owner decision).
  *
  * Auto refine defaults ON (owner Q1, 2026-11-06): switching OFF persists, and a
- * missing/corrupt key restores ON — the cost label (DA-5) rides with it.
- * Research defaults ON (owner, 2026-11-06 — after REAL_SMOKE: +7s/job, notes
+ * missing/corrupt key restores ON, the cost label (DA-5) rides with it.
+ * Research defaults ON (owner, 2026-11-06 · after REAL_SMOKE: +7s/job, notes
  * with sources; S1.5's provisional OFF is overridden). Same persistence rule.
  */
 
@@ -48,7 +48,7 @@ export function writeResearchPref(on: boolean, storage: Pick<Storage, "setItem">
 
 export const STYLE_STORAGE_KEY = "oia.style";
 
-/** Style preset choice ("" = Auto). Corrupt/unknown values fall back to Auto —
+/** Style preset choice ("" = Auto). Corrupt/unknown values fall back to Auto,
  *  a stale id from a removed preset must never 400 the chat request. */
 export function readStylePref(storage: Pick<Storage, "getItem"> = globalThis.localStorage): StylePresetId | "" {
   const raw = storage.getItem(STYLE_STORAGE_KEY) ?? "";

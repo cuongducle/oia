@@ -35,9 +35,9 @@ describe("BR-PROC processors", () => {
 });
 
 describe("BR-PROC provider injection (no bare registry lookups)", () => {
-  it("generate-poster uses the INJECTED image provider — the env-configured, metered one from ProcCtx", async () => {
+  it("generate-poster uses the INJECTED image provider, the env-configured, metered one from ProcCtx", async () => {
     // Regression: processors used to call getImageProvider() bare, which read the
-    // utility process's process.env (IMAGE_PROVIDER never set there) — every task
+    // utility process's process.env (IMAGE_PROVIDER never set there), every task
     // silently ran MockImageProvider and skipped the QuotaMeter, codex mode included.
     const seen: string[] = [];
     const probe: ImageProvider = {
@@ -53,7 +53,7 @@ describe("BR-PROC provider injection (no bare registry lookups)", () => {
     const store = new LocalFileStore(mkdtempSync(path.join(tmpdir(), "oia-procctx-")));
     const run = makeGeneratePoster({ store, image: probe, llm });
     const out = await run({ prompt: "poster probe" }, { jobId: "job-probe", signal: new AbortController().signal });
-    expect(seen).toEqual(["poster probe"]); // OLD code: [] — the registry mock ran instead
+    expect(seen).toEqual(["poster probe"]); // OLD code: [], the registry mock ran instead
     expect(out.urls[0]).toContain("/api/files/");
   });
 });

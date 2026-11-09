@@ -15,7 +15,7 @@ describe("BR-PG multi-page (numbered from 1, add page, always at least one board
     expect(r.activeIndex).toBe(1);
     expect(r.pages[1].canvas.objects[0]).toMatchObject({ width: 1000, height: 2000 });
   });
-  it("BR-PG2: the last page cannot be deleted — state unchanged", () => {
+  it("BR-PG2: the last page cannot be deleted, state unchanged", () => {
     const p = createPages();
     const r = removePage(p, 0);
     expect(r.pages).toHaveLength(1);

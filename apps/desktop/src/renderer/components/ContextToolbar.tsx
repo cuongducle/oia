@@ -4,7 +4,7 @@ import { applyLayerAction, layerKind, type LayerObject } from "@oia/canvas";
 import { commitObject, useCanvasRev } from "../lib/canvas-rev.js";
 
 /**
- * UI v1.1 R5 — the few actions each kind of selection needs most, floating just
+ * UI v1.1 R5: the few actions each kind of selection needs most, floating just
  * above it (below when there is no room). Replaces the old text-only bar, whose
  * layer buttons called fabric 6 per-object methods that fabric 7 removed.
  */
@@ -14,9 +14,9 @@ interface Props {
   onEditWithAi: () => void;
   onReplaceImage: (file: File) => void;
   onDuplicate: () => void;
-  /** D16: poster-mode edit path — deconstruct this page's baked text into layers. */
+  /** D16: poster-mode edit path, deconstruct this page's baked text into layers. */
   onMakeTextEditable?: () => void;
-  /** ME: markup edit — circle a region on the selected image, then describe the edit. */
+  /** ME: markup edit, circle a region on the selected image, then describe the edit. */
   onCircleEdit?: () => void;
 }
 
@@ -50,7 +50,7 @@ export function ContextToolbar({ canvas, onEditWithAi, onReplaceImage, onDuplica
     for (const o of targets) canvas.remove(o);
     canvas.requestRenderAll();
   };
-  // SAFETY: only read for text — Textbox carries these.
+  // SAFETY: only read for text, Textbox carries these.
   const text = active as unknown as { fontSize?: number; fontWeight?: string | number; textAlign?: string };
   const bold = text.fontWeight === "bold" || Number(text.fontWeight) >= 600;
   const nextAlign = text.textAlign === "left" ? "center" : text.textAlign === "center" ? "right" : "left";

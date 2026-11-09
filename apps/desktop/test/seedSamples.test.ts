@@ -7,7 +7,7 @@ import { seedSampleProjects } from "../src/utility/seedSamples.js";
 import { STUDIO_TEMPLATES } from "../src/shared/studio-templates.js";
 
 /**
- * Reorg step 5 — first-run sample seeding. The behaviors that must hold:
+ * Reorg step 5, first-run sample seeding. The behaviors that must hold:
  * seed once per dataDir, only into an EMPTY store, stable ids, sample flag
  * survives a reopen (schema keeps it), deleting samples is permanent.
  */
@@ -24,7 +24,7 @@ async function boot(dataDir: string): Promise<ProjectStore> {
   return store;
 }
 
-describe("seedSampleProjects — the happy lane", () => {
+describe("seedSampleProjects, the happy lane", () => {
   it("an empty first run gets every curated sample, in curated order, flagged Sample", async () => {
     const { dataDir, store } = makeStore();
     await store.load();
@@ -52,15 +52,15 @@ describe("seedSampleProjects — the happy lane", () => {
   });
 });
 
-describe("seedSampleProjects — the guard lanes", () => {
-  it("boot 2 never reseeds (marker file) — even after the user deletes every sample", async () => {
+describe("seedSampleProjects, the guard lanes", () => {
+  it("boot 2 never reseeds (marker file), even after the user deletes every sample", async () => {
     const { dataDir, store } = makeStore();
     await store.load();
     await seedSampleProjects({ dataDir, projects: store });
-    for (const p of store.recent(STUDIO_TEMPLATES.length)) await store.remove(p.id); // the user deletes them all (recent() caps at 20 — ask for the full set)
+    for (const p of store.recent(STUDIO_TEMPLATES.length)) await store.remove(p.id); // the user deletes them all (recent() caps at 20 · ask for the full set)
     const second = await boot(dataDir);
     expect(await seedSampleProjects({ dataDir, projects: second })).toBe(0);
-    expect(second.recent()).toHaveLength(0); // deletion is permanent — samples do not haunt
+    expect(second.recent()).toHaveLength(0); // deletion is permanent, samples do not haunt
   });
 
   it("a store that already has REAL work is left alone (marker still written)", async () => {
@@ -72,7 +72,7 @@ describe("seedSampleProjects — the guard lanes", () => {
     expect(existsSync(path.join(dataDir, "samples-seeded.json"))).toBe(true); // never retried later
   });
 
-  it("stable ids complete a seed interrupted mid-way (crash before the marker) — no duplicates", async () => {
+  it("stable ids complete a seed interrupted mid-way (crash before the marker), no duplicates", async () => {
     const { dataDir, store } = makeStore();
     await store.load();
     // simulate a crash AFTER the first sample landed but BEFORE the marker was written

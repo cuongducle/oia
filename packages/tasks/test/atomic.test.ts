@@ -41,7 +41,7 @@ describe("STAGE-0 TP.7: atomic writes (temp + rename, retry, single writer)", ()
     expect(calls).toBe(3); // attempt budget respected
   });
 
-  it("concurrent writers serialize — the file is always valid JSON (single-writer chain)", async () => {
+  it("concurrent writers serialize, the file is always valid JSON (single-writer chain)", async () => {
     const file = path.join(dir(), "concurrent.json");
     await Promise.all(
       Array.from({ length: 25 }, (_, i) => atomicWriteJson(file, { writer: i, payload: "x".repeat(1000) })),

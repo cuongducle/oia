@@ -1,7 +1,7 @@
 import type { ImageProvider, ImageGenInput, ImageGenResult, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { ProviderError } from "../types.js";
 
-/** FLUX via fal.ai — cheap (about 0.3-1 cent per image). BYOK: FAL_KEY. */
+/** FLUX via fal.ai, cheap (about 0.3-1 cent per image). BYOK: FAL_KEY. */
 const FAL_CAPABILITIES: ProviderCapabilities = {
   referenceImages: false,
   sizePolicy: { trueRatio: true, divisibleBy: null, ratioBounds: null, fixedSizes: null, orientationOnly: false },

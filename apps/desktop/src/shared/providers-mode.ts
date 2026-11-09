@@ -2,11 +2,11 @@ import type { RuntimeStatus } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
 
 /**
- * TP-D3 — the provider-mode resolver, pure and testable (no Electron imports).
+ * TP-D3: the provider-mode resolver, pure and testable (no Electron imports).
  *
  * Consent rule (the quota-honesty fix): "auto" only ever selects codex when consent
  * is granted AND the runtime is ready (binary found + logged in). D13 (owner) moved
- * the DEFAULT of that consent to GRANTED — zero-config real mode was the ask — so
+ * the DEFAULT of that consent to GRANTED, zero-config real mode was the ask, so
  * the protection that remains is the runtime itself: no codex binary or no live
  * login still means mock, whatever consent says. CI (smoke/shot) is pinned mock
  * regardless; an explicit env pin wins over everything else.
@@ -18,23 +18,23 @@ export interface DesktopProvidersEnv {
   OIA_DESKTOP_SHOT?: string;
   OIA_DESKTOP_SHOT_BUSY?: string;
   OIA_DESKTOP_PROVIDERS?: string;
-  /** Owner's explicit opt-in real run (OIA_DESKTOP_REAL_SMOKE) — counts as consent. */
+  /** Owner's explicit opt-in real run (OIA_DESKTOP_REAL_SMOKE), counts as consent. */
   OIA_DESKTOP_REAL_SMOKE?: string;
 }
 
 /** Env keys that may select a real provider even though they live under the
  *  OIA_DESKTOP_ prefix: the owner's explicit real-run flag and the explicit
- *  provider pin. Everything else under that prefix is a TEST MODE — default-deny. */
+ *  provider pin. Everything else under that prefix is a TEST MODE, default-deny. */
 const REAL_ALLOWED_FLAGS = new Set(["OIA_DESKTOP_REAL_SMOKE", "OIA_DESKTOP_PROVIDERS"]);
 
-/** The persisted runtime settings (settings.json in userData) — TP-D3/D13. */
+/** The persisted runtime settings (settings.json in userData), TP-D3/D13. */
 export interface ProvidersSettings {
   providers: RuntimeModeChoice;
   codexConsent: boolean;
 }
 
 /**
- * D13 (owner, 2026-11-06): a FRESH install defaults to auto + CONSENT GRANTED —
+ * D13 (owner, 2026-11-06): a FRESH install defaults to auto + CONSENT GRANTED,
  * a machine already running codex CLI with a live ChatGPT session goes real on
  * first launch (zero-config was the owner's ask; the quota risk is accepted and
  * recorded in the plan doc). Absent/invalid data means the DEFAULTS; an explicit
@@ -60,7 +60,7 @@ export function resolveEffectiveMode(input: {
   // Default-deny (quota lesson 2026-11-03): ANY OIA_DESKTOP_* test flag forces the
   // mock pair unless explicitly allowlisted. The old enumerated list (SMOKE, SHOT)
   // let a NEW flag fall through to real codex and burned quota three times before
-  // anyone noticed — a prefix rule cannot forget the next flag.
+  // anyone noticed, a prefix rule cannot forget the next flag.
   for (const [key, value] of Object.entries(env)) {
     if (key.startsWith("OIA_DESKTOP_") && value === "1" && !REAL_ALLOWED_FLAGS.has(key)) return "mock";
   }
@@ -73,7 +73,7 @@ export function resolveEffectiveMode(input: {
 }
 
 /**
- * T3 — the SINGLE place the utility's service env is assembled. Pure: builds a
+ * T3: the SINGLE place the utility's service env is assembled. Pure: builds a
  * NEW object, never mutates the base (main used to set-then-restore
  * process.env.CODEX_BIN, leaking global state to every other consumer).
  */

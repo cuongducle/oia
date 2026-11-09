@@ -3,7 +3,7 @@ import { MockImageProvider, placeholderPng } from "../src/image/mock.js";
 
 /** The mock's determinism contract the A1 shot gate leans on: different prompt →
  * different bytes (different asset key after dedupe), same prompt → identical. */
-describe("placeholderPng — deterministic per prompt", () => {
+describe("placeholderPng, deterministic per prompt", () => {
   it("same prompt → byte-identical data URL", () => {
     expect(placeholderPng("make the background pastel")).toBe(placeholderPng("make the background pastel"));
   });
@@ -41,7 +41,7 @@ describe("MockImageProvider", () => {
 import { MockLlmProvider } from "../src/llm/mock.js";
 import { PLANNER_INSTRUCTIONS } from "@oia/schema";
 
-  it("matchers DERIVE from PLANNER_INSTRUCTIONS — rewording the constant keeps the mock in sync", async () => {
+  it("matchers DERIVE from PLANNER_INSTRUCTIONS, rewording the constant keeps the mock in sync", async () => {
     const local = new MockLlmProvider();
     const ask = (system: string) => local.chat([
       { role: "system" as const, content: system },
@@ -53,7 +53,7 @@ import { PLANNER_INSTRUCTIONS } from "@oia/schema";
     expect(planGate.pageOutline).toHaveLength(4);
   });
 
-describe("MockLlmProvider — prompt-aware planning (C1 gate flows need it)", () => {
+describe("MockLlmProvider, prompt-aware planning (C1 gate flows need it)", () => {
   const llm = new MockLlmProvider();
   const msgs = (system: string) => [
     { role: "system" as const, content: system },
@@ -61,13 +61,13 @@ describe("MockLlmProvider — prompt-aware planning (C1 gate flows need it)", ()
   ];
 
   it("outline-gate instruction → pageOutline with EXACTLY N rows", async () => {
-    const raw = await llm.chat(msgs("Also return pageOutline[] — EXACTLY 3 entries {title, summary}, one per page in order (Outline Gate)."));
+    const raw = await llm.chat(msgs("Also return pageOutline[], EXACTLY 3 entries {title, summary}, one per page in order (Outline Gate)."));
     const plan = JSON.parse(raw) as { pageOutline?: { title: string; summary: string }[] };
     expect(plan.pageOutline).toHaveLength(3);
     expect(plan.pageOutline?.[0]?.title).toBe("Page 1");
   });
 
-  it("approved-outline instruction → imagePrompts with EXACTLY N entries (distinct — per-page images differ)", async () => {
+  it("approved-outline instruction → imagePrompts with EXACTLY N entries (distinct, per-page images differ)", async () => {
     const raw = await llm.chat(msgs("Produce exactly 2 imagePrompts[] (one per page, coherent series)."));
     const plan = JSON.parse(raw) as { imagePrompts?: string[] };
     expect(plan.imagePrompts).toHaveLength(2);

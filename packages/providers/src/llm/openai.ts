@@ -7,7 +7,7 @@ const OPENAI_LLM_CAPABILITIES: ProviderCapabilities = {
   transparentBg: false,
   isMock: false,
   // DA-2 slice 1: the Responses API web_search tool is NOT wired into this
-  // adapter yet — declared false so the agent announces "unavailable" honestly.
+  // adapter yet, declared false so the agent announces "unavailable" honestly.
   webSearch: false,
 };
 

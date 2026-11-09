@@ -1,6 +1,6 @@
 name: CI
 on:
-  push: # branches AND tags — the dist job self-filters to v* tags
+  push: # branches AND tags, the dist job self-filters to v* tags
   pull_request:
   workflow_dispatch:
 jobs:
@@ -15,7 +15,7 @@ jobs:
       - run: pnpm build
       - run: pnpm test
       - run: pnpm typecheck
-      # F4 — dependency gate for the SHIPPED tree: fails on high/critical touching any
+      # F4: dependency gate for the SHIPPED tree: fails on high/critical touching any
       # workspace project (the frozen reference apps died in reorg step 6); the one
       # acknowledged advisory (zod 3, fix only in zod 4) is listed with its removal path.
       - run: node config/audit/desktop-audit.mjs
@@ -31,7 +31,7 @@ jobs:
       - run: pnpm build # workspace dist/types must exist before the desktop typecheck
       # Ratchet (reorg step 2): apps/desktop must never reach back into a web shell.
       # apps/web was deleted in step 6; the guard stays so it can never come back.
-      # The baseline may only DECREASE — the desktop owns its lib copies.
+      # The baseline may only DECREASE: the desktop owns its lib copies.
       - name: "@oia-web import ratchet"
         run: |
           COUNT=$(grep -r "@oia-web" apps/desktop/src --include='*.ts' --include='*.tsx' | wc -l | tr -d ' ')
@@ -61,7 +61,7 @@ jobs:
 
   # 7f debt: `pnpm test` was red on Windows for @oia/tasks (backslash upload keys
   # after hydrate + POSIX-only fs-mode tests) and @oia/providers (path parsing).
-  # The fix landed with the wire-key regression in storage.test.ts — this job keeps
+  # The fix landed with the wire-key regression in storage.test.ts: this job keeps
   # the whole unit suite honest on a real Windows runner from now on.
   unit-windows:
     runs-on: windows-latest
@@ -75,7 +75,7 @@ jobs:
       - run: pnpm exec turbo run test typecheck --filter=@oia/tasks --filter=@oia/providers
 
   # Reorg step 4 gate (review điểm 5): the smoke matrix runs on REAL Windows from
-  # here on — not deferred to step 7. Same mock-pair gates as the ubuntu job; the
+  # here on: not deferred to step 7. Same mock-pair gates as the ubuntu job; the
   # ratchet/audit live on ubuntu only (source-level, platform-independent).
   desktop-smoke-windows:
     runs-on: windows-latest
@@ -101,7 +101,7 @@ jobs:
         env:
           OIA_DESKTOP_SI_SMOKE: "1"
 
-  # Reorg step 7 — mac installer (arm64, unsigned per the no-signing budget plan).
+  # Reorg step 7: mac installer (arm64, unsigned per the no-signing budget plan).
   # Runs ONLY on v* tags and manual dispatch: it downloads the pinned codex pair
   # (~166 MB, cached by tag) and produces the .dmg artifact for the release.
   desktop-dist-mac:
@@ -114,7 +114,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build # workspace dist/types before the desktop build
-      # D12 — cache the fetched codex tree per PINNED TAG so tag rebuilds and
+      # D12: cache the fetched codex tree per PINNED TAG so tag rebuilds and
       # re-runs don't re-download ~166 MB (the pin only changes with a REAL_SMOKE
       # verified bump; the key encodes the tag so a bump invalidates cleanly).
       - name: codex pin
@@ -134,7 +134,7 @@ jobs:
             apps/desktop/dist/*.dmg
             apps/desktop/dist/checksums.txt
 
-  # T8 — Windows installer (x64 NSIS, unsigned per the no-signing budget plan).
+  # T8: Windows installer (x64 NSIS, unsigned per the no-signing budget plan).
   # Same trigger and codex cache discipline as desktop-dist-mac; built on a real
   # Windows runner (NSIS + exe resource editing need Windows, not wine).
   desktop-dist-windows:

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { normalizeImageScales } from "../src/image-scales.js";
 
-/** deconstruct-import teardown: fabric paints min(box, element) — normalize
+/** deconstruct-import teardown: fabric paints min(box, element), normalize
  * rescales the object so the paint fills the declared box. Pinned against
  * fabric 7.4.0 _renderFill (maxDestW = Math.min(w, elWidth/filterScale)). */
 function fakeCanvas(imgs: { box: [number, number]; natural: [number, number]; scale?: [number, number] }[]) {
@@ -9,7 +9,7 @@ function fakeCanvas(imgs: { box: [number, number]; natural: [number, number]; sc
     const state: Record<string, number> = { width: i.box[0], height: i.box[1], scaleX: i.scale?.[0] ?? 1, scaleY: i.scale?.[1] ?? 1 };
     return {
       get: (k: string) => state[k],
-      set: vi.fn((o: Record<string, number>) => { Object.assign(state, o); }), // stateful — idempotency is testable
+      set: vi.fn((o: Record<string, number>) => { Object.assign(state, o); }), // stateful, idempotency is testable
       getElement: () => ({ naturalWidth: i.natural[0], naturalHeight: i.natural[1] }),
     };
   });
@@ -21,7 +21,7 @@ describe("normalizeImageScales", () => {
     const { canvas, objects } = fakeCanvas([{ box: [600, 200], natural: [8, 8] }]);
     expect(normalizeImageScales(canvas)).toBe(1);
     expect(objects[0].set).toHaveBeenCalledWith({ width: 8, height: 8, scaleX: 75, scaleY: 25 });
-    // display size after: 8×75 = 600, 8×25 = 200 — the box, not 600×75
+    // display size after: 8×75 = 600, 8×25 = 200, the box, not 600×75
   });
 
   it("leaves matching images alone (scale 1, natural == box)", () => {
@@ -37,7 +37,7 @@ describe("normalizeImageScales", () => {
     expect(zero.set).not.toHaveBeenCalled();
   });
 
-  it("is idempotent — a second pass sees width == natural and skips entirely", () => {
+  it("is idempotent, a second pass sees width == natural and skips entirely", () => {
     const { canvas, objects } = fakeCanvas([{ box: [600, 200], natural: [8, 8] }]);
     normalizeImageScales(canvas);
     expect(normalizeImageScales(canvas)).toBe(0); // width is now 8 == natural

@@ -7,7 +7,7 @@ import {
 import { createEditor } from "../src/editor.js";
 
 /**
- * UI v1.1 R4 — the Layers panel and toolbar act on the canvas stack. Gates the
+ * UI v1.1 R4: the Layers panel and toolbar act on the canvas stack. Gates the
  * two failure modes found while building it: the old per-object bringToFront
  * calls do not exist in fabric 7 (they threw on click), and "send to back" put
  * the layer under the artboard clip, where it vanished.
@@ -38,7 +38,7 @@ describe("layer stack operations", () => {
     const cv = stack([clip(), a, b, c]);
     applyLayerAction(cv, c, "layerBack");
     expect(names(cv)).toEqual(["clip", "c", "a", "b"]);
-    applyLayerAction(cv, c, "layerBackward"); // already at the floor — never under the clip
+    applyLayerAction(cv, c, "layerBackward"); // already at the floor, never under the clip
     expect(names(cv)).toEqual(["clip", "c", "a", "b"]);
     applyLayerAction(cv, c, "layerForward");
     expect(names(cv)).toEqual(["clip", "a", "c", "b"]);
@@ -75,7 +75,7 @@ describe("hide and lock survive save and reload", () => {
   it("reorder + visible + locked round-trip through toObject → loadFromJSON on a real fabric canvas", async () => {
     const el = { getContext: () => null } as unknown as HTMLCanvasElement;
     let editor: fabric.Canvas | null = null;
-    try { editor = await createEditor(el); } catch { /* no DOM canvas in node — fall back to the serializer below */ }
+    try { editor = await createEditor(el); } catch { /* no DOM canvas in node, fall back to the serializer below */ }
     if (editor) await editor.dispose();
 
     // createEditor whitelists the custom properties on the shared class even when the DOM canvas fails

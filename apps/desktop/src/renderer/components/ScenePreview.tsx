@@ -4,7 +4,7 @@ import type { StaticCanvas } from "fabric";
 import { mapAssetUrls } from "../../shared/assets.js";
 import { fabricV6OriginDefaults, normalizeImageScales } from "@oia/canvas";
 
-/** Render the actual editable scene (not its first image layer) — port of the web
+/** Render the actual editable scene (not its first image layer), port of the web
  *  ScenePreview with the oia:// mapping the desktop canvas needs. */
 export function ScenePreview({ scene, label, className = "" }: { scene: SceneCanvas; label: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -26,7 +26,7 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
         const clip = mapped.objects.find(o => o.name === "clip") ?? mapped.objects.find(o => o.type === "Rect");
         const w = clip?.width || 1360, h = clip?.height || 2048;
         // Render at NATURAL size with an identity viewport (fabric 7's zoom/retina
-        // transform chain drew manual-zoom renders at a fraction of the canvas — the
+        // transform chain drew manual-zoom renders at a fraction of the canvas, the
         // workspace thumbnails shipped quarter-size and half-clipped until the owner
         // caught it visually). CSS scales the element into the card (contain).
         const cap = 1600; // memory guard for extreme artboards (bitmap ≈ cap²×4 bytes)
@@ -56,13 +56,13 @@ export function ScenePreview({ scene, label, className = "" }: { scene: SceneCan
 }
 
 /** Thumbnail render size: natural size, capped (memory ≈ cap²×4 bytes; a 4096px
- *  artboard must not allocate a 134MB bitmap per card). Pure — unit-tested. */
+ *  artboard must not allocate a 134MB bitmap per card). Pure, unit-tested. */
 export function previewRenderSize(w: number, h: number, cap = 1600): { width: number; height: number; zoom: number } {
   const zoom = Math.min(1, cap / Math.max(w, h));
   return { width: Math.round(w * zoom), height: Math.round(h * zoom), zoom };
 }
 
-/** The bundled body stack (Be Vietnam Pro ships offline — the persona's diacritics render). */
+/** The bundled body stack (Be Vietnam Pro ships offline, the persona's diacritics render). */
 function fontStack(): string {
   return getComputedStyle(document.body).fontFamily.split(",")[0].replaceAll('"', "");
 }

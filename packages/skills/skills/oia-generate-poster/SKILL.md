@@ -27,4 +27,4 @@ node scripts/generate_poster.mjs --prompt "poster ca phe sua da giam 20%" \
   --style pastel --language vi [--base-url https://your-oia.example] [--async]
 ```
 
-Output JSON: `{ok:true, taskId, sessionId, progress, download}` — save `sessionId` to iterate later.
+Output JSON: `{ok:true, taskId, sessionId, progress, download}`, save `sessionId` to iterate later.

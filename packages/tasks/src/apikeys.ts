@@ -3,9 +3,9 @@ import path from "node:path";
 import { atomicWriteJson, loadJsonArrayDurable } from "./atomic.js";
 
 /**
- * BR-KEY — API keys "For Agents":
+ * BR-KEY, API keys "For Agents":
  * - key format: pf-<32 hex>
- * - list never returns plaintext — only name/createdAt/expiresAt/preview
+ * - list never returns plaintext, only name/createdAt/expiresAt/preview
  * - verify(key): sha256 hash comparison
  * - persists to a JSON file (postgres optional when self-hosting)
  */
@@ -54,7 +54,7 @@ export class ApiKeyStore {
     return { record, plaintext };
   }
 
-/** Metadata only — no plaintext (BR-KEY). */
+/** Metadata only, no plaintext (BR-KEY). */
   list(): ApiKeyRecord[] {
     return this.records.map((r) => ({ ...r, hashed: "" }));
   }
@@ -65,7 +65,7 @@ export class ApiKeyStore {
     if (!rec) return null;
     if (rec.expiresAt && rec.expiresAt < Date.now()) return null; // expired keys are rejected
     rec.lastUsedAt = Date.now();
-    // B7-adjacent: lastUsedAt is now SURFACED in the For Agents table — persist it,
+    // B7-adjacent: lastUsedAt is now SURFACED in the For Agents table, persist it,
     // or the UI shows an in-memory value the next boot contradicts.
     void this.save().catch(() => {}); // fire-and-forget: usage must never fail an auth check
     return rec;

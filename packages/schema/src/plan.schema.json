@@ -90,7 +90,7 @@
         "array",
         "null"
       ],
-      "description": "Free-form text blocks that become editable native text layers. Zero/one/many — decide from the request. Null only when the plan format predates blocks.",
+      "description": "Free-form text blocks that become editable native text layers. Zero/one/many, decide from the request. Null only when the plan format predates blocks.",
       "items": {
         "type": "object",
         "additionalProperties": false,

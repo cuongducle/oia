@@ -25,7 +25,7 @@ import type { PlanPage } from "@oia/schema";
 import type { ChatRequest } from "@oia/services";
 
 /**
- * Home — studio refresh port of the web composer (docs/design-direction.md):
+ * Home, studio refresh port of the web composer (docs/design-direction.md):
  * serif display hero, prompt card with attach/ratio/resolution, advanced pages +
  * outline, format quick-starts, and the template gallery with real scene previews.
  * Transport stays the D2 IPC bridge; asset URLs map /api/files ↔ oia://.
@@ -42,7 +42,7 @@ const TRIAL_CHIP = "Trial mode · placeholder images";
 const STOP_LABEL = "Stop";
 
 const CATEGORY_LABELS: Record<StudioCategory, string> = { all: "All", poster: "Poster", social: "Social", presentation: "Presentation", other: "Branding" };
-/** UI v1.1 R6 — seller use cases replace the generic formats: each seeds a prompt
+/** UI v1.1 R6: seller use cases replace the generic formats: each seeds a prompt
  *  starter and the ratio that job usually ships at (Deck also picks 3 pages). */
 const USE_CASES: { name: string; prompt: string; aspect: string; pages?: string }[] = [
   { name: "Flash sale", prompt: "A flash sale banner for ", aspect: "1:1" },
@@ -55,7 +55,7 @@ const USE_CASES: { name: string; prompt: string; aspect: string; pages?: string 
 const ASPECTS: Record<string, [number, number] | null> = {
   auto: null, "1:1": [1024, 1024], "4:5": [1024, 1280], "3:4": [1024, 1365], "2:3": [1024, 1536], "9:16": [1080, 1920], "16:9": [1920, 1080],
 };
-/** UI v1.1 R6 — Skills ▾ quick calls into the tool library (Q8: call existing
+/** UI v1.1 R6: Skills ▾ quick calls into the tool library (Q8: call existing
  *  tools from the composer; the Tools page stays the full library). */
 const COMPOSER_SKILLS = ["youtube-banner-maker", "image-resizer", "xhs-creator"];
 
@@ -99,10 +99,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [error, setError] = useState("");
   const [retryable, setRetryable] = useState(false);
   const [mockMode, setMockMode] = useState(false);
-  /** B7 — non-empty while any store's LAST disk write failed; null once saving recovers. */
+  /** B7: non-empty while any store's LAST disk write failed; null once saving recovers. */
   const [writeFailures, setWriteFailures] = useState<{ file: string; failedWrites: number }[] | null>(null);
   const [editableText, setEditableText] = useState(false); // D16: poster (text baked in-image, best-looking type) is the default; the toggle opts into clean-plate
-  // C1: conversation pin (A1 VA-9) — every run on this mount joins ONE session;
+  // C1: conversation pin (A1 VA-9), every run on this mount joins ONE session;
   // the outline stub and the deck result land in the same conversation (OC-8)
   const [sessionId, setSessionId] = useState<number | null>(resumeSession ?? null);
   const [community, setCommunity] = useState<Template[]>([]);
@@ -111,14 +111,14 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [resolution, setResolution] = useState("2k");
   const [pages, setPages] = useState("auto");
   const [outlineGateOn, setOutlineGateOn] = useState(() => readOutlineGatePref()); // C1 default ON (OC-6)
-  // DA-1 research (default OFF in slice 1 — S1.5) and DA-3/DA-4 Auto refine
+  // DA-1 research (default OFF in slice 1, S1.5) and DA-3/DA-4 Auto refine
   // (default ON, owner Q1 2026-11-06); both persist the switch choice (OC-6).
   const [researchOn, setResearchOn] = useState(() => readResearchPref());
   const [stylePreset, setStylePreset] = useState(() => readStylePref());
   const [autoRefineOn, setAutoRefineOn] = useState(() => readAutoRefinePref());
-  /** DA-6 — the refine verdict from the winning canvas (badge on the ResultCard). */
+  /** DA-6: the refine verdict from the winning canvas (badge on the ResultCard). */
   const [selfImprove, setSelfImprove] = useState<SelfImproveResult | null>(null);
-  /** C1: the outline awaiting review — rows + the phase-1 request to resume from. */
+  /** C1: the outline awaiting review, rows + the phase-1 request to resume from. */
   const [outlineDeck, setOutlineDeck] = useState<{ rows: OutlineRow[]; base: ChatRequest } | null>(null);
   const pendingOutlineRef = useRef<PlanPage[] | null>(null); // events outlive the submit closure
   const [advanced, setAdvanced] = useState(false);
@@ -129,20 +129,20 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const [useCase, setUseCase] = useState<string | null>(null);
   const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
   const [brandKitId, setBrandKitId] = useState(""); // "" → the kit marked "Apply to new projects" (services/chat.ts)
-  const [recent, setRecent] = useState<Project[]>([]); // R6 — Recent designs row (DNA #3: recent before inspiration)
+  const [recent, setRecent] = useState<Project[]>([]); // R6: Recent designs row (DNA #3: recent before inspiration)
   const [skillsOpen, setSkillsOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [resultName, setResultName] = useState(""); // exportMeta.projectName — names the editor handoff even when the prompt state is empty (programmatic runs)
+  const [resultName, setResultName] = useState(""); // exportMeta.projectName, names the editor handoff even when the prompt state is empty (programmatic runs)
   const [genSeconds, setGenSeconds] = useState<number | null>(null); // ✓ summary replaces the step chips once the result lands
   const startedAtRef = useRef<number | null>(null);
-  const [startedAt, setStartedAt] = useState<number | null>(null); // mirror of the ref — RunPanel's timer needs a render
-  /** One setter for both clocks — the ref feeds the ✓-summary math, the state
+  const [startedAt, setStartedAt] = useState<number | null>(null); // mirror of the ref, RunPanel's timer needs a render
+  /** One setter for both clocks, the ref feeds the ✓-summary math, the state
    *  feeds the elapsed timer; writing them anywhere else invites drift. */
   function markRunStart(ms: number | null): void {
     startedAtRef.current = ms;
     setStartedAt(ms);
   }
-  // explicit open/close for the AI notes block — no key-remount tricks; a new run reopens it
+  // explicit open/close for the AI notes block, no key-remount tricks; a new run reopens it
   const [notesOpen, setNotesOpen] = useState(false);
   const activeJobRef = useRef<string | null>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
@@ -150,7 +150,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   const fileInputRef = useRef<HTMLInputElement>(null);
   const offRef = useRef<(() => void) | null>(null);
 
-  /** TP-D3: the runtime panel flips the provider mode — Home re-reads status when it does. */
+  /** TP-D3: the runtime panel flips the provider mode, Home re-reads status when it does. */
   const refreshProviderStatus = useCallback(() => {
     void oia()
       .providerStatus()
@@ -176,7 +176,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       }).catch(() => {});
     }
     // chat events stream over the bridge subscription
-    // events filtered to the ACTIVE job — a concurrent mock run cannot interleave
+    // events filtered to the ACTIVE job, a concurrent mock run cannot interleave
     offRef.current = oia().onChatEvent((ev) => {
       if (activeJobRef.current && ev.jobId && ev.jobId !== activeJobRef.current) return;
       if (ev.jobId) {
@@ -196,7 +196,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         setTimeline(ev.renderData.taskMeta.map((tm) => ({ content: tm.content, done: tm.status === "1", sub: tm.type === "substep" })));
       }
       if (ev.renderData?.outline?.length) pendingOutlineRef.current = ev.renderData.outline; // C1 phase 1 payload
-      // DA-6: the badge pairs with the canvas it describes — canvas events only.
+      // DA-6: the badge pairs with the canvas it describes, canvas events only.
       // Terminal events carry the HERO (page 0) verdict; taking it here would
       // mismatch the badge with the LAST page Home actually displays (teardown #2).
       if (ev.renderData?.selfImprove && ev.renderData.msgMeta.some((m) => m.type === "canvas")) setSelfImprove(ev.renderData.selfImprove);
@@ -214,7 +214,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // canvas preview — same fabric wrapper the web Home uses (@oia/canvas)
+  // canvas preview, same fabric wrapper the web Home uses (@oia/canvas)
   useEffect(() => {
     let cancelled = false;
     if (!canvasMeta) return;
@@ -280,7 +280,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       ...(aspect !== "auto" || resolution !== "2k" ? { width: Math.round(w * scale), height: Math.round(h * scale) } : {}),
       ...(pagesN ? { pages: pagesN } : {}),
       // C1 gate (OC-1): multi-page + switch on → stop after the outline. Retry keeps
-      // the direct path — the plan is already stashed server-side (A5).
+      // the direct path, the plan is already stashed server-side (A5).
       ...(pagesN && pagesN >= 2 && outlineGateOn && !retryOf ? { outlineGate: true } : {}),
       ...(researchOn ? { research: true } : {}),
       ...(stylePreset ? { style: stylePreset } : {}),
@@ -295,7 +295,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       if (res.outcome === "outline") {
         // SAFETY: TS control flow only sees the `= null` in submit; the chat-event
         // closure assigns the outline DURING the awaited call. Grace-wait ONLY on
-        // this outcome — the reply (invoke) can beat the outline event (send)
+        // this outcome, the reply (invoke) can beat the outline event (send)
         // across IPC channels; every other outcome must resolve immediately.
         const outline = (pendingOutlineRef.current as PlanPage[] | null) ?? (await waitForOutline(() => pendingOutlineRef.current));
         if (outline?.length) {
@@ -303,7 +303,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
           const { outlineGate: _drop, pages: _drop2, retryOf: _r, ...base } = req;
           setOutlineDeck({ rows: outline, base });
         } else {
-          // outcome says outline but the payload never arrived — never a silent dead end
+          // outcome says outline but the payload never arrived, never a silent dead end
           setError("The outline could not be loaded. Please try your request again.");
         }
       }
@@ -315,7 +315,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     }
   }
 
-  /** C1 phase 2 — the user-edited outline becomes the deck (OC-1/OC-2). */
+  /** C1 phase 2, the user-edited outline becomes the deck (OC-1/OC-2). */
   async function generateFromOutline(rows: OutlineRow[]) {
     if (!outlineDeck || busy || !outlineRowsValid(rows)) return;
     const base = outlineDeck.base;
@@ -345,7 +345,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
 
   function setChatRunError(e: unknown) {
     const name = e instanceof Error ? e.name : "";
-    if (name === "IpcValidationError") setError("Invalid request — please try again.");
+    if (name === "IpcValidationError") setError("Invalid request, please try again.");
     else if (name === "ProviderConfigError") setError("Provider configuration is invalid (mock mixed with real). See the README.");
     else setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
   }
@@ -360,10 +360,10 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
   }
   async function stop() {
     if (jobId) await oia().cancelChat(jobId).catch(() => {});
-    // the service emits the terminal cancelled event — do not abort locally
+    // the service emits the terminal cancelled event, do not abort locally
   }
 
-  /** TP.7 — handoff by projectId only; the scene is persisted, never carried as a blob. */
+  /** TP.7: handoff by projectId only; the scene is persisted, never carried as a blob. */
   async function openInEditor(name: string, scene: SceneCanvas) {
     setError("");
     try {
@@ -377,7 +377,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     void openInEditor(tpl.name, tpl.scene);
   }
 
-  /** Full-resolution PNG via the native save dialog (export:save IPC — never a download anchor). */
+  /** Full-resolution PNG via the native save dialog (export:save IPC, never a download anchor). */
   async function exportPng() {
     const c = fabricRef.current;
     if (!c || !canvasMeta) return;
@@ -448,7 +448,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
                     </button>
                   ))}
                   <button role="menuitem" onClick={() => { setSkillsOpen(false); onOpenTools?.(); }}>
-                    <strong>All tools</strong><span>Converters, charts, creative AI — the full library</span>
+                    <strong>All tools</strong><span>Converters, charts, creative AI, the full library</span>
                   </button>
                 </div>
               </>
@@ -481,7 +481,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
             {Icon.sliders}<span>{pages === "auto" ? "More" : `${pages} ${pages === "1" ? "page" : "pages"}`}</span>{Icon.chevron}
           </button>
           {mockMode && (
-            <button className="trialChip" data-testid="trial-chip" title="Placeholder images, not real AI — open Settings to use Codex" onClick={() => onOpenSettings?.()}>{TRIAL_CHIP}</button>
+            <button className="trialChip" data-testid="trial-chip" title="Placeholder images, not real AI, open Settings to use Codex" onClick={() => onOpenSettings?.()}>{TRIAL_CHIP}</button>
           )}
           <span className="composerSpacer" />
           {!busy && (
@@ -515,7 +515,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
               {OUTLINE_SWITCH_LABEL}
             </label>
             <label className="switchRow">
-              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Off: text is rendered inside the image — best-looking type; make it editable later from the editor. On: banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
+              <button type="button" role="switch" aria-checked={editableText} aria-label={MODE_TOGGLE_LABEL} title="Off: text is rendered inside the image, best-looking type; make it editable later from the editor. On: banners arrive with separate editable text layers" className={`switch ${editableText ? "on" : ""}`} onClick={() => setEditableText(!editableText)} />
               {MODE_TOGGLE_LABEL}
             </label>
             <label className="switchRow">
@@ -540,13 +540,13 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
         )}
       </section>
 
-      {/* C1 outline gate — the review card (OC-2: rows are editable; count is the contract) */}
+      {/* C1 outline gate, the review card (OC-2: rows are editable; count is the contract) */}
       {outlineDeck && !busy && (
         <section className="outlineCard" data-testid="outline-card" aria-label="Review the page outline">
           <div className="sectionHeading" style={{ marginBottom: 10 }}>
             <h2 style={{ margin: 0, fontSize: 17 }}><span className="stepLabel">Step 2 of 2</span>Review the outline</h2>
             {/* teardown #1: the card where the user APPROVES the spend must show
-                the SAME cost law as the composer — one source (costHintText),
+                the SAME cost law as the composer, one source (costHintText),
                 never a second label that forgets auto refine. */}
             <span className="hintP" data-testid="outline-cost">{costHintText({ images: outlineDeck.rows.length, pages: outlineDeck.rows.length, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}</span>
           </div>
@@ -584,7 +584,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
       {writeFailures && (
         <div className="notice warn" role="status">
           ⚠ Could not save some data to disk ({writeFailures.map((f) => `${f.file} ×${f.failedWrites}`).join(", ")}).
-          Check free space or folder permissions — changes since the last successful save are at risk until saving works again.
+          Check free space or folder permissions, changes since the last successful save are at risk until saving works again.
         </div>
       )}
 

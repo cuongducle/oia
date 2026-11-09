@@ -6,9 +6,9 @@ import { toDisplayUrl } from "../../shared/assets.js";
 import type { BrandKitInput } from "../../shared/bridge.js";
 
 /**
- * reorg step 4d — the Brand Kit panel (web /brandkit ported, minimal): list + form
+ * reorg step 4d, the Brand Kit panel (web /brandkit ported, minimal): list + form
  * over BrandKitStore (tasks/brandkits.ts) through IPC. Effectiveness comes from
- * services/context.ts — runChat reads the ACTIVE kit (or an explicit brandKitId),
+ * services/context.ts, runChat reads the ACTIVE kit (or an explicit brandKitId),
  * so a kit saved here reaches the next generation with zero extra wiring.
  *
  * "Design with this kit" activates it (applyByDefault) and hops to Home.
@@ -60,7 +60,7 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
       await refresh();
     } catch (e) {
       // Electron wraps handler rejections ("Error invoking remote method …: Error: <detail>")
-      // — recover the LAST detail segment so store validation reaches the user
+      //, recover the LAST detail segment so store validation reaches the user
       // instead of being buried under the wrapper (never match the wrapper itself).
       const raw = e instanceof Error ? e.message : "";
       const detail = raw.includes("Error:") ? raw.slice(raw.lastIndexOf("Error:") + "Error:".length).trim() : raw;
@@ -88,7 +88,7 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
     } catch { setMsg("Could not upload the logo."); } finally { setBusy(false); }
   }
 
-  /** Activate + hop to Home — runChat picks the active kit on the next prompt. */
+  /** Activate + hop to Home, runChat picks the active kit on the next prompt. */
   async function designWithThis() {
     setBusy(true); setMsg("");
     try {
@@ -105,7 +105,7 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
       <header className="sectionHeading">
         <div>
           <h1>Brand kit</h1>
-          <p>{active ? `“${active.name}” is applied to new designs.` : "No kit is applied yet — set one as default."}</p>
+          <p>{active ? `“${active.name}” is applied to new designs.` : "No kit is applied yet, set one as default."}</p>
         </div>
         <button className="secondaryBtn" onClick={() => select()}>+ New brand kit</button>
       </header>

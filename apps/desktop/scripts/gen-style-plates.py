@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""SC-3 programmatic style plates — Editorial × Swiss backgrounds, 0 quota.
+"""SC-3 programmatic style plates, Editorial × Swiss backgrounds, 0 quota.
 
 Deterministic (seeded) PIL generator for the clean-plate artworks of the
 social-card style templates (docs/designs/social-card-style-presets.md).
-Style rules only — no text is baked (doctrine T2: clean plates, text lives
+Style rules only, no text is baked (doctrine T2: clean plates, text lives
 in editable Textbox blocks). Rerun to regenerate byte-identical assets:
 
     python3 scripts/gen-style-plates.py   (from apps/desktop)
@@ -76,19 +76,19 @@ def save(img, name):
 
 # ---------- Swiss plates (flat paper + sparse geometry, text zones clean) ----------
 
-# 1. flashsale 4:5 — dot field bottom-right only; top stays quiet for display text
+# 1. flashsale 4:5: dot field bottom-right only; top stays quiet for display text
 img = new(1080, 1350, PAPER)
 dots(img, 660, 1000, 1080, 1260)
 hairline_h(img, 60, 1020, 1310)
 save(img, "swiss-flashsale")
 
-# 2. spec 1:1 — cross-hatch block bottom-left, hairline rail right
+# 2. spec 1:1: cross-hatch block bottom-left, hairline rail right
 img = new(1080, 1080, PAPER)
 crosses(img, 620, 850, 1020, 960, pitch=24)
 hairline_h(img, 60, 1020, 1022)
 save(img, "swiss-spec")
 
-# 3. statement 16:9 — dots top-right band + double hairline base
+# 3. statement 16:9: dots top-right band + double hairline base
 img = new(1600, 900, PAPER)
 dots(img, 1060, 170, 1600, 420)
 hairline_h(img, 100, 1500, 884)
@@ -97,7 +97,7 @@ save(img, "swiss-statement")
 
 # ---------- Editorial plates (paper + grain + ink wash, never flat) ----------
 
-# 4. menu 4:5 — kraft paper, warm washes, vignette
+# 4. menu 4:5: kraft paper, warm washes, vignette
 img = new(1080, 1350, (232, 214, 182))
 img = radial(img, 260, 200, 420, (196, 152, 92), 0.22)
 img = radial(img, 900, 1150, 460, (160, 116, 66), 0.18)
@@ -105,7 +105,7 @@ img = radial(img, 540, 675, 900, (120, 84, 44), 0.10)
 img = grain(img, 0.12)
 save(img, "ed-menu")
 
-# 5. feature 1:1 — dune palette, soft topo rings
+# 5. feature 1:1: dune palette, soft topo rings
 img = new(1080, 1080, (238, 228, 210))
 d = ImageDraw.Draw(img, "RGBA")
 for i, r in enumerate(range(140, 620, 60)):
@@ -116,7 +116,7 @@ img = radial(img, 300, 850, 500, (200, 174, 128), 0.14)
 img = grain(img, 0.10)
 save(img, "ed-feature")
 
-# 6. holiday 4:5 — midnight ink, gilt wash, warm specks (dark variant)
+# 6. holiday 4:5: midnight ink, gilt wash, warm specks (dark variant)
 img = new(1080, 1350, (30, 27, 22))
 img = radial(img, 300, 260, 480, (196, 148, 70), 0.16)
 img = radial(img, 820, 380, 300, (196, 148, 70), 0.10)
@@ -141,5 +141,5 @@ img = new(1080, 1080, (250, 208, 44))
 hairline_h(img, 60, 1020, 1014, (178, 24, 34), 1)
 save(img, "tet-gold")
 
-print("tết plates done — 0 quota")
+print("tết plates done, 0 quota")
 

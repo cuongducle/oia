@@ -23,7 +23,7 @@ const caps = (extra: Partial<ProviderCapabilities> = {}): ProviderCapabilities =
 const evalJson = (verdict: "pass" | "fail", textHandling = 9, scope: "localized" | "global" = "global", issues: string[] = verdict === "fail" ? ["mock issue"] : []) =>
   JSON.stringify({ verdict, scope, scores: { textHandling, brand: 8, fidelity: 8, composition: 8, realism: 8 }, issues, fixHints: verdict === "fail" ? ["mock hint"] : [] });
 
-/** One data-URL image per call — the critic needs decodable pixels. */
+/** One data-URL image per call, the critic needs decodable pixels. */
 const png1x1 = () => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 function countingImage(): { provider: ImageProvider; calls: () => number; urls: () => string[]; inputs: () => ImageGenInput[] } {
@@ -77,7 +77,7 @@ describe("DA-3 helpers", () => {
     const poster = criticPrompt({ mode: "poster", title: "T", pagePrompt: "poster with 'SALE 20%'", overlayCopy: [] });
     const plate0 = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: ["SALE 20%"] });
     const plateN = criticPrompt({ mode: "clean-plate", title: "T", pagePrompt: "p", overlayCopy: [] });
-    // v3.2 (2026-11-05): realism axis + scope routing — the anti-slop axes a
+    // v3.2 (2026-11-05): realism axis + scope routing, the anti-slop axes a
     // blind A/B proved a vision judge can score (docs/research/image-prompt-craft.md)
     for (const p of [poster, plate0, plateN]) {
       expect(p).toContain("REALISM");
@@ -91,7 +91,7 @@ describe("DA-3 helpers", () => {
       expect(p).toContain("TRANSCRIBE first");
       expect(p).toContain("TEXTHANDLING (heaviest weight)");
     }
-    // v3 (2026-11-03, owner: generalize from the designer community) — C.R.A.P. + Gestalt,
+    // v3 (2026-11-03, owner: generalize from the designer community), C.R.A.P. + Gestalt,
     // squint test, and NO banner-only vocabulary: works for poster/menu/slide/overlay alike
     for (const p of [poster, plate0, plateN]) {
       expect(p).toContain("SQUINT at the image");
@@ -102,14 +102,14 @@ describe("DA-3 helpers", () => {
       expect(p).not.toContain("offer > product"); // generalized away from sale-banner vocabulary
     }
     expect(poster).toContain("judge every rendered line against them");
-    expect(poster).toContain("diacritics"); // D16/RE §7.1 — the #1 real defect class
+    expect(poster).toContain("diacritics"); // D16/RE §7.1, the #1 real defect class
     expect(poster).toContain("pass\" ONLY when every score is 7+");
-    expect(poster).toContain("7, not 6"); // v3.1 calibration — one tight margin alone never fails good work
+    expect(poster).toContain("7, not 6"); // v3.1 calibration, one tight margin alone never fails good work
     expect(poster).not.toContain("Overlay copy");
     expect(plate0).toContain("Overlay copy that will land on this page");
     expect(plate0).toContain("painted INTO the image is a defect");
     expect(plateN).toContain("NO overlay copy (purely visual plate)");
-    expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE — inside the prompt line it belongs to
+    expect(poster.match(/SALE 20%/g)?.length).toBe(1); // the copy appears ONCE, inside the prompt line it belongs to
     for (const p of [poster, plate0, plateN]) expect(p.endsWith(EVAL_READ_MARKER)).toBe(true);
   });
 
@@ -137,7 +137,7 @@ describe("DA-3 helpers", () => {
   });
 });
 
-describe("DA slice 1 — research rides the planner turn (DA-1/DA-2)", () => {
+describe("DA slice 1, research rides the planner turn (DA-1/DA-2)", () => {
   it("capability present: instruction in the system prompt, search flag on the chat opts, timeline narrates, notes surface", async () => {
     const systems: string[] = [];
     const optsSeen: LlmChatOpts[] = [];
@@ -166,7 +166,7 @@ describe("DA slice 1 — research rides the planner turn (DA-1/DA-2)", () => {
   it("DA-2 error path: no capability → announced, NEVER silently skipped, job completes from the prompt alone", async () => {
     const img = countingImage();
     const out = await run({ prompt: "banner", research: true }, { llm: llmReturning(plan), image: img.provider });
-    expect(out.map((e) => e.content).join("\n")).toContain("Research unavailable on stub — generating from the prompt alone.");
+    expect(out.map((e) => e.content).join("\n")).toContain("Research unavailable on stub, generating from the prompt alone.");
     expect(img.calls()).toBe(1); // the job ran to completion
     expect(out.at(-1)?.content).toBe("</Content>");
   });
@@ -182,7 +182,7 @@ describe("DA slice 1 — research rides the planner turn (DA-1/DA-2)", () => {
     expect(out.some((e) => e.content.includes("Researching the web"))).toBe(false);
   });
 
-  it("reusePlan skips the planner — research never re-runs on a retry", async () => {
+  it("reusePlan skips the planner, research never re-runs on a retry", async () => {
     let chats = 0;
     const spy: LlmProvider = {
       name: "codex", capabilities: caps({ webSearch: true }), async isAvailable() { return { ok: true }; },
@@ -193,22 +193,22 @@ describe("DA slice 1 — research rides the planner turn (DA-1/DA-2)", () => {
   });
 });
 
-describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () => {
+describe("DA slice 2, Auto refine loop (DA-3..DA-8), error paths first", () => {
   it("GATE (a): critic parse fail → stop, keep this version, ZERO extra burn", async () => {
     const img = countingImage();
     const brokenCritic: LlmProvider = {
       name: "stub", capabilities: caps(), async isAvailable() { return { ok: true }; },
       async chat() { return plan; },
-      async readImage() { return "the critic babbled — not JSON"; },
+      async readImage() { return "the critic babbled, not JSON"; },
     };
     const out = await run({ prompt: "banner", selfImprove: { rounds: 2 } }, { llm: brokenCritic, image: img.provider });
     expect(img.calls()).toBe(1); // no refine image was generated
-    expect(out.map((e) => e.content).join("\n")).toContain("Auto refine check unavailable — keeping this version.");
+    expect(out.map((e) => e.content).join("\n")).toContain("Auto refine check unavailable, keeping this version.");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
     expect(canvasEv.renderData.selfImprove).toEqual({ criticVersion: "v3.3", rounds: 0, verdict: "best-effort", issues: [] });
   });
 
-  it("GATE (a2): critic throws (network/quota) → same G2 contract — keep, stop, no extra burn", async () => {
+  it("GATE (a2): critic throws (network/quota) → same G2 contract, keep, stop, no extra burn", async () => {
     const img = countingImage();
     const throwingCritic: LlmProvider = {
       name: "stub", capabilities: caps(), async isAvailable() { return { ok: true }; },
@@ -256,7 +256,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(out.map((e) => e.content).join("\n")).toContain("could not revise the prompt");
   });
 
-  it("happy loop (mock pair): fail → SURGICAL EDIT of the current image → pass — 2 images, no planner turn, verdict persisted", async () => {
+  it("happy loop (mock pair): fail → SURGICAL EDIT of the current image → pass, 2 images, no planner turn, verdict persisted", async () => {
     const img = countingImage();
     const out = await run({ prompt: "banner", selfImprove: { rounds: 1 } }, { llm: new MockLlmProvider(), image: img.provider });
     expect(img.calls()).toBe(2); // initial + edited
@@ -269,13 +269,13 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(edit.prompt).toContain("Fix ONLY these defects");
     expect(edit.prompt).toContain("mock issue: headline rendered with a typo");
     expect(edit.referenceImages?.[0]).toBe(img.urls()[0]); // the CURRENT artwork is reference Image 1
-    // the planner refine turn never ran — no "(refined" prompt ever reached the image channel
+    // the planner refine turn never ran, no "(refined" prompt ever reached the image channel
     expect(img.urls()[1]).toContain("edit");
     const timeline = out.find((e) => e.content.includes("<Result>"))!.renderData.taskMeta.map((t) => t.content);
     expect(timeline).toContain("Checking round 1");
     expect(timeline).toContain("Refining");
     expect(timeline).toContain("Checking round 2");
-    // wire contract: inner-loop steps are marked substep — the stepper keys on
+    // wire contract: inner-loop steps are marked substep, the stepper keys on
     // this flag (schema), never on the label text
     const all = out.find((e) => e.content.includes("<Result>"))!.renderData.taskMeta;
     for (const name of ["Checking round 1", "Refining", "Checking round 2"]) {
@@ -305,7 +305,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     };
     const out = await run({ prompt: "banner", selfImprove: { rounds: 2 } }, { llm, image: img.provider });
     expect(img.calls()).toBe(3);
-    // the re-roll reused the ORIGINAL page prompt verbatim — variance harvesting, not re-planning
+    // the re-roll reused the ORIGINAL page prompt verbatim, variance harvesting, not re-planning
     expect(img.inputs()[2].prompt).toBe(img.inputs()[0].prompt);
     expect(img.inputs()[2].prompt).not.toContain("Edit Image 1");
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
@@ -323,7 +323,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
       },
       async readImage() {
         reads += 1;
-        // first candidate scores 6, the refined one scores 8 — the refined image must win
+        // first candidate scores 6, the refined one scores 8, the refined image must win
         return evalJson("fail", reads === 1 ? 6 : 8);
       },
     };
@@ -331,7 +331,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
     expect(img.calls()).toBe(2);
     const canvasEv = out.find((e) => e.renderData.msgMeta.length > 0)!;
     expect(canvasEv.renderData.selfImprove).toMatchObject({ rounds: 1, verdict: "best-effort", issues: ["mock issue"] });
-    // the winner is candidate 2 (higher total) — its artwork object carries the refined URL
+    // the winner is candidate 2 (higher total), its artwork object carries the refined URL
     expect(canvasEv.renderData.msgMeta[0].thumbnail).toBe(img.urls()[1]);
   });
 
@@ -353,7 +353,7 @@ describe("DA slice 2 — Auto refine loop (DA-3..DA-8), error paths first", () =
 
 /* ---------- teardown fixes (2026-11-06) ---------- */
 
-describe("teardown #7 — the DEFAULT combination (research + refine together)", () => {
+describe("teardown #7, the DEFAULT combination (research + refine together)", () => {
   it("both loops active in ONE run: search opt + research instruction AND the refine cycle", async () => {
     const systems: string[] = [];
     const optsSeen: LlmChatOpts[] = [];
@@ -378,7 +378,7 @@ describe("teardown #7 — the DEFAULT combination (research + refine together)",
   });
 });
 
-describe("teardown #8 — cancel mid-refine through the REAL failure mode (generation throws)", () => {
+describe("teardown #8, cancel mid-refine through the REAL failure mode (generation throws)", () => {
   it("abort kills the refine regeneration → the PREVIOUS image is still yielded, stream aborts", async () => {
     const ac = new AbortController();
     let n = 0;
@@ -401,7 +401,7 @@ describe("teardown #8 — cancel mid-refine through the REAL failure mode (gener
   });
 });
 
-describe("teardown #2 — multi-page verdict record (B7)", () => {
+describe("teardown #2, multi-page verdict record (B7)", () => {
   it("terminal events pair the page-0 canvas with the page-0 verdict; every page's verdict rides selfImprovePages", async () => {
     const img = countingImage();
     // mock critic per jobId: page 0 fails its first check → refines → passes;
@@ -425,7 +425,7 @@ describe("teardown #2 — multi-page verdict record (B7)", () => {
   });
 });
 
-describe("teardown #3 — clean-plate critic asks the RIGHT question per page", () => {
+describe("teardown #3, clean-plate critic asks the RIGHT question per page", () => {
   it("page 0 judged against the overlay copy; later pages judged as purely visual plates", async () => {
     const prompts: string[] = [];
     let job = 0;
@@ -451,7 +451,7 @@ describe("teardown #3 — clean-plate critic asks the RIGHT question per page", 
   });
 });
 
-describe("teardown #5/#6 — failed refine attempts announce their burn, rounds count only images produced", () => {
+describe("teardown #5/#6, failed refine attempts announce their burn, rounds count only images produced", () => {
   it("regeneration failure names the error class and records rounds=0", async () => {
     const img = countingImage();
     let n = 0;
@@ -463,7 +463,7 @@ describe("teardown #5/#6 — failed refine attempts announce their burn, rounds 
         return { url: png1x1(), provider: "flaky", model: "x", width: 8, height: 8 };
       },
     };
-    // scope "global" forces the full re-plan path (DA-3.1) — the planner refine
+    // scope "global" forces the full re-plan path (DA-3.1), the planner refine
     // turn runs, then the regeneration throws: the burn must be ANNOUNCED (teardown #5/#6)
     const llm: LlmProvider = {
       name: "stub", capabilities: caps(), async isAvailable() { return { ok: true }; },
@@ -477,7 +477,7 @@ describe("teardown #5/#6 — failed refine attempts announce their burn, rounds 
   });
 });
 
-/** SC-2 — style-aware critic rubric (v3.3): hard laws ride the prompt only when a style is selected. */
+/** SC-2: style-aware critic rubric (v3.3): hard laws ride the prompt only when a style is selected. */
 describe("SC-2 critic style laws", () => {
   const base = { mode: "poster" as const, title: "t", pagePrompt: "p", overlayCopy: [] };
   it("no style → no STYLE criterion", () => {

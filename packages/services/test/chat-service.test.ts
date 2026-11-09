@@ -7,7 +7,7 @@ import { createServiceContext, runChat, cancelJob, jobControllers, chatRequestSc
 import { MockImageProvider, MockLlmProvider, FailingMockLlmProvider } from "@oia/providers";
 
 /**
- * D1 contract tests — the surface the desktop IPC handler will call, with NO transport.
+ * D1 contract tests, the surface the desktop IPC handler will call, with NO transport.
  * These pin the orchestration behaviors the web SSE route previously owned.
  */
 
@@ -48,7 +48,7 @@ beforeEach(() => {
   jobControllers().clear();
 });
 
-describe("D1 runChat — happy path", () => {
+describe("D1 runChat, happy path", () => {
   it("completes: narrative events + canvas (assetized, no base64) + </Content>, jobId on every event", async () => {
     const ctx = await freshCtx();
     const { events, sink } = collector();
@@ -63,7 +63,7 @@ describe("D1 runChat — happy path", () => {
     expect(ctx.chatSessions.recent(1)[0].messages.length).toBe(2);
   });
 
-  it("A1 VA-9: returns the sessionId it persisted to — the editor dock pins its conversation", async () => {
+  it("A1 VA-9: returns the sessionId it persisted to, the editor dock pins its conversation", async () => {
     const ctx = await freshCtx();
     const first = await runChat({ prompt: "edit 1" }, ctx, { sink: () => {} });
     const stored = ctx.chatSessions.get(first.sessionId);
@@ -76,7 +76,7 @@ describe("D1 runChat — happy path", () => {
     expect(ctx.chatSessions.recent().length).toBe(1);
   });
 
-  it("C1: outlineGate (pages>=2) ends with outcome 'outline' — zero canvases on the wire", async () => {
+  it("C1: outlineGate (pages>=2) ends with outcome 'outline', zero canvases on the wire", async () => {
     const ctx = await freshCtx();
     const { events, sink } = collector();
     const { outcome, sessionId } = await runChat({ prompt: "sales deck", pages: 3, outlineGate: true }, ctx, { sink });
@@ -96,8 +96,8 @@ describe("D1 runChat — happy path", () => {
       {
         prompt: "sales deck", sessionId: phase1.sessionId,
         approvedOutline: [
-          { title: "Page 1", summary: "sales deck — part 1" },
-          { title: "Page 2", summary: "sales deck — part 2" },
+          { title: "Page 1", summary: "sales deck, part 1" },
+          { title: "Page 2", summary: "sales deck, part 2" },
         ],
       },
       ctx,
@@ -105,7 +105,7 @@ describe("D1 runChat — happy path", () => {
     );
     expect(phase2.outcome).toBe("completed");
     expect(phase2.sessionId).toBe(phase1.sessionId);
-    // id "final" is the runChat persistence rewrite of the LAST event (pre-existing) —
+    // id "final" is the runChat persistence rewrite of the LAST event (pre-existing),
     // the real generations are the distinct ids besides it
     const pageIds = new Set(events.flatMap((e) => e.renderData.msgMeta.filter((m) => m.type === "canvas" && m.id !== "final").map((m) => m.id)));
     expect(pageIds.size).toBe(2);
@@ -119,7 +119,7 @@ describe("D1 runChat — happy path", () => {
     expect(outcome).toBe("completed");
   });
 
-  it("A1 VA-9: refusals still return the sessionId (the prompt was persisted — the record must not lie)", async () => {
+  it("A1 VA-9: refusals still return the sessionId (the prompt was persisted, the record must not lie)", async () => {
     const ctx = await freshCtx();
     const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in", available: false });
     (ctx.chat as { llm: unknown }).llm = failing;
@@ -129,7 +129,7 @@ describe("D1 runChat — happy path", () => {
   });
 });
 
-describe("D1 runChat — refusals", () => {
+describe("D1 runChat, refusals", () => {
   it("pre-flight: an unavailable provider refuses with attemptNumber 0 and zero canvas events", async () => {
     const ctx = await freshCtx();
     const failing = new FailingMockLlmProvider({ errorClass: "not_logged_in", available: false });
@@ -155,7 +155,7 @@ describe("D1 runChat — refusals", () => {
   });
 });
 
-describe("D1 runChat — cancellation", () => {
+describe("D1 runChat, cancellation", () => {
   it("Stop (cancelJob) mid-run: terminal cancelled event, slot released, registry cleaned", async () => {
     const ctx = await freshCtx();
     const slow = new FailingMockLlmProvider({ errorClass: "timeout", latencyMs: 10_000 });
@@ -175,7 +175,7 @@ describe("D1 runChat — cancellation", () => {
     expect(jobControllers().has(jobId)).toBe(false);
   });
 
-  it("an external abort (shell signal — disconnect grace on web, window close on desktop) behaves the same", async () => {
+  it("an external abort (shell signal, disconnect grace on web, window close on desktop) behaves the same", async () => {
     const ctx = await freshCtx();
     const slow = new FailingMockLlmProvider({ errorClass: "timeout", latencyMs: 10_000 });
     (ctx.chat as { llm: unknown }).llm = slow;
@@ -189,7 +189,7 @@ describe("D1 runChat — cancellation", () => {
   });
 });
 
-describe("D1 runChat — stage-aware retry (A5)", () => {
+describe("D1 runChat, stage-aware retry (A5)", () => {
   it("a retry with retryOf reuses the stashed plan: zero planner turns", async () => {
     const ctx = await freshCtx();
     let llmCalls = 0;
@@ -260,13 +260,13 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
     const refs = ["data:image/png;base64,iVBORw0KGgo=", "https://example.com/x.png", "/tmp/absolute/ref.png"];
     const first = await runChat({ prompt: "edit", referenceImages: refs }, ctx, { sink: () => {} });
     expect(first.outcome).toBe("completed");
-    expect(seen.some((r) => JSON.stringify(r) === JSON.stringify(refs))).toBe(true); // verbatim — no rewriting of foreign forms
+    expect(seen.some((r) => JSON.stringify(r) === JSON.stringify(refs))).toBe(true); // verbatim, no rewriting of foreign forms
     const second = await runChat({ prompt: "edit 2", referenceImages: [] }, ctx, { sink: () => {} });
     expect(second.outcome).toBe("completed");
     expect(seen.some((r) => r === undefined)).toBe(true); // empty list ≠ empty array on the provider input
   });
 
-  it("a missing store key fails the job BEFORE any image is burned — the error names the KEY, never an absolute path", async () => {
+  it("a missing store key fails the job BEFORE any image is burned, the error names the KEY, never an absolute path", async () => {
     const ctx = await freshCtx();
     const events: ChatEvent[] = [];
     const base = new MockImageProvider();
@@ -288,7 +288,7 @@ describe("live repro 2026-11-02: in-process refs must not reach the provider as 
     expect(err?.error).not.toMatch(/\/(Users|home|var|tmp)\//); // never leaks an absolute path
   });
 
-  it("A1 invariant: the materialized data URL never leaks onto any wire — events and the persisted session carry no base64", async () => {
+  it("A1 invariant: the materialized data URL never leaks onto any wire, events and the persisted session carry no base64", async () => {
     const ctx = await freshCtx();
     const { url: assetUrl } = await ctx.files.put(PNG_1X1, "png");
     const { events, sink } = collector();
@@ -309,7 +309,7 @@ describe("D2 remediation: chatRequestSchema is the single boundary schema", () =
     if (ok.success) expect(ok.data).not.toHaveProperty("future");
     expect(chatRequestSchema.safeParse({ prompt: "x", width: Number("abc") }).success).toBe(false);
   });
-  it("ME: editMode.markup accepts exactly \"flatten\" — anything else is a boundary rejection", async () => {
+  it("ME: editMode.markup accepts exactly \"flatten\", anything else is a boundary rejection", async () => {
     const { chatRequestSchema } = await import("../src/index.js");
     const ok = chatRequestSchema.safeParse({ prompt: "clean this", editMode: { markup: "flatten", targetName: "artwork" } });
     expect(ok.success).toBe(true);
@@ -318,13 +318,13 @@ describe("D2 remediation: chatRequestSchema is the single boundary schema", () =
     expect(chatRequestSchema.safeParse({ prompt: "x", editMode: { markup: true } }).success).toBe(false);
   });
   it("refusals are distinguishable without event sniffing", async () => {
-    // (typed outcome union: refused-rate-limited | refused-unavailable — compile-time,
+    // (typed outcome union: refused-rate-limited | refused-unavailable, compile-time,
     //  exercised at runtime by the guard/preflight tests above)
   });
 });
 
 describe("C1 teardown fix: the wire validates deck bounds at the boundary", () => {
-  it("approvedOutline caps at 9 — 10 rows is a schema rejection, not a planner failure", () => {
+  it("approvedOutline caps at 9, 10 rows is a schema rejection, not a planner failure", () => {
     const ten = Array.from({ length: 10 }, (_, i) => ({ title: `P${i}`, summary: "s" }));
     expect(chatRequestSchema.safeParse({ prompt: "deck", approvedOutline: ten }).success).toBe(false);
     const nine = Array.from({ length: 9 }, (_, i) => ({ title: `P${i}`, summary: "s" }));
@@ -335,14 +335,14 @@ describe("C1 teardown fix: the wire validates deck bounds at the boundary", () =
     expect(chatRequestSchema.safeParse({ prompt: "deck", approvedOutline: [{ title: " ", summary: "s" }] }).success).toBe(false);
   });
 
-  it("pages caps at 9 too — the composer's ceiling holds on the wire", () => {
+  it("pages caps at 9 too, the composer's ceiling holds on the wire", () => {
     expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 10 }).success).toBe(false);
     expect(chatRequestSchema.safeParse({ prompt: "deck", pages: 9 }).success).toBe(true);
   });
 });
 
 
-describe("Style preset — validated at the boundary, passed through to the planner", () => {
+describe("Style preset, validated at the boundary, passed through to the planner", () => {
   it("a preset id parses; junk is rejected (never reaches the agent as free text)", () => {
     expect(chatRequestSchema.safeParse({ prompt: "banner", style: "bold" }).success).toBe(true);
     expect(chatRequestSchema.safeParse({ prompt: "banner", style: "aztec-brutalism" }).success).toBe(false);
@@ -351,7 +351,7 @@ describe("Style preset — validated at the boundary, passed through to the plan
 });
 
 describe("A3-lite: editMode is a structured, validated field on the boundary", () => {
-  it("accepts the shape and strips foreign keys — the renderer sends structure, never prose", () => {
+  it("accepts the shape and strips foreign keys, the renderer sends structure, never prose", () => {
     const ok = chatRequestSchema.safeParse({ prompt: "make it warmer", editMode: { targetName: "artwork", textLayerOverlays: true } });
     expect(ok.success).toBe(true);
     if (ok.success) expect(ok.data.editMode).toEqual({ targetName: "artwork", textLayerOverlays: true });
@@ -360,9 +360,9 @@ describe("A3-lite: editMode is a structured, validated field on the boundary", (
   });
 });
 
-/* ---------- DA — research + auto refine on the wire (designer-agent-loop.md) ---------- */
+/* ---------- DA, research + auto refine on the wire (designer-agent-loop.md) ---------- */
 
-describe("DA: chatRequestSchema — research + selfImprove (S0.1/S2.1)", () => {
+describe("DA: chatRequestSchema, research + selfImprove (S0.1/S2.1)", () => {
   it("both optional booleans parse; absent keys stay absent (D14 additive)", () => {
     const ok = chatRequestSchema.safeParse({ prompt: "banner", research: true, selfImprove: true });
     expect(ok.success).toBe(true);
@@ -375,7 +375,7 @@ describe("DA: chatRequestSchema — research + selfImprove (S0.1/S2.1)", () => {
     if (legacy.success) expect(legacy.data.research).toBeUndefined();
   });
 
-  it("explicit rounds are capped at the BOUNDARY — 0..2 pass, 3 fails with a clear message (never deep inside the loop)", () => {
+  it("explicit rounds are capped at the BOUNDARY, 0..2 pass, 3 fails with a clear message (never deep inside the loop)", () => {
     for (const rounds of [0, 1, 2]) {
       expect(chatRequestSchema.safeParse({ prompt: "banner", selfImprove: { rounds } }).success).toBe(true);
     }
@@ -391,13 +391,13 @@ describe("DA: chatRequestSchema — research + selfImprove (S0.1/S2.1)", () => {
   });
 });
 
-describe("DA: runChat with auto refine — verdict persists into the conversation (gate d, B7)", () => {
+describe("DA: runChat with auto refine, verdict persists into the conversation (gate d, B7)", () => {
   it("mock pair: one deterministic refine round, completed, and the stored session carries renderData.selfImprove", async () => {
     const ctx = await freshCtx();
     const { events, sink } = collector();
     const res = await runChat({ prompt: "banner trà sữa", selfImprove: true }, ctx, { sink });
     expect(res.outcome).toBe("completed");
-    // the loop ran: verdict pass after round 1 (2 images under the hood —
+    // the loop ran: verdict pass after round 1 (2 images under the hood,
     // asserted at the agent layer; here the wire + persistence are the point)
     const canvasEvents = events.filter((e) => e.content.includes("[[canvas::canvas::"));
     expect(canvasEvents).toHaveLength(1);
@@ -408,7 +408,7 @@ describe("DA: runChat with auto refine — verdict persists into the conversatio
     expect(last?.renderData?.selfImprove).toMatchObject({ rounds: 1, verdict: "pass" });
   });
 
-  it("research with a provider that cannot search (mock) — announced, job still completes", async () => {
+  it("research with a provider that cannot search (mock), announced, job still completes", async () => {
     const ctx = await freshCtx();
     const { events, sink } = collector();
     const res = await runChat({ prompt: "banner", research: true }, ctx, { sink });
@@ -419,7 +419,7 @@ describe("DA: runChat with auto refine — verdict persists into the conversatio
 
 /* ---------- DA teardown fixes (2026-11-06) ---------- */
 
-describe("DA teardown #4 — the budget scales with pages × refine rounds (no flat-480s mid-deck abort)", () => {
+describe("DA teardown #4, the budget scales with pages × refine rounds (no flat-480s mid-deck abort)", () => {
   it("chatBudgetMs: flat without refine; 480s + pages×rounds×150s with it; capped by the 9-page ceiling", () => {
     expect(chatBudgetMs({ prompt: "x" })).toBe(480_000);
     expect(chatBudgetMs({ prompt: "x", selfImprove: true })).toBe(480_000 + 150_000); // 1 page × 1 round
@@ -429,7 +429,7 @@ describe("DA teardown #4 — the budget scales with pages × refine rounds (no f
   });
 });
 
-describe("DA teardown #2 — multi-page verdicts persist into the conversation (B7)", () => {
+describe("DA teardown #2, multi-page verdicts persist into the conversation (B7)", () => {
   it("a 2-page deck with refine stores the hero verdict AND selfImprovePages (one entry per page)", async () => {
     const ctx = await freshCtx();
     const { events, sink } = collector();

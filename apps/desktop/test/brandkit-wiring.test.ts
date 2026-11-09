@@ -6,16 +6,16 @@ import { createServiceContext, runChat, type ServiceContext } from "@oia/service
 import type { LlmProvider, LlmMessage } from "@oia/providers";
 
 /**
- * Reorg step 4d gate — "brandkit lưu → generation nhận guidance": the WIRING from
+ * Reorg step 4d gate, "brandkit lưu → generation nhận guidance": the WIRING from
  * the panel's store save to the planner prompt. (The agent-level prompt rule is
  * covered by @oia/agent designer tests; this proves the desktop context actually
  * resolves the ACTIVE kit and threads its guidance into the LLM call.)
  *
- * The stub LLM captures the request then throws — the pipeline stops
+ * The stub LLM captures the request then throws, the pipeline stops
  * deterministically and the assertion never couples to the plan schema.
  */
 
-describe("brand kit wiring — an active kit reaches the next generation", () => {
+describe("brand kit wiring, an active kit reaches the next generation", () => {
   let ctx: ServiceContext;
   const seen: { messages: LlmMessage[] }[] = [];
 
