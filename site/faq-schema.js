@@ -1,6 +1,6 @@
 /**
  * FAQ schema, single source (teardown #4): derives FAQPage JSON-LD from the
- * VISIBLE FAQ on whichever page loads this — one implementation instead of
+ * VISIBLE FAQ on whichever page loads this, one implementation instead of
  * four inline copies, and the schema can never drift from the copy again.
  * Selector covers both the homepage (#faq) and content pages (.faq).
  */

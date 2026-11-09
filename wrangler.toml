@@ -1,17 +1,16 @@
-# IM26/ops 2026-11-07 — oia.solutions is a static-assets Cloudflare Worker in
-# Nguyễn Văn Tiến's account (6b2f7e5e…), deployed by hand 2026-11-05 and only
-# discovered when the landing redesign would not go live: GitHub Pages serves
-# just the github.io copy; THIS worker is the domain's real origin. The
-# generated worker name is kept — renaming means re-attaching its locked
-# custom-domain records.
-#
+# oia.solutions static-assets Cloudflare Worker: the domain's real origin.
 # Deploy the landing site:  wrangler deploy     (from the repo root)
-# Wrangler must be logged into an account with Workers access there
-# (cuongad1999 has it; `wrangler login` opens the OAuth consent in Chrome).
-# Content-addressed assets refresh instantly; a changed index.html may need a
-# zone cache purge in the Cloudflare dashboard if the edge still serves old.
+#
+# Ops details that should not live in a public repo (account owner, account
+# id, who can deploy) are kept in docs/private/landing-deploy.md: that
+# directory is gitignored. Wrangler needs the account id at deploy time:
+# set CLOUDFLARE_ACCOUNT_ID from that note, or pass --account-id.
+#
+# The generated worker name is kept: renaming means re-attaching its locked
+# custom-domain records. Content-addressed assets refresh instantly; a changed
+# index.html may need a zone cache purge in the Cloudflare dashboard if the
+# edge still serves old.
 name = "twilight-sun-6b7b"
-account_id = "6b2f7e5e6557f1c9d21b24ab91bb4818"
 compatibility_date = "2026-10-01"
 
 [assets]

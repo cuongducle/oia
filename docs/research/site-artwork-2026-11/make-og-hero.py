@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rebuild site/assets/og-hero.png (social preview) from the NEW artwork set.
 
-1600x779 — matches the previous og file's shape. Left: brand copy on the site's
+1600x779, matches the previous og file's shape. Left: brand copy on the site's
 dark navy; right: a layered stack of the new hero plates + the price pair,
 styled like the landing hero's draggable layers (chips + dashed selection).
 """
@@ -59,7 +59,7 @@ tile(f"{A}/botanical.webp", (990, 210, 1216, 511), angle=-4, chip="lumea · plat
 tile(f"{A}/price-30.webp", (1272, 330, 1530, 590), angle=5, chip="30% off · repaint")
 
 d = ImageDraw.Draw(img)
-d.text((700, 700), "real artwork — generated + edited in one canvas", font=mono(19), fill=(120, 117, 142))
+d.text((700, 700), "real artwork, generated + edited in one canvas", font=mono(19), fill=(120, 117, 142))
 
 img.save(f"{A}/og-hero.png")
 print("saved", img.size)

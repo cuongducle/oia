@@ -1,5 +1,5 @@
 /* ---------- SEO content pages (prompts / templates / use-cases) ----------
-   Static, JS-light (copy button only), no CDN — fast and crawlable. */
+   Static, JS-light (copy button only), no CDN, fast and crawlable. */
 
 body.page{font-size:15.5px}
 .pageNav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
@@ -57,3 +57,13 @@ body.page{font-size:15.5px}
 .catNav a{font-family:'JetBrains Mono';font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:6px 12px;text-decoration:none}
 .catNav a:hover{color:var(--paper);border-color:var(--accent)}
 .catNav a[aria-current="page"]{color:#8ef0a6;border-color:rgba(142,240,166,.4)}
+
+/* ---------- install page ---------- */
+.instGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}
+@media(max-width:860px){.instGrid{grid-template-columns:1fr}}
+.instCard{border:1px solid var(--hairline);border-radius:10px;padding:16px 18px;background:rgba(21,19,50,.35)}
+.instCard h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.instCard p{color:var(--muted);font-size:14px}
+.instCard pre{white-space:pre-wrap;font-family:'JetBrains Mono';font-size:12px;color:var(--paper);background:rgba(11,10,24,.7);border:1px solid var(--hairline);border-radius:8px;padding:10px 12px;margin:10px 0}
+.instCard code{font-family:'JetBrains Mono';font-size:12px;color:var(--paper);background:rgba(11,10,24,.7);border-radius:4px;padding:1px 5px}
+.cta-note{margin-top:14px;font-size:12.5px;color:var(--faint)}

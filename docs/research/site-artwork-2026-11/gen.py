@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""IM-site-art 2026-11-08 — regenerate every AI artwork on the landing site + README.
+"""IM-site-art 2026-11-08 · regenerate every AI artwork on the landing site + README.
 
 Owner: "ảnh trong landing page, ảnh trong readme đang rất xấu… ảnh cũ thời model
 cũ chưa có prompt. Tôi cần thay toàn bộ."
 
 Stages (run with the stage argument):
-  gen    — run each prompt through the BUNDLED codex binary ($imagegen), stage the
+  gen   , run each prompt through the BUNDLED codex binary ($imagegen), stage the
            raw PNG into staging/<id>.png, then cover-crop to the exact target size
-  qa     — print the contact sheet path for vision QA (nothing installs without this)
-  install — copy staged webp over site/assets + app public/studio, rebuild derived
+  qa    , print the contact sheet path for vision QA (nothing installs without this)
+  install, copy staged webp over site/assets + app public/studio, rebuild derived
            assets (price-repaint pair composite), leaving README banner/og-hero to
            their own scripts
 
@@ -21,7 +21,7 @@ from PIL import Image
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 STAGE = os.path.join(REPO, "docs/research/site-artwork-2026-11/staging")
 BIN = os.path.join(REPO, "apps/desktop/resources/codex/current/bin/codex")
-NOTEXT = " Absolutely no text, no lettering, no numbers, no words, no captions, no logos, no watermarks anywhere in the image — copy is added later as separate editable layers."
+NOTEXT = " Absolutely no text, no lettering, no numbers, no words, no captions, no logos, no watermarks anywhere in the image, copy is added later as separate editable layers."
 
 # (id, target WxH, aspect words, subject prompt, zone clause)
 PLATES = [
@@ -30,7 +30,7 @@ PLATES = [
    " Keep the LEFT third and the TOP of the frame dark, calm and empty (reserved for text); all visual interest sits in the right half and lower right."),
   ("festival", (900,1200), "vertical 3:4",
    "Bold festival poster background: dramatic low-angle view of brutalist concrete architecture with strong geometric shadows against a saturated deep-blue evening sky, sandstone and cobalt palette, crisp high-contrast editorial print mood.",
-   " Keep the top strip and the LEFT half calm (sky or flat concrete — reserved for text); the dynamic forms live on the right."),
+   " Keep the top strip and the LEFT half calm (sky or flat concrete, reserved for text); the dynamic forms live on the right."),
   ("botanical", (900,1200), "vertical 3:4",
    "Natural skincare editorial still life: amber glass dropper bottle and cream jar on warm travertine stone, soft eucalyptus leaf shadows falling across the scene, terracotta and cream palette, gentle late-afternoon light, premium botanical brand mood.",
    " Keep the TOP area and the LEFT half quiet and uncluttered (reserved for text); the product cluster sits right of center."),
@@ -64,15 +64,15 @@ PLATES = [
 ]
 
 POSTERS = [
-  # baked-text renders — exact copy, rendered INTO the artwork (poster mode)
+  # baked-text renders: exact copy, rendered INTO the artwork (poster mode)
   ("price20", (1024,1024), "square 1:1",
-   "Glossy 3D typography milk-tea flash-sale banner: a glass of iced milk tea with boba on a warm cream studio backdrop. Big glossy 3D letters read exactly \"20% OFF TODAY\" — render the text exactly, sharp and readable, centered above the glass. Warm caramel palette, premium sale campaign mood. Keep all text at least 10% clear of every edge."),
+   "Glossy 3D typography milk-tea flash-sale banner: a glass of iced milk tea with boba on a warm cream studio backdrop. Big glossy 3D letters read exactly \"20% OFF TODAY\", render the text exactly, sharp and readable, centered above the glass. Warm caramel palette, premium sale campaign mood. Keep all text at least 10% clear of every edge."),
 ]
 
 EDITS = [
-  # (id, source staging id, instruction) — keeps the style, changes the copy
+  # (id, source staging id, instruction): keeps the style, changes the copy
   ("price30", "price20",
-   "Edit image 1: change the big glossy 3D text so it reads exactly \"30% OFF TODAY\" instead of \"20% OFF TODAY\". Keep everything else identical — same glass of milk tea, same backdrop, same lighting, same typography style, same layout. Keep all text at least 10% clear of every edge."),
+   "Edit image 1: change the big glossy 3D text so it reads exactly \"30% OFF TODAY\" instead of \"20% OFF TODAY\". Keep everything else identical, same glass of milk tea, same backdrop, same lighting, same typography style, same layout. Keep all text at least 10% clear of every edge."),
 ]
 
 def run_codex(prompt: str, image: str | None = None) -> str:
