@@ -62,8 +62,12 @@ describe("SG-2 packaged-smoke mode", () => {
 describe("SG-2 OIA_USER_DATA_DIR validation (pure rules)", () => {
   const def = path.resolve("/Users/seller/Library/Application Support/Oia");
   const ok = (dir: string) => resolveUserDataOverride({ OIA_USER_DATA_DIR: dir }, def);
-  it("accepts an absolute dir outside the default profile", () => {
-    expect(ok("/tmp/oia-packaged-smoke")).toEqual({ dir: "/tmp/oia-packaged-smoke" });
+  it("accepts an absolute dir outside the default profile (absolute on EVERY platform, D3)", () => {
+    // "/tmp/..." resolves to <drive>:\tmp\... on Windows; the contract is
+    // ACCEPTANCE + an absolute dir, not one platform's string shape.
+    const res = ok("/tmp/oia-packaged-smoke");
+    if (!("dir" in res)) throw new Error(`expected acceptance, got: ${JSON.stringify(res)}`);
+    expect(path.isAbsolute(res.dir)).toBe(true);
   });
   it("rejects relative paths", () => {
     expect(ok("relative/dir")).toMatchObject({ error: expect.stringContaining("absolute") });
