@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { writeFile } from "node:fs/promises";
+import { writeFile, mkdir } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
-import { fixturePngB64 } from "./shotFixture.js";
+import { fixturePngB64, fixturePptxB64, brokenPptxB64 } from "./shotFixture.js";
 
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
@@ -409,6 +409,16 @@ function registerIpc(): void {
   handle(IPC.exportSave, async (event, raw: unknown) => {
     try {
       const { fileName, bytes } = exportSaveSchema.parse(raw);
+      // Test modes have no human to answer a native save dialog (the shot gate
+      // would hang on it): auto-save into the sandboxed userData instead, the
+      // renderer path (saved=true + path) stays the one under test.
+      if (smokeModeFromEnv(process.env, app.isPackaged)) {
+        const dir = path.join(app.getPath("userData"), "shot-export");
+        const target = path.join(dir, fileName);
+        await mkdir(dir, { recursive: true });
+        await writeFile(target, bytes);
+        return { saved: true as const, path: target };
+      }
       const win = BrowserWindow.fromWebContents(event.sender);
       const pick = await dialog.showSaveDialog(win!, {
         defaultPath: fileName,
@@ -2019,6 +2029,127 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-tools-ai.png");
+
+  // ---- SG-7 (surgepix-parity-todo.md): PPT Translator end-to-end through the
+  // REAL runner + task lane (mock pair): pick a deck, translate, save. The error
+  // path feeds a non-zip named .pptx: a clear alert, no crash, no saved file.
+  console.log("[shot] running the PPT Translator (mock pair)…");
+  const pptB64 = await fixturePptxB64();
+  await win.webContents.executeJavaScript(`(() => {
+    const back = [...document.querySelectorAll(".ghostBtn")].find((b) => b.textContent.includes("All tools"));
+    back?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 500));
+  const pptCard = await win.webContents.executeJavaScript(`(() => {
+    const card = [...document.querySelectorAll(".toolCard")].find((c) => c.textContent.includes("PPT Translator"));
+    if (!card) return false;
+    card.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 500));
+  const pptPicked = await win.webContents.executeJavaScript(`(async () => {
+    const input = document.querySelector(".toolRunner input[type=file]");
+    if (!input) return { ok: false, why: "no file input" };
+    const bytes = Uint8Array.from(atob("${pptB64}"), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], "sale-deck.pptx", { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    for (let i = 0; i < 20; i++) {
+      const name = document.querySelector(".toolRunner .fileName")?.textContent;
+      if (name === "sale-deck.pptx") break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const run = document.querySelector('[data-testid="ppt-translate-run"]');
+    return { ok: Boolean(run) && run.disabled === false, name: document.querySelector(".toolRunner .fileName")?.textContent };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] ppt file picked verify:", JSON.stringify(pptPicked));
+  let pptRun = false;
+  for (let i = 0; i < 10 && !pptRun; i++) {
+    pptRun = await win.webContents.executeJavaScript(`(() => {
+      const btn = document.querySelector('[data-testid="ppt-translate-run"]');
+      if (!btn || btn.disabled) return false;
+      btn.click();
+      return true;
+    })()`, true).catch(() => false);
+    if (!pptRun) await new Promise((r) => setTimeout(r, 300));
+  }
+  let pptDone = false;
+  let pptVerify: unknown = null;
+  for (let i = 0; i < 60 && !pptDone; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    pptVerify = await win.webContents.executeJavaScript(`(() => {
+      const saved = [...document.querySelectorAll('[role=status]')].map((n) => n.textContent).join(" ");
+      const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+      const busy = document.querySelector('.toolRunner [role=status]')?.textContent ?? "";
+      if (saved.includes(".pptx") || err) return { done: true, saved: saved.slice(0, 120), err: err.slice(0, 160) };
+      return { done: false, busy: busy.slice(0, 60) };
+    })()`, true).catch(() => null);
+    pptDone = Boolean(pptVerify && (pptVerify as { done?: boolean }).done);
+  }
+  const pptOk = Boolean(pptVerify && (pptVerify as { saved?: string }).saved?.includes(".pptx") && !(pptVerify as { err?: string }).err);
+  console.log("[shot] ppt translator verify:", JSON.stringify(pptVerify));
+  if (!pptCard || !pptPicked?.ok || !pptRun || !pptOk) {
+    console.error("DESKTOP_SHOT PPT TRANSLATOR VERIFY FAILED", JSON.stringify({ pptCard, pptPicked, pptRun, pptVerify }));
+    app.exit(21);
+    return;
+  }
+  await snap(win, "desktop-tools-ppt.png");
+
+  // SG-7 error path: a non-zip named .pptx must produce a clear alert, no crash.
+  const pptBroken = await win.webContents.executeJavaScript(`(async () => {
+    const back = [...document.querySelectorAll(".ghostBtn")].find((b) => b.textContent.includes("All tools"));
+    back?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 400));
+  await win.webContents.executeJavaScript(`(() => {
+    const card = [...document.querySelectorAll(".toolCard")].find((c) => c.textContent.includes("PPT Translator"));
+    card?.click();
+    return true;
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 400));
+  await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector(".toolRunner input[type=file]");
+    const bytes = Uint8Array.from(atob("${brokenPptxB64()}"), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], "broken.pptx", { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  })()`, true);
+  let brokenRun = false;
+  for (let i = 0; i < 10 && !brokenRun; i++) {
+    brokenRun = await win.webContents.executeJavaScript(`(() => {
+      const btn = document.querySelector('[data-testid="ppt-translate-run"]');
+      if (!btn || btn.disabled) return false;
+      btn.click();
+      return true;
+    })()`, true).catch(() => false);
+    if (!brokenRun) await new Promise((r) => setTimeout(r, 300));
+  }
+  let brokenDone = false;
+  let brokenVerify: unknown = null;
+  for (let i = 0; i < 30 && !brokenDone; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    brokenVerify = await win.webContents.executeJavaScript(`(() => {
+      const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+      const busy = document.querySelector('.toolRunner [role=status]')?.textContent ?? "";
+      const saved = [...document.querySelectorAll('[role=status]')].map((n) => n.textContent).join(" ");
+      if (err) return { done: true, err: err.slice(0, 160) };
+      if (!busy) return { done: true, err: "" };
+      return { done: false };
+    })()`, true).catch(() => null);
+    brokenDone = Boolean(brokenVerify && (brokenVerify as { done?: boolean }).done);
+  }
+  const brokenOk = Boolean(brokenVerify && (brokenVerify as { err?: string }).err?.includes("not a valid .pptx"));
+  console.log("[shot] ppt broken-file verify:", JSON.stringify({ pptBroken, brokenRun, brokenVerify }));
+  if (!pptBroken || !brokenRun || !brokenOk) {
+    console.error("DESKTOP_SHOT PPT BROKEN-FILE VERIFY FAILED");
+    app.exit(22);
+    return;
+  }
 
   // ---- reorg 4d: Brand kit panel, kit form over the real store -----------------
   console.log("[shot] opening Brand kit…");

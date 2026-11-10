@@ -236,6 +236,9 @@ importers:
       '@oia/schema':
         specifier: workspace:*
         version: link:../schema
+      jszip:
+        specifier: ^3.10.2
+        version: 3.10.2
       pptxgenjs:
         specifier: ^4.0.1
         version: 4.0.1

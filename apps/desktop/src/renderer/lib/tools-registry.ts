@@ -5,7 +5,7 @@
  * kind picks the ToolRunner UI; implemented = really works, landing = descriptive page.
  */
 export type ToolKind = "convert-image" | "image-to-pdf" | "resize" | "chart-bar" | "chart-pie"
-  | "heic-to-png" | "heic-to-pdf" | "pdf-to-jpg" | "ai-generate" | "ai-edit" | "venn" | "landing";
+  | "heic-to-png" | "heic-to-pdf" | "pdf-to-jpg" | "ai-generate" | "ai-edit" | "venn" | "ppt-translate" | "landing";
 
 export interface QuickTool {
   slug: string;
@@ -34,7 +34,7 @@ export const QUICK_TOOLS: QuickTool[] = [
   { slug: "bar-graph-maker", name: "Bar Graph Maker", desc: "Create professional visuals with our bar chart creator", category: "Image Generator", kind: "chart-bar", implemented: true },
   { slug: "pie-chart-maker", name: "Pie Chart Maker", desc: "Create professional visuals with our pie graph maker", category: "Image Generator", kind: "chart-pie", implemented: true },
   { slug: "venn-diagram-maker", name: "Venn Diagram Maker", desc: "Create professional visuals with our venn diagram generator", category: "Image Generator", kind: "venn", implemented: true },
-  { slug: "ppt-translator", name: "PPT Translator", desc: "Translate all text content in a PowerPoint (.pptx) file into a target language", category: "Image Editor", kind: "landing", implemented: false },
+  { slug: "ppt-translator", name: "PPT Translator", desc: "Translate all text content in a PowerPoint (.pptx) file into a target language", category: "Image Editor", kind: "ppt-translate", implemented: true },
 ];
 
 export function getTool(slug: string): QuickTool | undefined {

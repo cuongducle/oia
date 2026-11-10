@@ -260,7 +260,7 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     expect(body.msg).toBe("request body is not valid JSON");
   });
 
-  it("upload/direct accepts ONLY image extensions, same allowlist as the IPC path", async () => {
+  it("upload/direct accepts ONLY allowlisted extensions (images + .pptx task inputs), same allowlist as the IPC path", async () => {
     const boundary = "oia-test-boundary";
     const part = `--${boundary}\r\ncontent-disposition: form-data; name="file"; filename="payload.exe"\r\n\r\nMZ\x00\x00\r\n--${boundary}--\r\n`;
     const res = await fetch(`${base()}/api/upload/direct`, {
@@ -270,7 +270,20 @@ describe("loopback error hygiene (T1 follow-ups)", () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { msg: string };
-    expect(body.msg).toContain("unsupported image type");
+    expect(body.msg).toContain("unsupported file type");
+  });
+
+  it("upload/direct accepts a .pptx (SG-7 ppt-translate task input), stored like any upload", async () => {
+    const boundary = "----oiaSG7";
+    const part = `--${boundary}\r\ncontent-disposition: form-data; name="file"; filename="deck.pptx"\r\n\r\nPK\x03\x04deck\r\n--${boundary}--\r\n`;
+    const res = await fetch(`${base()}/api/upload/direct`, {
+      method: "POST",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}`, authorization: key },
+      body: part,
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { url: string } };
+    expect(body.data.url).toMatch(/\.pptx$/);
   });
 
   it("file GETs: an invalid key is a 400, a missing file is a 404, client errors, never leaked 500s", async () => {

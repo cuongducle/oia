@@ -2,7 +2,7 @@ import path from "node:path";
 import {
   TaskStore, LocalFileStore, ApiKeyStore,
   BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore,
-  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct, makeMatchFonts, makeRecognizeFonts, makeSegmentImage,
+  makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct, makeMatchFonts, makeRecognizeFonts, makeSegmentImage, makePptTranslate,
 } from "@oia/tasks";
 import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
 import { QuotaMeter, meterLlm, meterImage } from "./quota.js";
@@ -95,6 +95,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   taskStore.register("recognize-fonts", makeRecognizeFonts(procCtx));
   taskStore.register("segment-image", makeSegmentImage(procCtx));
   taskStore.register("remove-background", makeRemoveBackground(procCtx));
+  taskStore.register("ppt-translate", makePptTranslate(procCtx));
   taskStore.register("generate-presentation", makeGeneratePresentation(procCtx));
   taskStore.register("generate-logo", makeGenericImageTask(procCtx, { buildPrompt: (p) => `logo design, ${p.prompt ?? ""}, vector style, plain background` }));
   taskStore.register("generate-xhs-images", makeGenericImageTask(procCtx, { buildPrompt: (p) => `xiaohongshu vertical carousel page about: ${p.prompt ?? ((p.urls as string[]) ?? []).join(", ")}, style ${p.style ?? "clean"}` }));

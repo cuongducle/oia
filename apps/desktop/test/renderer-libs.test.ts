@@ -116,10 +116,9 @@ describe("quick tools registry (4 categories, one honest landing)", () => {
   it("slug unique", () => {
     expect(new Set(QUICK_TOOLS.map((tool) => tool.slug)).size).toBe(QUICK_TOOLS.length);
   });
-  it("every tool is implemented except ppt-translator (the only landing, D5)", () => {
+  it("every tool is implemented (SG-7 wired ppt-translator), the landing kind is a dead end", () => {
     const landing = QUICK_TOOLS.filter((tool) => !tool.implemented);
-    expect(landing.map((tool) => tool.slug)).toEqual(["ppt-translator"]);
-    expect(landing[0].kind).toBe("landing");
+    expect(landing).toEqual([]); // a landing entry must never ship again: it is an ad for a missing tool
   });
 });
 

@@ -37,19 +37,20 @@ export const sessionsGetSchema = z.object({ id: z.number().int().positive() });
  *  for a folder" (main opens the native picker); null back = canceled. */
 export const dataImportWebSchema = z.object({ sourceDir: z.string().max(1024) });
 
-/** Editor asset uploads, same image whitelist as the web upload route, bytes via structured clone. */
-import { IMAGE_EXTS } from "@oia/schema"; // single home for the upload allowlist (uploads.ts)
+/** Editor/task input uploads, bytes via structured clone. Images stay the canvas
+ *  asset path; SG-7 adds .pptx as a ppt-translate task INPUT (single allowlist home). */
+import { isUploadExt, fileExtOf, IMAGE_EXTS } from "@oia/schema";
 
 export { IMAGE_EXTS };
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB, generous for product photos, small enough to guard IPC
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB, generous for product photos and decks, small enough to guard IPC
 export const filesUploadSchema = z
   .object({
     name: z.string().min(1).max(255),
     bytes: z.instanceof(Uint8Array),
   })
   .superRefine((v, ctx) => {
-    const ext = v.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!IMAGE_EXTS.has(ext)) ctx.addIssue({ code: "custom", message: "unsupported image type" });
+    const ext = fileExtOf(v.name);
+    if (!isUploadExt(ext)) ctx.addIssue({ code: "custom", message: "unsupported file type" });
     if (v.bytes.length === 0) ctx.addIssue({ code: "custom", message: "empty file" });
     if (v.bytes.length > MAX_UPLOAD_BYTES) ctx.addIssue({ code: "custom", message: "file too large" });
   });

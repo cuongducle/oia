@@ -1,6 +1,6 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { holdMockPace } from "../mockPace.js";
-import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA, FONT_MATCH_MARKER, fontReferenceRowSchema } from "@oia/schema";
+import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA, FONT_MATCH_MARKER, fontReferenceRowSchema, PPT_TRANSLATE_INSTRUCTION } from "@oia/schema";
 
 /**
  * Mock planner: costs no tokens; generates the outline demos need.
@@ -78,6 +78,20 @@ export class MockLlmProvider implements LlmProvider {
         /* keep the bare marker */
       }
       return JSON.stringify({ title: prev.slice(0, 60) || "Refined", imagePrompt: `${prev} (refined${hint})` });
+    }
+    // SG-7 ppt-translate: the mock honors the shared instruction marker and
+    // "translates" deterministically (text + [language]), enough to gate the
+    // zip round-trip and the count contract, not real language skill.
+    if (system.includes(PPT_TRANSLATE_INSTRUCTION)) {
+      const parsed = (() => {
+        try {
+          return JSON.parse(user) as { texts?: unknown[]; language?: string };
+        } catch {
+          return {};
+        }
+      })();
+      const texts = Array.isArray(parsed.texts) ? parsed.texts.map(String) : [];
+      return JSON.stringify({ translations: texts.map((t) => `${t} [${parsed.language ?? "en"}]`) });
     }
     return JSON.stringify({
       title: user.slice(0, 60) || "Untitled",

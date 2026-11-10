@@ -10,6 +10,11 @@ import {
   deconstructReadSchema,
   type DeconstructRead,
 } from "@oia/schema";
+import {
+  PPT_TRANSLATE_INSTRUCTION,
+  PPT_TRANSLATE_MAX_RUNS,
+  pptTranslateSystemPrompt,
+} from "@oia/schema";
 
 /**
  * M3 processors: (TaskJob) → {urls[], note?} stored in TaskStore.
@@ -172,6 +177,95 @@ export function makeDeconstruct(ctx: ProcCtx) {
     const plate = composeTextPlate(original, readDeconstructPng(bytes), texts);
     const saved = await ctx.store.put(plate, "png");
     return { urls: [saved.url], texts };
+  };
+}
+
+/** SG-7 ppt-translate: JSZip reads the slide XML, ONE LLM turn translates every
+ *  text run, the SAME zip is rewritten in place (layout, theme and images are
+ *  untouched bytes, pptxgenjs would rebuild the deck from zero and lose them).
+ *  Scope: ppt/slides/slideN.xml; speaker notes are left as the author wrote them. */
+const PPT_TEXT_RUN = /<a:t(\s[^>]*)?>([\s\S]*?)<\/a:t>/g;
+
+export function xmlEscape(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function xmlUnescape(s: string): string {
+  return s
+    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+export function makePptTranslate(ctx: ProcCtx) {
+  return async (params: Record<string, unknown>, tctx: TaskContext) => {
+    const fileUrl = String(params.fileUrl ?? "");
+    const language = String(params.language ?? "").trim();
+    if (!fileUrl) throw new Error("ppt-translate requires fileUrl");
+    if (!language) throw new Error("ppt-translate requires language");
+    const src = await ctx.store.read(fileUrl.replace(/^\/api\/files\//, "")).catch(() => null);
+    if (!src) throw new Error("fileUrl is invalid or has not been uploaded");
+
+    const { default: JSZip } = await import("jszip");
+    let zip: InstanceType<typeof JSZip>;
+    try {
+      zip = await JSZip.loadAsync(src);
+    } catch {
+      throw new Error("the file is not a valid .pptx presentation");
+    }
+    const slideFiles = Object.keys(zip.files)
+      .filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
+      .sort((a, b) => Number(/(\d+)/.exec(a)![1]) - Number(/(\d+)/.exec(b)![1]));
+    if (!slideFiles.length) throw new Error("the file is not a valid .pptx presentation (no slides found)");
+
+    const slides: { name: string; xml: string; runs: string[] }[] = [];
+    for (const name of slideFiles) {
+      const xml = await zip.file(name)!.async("string");
+      const runs = [...xml.matchAll(PPT_TEXT_RUN)].map((m) => xmlUnescape(m[2])).filter((t) => t.length > 0);
+      if (runs.length) slides.push({ name, xml, runs });
+    }
+    const total = slides.reduce((n, s) => n + s.runs.length, 0);
+    if (!total) throw new Error("the presentation contains no text to translate");
+    if (total > PPT_TRANSLATE_MAX_RUNS) {
+      throw new Error(`the presentation has ${total} text runs, the limit is ${PPT_TRANSLATE_MAX_RUNS}; split the deck and try again`);
+    }
+
+    tctx.signal?.throwIfAborted();
+    const texts = slides.flatMap((s) => s.runs);
+    const raw = await ctx.llm.chat(
+      [
+        { role: "system", content: pptTranslateSystemPrompt(language, texts.length) },
+        { role: "user", content: JSON.stringify({ texts, language }) },
+      ],
+      { json: true, signal: tctx.signal, ...(tctx.jobId ? { jobId: `ppt-${tctx.jobId}` } : {}) },
+    );
+    let translations: string[];
+    try {
+      const parsed = JSON.parse(raw) as { translations?: unknown };
+      translations = Array.isArray(parsed.translations) ? parsed.translations.map(String) : [];
+    } catch {
+      translations = [];
+    }
+    if (translations.length !== texts.length) {
+      throw new ProviderError("plan_parse_failed", `the translator returned ${translations.length} of ${texts.length} strings`, { provider: ctx.llm.name });
+    }
+
+    tctx.signal?.throwIfAborted();
+    let cursor = 0;
+    for (const s of slides) {
+      const rewritten = s.xml.replace(PPT_TEXT_RUN, (_m, attrs: string | undefined, body: string) => {
+        const source = xmlUnescape(body);
+        // empty runs must map 1:1 onto the LLM batch without consuming it,
+        // otherwise a deleted run would shift every later slide's text
+        const translated = source.length > 0 ? translations[cursor++] : source;
+        return `<a:t${attrs ?? ""}>${xmlEscape(translated)}</a:t>`;
+      });
+      zip.file(s.name, rewritten);
+    }
+    const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+    const saved = await ctx.store.put(new Uint8Array(buf), "pptx");
+    return { urls: [saved.url], note: `${total} text runs translated into ${language} across ${slides.length} slide${slides.length === 1 ? "" : "s"}` };
   };
 }
 

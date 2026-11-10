@@ -5,6 +5,7 @@ import { fontMatchSchema, fontReferenceInputSchema } from "./font-reference.js";
 import { lensSuggestionSchema, recognizeFontsInputSchema } from "./lens.js";
 import { segmentObjectSchema } from "./segment.js";
 import { SEGMENT_PROMPT_MAX } from "./segment.js";
+import { PPT_LANGUAGE_MAX } from "./ppt-translate.js";
 
 export const taskTypeSchema = z.enum([
   "remove-background",
@@ -71,6 +72,9 @@ export const submitTaskSchemas = {
     .strict(),
   "remove-background": z
     .object({ ...submitTaskBase, fileUrl: z.string() })
+    .strict(),
+  "ppt-translate": z
+    .object({ ...submitTaskBase, fileUrl: z.string(), language: z.string().min(1).max(PPT_LANGUAGE_MAX) })
     .strict(),
   "deconstruct": z
     .object({ ...submitTaskBase, fileUrl: z.string() })

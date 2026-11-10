@@ -6,6 +6,7 @@ export * from "./plan.js";
 export * from "./zones.js";
 export * from "./protocol.js";
 export * from "./task.js";
+export * from "./ppt-translate.js";
 export * from "./deconstruct.js";
 export * from "./font-reference.js";
 export * from "./lens.js";

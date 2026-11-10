@@ -27,6 +27,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [vennLabels, setVennLabels] = useState("Food\nDrinks");
+  const [pptLanguage, setPptLanguage] = useState("Vietnamese");
   /** View-lifetime flag: leaving the Tools view STOPS THE POLL but never the task,
    *  the generation keeps running (B7) and its lifecycle stays visible in the
    *  For Agents feed (lane "tool"). */
@@ -326,6 +327,28 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
     } catch { setError("The diagram could not be created. Please check your labels."); } finally { setBusy(false); }
   }
 
+  /** SG-7 PPT Translator: upload the deck (.pptx is a task INPUT, not a canvas
+   *  asset), one metered LLM turn via the task lane, save the rewritten deck.
+   *  A failed task (broken file, provider error) must surface the reason and
+   *  never write anything to disk. */
+  async function runPptTranslate() {
+    const file = fileRef.current?.files?.[0]; if (!file) return;
+    setBusy(true); setError(""); setSavedPath(null);
+    try {
+      const up = await oia().uploadAsset(file.name, new Uint8Array(await file.arrayBuffer()));
+      const t = await oia().submitTask("ppt-translate", { fileUrl: up.url, language: pptLanguage, noWait: false, source: "web" });
+      setAiTaskId(t.taskId);
+      const url = await pollTask(t.taskId);
+      const res = await fetch(toDisplayUrl(url));
+      if (!res.ok) throw new Error(`reading the translated file failed (HTTP ${res.status})`);
+      await download(new Uint8Array(await res.arrayBuffer()), file.name.replace(/\.pptx$/i, "") + `-${pptLanguage.toLowerCase()}.pptx`);
+    } catch (e) {
+      if (aliveRef.current) setError(`The translation failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      if (aliveRef.current) { setBusy(false); setAiTaskId(null); }
+    }
+  }
+
   if (kind === "landing") {
     return <p className="hintP">This tool is not available yet. Explore the other tools in the Toolbox.</p>;
   }
@@ -388,6 +411,28 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
               <button className="primaryBtn" onClick={() => void openResultInEditor()}>Open in editor</button>
             </div>
           )}
+        </>
+      )}
+
+      {kind === "ppt-translate" && (
+        <>
+          <FileDropzone inputRef={fileRef} accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" formats="PowerPoint .pptx · layout and images are preserved" label="Presentation" disabled={busy} onChange={setPicked} />
+          <div className="toolRow">
+            <label htmlFor="ppt-language">Translate into: </label>
+            <select id="ppt-language" value={pptLanguage} onChange={(e) => setPptLanguage(e.target.value)} disabled={busy} style={{ padding: 6 }}>
+              {["Vietnamese", "English", "Chinese", "Japanese", "Korean", "Thai", "Indonesian"].map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <div className="toolRow">
+            {busy ? (
+              <>
+                <span className="hintP" role="status">Translating, this can take a minute…</span>
+                {aiTaskId && <button className="secondaryBtn" onClick={() => void stopAi()}>Stop</button>}
+              </>
+            ) : (
+              <button className="primaryBtn" data-testid="ppt-translate-run" disabled={!picked} onClick={() => void runPptTranslate()}>Translate &amp; save</button>
+            )}
+          </div>
         </>
       )}
 

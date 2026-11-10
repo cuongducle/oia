@@ -7,7 +7,7 @@ import path from "node:path";
 import type { ServiceContext } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { taskTypeSchema, type TaskType } from "@oia/schema";
-import { isImageExt } from "@oia/schema"; // same allowlist as the renderer IPC path, single home in @oia/schema
+import { isUploadExt, fileExtOf } from "@oia/schema"; // same allowlist as the renderer IPC path, single home in @oia/schema
 import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "./guardedTaskSubmit.js";
 
 const execFileAsync = promisify(execFile);
@@ -245,13 +245,13 @@ export async function startLoopback(deps: LoopbackDeps): Promise<{ port: number;
         if (raw === null) return json(res, 413, 413, null, "body too large");
         const file = parseMultipart(raw, req.headers["content-type"] ?? "");
         if (!file) return json(res, 400, 1, null, "file required (multipart form-data)");
-        // SAME allowlist as the renderer IPC path (@oia/schema uploads.ts), the
-        // loopback used to accept any extension an agent chose to send
-        const ext = (file.name.split(".").pop() ?? "").toLowerCase();
-        if (!isImageExt(ext)) return json(res, 400, 1, null, `unsupported image type: .${ext || "(none)"}`);
+        // SAME allowlist as the renderer IPC path (@oia/schema uploads.ts): images
+        // plus .pptx (SG-7 ppt-translate task input), the loopback used to accept
+        // any extension an agent chose to send
+        if (!isUploadExt(fileExtOf(file.name))) return json(res, 400, 1, null, `unsupported file type: .${fileExtOf(file.name) || "(none)"}`);
         const nsfw = await checkNsfw(file.bytes, file.name, deps.env);
         if (!nsfw.allowed) return json(res, 400, 1, null, nsfw.error);
-        const saved = await ctx().files.put(file.bytes, ext);
+        const saved = await ctx().files.put(file.bytes, fileExtOf(file.name));
         return json(res, 200, 0, { url: saved.url, size: file.bytes.length }, "");
       }
 
