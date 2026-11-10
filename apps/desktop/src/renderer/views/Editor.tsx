@@ -722,6 +722,47 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       splitTaskRef.current = null;
     }
   }
+  /** SG-9: one-click Remove background on the selected image layer. Runs the
+   *  EXISTING remove-background task (local rembg CLI, no provider quota), so
+   *  the toolbar needs no new engine, only wiring. On failure the layer is
+   *  NEVER touched: the seller keeps the original, with the honest reason. */
+  const removeBgRunRef = useRef(0);
+  const removeBgBusyRef = useRef(false);
+  async function runRemoveBackground() {
+    const c = fabricRef.current;
+    const obj = c?.getActiveObject() as (fabricNS.FabricImage & { src?: string }) | undefined;
+    if (!c || !obj || typeof obj.src !== "string" || removeBgBusyRef.current) return;
+    const myRun = ++removeBgRunRef.current;
+    removeBgBusyRef.current = true;
+    setNotice("Removing the background, this can take a minute…");
+    try {
+      const url = toDisplayUrl(toCanonicalUrl(obj.src));
+      const imgEl = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = () => rej(new Error("image load failed")); i.src = url; });
+      const off = document.createElement("canvas");
+      off.width = imgEl.naturalWidth; off.height = imgEl.naturalHeight;
+      off.getContext("2d")!.drawImage(imgEl, 0, 0);
+      const bytes = dataUrlBytes(off.toDataURL("image/png"));
+      const up = await oia().uploadAsset("remove-bg.png", bytes);
+      const started = await oia().submitTask("remove-background", { fileUrl: up.url });
+      const final = await pollTask(started, { get: (id) => oia().getTask(id) });
+      const out = final.taskResult?.download;
+      if (final.progress !== "succeeded" || !out) throw new Error(final.msg || final.taskNote || "the task failed");
+      // replace in place, undo works through the normal object:modified history
+      const boxW = (obj.width ?? 0) * (obj.scaleX ?? 1), boxH = (obj.height ?? 0) * (obj.scaleY ?? 1);
+      await obj.setSrc(toDisplayUrl(out), { crossOrigin: "anonymous" });
+      obj.set({ scaleX: boxW / Math.max(1, obj.width ?? 1), scaleY: boxH / Math.max(1, obj.height ?? 1) });
+      stampUser(obj as unknown as import("@oia/schema").FabricObject);
+      obj.setCoords();
+      c.requestRenderAll();
+      c.fire("object:modified", { target: obj });
+      setAssets((a) => (a.includes(out) ? a : [...a, out]));
+      if (myRun === removeBgRunRef.current) setNotice("Background removed. The cutout keeps its position; undo works as usual.");
+    } catch (e) {
+      if (myRun === removeBgRunRef.current) setNotice(bridgeErrorMessage(e, "The background could not be removed. Please try again."));
+    } finally {
+      removeBgBusyRef.current = false;
+    }
+  }
   /** R5 "Edit with AI": the AI tab opens with the selection already named in the prompt (A3 step one). */
   function editSelectionWithAi() {
     setAiOpen(true);
@@ -1492,7 +1533,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                     <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
                   </div>
                 )}
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
+                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onRemoveBackground={() => void runRemoveBackground()} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}

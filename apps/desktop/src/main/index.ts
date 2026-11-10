@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session, type IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir as mkdirAsync } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -415,7 +415,7 @@ function registerIpc(): void {
       if (smokeModeFromEnv(process.env, app.isPackaged)) {
         const dir = path.join(app.getPath("userData"), "shot-export");
         const target = path.join(dir, fileName);
-        await mkdir(dir, { recursive: true });
+        await mkdirAsync(dir, { recursive: true });
         await writeFile(target, bytes);
         return { saved: true as const, path: target };
       }
@@ -663,6 +663,18 @@ async function realSmoke(): Promise<void> {
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
+  // SG-9: the remove-bg gate needs its SUCCESS branch observable in CI too.
+  // rembg is a local CLI most runners don't have; a PATH fake that echoes a
+  // fixed transparent PNG pins the WIRING (button → task → spawn → layer swap),
+  // never segmentation quality. Installed BEFORE createWindow because the
+  // utility process forks with this PATH and never re-reads it.
+  const fakeBinDir = path.join(app.getPath("userData"), "shot-fake-bin");
+  const { mkdir: mkdirP, writeFile: writeFileP } = await import("node:fs/promises");
+  await mkdirP(fakeBinDir, { recursive: true });
+  await writeFileP(path.join(fakeBinDir, "fake-cutout.png"), Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=", "base64"));
+  await writeFileP(path.join(fakeBinDir, "rembg"), "#!/bin/sh\n# Oia shot-gate wiring fake for rembg (SG-9). First call FAILS (error-path gate:\n# the layer must survive untouched), later calls emit the fixture cutout PNG.\ncat > /dev/null\nd=\"$(dirname \"$0\")\"\nif [ ! -f \"$d/.called\" ]; then\n  touch \"$d/.called\"\n  echo \"fake rembg failure for the error-path gate\" >&2\n  exit 1\nfi\ncat \"$d/fake-cutout.png\"\n", { mode: 0o755 });
+  const shotPathBackup = process.env.PATH;
+  process.env.PATH = `${fakeBinDir}:${process.env.PATH ?? ""}`;
   const win = createWindow();
   win.webContents.on("console-message", (_e, _lvl, message) => {
     if (/error|fail|refused|denied/i.test(message)) console.log("[renderer]", message.slice(0, 200));
@@ -1868,6 +1880,51 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-layers.png");
+
+  // ---- SG-9 (surgepix-parity-todo.md): one-click Remove background on the
+  // selected image layer, BOTH branches in one run. The stateful PATH fake fails
+  // the first call (the layer must survive byte-identical, honest notice) and
+  // answers the second with a cutout (the layer src must swap). A machine with
+  // REAL rembg still passes: the fake sits earlier on PATH only in shot mode.
+  const rbg = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const c = (window).__oiaCanvas;
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    if (!img) return { ok: false, why: "no image layer" };
+    c.setActiveObject(img); c.requestRenderAll();
+    await wait(150);
+    const btn = document.querySelector('[data-testid="ctx-remove-bg"]');
+    if (!btn) return { ok: false, why: "no remove-bg button" };
+    const runOnce = async (tag) => {
+      // fabric 7 setSrc swaps the ELEMENT, the src property stays stale; getSrc()
+      // is the truth toObject serializes, so it is the truth for this gate too
+      const srcOf = (o) => String(o.getSrc ? o.getSrc() : o.get("src"));
+      const before = srcOf(img);
+      document.querySelector('.notice [aria-label="Dismiss notice"]')?.click(); // a stale notice would fake a terminal state
+      await wait(50);
+      btn.click();
+      for (let i = 0; i < 90; i++) {
+        await wait(1000);
+        const notice = document.querySelector('.notice[role=status]')?.textContent ?? "";
+        if (notice && !notice.includes("Removing the background")) {
+          const changed = srcOf(img) !== before;
+          return { tag, notice: notice.slice(0, 140), changed };
+        }
+      }
+      return { tag, notice: "(no terminal notice within 90s)", changed: srcOf(img) !== before };
+    };
+    const first = await runOnce("first");
+    const second = await runOnce("second");
+    const errorKeptLayer = !first.changed && !/Background removed/.test(first.notice);
+    const successSwapped = second.changed && /Background removed/.test(second.notice);
+    return { ok: errorKeptLayer && successSwapped, first, second, errorKeptLayer, successSwapped };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] remove-bg verify:", JSON.stringify(rbg));
+  if (!rbg || !rbg.ok) {
+    console.error("DESKTOP_SHOT REMOVE-BG VERIFY FAILED (failure must keep the layer, success must swap it)");
+    app.exit(24);
+    return;
+  }
   await win.webContents.executeJavaScript(`(() => { const c = (window).__oiaCanvas; c?.discardActiveObject(); c?.requestRenderAll(); })()`, true);
   // leave the editor for the Tools scenario
   await win.webContents.executeJavaScript(`(() => {
