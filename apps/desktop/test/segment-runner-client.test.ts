@@ -27,14 +27,19 @@ function fakeRunner(bodyJs: string): { runtime: SegmentRuntime; runnerDir: strin
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line) => { ${bodyJs} });
 `);
-  const exe = process.platform === "win32" ? "oia-segment-runner.cmd" : "oia-segment-runner";
+  const exe = process.platform === "win32" ? "runner.cmd" : "oia-segment-runner";
   if (process.platform === "win32") {
+    // Node refuses to spawn .cmd/.bat directly (CVE-2024-27980); launch through
+    // cmd.exe via SegmentRuntime.args, exactly like any wrapper would.
     writeFileSync(path.join(d, exe), `@${JSON.stringify(process.execPath)} ${JSON.stringify(script)} %*\r\n`);
-  } else {
-    writeFileSync(path.join(d, exe), `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)}\n`, { mode: 0o755 });
+    return {
+      runtime: { runnerPath: process.env.ComSpec ?? "cmd.exe", args: ["/d", "/s", "/c", path.join(d, exe)], ortLibPath: path.join(d, "fake-lib") },
+      runnerDir: d,
+    };
   }
+  writeFileSync(path.join(d, exe), `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)}\n`, { mode: 0o755 });
   // the real runtime ALSO needs the ORT lib; the fake does not care about it
-  writeFileSync(path.join(d, process.platform === "win32" ? "onnxruntime.dll" : "libonnxruntime.1.dylib"), "fake");
+  writeFileSync(path.join(d, "libonnxruntime.1.dylib"), "fake");
   return { runtime: { runnerPath: path.join(d, exe), ortLibPath: path.join(d, "fake-lib") }, runnerDir: d };
 }
 

@@ -18,6 +18,9 @@ import path from "node:path";
 
 export interface SegmentRuntime {
   runnerPath: string;
+  /** Launch args for the runner binary; production ships none (a real exe).
+   * Windows CI drives a fake through cmd.exe /c, which spawn allows. */
+  args?: string[];
   ortLibPath: string;
 }
 
@@ -70,7 +73,7 @@ export class SegmentRunner {
   }
 
   private start(): ChildProcess {
-    const child = spawn(this.runtime.runnerPath, [], {
+    const child = spawn(this.runtime.runnerPath, this.runtime.args ?? [], {
       stdio: ["pipe", "pipe", "inherit"], // stderr = runner logs, forwarded
       env: { ...process.env, ORT_DYLIB_PATH: this.runtime.ortLibPath },
     });
