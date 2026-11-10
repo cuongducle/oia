@@ -30,6 +30,9 @@ bắt nhờ chạy thật.
 | image-edit (AI Hairstyle / Edit with AI lane task) | 2026-11-10: 54,5s, reference ảnh thật | real-runs/2026-11-10-sweep/image-edit/ |
 | image-translate | 2026-11-10: xác nhận fail trung thực capability_unsupported, 0 quota (đúng chủ đích) | real-runs/2026-11-10-sweep/image-translate/ |
 | Segmentation engine (SAM 3 ONNX local) | PoC offline thật: IoU 0,994 vs PyTorch BF16 (nhưng e2e trong app đóng gói vẫn là SG-1, đang làm) | poc-local-segment/RESULTS.md |
+| Editor export pipeline (PNG/JPG/PDF/PPTX/ZIP) | 2026-11-10: shot gate mới chạy đủ 5 format qua doExport thật, magic bytes + pptx là archive thật có slides; artifact size ghi trong log shot | main/index.ts export gate + shot log |
+| Loopback agent API + skill CLI thật | 2026-11-10: oia-ppt-translate skill chạy end-to-end qua loopback + key thật + codex thật (8,5s, download 30KB, agentJob events lane agent) | real-runs/2026-11-10-loopback-skill/ + harness scripts/loopback-skill-real.mjs |
+| Cancel giữa generation codex (TP-D5) | 2026-11-10 qua lane guard loopback: record failed/cancelled trung thực, cây tiến trình codex chết (1→0), slot nhả ngay (submit kế tiếp 11ms, không 429) | real-runs/2026-11-10-cancel/ + harness scripts/cancel-real.mjs |
 
 ## B. Bug thật chỉ chạy thật mới bắt được (ngày 2026-11-10, cả 3 đã fix kèm test)
 
@@ -49,14 +52,17 @@ bắt nhờ chạy thật.
 Bài học chung: cả 3 lỗi đều nằm ở BIÊN giữa shell và provider thật, đúng lớp mock
 không mô phỏng được. Đó là lý do quy tắc real-data tồn tại.
 
+4. **Output shape của 13 skill khi submit sync-mode**: submit noWait:true qua
+loopback chỉ trả `{taskId, progress}` (không taskResult), skill in output thiếu
+`download` mà SKILL.md hứa. Tất cả 13 skill đã vá: luôn GET bản ghi cuối trước
+khi in. Bắt được nhờ e2e loopback + skill thật.
+
 ## C. Còn mock-only hoặc chưa có gate (việc tiếp theo)
 
 | Mục | Trạng thái | Rủi ro | Việc cần |
 | --- | --- | --- | --- |
-| Editor export pipeline (PNG/JPG/PDF/PPTX/ZIP qua doExport) | planExport có unit test nhưng pipeline renderer (fabric → jsPDF/pptxgenjs/JSZip → saveExport) KHÔNG có gate nào; comment "accept both module shapes" của pptxgenjs ESM là dấu hiệu mong manh | Cao (5 định dạng, mỗi cái một thư viện) | Shot gate chọn từng format qua dialog export thật + mở file xuất ra bằng consumer thật (Preview/PowerPoint) |
-| Loopback agent API với provider thật + skill thật | loopback.test = HTTP thật + ctx mock; skill CLI (oia-ppt-translate) chưa từng chạy qua loopback desktop với key thật | Trung bình (lane agent là mặt bán) | 1 e2e: app thật + key thật + chạy 1 skill CLI end-to-end |
-| ME markup-edit generation thật | markup-edit.md ghi "generation thật 1 ảnh chờ duyệt riêng", chưa chạy (image-edit thật hôm nay đi cùng provider path nhưng không phải composite ME) | Trung bình | 1 run khoanh-vùng thật trong app |
-| Cancel thật giữa generation codex | crash-gate và guard test là mock; TP-D5 chưa có run cancel thật trên provider thật | Trung bình (tiền + trải nghiệm) | 1 run: submit thật, cancel giữa chừng, xác nhận cây tiến trình chết + record trung thực |
+| ME markup-edit generation thật | markup-edit.md ghi "generation thật 1 ảnh chờ duyệt riêng", chưa chạy (image-edit thật 2026-11-10 đi cùng provider path nhưng không phải composite ME + wire markup) | Trung bình | 1 run khoanh-vùng thật trong app hoặc harness chatRun với markup flatten |
+| Mở file export bằng consumer thật (PowerPoint/Keynote/Preview) | Gate mới kiểm magic bytes + cấu trúc archive; chưa ai mở file xuất ra bằng app thật | Thấp-trung | Owner mở 1 lần bộ file trong shot-export hoặc real-runs |
 | segment-image trong app đóng gói (SG-1) | Mở, đang làm song song (PoC engine đã thật) | Cao (nút đã ship) | Theo SG-1 ledger |
 | Windows máy vật lý | Mọi run thật tới nay là macOS; Windows chỉ CI wiring (D3) | Cao cho claim parity | Chạy bộ real tối thiểu trên 1 máy Windows |
 | fal / openai wire providers | Không có lane UI (D18 rút), chưa từng chạy thật | Thấp (không user-facing) | Để nguyên, ghi chú |

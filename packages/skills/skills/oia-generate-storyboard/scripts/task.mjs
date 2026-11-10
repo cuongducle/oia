@@ -16,4 +16,7 @@ for (let i = 0; i < 120 && t.progress === "processing"; i++) {
   await new Promise((r) => setTimeout(r, 2000));
   t = await (await fetch(`${cfg.baseUrl}/tasks/${t.taskId}`, { headers })).json().then((r) => r.data);
 }
+if (t.taskResult === undefined) {
+  t = await (await fetch(`${cfg.baseUrl}/tasks/${t.taskId}`, { headers })).json().then((r) => r.data);
+}
 console.log(JSON.stringify({ ok: t.progress === "succeeded", ...t }));
