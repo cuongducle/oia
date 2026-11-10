@@ -14,6 +14,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
+import path from "node:path";
 
 export interface SegmentRuntime {
   runnerPath: string;
@@ -37,8 +38,8 @@ export type RunnerResponse =
 export function resolveSegmentRuntime(segmentDir: string): SegmentRuntime | null {
   const exe = process.platform === "win32" ? "oia-segment-runner.exe" : "oia-segment-runner";
   const ort = process.platform === "win32" ? "onnxruntime.dll" : "libonnxruntime.1.dylib";
-  const runnerPath = `${segmentDir}/${exe}`;
-  const ortLibPath = `${segmentDir}/${ort}`;
+  const runnerPath = path.join(segmentDir, exe);
+  const ortLibPath = path.join(segmentDir, ort);
   return existsSync(runnerPath) && existsSync(ortLibPath) ? { runnerPath, ortLibPath } : null;
 }
 
