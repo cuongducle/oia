@@ -8,7 +8,7 @@ import { TaskStore } from "../src/store.js";
 import { LocalFileStore } from "../src/storage.js";
 import type { LlmProvider, ProviderCapabilities } from "@oia/providers";
 import { ProviderError } from "@oia/providers";
-import { pptTranslateSystemPrompt, PPT_TRANSLATE_MAX_RUNS, PPT_TRANSLATE_INSTRUCTION } from "@oia/schema";
+import { pptTranslateSystemPrompt, PPT_TRANSLATE_MAX_RUNS, PPT_TRANSLATE_INSTRUCTION, PPT_TRANSLATE_JSON_SCHEMA } from "@oia/schema";
 
 /**
  * SG-7 gates: the zip round-trip must translate ONLY <a:t> bodies (attributes,
@@ -25,15 +25,18 @@ const caps = (): ProviderCapabilities => ({
 });
 
 /** Deterministic fake translator: appends " [lang]" like the real mock planner. */
-function fakeLlm(opts: { countOverride?: number } = {}): LlmProvider & { seen: unknown[] } {
+function fakeLlm(opts: { countOverride?: number } = {}): LlmProvider & { seen: unknown[]; seenOpts: unknown[] } {
   const seen: unknown[] = [];
+  const seenOpts: unknown[] = [];
   return {
     name: "fake",
     capabilities: caps(),
     isAvailable: async () => ({ ok: true, detail: "fake" }),
     seen,
-    async chat(messages, _opts) {
+    seenOpts,
+    async chat(messages, chatOpts) {
       seen.push(messages);
+      seenOpts.push(chatOpts);
       const texts = (JSON.parse(messages[messages.length - 1].content) as { texts: string[] }).texts;
       const translations = texts.map((t) => `${t} [vi]`);
       if (opts.countOverride !== undefined) translations.length = opts.countOverride;
@@ -88,6 +91,18 @@ describe("SG-7 ppt-translate", () => {
     expect(system).toContain("Vietnamese");
     const batch = JSON.parse((llm.seen[0] as { content: string }[])[1].content) as { texts: string[] };
     expect(batch.texts).toEqual(["Hello & welcome", "SALE ", "50% <off>", "Second slide"]);
+  });
+
+  it("pins the caller's output schema on the LLM turn (the 2026-11-10 real-run fix)", async () => {
+    const llm = fakeLlm();
+    const { files, ctx } = await makeCtx(llm);
+    const deck = await buildPptx({ "ppt/slides/slide1.xml": SLIDE1 });
+    const savedIn = await files.put(deck, "pptx");
+    await makePptTranslate(ctx)({ fileUrl: savedIn.url, language: "Vietnamese" }, { jobId: "j", signal: new AbortController().signal });
+    // Without the pin, codex forces the POSTER PLAN shape onto this turn and the
+    // real provider returns 0 translations; the mock answers any shape, so this
+    // wiring must be pinned explicitly.
+    expect(llm.seenOpts[0]).toMatchObject({ schema: PPT_TRANSLATE_JSON_SCHEMA });
   });
 
   it("a file that is not a zip fails with a clear message", async () => {

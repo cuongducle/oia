@@ -59,8 +59,41 @@ export class CodexLlmProvider implements LlmProvider {
    * Strict parse-out: anything that is not a valid plan throws `plan_parse_failed`.
    */
   async chat(messages: LlmMessage[], opts?: LlmChatOpts): Promise<string> {
+    // Caller-supplied output schema (readImage pattern for text turns): pin the
+    // CLI to THE CALLER's shape instead of the poster plan. Without this, every
+    // non-plan JSON consumer (ppt-translate first, 2026-11-10 real run) gets its
+    // output forced through PLAN_JSON_SCHEMA and breaks with the real provider,
+    // while the mock happily answers any shape and the gates stay green.
+    if (opts?.schema) return this.pinnedJson(messages, opts);
     const plan = await this.plan(messages, opts?.signal, opts?.jobId, opts?.search);
     return JSON.stringify(plan);
+  }
+
+  /** One text-only exec pinned to the CALLER's schema; returns the raw JSON string. */
+  private async pinnedJson(messages: LlmMessage[], opts: LlmChatOpts): Promise<string> {
+    const scratch = await createScratchDir("codex-chat-io");
+    try {
+      const schemaFile = path.join(scratch, "chat.schema.json");
+      await writeFile(schemaFile, JSON.stringify(opts.schema), "utf8");
+      const lastMessageFile = path.join(scratch, "chat.json");
+      const prompt = messages.map((m) => `[${m.role}]\n${m.content}`).join("\n\n");
+      const res = await this.bridge.exec({
+        role: "planner",
+        prompt,
+        schemaFile,
+        lastMessageFile,
+        timeoutMs: this.timeoutMs,
+        signal: opts.signal,
+        jobId: opts.jobId ?? `chat-${randomUUID()}`,
+      });
+      try {
+        return await this.bridge.readPlanFile(lastMessageFile, res);
+      } finally {
+        await this.bridge.cleanup(res);
+      }
+    } finally {
+      await removeScratchDir(scratch);
+    }
   }
 
   /** B1: one vision read: image bytes materialized to an ASCII-named temp file

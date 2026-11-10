@@ -13,6 +13,7 @@ import {
 import {
   PPT_TRANSLATE_INSTRUCTION,
   PPT_TRANSLATE_MAX_RUNS,
+  PPT_TRANSLATE_JSON_SCHEMA,
   pptTranslateSystemPrompt,
 } from "@oia/schema";
 
@@ -238,7 +239,7 @@ export function makePptTranslate(ctx: ProcCtx) {
         { role: "system", content: pptTranslateSystemPrompt(language, texts.length) },
         { role: "user", content: JSON.stringify({ texts, language }) },
       ],
-      { json: true, signal: tctx.signal, ...(tctx.jobId ? { jobId: `ppt-${tctx.jobId}` } : {}) },
+      { json: true, schema: PPT_TRANSLATE_JSON_SCHEMA, signal: tctx.signal, ...(tctx.jobId ? { jobId: `ppt-${tctx.jobId}` } : {}) },
     );
     let translations: string[];
     try {
@@ -283,6 +284,34 @@ export function makeGenericImageTask(ctx: ProcCtx, opts: { buildPrompt: (p: Reco
 /** generate-presentation: LLM outline → slide images → PPTX (pptxgenjs on node). */
 export interface SlideOutline { title: string; slides: { title: string; bullets: string[]; imagePrompt: string }[] }
 
+/** Output pin for the outline turn: the SAME caller-schema mechanism as
+ *  ppt-translate. generate-presentation asked for {title, slides[]} through the
+ *  plan-pinned chat lane, which mangles the shape against the real provider
+ *  (latent bug, never run real before 2026-11-10). parseOutline stays lenient
+ *  for the mock's demo shapes. */
+const OUTLINE_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    slides: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          bullets: { type: "array", items: { type: "string" } },
+          imagePrompt: { type: "string" },
+        },
+        required: ["title", "imagePrompt"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["title", "slides"],
+  additionalProperties: false,
+} as const;
+
 export function parseOutline(raw: string, maxSlides = 30): SlideOutline {
   const data = JSON.parse(raw) as Partial<SlideOutline> & { imagePrompt?: string; copy?: string };
   if (Array.isArray(data.slides) && data.slides.length) {
@@ -302,7 +331,7 @@ export function makeGeneratePresentation(ctx: ProcCtx, opts: { maxSlidesPerRun?:
     const plan = await ctx.llm.chat([
       { role: "system", content: `You are a presentation planner. Reply JSON {title, slides:[{title, bullets[], imagePrompt}]}. Language: ${lang}. Produce exactly ${n} slides.` },
       { role: "user", content: String(params.prompt ?? "topic") },
-    ], { json: true, signal: tctx.signal });
+    ], { json: true, schema: OUTLINE_JSON_SCHEMA, signal: tctx.signal });
     const outline = parseOutline(plan, n);
 
     const pptxMod = await import("pptxgenjs");

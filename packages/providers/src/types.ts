@@ -88,6 +88,12 @@ export interface LlmChatOpts {
   signal?: AbortSignal;
   /** TP.4: correlation id forwarded to CLI transcripts. */
   jobId?: string;
+  /** Caller's OUTPUT SCHEMA (the readImage pattern, for TEXT turns): providers
+   * that pin output shape (codex --output-schema) MUST use THIS instead of
+   * their default plan schema; providers without pinning ignore it. Found by
+   * the first real ppt-translate run (2026-11-10): every non-plan chat shape
+   * came back mangled, the mock never noticed. */
+  schema?: object;
   /** DA-1: run the turn with live web search when the provider supports it
    * (capability `webSearch`). Ignored by providers without the capability. */
   search?: boolean;

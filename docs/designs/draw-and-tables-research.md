@@ -106,6 +106,10 @@ Việc cần làm (kèm file):
   lỗi. Chụp ảnh editor có nét vẽ (`desktop-draw.png`).
 - Unit (nếu làm phương án B): hàm thuần points → SVG path data test
   riêng, không đụng fabric.
+- REAL-DATA (quy tắc 2026-11-10): chủ máy vẽ thật 2-3 nét bằng trackpad/bút
+  trong app dev, kiểm nét mượt + undo + reload project giữ nét; bằng chứng
+  screenshot + file project vào docs/private/real-runs/. Mock không thể thay
+  được cảm giác nét vẽ.
 
 ## 3. Tables (SG-11): cách các editor lớn làm
 
@@ -180,6 +184,9 @@ Việc cần làm (kèm file):
   inspector → số Textbox = 12 và cột cũ không xê dịch; undo; serialize
   roundtrip giữ tableMeta; export PNG không lỗi; chụp
   `desktop-table.png`.
+- REAL-DATA (quy tắc 2026-11-10): bảng giá thật của 1 shop (5-8 dòng, tiếng
+  Việt có dấu), xuất PPTX và MỞ bằng PowerPoint/Keynote thật để kiểm hiển
+  thị; bằng chứng vào docs/private/real-runs/.
 
 ## 4. SG-17 (Share/collaborate) và SG-18 (Gallery): ghi ngắn
 

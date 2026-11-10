@@ -104,6 +104,15 @@ Before adding a test, check it against
   [`docs/reference/test-antipatterns.md`](docs/reference/test-antipatterns.md).
   The short version: gate the error path, exercise real stores/servers over temp
   dirs, never count tests as coverage.
+- **Real-data runs are part of feature done** (owner rule, 2026-11-10): every
+  user-facing feature ships with BOTH the mock wiring gates AND at least one
+  real-data run (real provider turn, real file format consumer, real local
+  model). Evidence (artifacts, quota meter, honest limits) lands in
+  `docs/private/real-runs/<date>-<feature>/`, reusable harnesses are versioned
+  under `apps/desktop/scripts/*-real.mjs`. The owner pre-approved quota spend
+  for these runs (2026-11-10); OIA_DESKTOP_REAL_SMOKE stays opt-in. Reason on
+  record: the first real ppt-translate run (2026-11-10) caught a provider
+  output-shape bug every mock gate was structurally blind to.
 
 ## Architecture map (post step 4a)
 

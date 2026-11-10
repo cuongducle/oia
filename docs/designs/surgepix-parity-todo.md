@@ -216,6 +216,17 @@ Việc cần làm:
 
 ### SG-7. Wire PPT Translator vào UI tools — DONE (commit 06599b8, gates: packages/tasks 167 test gồm 9 test mới zip round-trip + TaskStore lane, desktop 220, shot gate 2 mục mới: translate e2e với deck fixture + file hỏng báo rõ không crash, nội dung pptx kết quả kiểm tra chứa run đã dịch)
 
+REAL-DATA RUN 2026-11-10 (owner duyệt quota): deck python-pptx cấu trúc thật,
+codex pin thật, 2 lượt dịch (EN→VI 6,3s, VI→EN 5,8s, mỗi lượt 1 planner call).
+Output mở bằng python-pptx, 8/8 dòng dấu VI đúng, URL và `<see website>` giữ
+nguyên, chỉ 3 entry slide XML đổi. Bằng chứng:
+`docs/private/real-runs/2026-11-10-ppt-translate/` + harness versioned
+`apps/desktop/scripts/ppt-translate-real.mjs`. Lượt chạy thật ĐẦU TIÊN fail và
+bắt được bug thật: `CodexLlmProvider.chat()` ép mọi output vào
+`PLAN_JSON_SCHEMA`, mock không bao giờ thấy; fix bằng `opts.schema` của caller
+(cùng cơ chế readImage), vá luôn latent bug cùng lớp của `generate-presentation`.
+Kiểm thị giác bằng PowerPoint/Keynote: pending owner.
+
 Khoảng trống: `apps/desktop/src/renderer/lib/tools-registry.ts` dòng 37 ghi
 `implemented: false`, `kind: "landing"`, trong khi skill đã có:
 `packages/skills/skills/oia-ppt-translate/` và `oia-image-translate/`.
@@ -240,6 +251,11 @@ thể ghi shade đen vào file project (vi phạm bài học C3/ME view-layer); 
 serialized-clean giữa session, history đúng 1 push cho cả crop, và crop lần 2
 chỉ giao trong vùng nhìn thấy (tích lũy, không thể mở lại phần đã cắt).
 
+REAL-DATA RUN 2026-11-10: crop.ts production + fabric trong Chromium thật trên
+ảnh sản phẩm generate bằng quota thật; serialize roundtrip giữ clip, pixel:
+vùng giữ 0% trong suốt, vùng cắt 100% trong suốt. Bằng chứng:
+`docs/private/real-runs/2026-11-10-crop/`.
+
 Khoảng trống: ContextToolbar ảnh hiện có Replace, Edit with AI, Circle to edit,
 Make text editable, Split layer (`ContextToolbar.tsx`). Không có Crop. (Crop
 trong `font-mask.ts` là nội bộ khớp phông, không phải công cụ người dùng.)
@@ -254,6 +270,13 @@ generation trả tiền (bị từ chối hoặc chặn lẫn nhau); fix: `LOCAL
 trong @oia/schema, guard bỏ reservation cho task provider-free (pin bằng 2 test
 mới). Kèm nút Stop khi đang chạy và poll dừng khi rời editor (task vẫn chạy,
 thấy ở feed For Agents).
+
+REAL-DATA RUN 2026-11-10: rembg CLI thật (venv, u2net tải lần đầu) + ảnh sản
+phẩm generate bằng 1 image quota thật; output cùng kích thước, 82,7% trong
+suốt, bbox chủ thể đúng dáng chai serum. Bằng chứng:
+`docs/private/real-runs/2026-11-10-remove-bg/` + harness versioned
+`apps/desktop/scripts/remove-bg-real.mjs`. Kiểm thị giác comparison.png:
+pending owner.
 
 Khoảng trống: task `remove-background` đã đăng ký trong
 `packages/services/src/context.ts` (dòng ~97) và có skill `oia-remove-background`,

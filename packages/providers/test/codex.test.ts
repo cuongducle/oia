@@ -248,6 +248,29 @@ process.stdin.on("end", () => process.stdout.write("STDIN_END\\n"));
     expect(diag.errorClass).toBe("provider_missing");
   });
 
+  it("chat with opts.schema pins the CALLER's shape and returns its raw JSON (the 2026-11-10 real-run fix)", async () => {
+    const fakeBin = writeRunnableCli(
+      fakeDir,
+      "chatschema",
+      // writes the caller-shaped JSON to the -o scratch file, mimicking codex --output-schema
+      `import { writeFileSync } from "node:fs";
+import process from "node:process";
+const i = process.argv.indexOf("-o");
+process.stdout.write('{"type":"thread.started","thread_id":"t777"}\\n');
+if (i >= 0) writeFileSync(process.argv[i + 1], JSON.stringify({ translations: ["Xin chào", "Giảm 50%"] }));
+`,
+    );
+    const provider = new CodexLlmProvider(new CodexBridge({ bin: fakeBin }), { timeoutMs: 5_000 });
+    const raw = await provider.chat(
+      [
+        { role: "system", content: "translate, ppt-translate.v1" },
+        { role: "user", content: JSON.stringify({ texts: ["Hello", "50% off"], language: "Vietnamese" }) },
+      ],
+      { json: true, schema: { type: "object", properties: { translations: { type: "array", items: { type: "string" } } }, required: ["translations"] }, jobId: "chat-schema-pin" },
+    );
+    expect(JSON.parse(raw)).toEqual({ translations: ["Xin chào", "Giảm 50%"] }); // raw caller shape, NOT the poster plan
+  });
+
   it("CodexLlmProvider: malformed plan → plan_parse_failed, exactly one attempt (G2)", async () => {
     // fake bridge whose plan file contains garbage
     const scratch = path.join(tmpdir(), `oia-badplan-${Date.now()}`);
