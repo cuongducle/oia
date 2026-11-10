@@ -123,8 +123,9 @@ nên mọi biến thể "chạy Node bên trong binary Electron" đều chết.
 ## 5. Vết lại
 
 - Gate Node thuần (sidecar thật): `apps/desktop/test/segment-real.manual.test.ts`
-  (`pnpm --filter @oia/desktop exec vitest run test/segment-real.manual.test.ts`,
-  cần `node scripts/prepare-segment.mjs` + models dir). Con số then chốt đều
+  (`OIA_RUN_REAL_SEGMENT=1 pnpm --filter @oia/desktop exec vitest run
+  test/segment-real.manual.test.ts`, cần `node scripts/prepare-segment.mjs` +
+  models dir). Con số then chốt đều
   ghi trong doc này; log thí nghiệm /tmp đã xoá.
 - Model tải lần đầu nằm ở `<userData>/models/sam3` của dir test
   `~/Desktop/oia-sam-e2e` (giữ lại cho các lần chạy sau).

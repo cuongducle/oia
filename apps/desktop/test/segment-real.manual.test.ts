@@ -20,7 +20,12 @@ const MODELS_DIR = process.env.OIA_SEGMENT_MODELS_DIR ?? path.join(process.env.H
 const ARTWORK = process.env.OIA_SEGMENT_ARTWORK ?? "/tmp/serum.png";
 const RUNTIME = resolveSegmentRuntime(path.resolve("resources/segment", `${process.platform}-${process.arch}`));
 
-describe("SAM 3 real model through the sidecar (manual)", () => {
+// Manual gate: never in the normal suite (CI has no 880 MB models, no
+// prepared sidecar). Opt in: OIA_RUN_REAL_SEGMENT=1 pnpm --filter @oia/desktop
+// exec vitest run test/segment-real.manual.test.ts
+const maybe = process.env.OIA_RUN_REAL_SEGMENT === "1" ? describe : describe.skip;
+
+maybe("SAM 3 real model through the sidecar (manual)", () => {
   it("segments a real artwork via the native runner", async () => {
     expect(RUNTIME, "sidecar runtime missing; run node scripts/prepare-segment.mjs").not.toBeNull();
     const manager = new SegmentModelManager(MODELS_DIR);
