@@ -601,3 +601,13 @@ xanh trong khi feature không chạy nổi 1 giây trong app thật.
 
 Triển khai trọn vẹn trong ngày quyết định: crate Rust `segment-runner`
 (JSON-lines, ORT load-dynamic từ lib pin 1.31.1, cache vision LRU 2 trong\nrunner), client `runner.ts` Electron-free có test error-path bằng fake runner\nthật (crash giữa chừng chỉ là promise reject + respawn, generation bump xóa\ncache), engine giữ nguyên tokenize/preprocess/postprocess (chất lượng trùng\nkhớp tuyệt đối bản in-process), capability gate khi thiếu sidecar,\nprepare-segment + extraResources + Rust toolchain trong cả hai dist job CI.\nE2E đã pass: Node thuần qua sidecar (18,6 giây, box/score trùng), GUI trên dev,\nGUI trên macOS ĐÓNG GÓI (toast "1 layer cut out" ~20 giây, không crash). Một\nbug path đóng gói bắt được khi chạy thật: packaged ghép resourcesPath +\n"resources" thành đường kép, sửa theo pattern codex. Bẫy keychain ad-hoc tái\ndiễn đúng như ghi nhận (mỗi lần build local mới), script packaged-smoke tự dọn\nđủ. Chi tiết đầy đủ: segmentation-process-plan.md (status: implemented).
+
+## Ghi nhận mở rộng sidecar cho Lens (2026-11-10, owner "còn model nào chuyển qua luôn")
+
+Model cuối cùng còn chạy ORT trong process Electron là Lens (D22 font
+classifier, lens.ts). Đã chuyển sang cùng sidecar SAM: op `lens` trong runner
+(cpu + 4 thread như cũ), checksum + catalog + ranking giữ nguyên TS, một
+runner child dùng chung (spawn lười). Kiểm chứng: cùng tensor cho logits 983
+chiều TRÙNG K BIT giữa đường in-process cũ và sidecar (max diff 0,0). Từ đây
+utility process không còn import onnxruntime-node; mọi ORT chạy trong tiến
+trình native riêng, crash model không bao giờ giết tầng services.

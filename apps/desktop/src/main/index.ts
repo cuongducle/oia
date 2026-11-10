@@ -1206,6 +1206,74 @@ async function shot(): Promise<void> {
   }
   console.log(`[shot] autosave settled: ${savedSeen}`);
 
+  // ---- Export pipeline gate (real-data coverage matrix, gap C1): all FIVE
+  //  formats through the REAL doExport (fabric rasterize → jsPDF/pptxgenjs/
+  //  JSZip → saveExport). planExport alone was unit-tested, the renderer
+  //  pipeline had NO gate; the pptxgenjs "accept both module shapes" shim is
+  //  exactly the kind of thing that breaks silently. saveExport in test modes
+  //  auto-writes into <userData>/shot-export, bytes verified by magic + structure.
+  const exportGate = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const openExport = async () => {
+      [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Export"))?.click();
+      await wait(250);
+      return Boolean(document.querySelector('[data-testid="export-download"]'));
+    };
+    const runFormat = async (fmt) => {
+      const sel = document.querySelector("#export-format");
+      if (!sel) return { fmt, ok: false, why: "no select" };
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+      setter.call(sel, fmt);
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await wait(100);
+      const btn = document.querySelector('[data-testid="export-download"]');
+      if (!btn || btn.disabled) return { fmt, ok: false, why: "button not ready" };
+      btn.click();
+      // wait until the dialog closes (export done) or 30s
+      for (let i = 0; i < 60 && document.querySelector('[data-testid="export-download"]'); i++) await wait(500);
+      const stillOpen = Boolean(document.querySelector('[data-testid="export-download"]'));
+      return { fmt, ok: !stillOpen, why: stillOpen ? "export never finished" : null };
+    };
+    const results = [];
+    if (await openExport()) {
+      for (const fmt of ["png", "jpg", "pdf", "pptx", "zip"]) {
+        results.push(await runFormat(fmt));
+        // reopen for the next format (dialog closes itself after each export)
+        if (fmt !== "zip") await openExport();
+      }
+    }
+    return results;
+  })()`, true).catch((e) => [{ fmt: "err", ok: false, why: String(e) }]);
+  console.log("[shot] export dialog runs:", JSON.stringify(exportGate));
+  // verify the ARTIFACTS on disk: right dir, non-trivial size, magic bytes,
+  // pptx/zip are real archives with the expected inner structure
+  const { readdir, readFile: rf } = await import("node:fs/promises");
+  const exportDir = path.join(app.getPath("userData"), "shot-export");
+  const files = await readdir(exportDir).catch(() => [] as string[]);
+  const magicOk = async (name: string, head: string): Promise<boolean> =>
+    files.includes(name) && Buffer.from(await rf(path.join(exportDir, name))).subarray(0, head.length).toString("latin1") === head;
+  const byExt = (ext: string): string => files.find((f) => f.endsWith(ext)) ?? "";
+  const pngOk = await magicOk(byExt(".png"), String.fromCharCode(0x89) + "PNG");
+  const jpgOk = await magicOk(byExt(".jpg"), String.fromCharCode(0xff, 0xd8, 0xff));
+  const pdfOk = await magicOk(byExt(".pdf"), "%PDF");
+  const zipOk = await magicOk(byExt(".zip"), "PK" + String.fromCharCode(3, 4));
+  const { default: JSZip } = await import("jszip");
+  const pptxName = byExt(".pptx");
+  let pptxOk = false;
+  if (files.includes(pptxName)) {
+    const zip = await JSZip.loadAsync(await rf(path.join(exportDir, pptxName)));
+    const names = Object.keys(zip.files);
+    pptxOk = names.some((n) => n.startsWith("ppt/slides/slide")) && names.includes("[Content_Types].xml");
+  }
+  const sizes = Object.fromEntries(await Promise.all(files.map(async (f) => [f, (await rf(path.join(exportDir, f))).length])));
+  const exportOk = exportGate.length === 5 && exportGate.every((r: { ok: boolean }) => r.ok) && pngOk && jpgOk && pdfOk && pptxOk && zipOk;
+  console.log("[shot] export artifacts:", JSON.stringify({ pngOk, jpgOk, pdfOk, pptxOk, zipOk, sizes }));
+  if (!exportOk) {
+    console.error("DESKTOP_SHOT EXPORT PIPELINE VERIFY FAILED");
+    app.exit(27);
+    return;
+  }
+
   // ---- A1 preview-apply: edit via the AI dock must NEVER touch the canvas ----------
   // The regression this pins: the pre-A1 code auto-merged the result onto the page.
   // If that path ever comes back, canvasUntouched fails here (variant-preview-apply VA-3).

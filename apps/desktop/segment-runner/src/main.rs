@@ -56,6 +56,9 @@ enum Req {
     Vision { models_dir: String, key: String, pixels: TensorIn },
     Text { models_dir: String, input_ids: Vec<i64>, attn: Vec<i64> },
     Decode { models_dir: String, vision_key: String, text_features: TensorIn, attn: Vec<i64> },
+    /** D22 Lens font classifier: input "image" [1,3,128,384], output "logits".
+     *  Preprocess/ranking stay in TS (lens.ts); only the session run is here. */
+    Lens { lens_dir: String, pixels: TensorIn },
 }
 
 #[derive(Serialize)]
@@ -69,6 +72,8 @@ enum Resp {
     Text { text_features: TensorOut },
     #[serde(rename = "decode")]
     Decode { masks: TensorOut, boxes: TensorOut, logits: TensorOut },
+    #[serde(rename = "lens")]
+    Lens { logits: TensorOut },
     #[serde(rename = "error")]
     Error { message: String },
 }
@@ -126,6 +131,7 @@ struct State {
     env: Environment,
     models_dir: Option<String>,
     models: Option<Models>,
+    lens: Option<(String, Session)>,
     /** the four decoder-facing vision outputs per engine content-hash, LRU 2 like engine.ts */
     vision_cache: HashMap<String, Vec<Tensor<f32>>>,
     vision_order: Vec<String>,
@@ -240,6 +246,36 @@ fn handle(state: &mut State, req: Req) -> Resp {
                 (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => Resp::Error { message: e },
             }
         }
+        Req::Lens { lens_dir, pixels } => {
+            // session cache keyed by dir, options mirror lens.ts (cpu, 4 threads)
+            if state.lens.as_ref().map(|(d, _)| d != &lens_dir).unwrap_or(true) {
+                let built = Session::builder(&state.env)
+                    .map_err(|e| format!("builder: {e}"))
+                    .and_then(|mut b| {
+                        b = b.with_optimization_level(GraphOptimizationLevel::Level3).map_err(|e| format!("opt level: {e}"))?;
+                        b = b.with_intra_threads(4).map_err(|e| format!("threads: {e}"))?;
+                        b.commit_from_file(Path::new(&lens_dir).join("lens.onnx")).map_err(|e| format!("lens session: {e}"))
+                    });
+                match built {
+                    Ok(s) => state.lens = Some((lens_dir.clone(), s)),
+                    Err(e) => return Resp::Error { message: e },
+                }
+            }
+            let pixels = match decode_f32_payload(&pixels) {
+                Ok(t) => t,
+                Err(e) => return Resp::Error { message: e },
+            };
+            let (_, lens_session) = state.lens.as_mut().unwrap();
+            let run = lens_session.run(ort::inputs!["image" => pixels]);
+            let mut outputs = match run {
+                Ok(o) => o,
+                Err(e) => return Resp::Error { message: format!("lens run: {e}") },
+            };
+            match take_f32(&mut outputs, "logits") {
+                Ok(t) => Resp::Lens { logits: tensor_out_f32(&t) },
+                Err(e) => Resp::Error { message: e },
+            }
+        }
     }
 }
 
@@ -257,7 +293,7 @@ fn main() {
     };
     eprintln!("[segment-runner] up, ORT {}", ort::info());
 
-    let mut state = State { env, models_dir: None, models: None, vision_cache: HashMap::new(), vision_order: Vec::new() };
+    let mut state = State { env, models_dir: None, models: None, lens: None, vision_cache: HashMap::new(), vision_order: Vec::new() };
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut out = stdout.lock();

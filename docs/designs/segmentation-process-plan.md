@@ -160,6 +160,14 @@ Bằng chứng:
   thành layer riêng có handle, utility sống, runner sống, KHÔNG crash.
 - Gate đóng gói: xem cập nhật SG-1 trong surgepix-parity-todo.md.
 
+**Mở rộng cùng ngày (owner "còn model nào nữa chuyển qua luôn"): Lens (D22
+font classifier) cũng chuyển sang sidecar.** Thêm op `lens` vào runner (input
+"image" [1,3,128,384], output "logits", cpu + 4 thread y hệt lens.ts cũ);
+checksum manifest + catalog parse + ranking giữ nguyên TS trong lens.ts; một
+runner child dùng chung SAM + Lens (spawn lười, tuần tự). Kiểm chứng tương
+đương: cùng tensor, logits 983 chiều qua in-process cũ vs sidecar TRÙNG K bit
+(max diff 0,0). Utility process giờ hoàn toàn không còn onnxruntime-node.
+
 Nợ ghi sổ: (1) dylib ORT 45 MB mỗi nền tảng vào installer (SG-14 cân nhắc
 bản ORT tối giản hoặc tối ưu sau); (2) prompt thứ hai 8,4 giây còn chậm do
 base64 decode + upsampleMask tuần tự, tối ưu sau khi có benchmark SG-6;

@@ -5,6 +5,7 @@ import { PNG } from "pngjs";
 import { z } from "zod";
 import type { DeconstructText } from "@oia/schema";
 import type { FontRecognizer, RecognizedFont } from "@oia/tasks";
+import { f32ToB64, b64ToF32, type SegmentRunner } from "./segmentation/runner.js";
 
 const entrySchema = z.object({
   family: z.string().min(1).max(120), license: z.string(), vietnamese: z.boolean(),
@@ -80,8 +81,11 @@ export function lensWordCrop(src: PNG, t: DeconstructText): PNG {
 }
 
 export class LensRecognizer implements FontRecognizer {
-  private loaded: Promise<{ session: import("onnxruntime-node").InferenceSession; catalog: z.infer<typeof entrySchema>[]; ort: typeof import("onnxruntime-node") }> | null = null;
-  constructor(private readonly dir: string) {}
+  private loaded: Promise<{ catalog: z.infer<typeof entrySchema>[] }> | null = null;
+  constructor(
+    private readonly dir: string,
+    private readonly runner: SegmentRunner,
+  ) {}
   private load() {
     this.loaded ??= (async () => {
       const manifest = manifestSchema.parse(JSON.parse(await readFile(path.join(this.dir, "manifest.json"), "utf8")));
@@ -90,25 +94,30 @@ export class LensRecognizer implements FontRecognizer {
         if (createHash("sha256").update(bytes).digest("hex") !== manifest.files[name]) throw new Error(`Lens checksum mismatch: ${name}`);
       }
       const catalog = z.array(entrySchema).length(983).parse(JSON.parse(catalogBytes.toString("utf8")));
-      const ort = await import("onnxruntime-node");
-      const session = await ort.InferenceSession.create(model, { executionProviders: ["cpu"], intraOpNumThreads: 4 });
-      return { session, catalog, ort };
+      return { catalog };
     })().catch((e) => { this.loaded = null; throw e; });
     return this.loaded;
   }
   async recognize(png: Uint8Array, texts: DeconstructText[], signal: AbortSignal): Promise<RecognizedFont[]> {
     signal.throwIfAborted();
-    const { session, catalog, ort } = await this.load();
+    const { catalog } = await this.load();
     const image = PNG.sync.read(Buffer.from(png));
     const results: RecognizedFont[] = [];
     for (const [lineIndex, t] of texts.entries()) {
       if (lineIndex >= 6) break;
       signal.throwIfAborted();
       if (!t.typography || !t.box.w || !t.box.h) continue;
+      // the session run lives in the native sidecar (same reason as SAM:
+      // ORT does not belong inside an Electron process); preprocess + ranking stay here
       const tensor = lensTensor(lensWordCrop(image, t));
-      const outputs = await session.run({ image: new ort.Tensor("float32", tensor, [1, 3, 128, 384]) });
+      const resp = await this.runner.request({
+        op: "lens",
+        lens_dir: this.dir,
+        pixels: { dims: [1, 3, 128, 384], data: f32ToB64(tensor) },
+      });
       signal.throwIfAborted();
-      const logits = Array.from(outputs.logits.data, Number);
+      if (resp.op !== "lens") throw new Error(`Lens runner failed: ${JSON.stringify(resp).slice(0, 120)}`);
+      const logits = Array.from(b64ToF32(resp.logits.data), Number);
       if (logits.some((v) => !Number.isFinite(v))) throw new Error("Lens returned invalid logits");
       const max = Math.max(...logits), total = logits.reduce((sum, v) => sum + Math.exp(v - max), 0);
       const order = logits.map((v, i) => ({ i, score: Math.exp(v - max) / total })).sort((a, b) => b.score - a.score);

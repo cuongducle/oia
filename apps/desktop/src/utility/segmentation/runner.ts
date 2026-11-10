@@ -28,13 +28,15 @@ export type RunnerRequest =
   | { op: "ping" }
   | { op: "vision"; models_dir: string; key: string; pixels: { dims: number[]; data: string } }
   | { op: "text"; models_dir: string; input_ids: number[]; attn: number[] }
-  | { op: "decode"; models_dir: string; vision_key: string; text_features: { dims: number[]; data: string }; attn: number[] };
+  | { op: "decode"; models_dir: string; vision_key: string; text_features: { dims: number[]; data: string }; attn: number[] }
+  | { op: "lens"; lens_dir: string; pixels: { dims: number[]; data: string } };
 
 export type RunnerResponse =
   | { op: "pong" }
   | { op: "vision"; key: string }
   | { op: "text"; text_features: { dims: number[]; dtype: string; data: string } }
   | { op: "decode"; masks: { dims: number[]; dtype: string; data: string }; boxes: { dims: number[]; dtype: string; data: string }; logits: { dims: number[]; dtype: string; data: string } }
+  | { op: "lens"; logits: { dims: number[]; dtype: string; data: string } }
   | { op: "error"; message: string };
 
 /** Where the sidecar lives: packaged = <resources>/segment/<plat>, dev = <app>/resources/segment/<plat>. */

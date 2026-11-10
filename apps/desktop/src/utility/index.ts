@@ -50,6 +50,7 @@ let discoveryCleanup: string | null = null; // ONE module-level exit listener, n
  *  outputs). The engine is injected into createServiceContext; rebuild reuses it. */
 const segmentModels = new SegmentModelManager("");
 let segmenter: Sam3Segmenter | null = null;
+let segmentRunner: SegmentRunner | null = null;
 
 // Registered ONCE: a hard exit (kill, crash) still removes the discovery file so
 // agents are not pointed at a dead port (they also pid-check on read).
@@ -71,7 +72,7 @@ process.on("SIGTERM", () => {
 });
 
 import { Sam3Segmenter } from "./segmentation/engine.js";
-import { resolveSegmentRuntime } from "./segmentation/runner.js";
+import { resolveSegmentRuntime, SegmentRunner } from "./segmentation/runner.js";
 import { LensRecognizer } from "./lens.js";
 import { SegmentModelManager } from "./segmentation/models.js";
 
@@ -79,7 +80,8 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   if (loopback) await loopback.close().catch(() => {});
   loopback = null;
   toolLane?.dispose();
-  const fontRecognizer = env.OIA_LENS_DIR && env.LLM_PROVIDER === "codex" ? new LensRecognizer(env.OIA_LENS_DIR) : undefined;
+  // Lens rides the SAME sidecar as SAM: no ORT inside the utility process.
+  const fontRecognizer = env.OIA_LENS_DIR && env.LLM_PROVIDER === "codex" && segmentRunner ? new LensRecognizer(env.OIA_LENS_DIR, segmentRunner) : undefined;
   ctx = await createServiceContext({ dataDir, env, ...(segmenter ? { segmenter } : {}), ...(fontRecognizer ? { fontRecognizer } : {}) });
   // reorg step 4c, the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
   // guard as the loopback, attributed to source "web" (the web tools UI contract).
@@ -151,7 +153,8 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       // capability_unsupported instead of crashing the utility process.
       // Created at most once: re-init (mode change) must not leak a runner child.
       const rt = req.segmentDir ? resolveSegmentRuntime(req.segmentDir) : null;
-      if (rt && !segmenter) segmenter = new Sam3Segmenter(segmentModels, rt);
+      if (rt && !segmentRunner) segmentRunner = new SegmentRunner(rt); // shared by SAM + Lens, spawns lazily
+      if (rt && segmentRunner && !segmenter) segmenter = new Sam3Segmenter(segmentModels, rt, segmentRunner);
       await startServices(req.env);
       log(`ctx ready (dataDir=${dataDir})`);
       return null;
