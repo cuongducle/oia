@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { smokeModeFromEnv, appMenuTemplate } from "../src/main/releaseGate.js";
+import { smokeModeFromEnv, appMenuTemplate, resolveUserDataOverride } from "../src/main/releaseGate.js";
+import path from "node:path";
 
 /**
  * F2: the release shell must not carry dev affordances. Pinned as pure functions
@@ -36,6 +37,41 @@ describe("F2 smoke/test modes are dev-build only", () => {
   });
   it("REAL wins when the pnpm smoke script's OIA_DESKTOP_SMOKE=1 coexists with an outer OIA_DESKTOP_REAL_SMOKE=1 (2026-11-07 false-record lesson)", () => {
     expect(smokeModeFromEnv({ OIA_DESKTOP_SMOKE: "1", OIA_DESKTOP_REAL_SMOKE: "1" }, false)).toBe("real");
+  });
+});
+
+describe("SG-2 packaged-smoke mode", () => {
+  const psEnv = { OIA_DESKTOP_PACKAGED_SMOKE: "1", OIA_USER_DATA_DIR: "/tmp/oia-ps" };
+  it("is the ONLY mode a packaged build may enter, and only with BOTH the flag and an override dir", () => {
+    expect(smokeModeFromEnv(psEnv, true)).toBe("packaged-smoke");
+    expect(smokeModeFromEnv({ OIA_DESKTOP_PACKAGED_SMOKE: "1" }, true)).toBeNull(); // no override dir: refuse, never the real profile
+    expect(smokeModeFromEnv({ OIA_USER_DATA_DIR: "/tmp/x" }, true)).toBeNull(); // the dir alone is a NORMAL packaged run
+  });
+  it("a packaged build still ignores every other flag (REAL included), even next to packaged-smoke", () => {
+    expect(smokeModeFromEnv(allFlags, true)).toBeNull();
+    expect(smokeModeFromEnv({ ...allFlags, ...psEnv }, true)).toBe("packaged-smoke");
+  });
+  it("a dev build can run it too (the script is testable unpackaged)", () => {
+    expect(smokeModeFromEnv(psEnv, false)).toBe("packaged-smoke");
+  });
+});
+
+describe("SG-2 OIA_USER_DATA_DIR validation (pure rules)", () => {
+  const def = path.resolve("/Users/seller/Library/Application Support/Oia");
+  const ok = (dir) => resolveUserDataOverride({ OIA_USER_DATA_DIR: dir }, def);
+  it("accepts an absolute dir outside the default profile", () => {
+    expect(ok("/tmp/oia-packaged-smoke")).toEqual({ dir: "/tmp/oia-packaged-smoke" });
+  });
+  it("rejects relative paths", () => {
+    expect(ok("relative/dir")).toMatchObject({ error: expect.stringContaining("absolute") });
+  });
+  it("rejects the default profile dir itself and anything inside it", () => {
+    expect(ok(def)).toMatchObject({ error: expect.stringContaining("default profile") });
+    expect(ok(path.join(def, "smoke"))).toMatchObject({ error: expect.stringContaining("inside the default profile") });
+  });
+  it("rejects empty values", () => {
+    expect(ok("")).toMatchObject({ error: expect.stringContaining("empty") });
+    expect(ok("   ")).toMatchObject({ error: expect.stringContaining("empty") });
   });
 });
 

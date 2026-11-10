@@ -1,4 +1,5 @@
 import type { MenuItemConstructorOptions } from "electron";
+import path from "node:path";
 
 /**
  * F2: what a RELEASE build may do, decided in pure functions so the gates can
@@ -11,15 +12,45 @@ import type { MenuItemConstructorOptions } from "electron";
  *    including REAL_SMOKE, which bills real quota.
  */
 
-export type SmokeMode = "smoke" | "crash" | "real" | "shot" | "shot-busy" | "si";
+export type SmokeMode = "smoke" | "crash" | "real" | "shot" | "shot-busy" | "si" | "packaged-smoke";
+
+/** SG-2 (surgepix-parity-todo.md): an EXPLICIT userData override the packaged
+ *  app honors too, so scripted smoke can run a real release build without ever
+ *  touching the seller's profile (the 2026-11 boot accident let asset GC loose
+ *  on the real profile). Pure validation; main performs the fs probe.
+ *  Rules: absolute paths only, never the default dir or inside it (that IS the
+ *  real profile), never empty. */
+export function resolveUserDataOverride(
+  env: NodeJS.ProcessEnv,
+  defaultDir: string,
+): { dir: string } | { error: string } {
+  const raw = env.OIA_USER_DATA_DIR?.trim();
+  if (!raw) return { error: "OIA_USER_DATA_DIR is empty" };
+  if (!path.isAbsolute(raw)) {
+    return { error: `OIA_USER_DATA_DIR must be an absolute path, got "${raw}"` };
+  }
+  const resolved = path.resolve(raw);
+  const def = path.resolve(defaultDir);
+  if (resolved === def) {
+    return { error: "OIA_USER_DATA_DIR points at the default profile dir, refusing to run tests against it" };
+  }
+  if (resolved.startsWith(def + path.sep)) {
+    return { error: "OIA_USER_DATA_DIR is inside the default profile dir, refusing to run tests against it" };
+  }
+  return { dir: resolved };
+}
 
 /**
- * Smoke/test modes are DEV-BUILD ONLY. CI runs the unpackaged `electron .`, so
- * the gates keep working; a packaged app can never be talked into a test mode
- * (some spawn child processes or burn real provider quota).
+ * Smoke/test modes are DEV-BUILD ONLY, with ONE carve-out: packaged-smoke, the
+ * SG-2 scripted release-build check. It may run packaged, but ONLY with BOTH
+ * the explicit flag AND a valid OIA_USER_DATA_DIR override, so it can never
+ * touch a real profile, and it forces the mock pair (the OIA_DESKTOP_ prefix
+ * default-deny in resolveEffectiveMode), so it can never bill quota.
  */
 export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): SmokeMode | null {
-  if (isPackaged) return null;
+  const packagedSmoke = env.OIA_DESKTOP_PACKAGED_SMOKE === "1" && Boolean(env.OIA_USER_DATA_DIR);
+  if (isPackaged) return packagedSmoke ? "packaged-smoke" : null; // never any other mode, REAL included
+  if (packagedSmoke) return "packaged-smoke"; // scriptable on dev builds too
   // REAL wins over mock modes even when both are set: `pnpm smoke` exports
   // OIA_DESKTOP_SMOKE=1 itself, which used to silently swallow an outer
   // OIA_DESKTOP_REAL_SMOKE=1, two "real" runs on 2026-11-07 were recorded

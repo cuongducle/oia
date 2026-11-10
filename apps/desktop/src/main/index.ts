@@ -2,12 +2,12 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, protocol, session
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile, mkdir as mkdirAsync } from "node:fs/promises";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
-import { appMenuTemplate, smokeModeFromEnv } from "./releaseGate.js";
+import { appMenuTemplate, smokeModeFromEnv, resolveUserDataOverride } from "./releaseGate.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
 import { fixturePngB64, fixturePptxB64, brokenPptxB64 } from "./shotFixture.js";
 
@@ -512,6 +512,56 @@ async function crashSmoke(): Promise<void> {
       `recovered=${Array.isArray(after) ? after.length : String(after)}`,
   );
   app.exit(ok ? 0 : 1);
+}
+
+/**
+ * SG-2 (surgepix-parity-todo.md): scripted smoke against a PACKAGED build.
+ * The 2026-11 release lesson: `electron .` test modes sandbox userData, but a
+ * packaged app had no such switch, so a scripted boot landed on the REAL profile
+ * and its asset GC ran. Now OIA_USER_DATA_DIR (validated + probed in main) puts
+ * the whole app, stores and loopback discovery file into a throwaway dir, and
+ * this mode proves it end to end: renderer boots, utility context comes up, one
+ * MOCK task (the OIA_DESKTOP_ prefix default-denies real providers) completes
+ * through the task store. Marker lines are asserted by scripts/packaged-smoke.mjs.
+ */
+async function packagedSmoke(): Promise<void> {
+  const t0 = Date.now();
+  const fail = (why: string): void => {
+    console.error(`DESKTOP_PACKAGED_SMOKE FAILED ${why}`);
+    app.exit(1);
+  };
+  registerAssetProtocol();
+  const win = createWindow();
+  const loaded = await new Promise<boolean>((resolve) => {
+    win.webContents.once("did-finish-load", () => resolve(true));
+    win.webContents.once("did-fail-load", () => resolve(false));
+    setTimeout(() => resolve(false), 20_000);
+  });
+  console.log(`[packaged-smoke] renderer loaded=${loaded} userData=${app.getPath("userData")}`);
+  if (!loaded) return fail("renderer did not load");
+  const override = process.env.OIA_USER_DATA_DIR!.trim();
+  if (path.resolve(app.getPath("userData")) !== path.resolve(override)) {
+    return fail("userData is not the OIA_USER_DATA_DIR override");
+  }
+  await ensureUtility();
+  console.log("[packaged-smoke] utility context up");
+  const discovery = path.join(app.getPath("userData"), "agent-api.json");
+  if (!existsSync(discovery)) return fail(`loopback discovery file missing: ${discovery}`);
+  console.log("[packaged-smoke] loopback discovery present");
+  const started = (await utility.call({ cmd: "tasks.submit", type: "generate-poster", params: { prompt: "packaged smoke banner" } })) as { taskId: string; progress: string };
+  type PsTaskState = { progress: string; taskResult: { download?: string } | null; msg?: string };
+  let final: PsTaskState | null = null;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    final = (await utility.call({ cmd: "tasks.get", taskId: started.taskId })) as PsTaskState | null;
+    if (final && final.progress !== "processing") break;
+  }
+  console.log(`[packaged-smoke] task ${started.taskId} progress=${final?.progress} download=${final?.taskResult?.download ?? "-"} msg=${final?.msg ?? ""}`);
+  if (!final || final.progress !== "succeeded" || !final.taskResult?.download?.startsWith("/api/files/")) {
+    return fail("the mock task did not complete with a stored asset");
+  }
+  console.log(`DESKTOP_PACKAGED_SMOKE OK renderer+utility+task in ${Math.round((Date.now() - t0) / 1000)}s`);
+  app.exit(0);
 }
 
 /**
@@ -2365,8 +2415,23 @@ function registerMenu(): void {
  * smoke/shot runs against the real userData seeded the owner's Workspace with
  * dozens of "banner smoke"/"New banner" junk projects). The SI smoke isolates too,
  * it never races a real running instance on a dev machine.
+ *
+ * SG-2: an explicit OIA_USER_DATA_DIR override wins over the test-mode sandbox
+ * and is honored in PACKAGED builds too, so a scripted packaged smoke never
+ * touches the seller's real profile (the 2026-11 boot accident let asset GC run
+ * on the real profile). A bad value (relative, the default dir, unwritable)
+ * fails FAST: silently falling back to the default profile would be exactly the
+ * accident this exists to prevent.
  */
-if (smokeModeFromEnv(process.env, app.isPackaged)) {
+const userDataOverride = applyUserDataOverride();
+if ("error" in userDataOverride) {
+  console.error(`[user-data] refusing to start: ${userDataOverride.error}`);
+  dialog.showErrorBox("Oia cannot start", `${userDataOverride.error}\n\nFix or unset OIA_USER_DATA_DIR, then start Oia again.`);
+  app.exit(66);
+} else {
+if (userDataOverride.dir) {
+  app.setPath("userData", userDataOverride.dir);
+} else if (smokeModeFromEnv(process.env, app.isPackaged)) {
   app.setPath("userData", mkdtempSync(path.join(tmpdir(), "oia-testmode-")));
 }
 const gotInstanceLock = app.requestSingleInstanceLock();
@@ -2406,6 +2471,13 @@ app.whenReady().then(async () => {
   }
   if (mode === "crash") {
     await crashSmoke();
+    return;
+  }
+  if (mode === "packaged-smoke") {
+    await packagedSmoke().catch((err) => {
+      console.error("DESKTOP_PACKAGED_SMOKE CRASHED:", err);
+      app.exit(1);
+    });
     return;
   }
   if (mode === "real") {
@@ -2457,6 +2529,26 @@ app.on("before-quit", (e) => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+}
+}
+
+/** SG-2: validate OIA_USER_DATA_DIR (pure rules live in releaseGate) and PROBE
+ *  it with a real write before the app commits: a dir that cannot hold a file
+ *  must fail here, not half-way through boot on the first store save. */
+function applyUserDataOverride(): { ok: true; dir: string | null } | { ok: false; error: string } {
+  const raw = process.env.OIA_USER_DATA_DIR?.trim();
+  if (!raw) return { ok: true, dir: null };
+  const resolved = resolveUserDataOverride(process.env, app.getPath("userData"));
+  if ("error" in resolved) return { ok: false, error: resolved.error };
+  try {
+    mkdirSync(resolved.dir, { recursive: true });
+    const probe = path.join(resolved.dir, ".oia-write-probe");
+    writeFileSync(probe, "probe");
+    rmSync(probe);
+  } catch (err) {
+    return { ok: false, error: `OIA_USER_DATA_DIR "${resolved.dir}" is not writable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  return { ok: true, dir: resolved.dir };
 }
 
 /**

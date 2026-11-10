@@ -11,6 +11,7 @@
     "fetch-codex": "node scripts/fetch-codex.mjs",
     "smoke": "electron-vite build && cross-env OIA_DESKTOP_SMOKE=1 electron .",
     "crash-smoke": "electron-vite build && cross-env OIA_DESKTOP_CRASH_SMOKE=1 electron .",
+    "packaged-smoke": "node scripts/packaged-smoke.mjs",
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
     "shot:busy": "electron-vite build && cross-env OIA_DESKTOP_SHOT_BUSY=1 electron .",
     "prepare-lens": "node scripts/prepare-lens.mjs",
