@@ -93,6 +93,13 @@ preview sang output thật (đồng thời cập nhật `docs/verification/featu
 
 ### SG-2. Packaged smoke với userData tạm — DONE (commit b0c9588, gates: release-hardening 14 test mới, desktop 227, turbo build/test/typecheck, smoke, crash-smoke, `pnpm packaged-smoke` 3/3 trên dist/mac-arm64/Oia.app đóng gói đầy đủ fuse)
 
+ĐÍNH CHÍNH (self-review 2026-11-10): claim "3/3" lúc ghi DONE là SAI một phần.
+Hai nhánh refusal lúc đó thực chất TREO 30 giây sau dialog keychain rồi bị
+script SIGKILL (exit -1), và assertion gốc `code !== 0` tính treo là PASS. Cái
+3/3 đúng chỉ có sau commit 60625ea: script giờ đòi exit 66 đúng + không có
+marker TIMEOUT, và dialog được bỏ qua trong chạy script. Bài học: một gate
+assert yếu hơn hành vi nó tuyên bố kiểm tra thì xanh cũng là dối.
+
 Khoảng trống: app đóng gói không có cơ chế test-mode dir như `electron .`. Lần
 boot nhầm 11/2026 đã để asset GC chạy trên profile thật (dọn 2/32 upload mồ côi,
 đúng chính sách boot thường nhưng không được phép lặp). Ghi tại
@@ -214,6 +221,14 @@ Việc cần làm:
 
 ### SG-8. Crop ảnh trong editor toolbar — DONE (commit bb77a04, gates: 11 unit test crop.ts thuần (identity/translate/scale/xoay 90 độ/matrix suy biến), shot gate toàn vòng: marquee+shades không vào scene JSON, apply đặt clipPath, serialize + loadFromJSON roundtrip giữ clip, render không đổ, undo xóa clip, cancel không đụng layer; desktop 238; smoke; crash-smoke)
 
+Self-review 2026-11-10 tìm ra 2 lỗi gate gốc không bắt được, đã sửa kèm gate
+regression: (1) helper của session crop là fabric objects thường nên mọi
+add/remove/drag đẩy snapshot rác vào undo stack VÀ autosave giữa session có
+thể ghi shade đen vào file project (vi phạm bài học C3/ME view-layer); fix:
+`excludeFromExport` + suspend history khi session sống, gate giờ pin
+serialized-clean giữa session, history đúng 1 push cho cả crop, và crop lần 2
+chỉ giao trong vùng nhìn thấy (tích lũy, không thể mở lại phần đã cắt).
+
 Khoảng trống: ContextToolbar ảnh hiện có Replace, Edit with AI, Circle to edit,
 Make text editable, Split layer (`ContextToolbar.tsx`). Không có Crop. (Crop
 trong `font-mask.ts` là nội bộ khớp phông, không phải công cụ người dùng.)
@@ -221,7 +236,13 @@ trong `font-mask.ts` là nội bộ khớp phông, không phải công cụ ngư
 Hướng: dùng Fabric crop hoặc thay clipPath, cập nhật scene schema nếu cần
 trường crop, giữ phím tắt, shot gate khôi phục và export sau crop.
 
-### SG-9. Nút Remove background trên ContextToolbar ảnh — DONE (commit f87bcf6, gates: shot gate hai nhánh dùng fake rembg stateful trên PATH: nhánh lỗi giữ nguyên layer + thông báo trung thực, nhánh thành công đổi src layer qua getSrc(); desktop 220; smoke; crash-smoke)
+### SG-9. Nút Remove background trên ContextToolbar ảnh — DONE (commit f87bcf6 + self-review fix 2026-11-10, gates: shot gate hai nhánh dùng fake rembg stateful trên PATH: nhánh lỗi giữ nguyên layer + thông báo setup thân thiện (không còn lệnh pip thô cho seller), nhánh thành công đổi src layer qua getSrc(); desktop 220→252; smoke; crash-smoke)
+
+Self-review 2026-11-10: task local miễn phí từng tranh slot metered với
+generation trả tiền (bị từ chối hoặc chặn lẫn nhau); fix: `LOCAL_TASK_TYPES`
+trong @oia/schema, guard bỏ reservation cho task provider-free (pin bằng 2 test
+mới). Kèm nút Stop khi đang chạy và poll dừng khi rời editor (task vẫn chạy,
+thấy ở feed For Agents).
 
 Khoảng trống: task `remove-background` đã đăng ký trong
 `packages/services/src/context.ts` (dòng ~97) và có skill `oia-remove-background`,

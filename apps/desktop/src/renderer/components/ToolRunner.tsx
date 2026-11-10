@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SCENE_VERSION } from "@oia/schema";
+import { SCENE_VERSION, MAX_UPLOAD_BYTES } from "@oia/schema";
 import type { ToolKind } from "../lib/tools-registry.js";
 import { oia } from "../lib/bridge.js";
 import { toDisplayUrl } from "../../shared/assets.js";
@@ -235,6 +235,14 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
 
   /** ONE busy/error owner for both AI tools, param building (upload included)
    *  happens inside, so failure paths cannot double-manage state. */
+  function taskErrorMessage(e: unknown, subject = "The task"): string {
+    const message = e instanceof Error ? e.message : String(e);
+    // G3: the shared metered slot is held (chat or agent run), honest, retryable
+    return message.includes("already running")
+      ? "A generation is already running (chat or another tool). Wait for it to finish and try again."
+      : `${subject} failed: ${message}`;
+  }
+
   async function runAiTask(type: "generate-poster" | "image-edit", buildParams: () => Promise<Record<string, unknown>>) {
     setError(""); setAiResult(null); setAiTaskId(null); setBusy(true);
     try {
@@ -244,11 +252,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       setAiResult(url);
     } catch (e) {
       if (!aliveRef.current) return; // view gone, nothing to render
-      const message = e instanceof Error ? e.message : String(e);
-      // G3: the shared metered slot is held (chat or agent run), honest, retryable
-      setError(message.includes("already running")
-        ? "A generation is already running (chat or another tool). Wait for it to finish and try again."
-        : `The task failed: ${message}`);
+      setError(taskErrorMessage(e));
       setAiResult(null);
     } finally {
       if (aliveRef.current) { setBusy(false); setAiTaskId(null); }
@@ -333,6 +337,13 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
    *  never write anything to disk. */
   async function runPptTranslate() {
     const file = fileRef.current?.files?.[0]; if (!file) return;
+    // Pre-flight the SAME rules the IPC layer enforces, so the seller sees the
+    // real reason instead of the generic "Invalid request" a schema rejection maps to.
+    if (!/\.pptx$/i.test(file.name)) { setError("Choose a PowerPoint .pptx file."); return; }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(`That deck is ${Math.round(file.size / (1024 * 1024))} MB. The limit is 25 MB, save a smaller copy first.`);
+      return;
+    }
     setBusy(true); setError(""); setSavedPath(null);
     try {
       const up = await oia().uploadAsset(file.name, new Uint8Array(await file.arrayBuffer()));
@@ -343,7 +354,7 @@ export function ToolRunner({ kind, onOpenProject }: { kind: ToolKind; onOpenProj
       if (!res.ok) throw new Error(`reading the translated file failed (HTTP ${res.status})`);
       await download(new Uint8Array(await res.arrayBuffer()), file.name.replace(/\.pptx$/i, "") + `-${pptLanguage.toLowerCase()}.pptx`);
     } catch (e) {
-      if (aliveRef.current) setError(`The translation failed: ${e instanceof Error ? e.message : String(e)}`);
+      if (aliveRef.current) setError(taskErrorMessage(e, "The translation"));
     } finally {
       if (aliveRef.current) { setBusy(false); setAiTaskId(null); }
     }

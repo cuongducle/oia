@@ -27,3 +27,9 @@ export function isImageExt(ext: string): boolean {
 export function fileExtOf(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
+
+/** Upload size cap shared by BOTH intake paths (renderer IPC validation and
+ *  any pre-upload UI check). The renderer cannot import shared/ipc.ts (zod is
+ *  not preload-loadable under sandbox), so the constant lives HERE, the single
+ *  home, and ipc.ts re-exports it. */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB, generous for product photos and decks, small enough to guard IPC

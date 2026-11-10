@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ServiceContext } from "@oia/services";
 import { isMeteredBusy, releaseMeteredJob, trackMeteredJob } from "@oia/services";
-import type { TaskType } from "@oia/schema";
+import { LOCAL_TASK_TYPES, type TaskType } from "@oia/schema";
 import type { AgentJobFrame } from "../shared/bridge.js";
 
 /**
@@ -75,7 +75,11 @@ export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmi
   return {
     submit(type, body) {
       const guardId = `${deps.idPrefix ?? "agent"}-${randomUUID()}`;
-      if (metered()) {
+      // Provider-free tasks (LOCAL_TASK_TYPES) never burn quota, so they neither
+      // wait for the slot nor hold it: a free remove-background must not be
+      // refused (nor block a paid generation) because a chat run is in flight.
+      const reserved = metered() && !LOCAL_TASK_TYPES.has(type);
+      if (reserved) {
         if (isMeteredBusy()) return Promise.reject(new MeteredBusyError());
         trackMeteredJob(guardId);
       }
@@ -91,7 +95,7 @@ export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmi
           clearTimeout(fallbackTimer);
           armedFallbacks.delete(fallbackTimer);
         }
-        releaseMeteredJob(guardId);
+        if (reserved) releaseMeteredJob(guardId);
         emitSafe(ok ? "succeeded" : "failed", taskId, type);
       };
 
@@ -107,15 +111,17 @@ export function createGuardedSubmitter(deps: GuardedSubmitterDeps): GuardedSubmi
           emitSafe("submitted", t.taskId, type);
           // fallback ONLY (background mode, sync mode has already settled inside
           // submit): a handler wedged past every provider timeout must not pin the
-          // guard forever. Arms nothing when settled: no pin, no spurious "failed".
-          if (!settled) {
+          // guard forever. Arms nothing when settled OR when nothing was reserved
+          // (a free local task pins no slot; a stuck record is the store's own
+          // processing state, never a false "failed" fired from here).
+          if (!settled && reserved) {
             fallbackTimer = setTimeout(() => settle(t.taskId, false), deps.fallbackTtlMs ?? 15 * 60_000);
             armedFallbacks.add(fallbackTimer);
           }
           return { taskId: t.taskId, progress: t.progress };
         })
         .catch((err: unknown) => {
-          releaseMeteredJob(guardId); // submit itself failed, the reservation must not leak
+          if (reserved) releaseMeteredJob(guardId); // submit itself failed, the reservation must not leak
           throw err;
         });
     },

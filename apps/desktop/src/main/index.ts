@@ -1980,17 +1980,36 @@ async function shot(): Promise<void> {
   }
 
   // ---- SG-8: non-destructive Crop on the selected image. Pin the full loop:
-  //  button → marquee+shades on canvas (never in scene JSON) → shrink → apply →
-  //  clipPath on the layer AND in serialized scene → undo removes it → cancel
-  //  path leaves the layer untouched. "Khôi phục và export sau crop" also needs
-  //  the roundtrip: reload the serialized scene and check the clip survived.
+  //  button → marquee+shades (never in scene JSON, NEVER in the undo stack: the
+  //  session is view-layer, the C3/ME rule) → shrink → apply → cumulative clip on
+  //  the layer AND in serialized scene → undo removes it → cancel path leaves the
+  //  layer untouched → a SECOND crop starts from the visible region and can only
+  //  shrink it. The reload roundtrip checks the clip survived serialization.
   const crop = await win.webContents.executeJavaScript(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const c = (window).__oiaCanvas;
     const img = c.getObjects().find((o) => typeof o.get("src") === "string");
     if (!img) return { ok: false, why: "no image layer" };
     const countBefore = c.getObjects().length;
+    const histLen = () => (window).__oiaHistoryLen ? (window).__oiaHistoryLen() : -1;
+    // A1 regression, part 1: the session helpers must never serialize. If they
+    // did, an autosave mid-session would write black shade rects into the file.
+    const midSessionClean = await (async () => {
+      const h0 = histLen();
+      c.setActiveObject(img); c.requestRenderAll(); await wait(150);
+      document.querySelector('[data-testid="ctx-crop"]')?.click(); await wait(300);
+      const serializedClean = c.toObject().objects.length === countBefore;
+      // simulate a user marquee drag landing: the event must NOT push history
+      const marquee = c.getObjects()[c.getObjects().length - 1];
+      c.fire("object:modified", { target: marquee }); await wait(100);
+      const histStable = histLen() === h0;
+      document.querySelector('[data-testid="crop-cancel"]')?.click(); await wait(250);
+      const cancelledClean = c.toObject().objects.length === countBefore && histLen() === h0;
+      return { ok: serializedClean && histStable && cancelledClean, serializedClean, histStable, cancelledClean };
+    })();
+    if (!midSessionClean.ok) return { ok: false, why: "session leaked into scene/undo", midSessionClean };
     const clipBefore = Boolean(img.get("clipPath"));
+    const hApply = histLen();
     c.setActiveObject(img); c.requestRenderAll();
     await wait(150);
     document.querySelector('[data-testid="ctx-crop"]')?.click();
@@ -2006,6 +2025,8 @@ async function shot(): Promise<void> {
     document.querySelector('[data-testid="crop-apply"]')?.click();
     await wait(300);
     const clipApplied = Boolean(img.get("clipPath"));
+    // A1 regression, part 2: the whole session+apply cost EXACTLY one history entry
+    const histOnePush = histLen() === hApply + 1;
     const helpersGone = c.getObjects().length === countBefore;
     const sceneJson = JSON.stringify(c.toObject());
     const serialized = sceneJson.includes('"clipPath"');
@@ -2030,12 +2051,46 @@ async function shot(): Promise<void> {
     document.querySelector('[data-testid="crop-cancel"]')?.click(); await wait(250);
     const img3 = c.getObjects().find((o) => typeof o.get("src") === "string");
     const cancelClean = Boolean(img3) && !img3.get("clipPath") && c.getObjects().length === countBefore;
-    const ok = clipApplied && helpersGone && serialized && reloadedClip && rendered && undoCleared && cancelClean;
-    return { ok, clipApplied, helpersGone, serialized, reloadedClip, rendered, undoCleared, cancelClean, clipBefore };
+    // A2 regression: a SECOND crop must start from the VISIBLE region and can
+    // only shrink it. Crop half the image, open a new session (the initial
+    // marquee must be smaller than the full image width), apply a second crop
+    // (the local clip area must SHRINK, never reveal), then undo both.
+    const secondCrop = await (async () => {
+      const imgA = c.getObjects().find((o) => typeof o.get("src") === "string");
+      if (!imgA) return { ok: false, why: "no image" };
+      const bb = imgA.getBoundingRect();
+      // first crop: top-left half
+      c.setActiveObject(imgA); c.requestRenderAll(); await wait(150);
+      document.querySelector('[data-testid="ctx-crop"]')?.click(); await wait(300);
+      const m1 = c.getObjects()[c.getObjects().length - 1];
+      m1.set({ left: bb.left, top: bb.top, width: bb.width / 2, height: bb.height / 2, scaleX: 1, scaleY: 1 }); m1.setCoords();
+      document.querySelector('[data-testid="crop-apply"]')?.click(); await wait(300);
+      const clip1 = imgA.get("clipPath");
+      const area1 = clip1 ? clip1.width * clip1.height : 0;
+      // second session: bounds must come from the clipped region
+      c.setActiveObject(imgA); c.requestRenderAll(); await wait(150);
+      document.querySelector('[data-testid="ctx-crop"]')?.click(); await wait(300);
+      const m2 = c.getObjects()[c.getObjects().length - 1];
+      const marqueeShrunk = m2.width < bb.width;
+      // apply a second crop on the top-left quarter of the DEFAULT inset rect
+      m2.set({ width: m2.width / 2, height: m2.height / 2, scaleX: 1, scaleY: 1 }); m2.setCoords();
+      document.querySelector('[data-testid="crop-apply"]')?.click(); await wait(300);
+      const clip2 = imgA.get("clipPath");
+      const area2 = clip2 ? clip2.width * clip2.height : 0;
+      const shrunk = area2 < area1;
+      // undo BOTH applies (each pushed exactly one history entry)
+      document.querySelector('.edTop [title="Undo"]')?.click(); await wait(300);
+      document.querySelector('.edTop [title="Undo"]')?.click(); await wait(300);
+      const imgB = c.getObjects().find((o) => typeof o.get("src") === "string");
+      const undone = Boolean(imgB) && !imgB.get("clipPath");
+      return { ok: marqueeShrunk && shrunk && undone, marqueeShrunk, area1: Math.round(area1 * 100) / 100, area2: Math.round(area2 * 100) / 100, shrunk, undone };
+    })();
+    const ok = clipApplied && histOnePush && helpersGone && serialized && reloadedClip && rendered && undoCleared && cancelClean && secondCrop.ok;
+    return { ok, clipApplied, histOnePush, helpersGone, serialized, reloadedClip, rendered, undoCleared, cancelClean, secondCrop, clipBefore };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] crop verify:", JSON.stringify(crop));
   if (!crop || !crop.ok) {
-    console.error("DESKTOP_SHOT CROP VERIFY FAILED (clip + serialize + reload + undo + cancel)");
+    console.error("DESKTOP_SHOT CROP VERIFY FAILED (clip + serialize + reload + undo + cancel + session hygiene + cumulative)");
     app.exit(25);
     return;
   }
@@ -2319,6 +2374,35 @@ async function shot(): Promise<void> {
   if (!pptBroken || !brokenRun || !brokenOk) {
     console.error("DESKTOP_SHOT PPT BROKEN-FILE VERIFY FAILED");
     app.exit(22);
+    return;
+  }
+
+  // A5 regression: an oversize deck must fail with the REAL reason before any
+  // upload, never the generic "Invalid request" a schema rejection maps to.
+  const oversize = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const back = [...document.querySelectorAll(".ghostBtn")].find((b) => b.textContent.includes("All tools"));
+    back?.click(); await wait(400);
+    [...document.querySelectorAll(".toolCard")].find((c) => c.textContent.includes("PPT Translator"))?.click();
+    await wait(400);
+    const input = document.querySelector(".toolRunner input[type=file]");
+    if (!input) return { ok: false, why: "no input" };
+    const big = new Uint8Array(26 * 1024 * 1024); // 26 MB, over the 25 MB cap, cheap to allocate
+    const dt = new DataTransfer();
+    dt.items.add(new File([big], "huge.pptx", { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await wait(150);
+    const btn = document.querySelector('[data-testid="ppt-translate-run"]');
+    if (!btn || btn.disabled) return { ok: false, why: "run not unlocked" };
+    btn.click(); await wait(400);
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: err.includes("25 MB"), err: err.slice(0, 120) };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] ppt oversize verify:", JSON.stringify(oversize));
+  if (!oversize || !oversize.ok) {
+    console.error("DESKTOP_SHOT PPT OVERSIZE VERIFY FAILED (the seller must see the size reason)");
+    app.exit(26);
     return;
   }
 

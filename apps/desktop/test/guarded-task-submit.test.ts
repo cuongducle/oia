@@ -3,11 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createServiceContext, type ServiceContext } from "@oia/services";
-import {
-  createGuardedSubmitter,
-  MeteredBusyError,
-  type GuardedJobEvent,
-} from "../src/utility/guardedTaskSubmit.js";
+import { createGuardedSubmitter, MeteredBusyError, type GuardedJobEvent } from "../src/utility/guardedTaskSubmit.js";
+import { LOCAL_TASK_TYPES } from "@oia/schema";
 
 /**
  * G3 (reorg step 4c), the guarded task submit core, extracted from loopback.ts so
@@ -81,6 +78,41 @@ afterAll(() => {
 afterEach(() => {
   // the guard set is globalThis-scoped, never let one test's reservation bleed into the next
   delete (globalThis as unknown as { __oiaMeteredInFlight?: unknown }).__oiaMeteredInFlight;
+});
+
+describe("guarded submit, local (provider-free) tasks bypass the metered slot", () => {
+  it("a LOCAL task is admitted even while a metered task holds the slot (remove-background must not be refused for a free job)", async () => {
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 60_000);
+    const { open } = gateProcessor(ctx); // generate-poster holds the slot
+    const held = s.submit("generate-poster", { prompt: "holds the slot", noWait: false });
+    await new Promise((r) => setTimeout(r, 25)); // let the reservation land first
+    ctx.taskStore.register("remove-background", async () => ({ urls: ["/api/files/local-cut.png"], note: "local" }));
+    const local = await s.submit("remove-background", { fileUrl: "/api/files/in.png", noWait: true });
+    expect(local.progress).toBe("succeeded"); // OLD behavior: MeteredBusyError for a FREE task
+    open();
+    await Promise.all([awaitTerminal(events, local.taskId), awaitTerminal(events, (await held).taskId)]);
+    s.dispose();
+  });
+  it("a LOCAL task in flight does NOT hold the slot: a metered submit is admitted immediately", async () => {
+    const ctx = await freshCtx();
+    const events: GuardedJobEvent[] = [];
+    const s = makeSubmitter(ctx, events, 60_000);
+    let openLocal!: () => void;
+    ctx.taskStore.register("remove-background", async () => {
+      await new Promise<void>((r) => (openLocal = r));
+      return { urls: ["/api/files/local-slow.png"], note: "slow local" };
+    });
+    const localStarted = s.submit("remove-background", { fileUrl: "/api/files/in.png", noWait: false });
+    await new Promise((r) => setTimeout(r, 25));
+    ctx.taskStore.register("generate-poster", async () => ({ urls: ["/api/files/paid.png"], note: "paid" }));
+    const paid = await s.submit("generate-poster", { prompt: "paid while local runs", noWait: true }); // OLD behavior: refused because the local task pinned the slot
+    expect(paid.progress).toBe("succeeded");
+    openLocal();
+    await Promise.all([awaitTerminal(events, paid.taskId), awaitTerminal(events, (await localStarted).taskId)]);
+    s.dispose();
+  });
 });
 
 describe("guarded submit, the TOCTOU window stays closed", () => {

@@ -39,10 +39,9 @@ export const dataImportWebSchema = z.object({ sourceDir: z.string().max(1024) })
 
 /** Editor/task input uploads, bytes via structured clone. Images stay the canvas
  *  asset path; SG-7 adds .pptx as a ppt-translate task INPUT (single allowlist home). */
-import { isUploadExt, fileExtOf, IMAGE_EXTS } from "@oia/schema";
+import { isUploadExt, fileExtOf, IMAGE_EXTS, MAX_UPLOAD_BYTES } from "@oia/schema";
 
-export { IMAGE_EXTS };
-export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB, generous for product photos and decks, small enough to guard IPC
+export { IMAGE_EXTS, MAX_UPLOAD_BYTES };
 export const filesUploadSchema = z
   .object({
     name: z.string().min(1).max(255),

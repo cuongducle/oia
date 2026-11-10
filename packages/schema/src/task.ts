@@ -27,6 +27,14 @@ export const taskTypeSchema = z.enum([
 ]);
 export type TaskType = z.infer<typeof taskTypeSchema>;
 
+/** Task types whose processors NEVER touch a provider (rembg CLI, local ONNX
+ *  SAM/Lens). The guarded submit lanes use this to skip the single metered-slot
+ *  reservation for them: a free local task must not be refused (nor block a
+ *  paid generation) because a chat run holds the slot. Quota is money, but
+ *  these burn none. Adding a task here is a quota-semantics decision: the
+ *  processor must stay provider-free in @oia/tasks. */
+export const LOCAL_TASK_TYPES: ReadonlySet<TaskType> = new Set(["remove-background", "segment-image", "recognize-fonts"]);
+
 /** CommonResult envelope. */
 export const commonResultSchema = <T extends z.ZodTypeAny>(data: T) =>
   z.object({ code: z.number(), data: data, msg: z.string() });

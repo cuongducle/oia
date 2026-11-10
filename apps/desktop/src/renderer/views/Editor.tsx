@@ -25,7 +25,7 @@ import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
-import { marqueeToClipRect, clampMarquee, shadeRects, type Rect } from "../lib/crop.js";
+import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, type Rect } from "../lib/crop.js";
 import { dataUrlBytes } from "../lib/data-url.js";
 import type { ChatRequest } from "@oia/services";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
@@ -342,8 +342,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setTimeout(() => captureThumb(0), 150);
 
       (window as unknown as { __oiaCanvas?: fabricNS.Canvas }).__oiaCanvas = editor;
+      // SG-8 regression gate: the crop session must not push junk snapshots
+      // (marquee/shade adds, removes, drags) into the undo stack.
+      (window as unknown as { __oiaHistoryLen?: () => number }).__oiaHistoryLen = () => undoStack.current.length;
       const pushHistory = () => {
         if (restoring.current) return;
+        // A crop session mutates only its own helper objects: their add/remove/
+        // drag events must never reach the undo stack or autosave (the session
+        // is view-layer, the C3/ME rule; the ONE history-worthy change is the
+        // clip itself, applied after teardown when cropRef is null again).
+        if (cropRef.current) return;
         undoStack.current.push(JSON.stringify(editor.toObject()));
         if (undoStack.current.length > 40) undoStack.current.shift();
         redoStack.current = [];
@@ -729,6 +737,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
    *  NEVER touched: the seller keeps the original, with the honest reason. */
   const removeBgRunRef = useRef(0);
   const removeBgBusyRef = useRef(false);
+  /** B7/aliveRef pattern: leaving the editor STOPS THE POLL but never the task,
+   *  the local run keeps going and stays visible in the For Agents feed. */
+  const removeBgAliveRef = useRef(true);
+  useEffect(() => () => { removeBgAliveRef.current = false; }, []);
+  const [removeBgTaskId, setRemoveBgTaskId] = useState<string | null>(null);
+  async function cancelRemoveBackground() {
+    const id = removeBgTaskId;
+    if (!id) return;
+    try { await oia().cancelTask(id); } catch { setNotice("The task could not be cancelled, it will finish on its own."); }
+  }
   async function runRemoveBackground() {
     const c = fabricRef.current;
     const obj = c?.getActiveObject() as (fabricNS.FabricImage & { src?: string }) | undefined;
@@ -745,7 +763,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       const bytes = dataUrlBytes(off.toDataURL("image/png"));
       const up = await oia().uploadAsset("remove-bg.png", bytes);
       const started = await oia().submitTask("remove-background", { fileUrl: up.url });
-      const final = await pollTask(started, { get: (id) => oia().getTask(id) });
+      setRemoveBgTaskId(started.taskId);
+      const final = await pollTask(started, { get: async (id) => {
+        if (!removeBgAliveRef.current) throw new Error("the editor was closed, the task keeps running in the background");
+        return oia().getTask(id);
+      } });
       const out = final.taskResult?.download;
       if (final.progress !== "succeeded" || !out) throw new Error(final.msg || final.taskNote || "the task failed");
       // replace in place, undo works through the normal object:modified history
@@ -759,9 +781,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       setAssets((a) => (a.includes(out) ? a : [...a, out]));
       if (myRun === removeBgRunRef.current) setNotice("Background removed. The cutout keeps its position; undo works as usual.");
     } catch (e) {
-      if (myRun === removeBgRunRef.current) setNotice(bridgeErrorMessage(e, "The background could not be removed. Please try again."));
+      const raw = e instanceof Error ? e.message : String(e);
+      if (myRun === removeBgRunRef.current && removeBgAliveRef.current) {
+        // sellers do not pip install: translate the setup gap, keep the cause honest
+        setNotice(raw.includes("rembg is not installed")
+          ? "Background removal is not set up on this machine yet (it needs the free rembg tool, a one-time install from the README)."
+          : bridgeErrorMessage(e, "The background could not be removed. Please try again."));
+      }
     } finally {
       removeBgBusyRef.current = false;
+      setRemoveBgTaskId(null);
     }
   }
   /** ===== SG-8 crop: non-destructive clipPath crop on the selected image =====
@@ -772,6 +801,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   interface CropSession {
     target: fabricNS.FabricImage & { src?: string };
     bounds: Rect;
+    /** The clip the layer had BEFORE this session (null = uncropped); Apply
+     *  intersects with it so crops accumulate instead of replacing. */
+    prevClip: Rect | null;
     marquee: fabricNS.Rect;
     shades: fabricNS.Rect[];
     prev: { selectable: boolean; evented: boolean };
@@ -811,26 +843,37 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     obj.set({ selectable: false, evented: false });
     c.discardActiveObject();
     const b = obj.getBoundingRect();
-    const bounds: Rect = { left: b.left, top: b.top, width: b.width, height: b.height };
+    let bounds: Rect = { left: b.left, top: b.top, width: b.width, height: b.height };
+    // Already cropped once? The session must work on the VISIBLE region, not the
+    // full original: bounds shrink to the current clip, and Apply INTERSECTS the
+    // new marquee with the old clip (below), so a second crop can never reveal
+    // what the first one cut away. The AABB is only the marquee clamp; the
+    // apply-time intersection happens in exact local space.
+    const oldClip = readableCropClip(obj);
+    if (oldClip) bounds = intersectRect(bounds, clipWorldAABB(oldClip, obj.calcTransformMatrix() as number[])) ?? bounds;
     const inset = { x: Math.max(8, bounds.width * 0.12), y: Math.max(8, bounds.height * 0.12) };
     const marquee = new fabric.Rect({
       ...clampMarquee({ left: bounds.left + inset.x, top: bounds.top + inset.y, width: bounds.width - inset.x * 2, height: bounds.height - inset.y * 2 }, bounds, 8),
       fill: "rgba(0,0,0,0)", stroke: "#7c3aed", strokeWidth: 2 / (c.viewportTransform?.[0] ?? 1), strokeDashArray: [6, 4],
       cornerColor: "#7c3aed", cornerStrokeColor: "#ffffff", transparentCorners: false, borderColor: "#7c3aed",
+      excludeFromExport: true, // session helpers NEVER serialize into scene JSON (the C3/ME lesson)
     });
     const shades = shadeRects({ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }, bounds).map((r) =>
-      new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false }));
-    shades.forEach((s) => c.add(s));
-    c.add(marquee);
-    c.setActiveObject(marquee);
+      new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false, excludeFromExport: true }));
     const session: CropSession = {
-      target: obj, bounds, marquee, shades, prev,
+      target: obj, bounds, prevClip: oldClip, marquee, shades, prev,
       onMoving: (e) => { if (e.target === marquee) syncCropShades(session); },
       onScaling: (e) => { if (e.target === marquee) syncCropShades(session); },
     };
+    // Suspend history/autosave BEFORE the helpers land on the canvas: their
+    // object:added events fire synchronously inside c.add, a flag set after the
+    // adds would let every helper push a junk snapshot (found by the shot gate).
     cropRef.current = session;
     c.on("object:moving", session.onMoving);
     c.on("object:scaling", session.onScaling);
+    shades.forEach((s) => c.add(s));
+    c.add(marquee);
+    c.setActiveObject(marquee);
     c.requestRenderAll();
     setCropping(true);
   }
@@ -848,12 +891,30 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setCropping(false);
     return s;
   }
+  /** The existing clip, but ONLY when it is exactly the shape applyCrop writes
+   *  (rect + center origin + finite numbers). Anything else (a foreign clipPath
+   *  from a future feature) is treated as "no clip": bounds stay full and Apply
+   *  replaces, the v1 behavior, rather than intersecting against a guess. */
+  function readableCropClip(obj: CropSession["target"]): Rect | null {
+    const clip = obj.clipPath as Partial<Rect> & { originX?: string; originY?: string; type?: string } | undefined;
+    if (!clip || clip.type !== "rect" || clip.originX !== "center" || clip.originY !== "center") return null;
+    if (![clip.left, clip.top, clip.width, clip.height].every((v) => typeof v === "number" && Number.isFinite(v))) return null;
+    return { left: clip.left!, top: clip.top!, width: clip.width!, height: clip.height! };
+  }
   async function applyCrop() {
     const s = teardownCrop();
     const c = fabricRef.current;
     if (!s || !c) return;
     const rect = clampMarquee(marqueeRectOf(s), s.bounds, 8);
-    const clip = marqueeToClipRect(rect, s.target.calcTransformMatrix() as number[]);
+    const marqueeClip = marqueeToClipRect(rect, s.target.calcTransformMatrix() as number[]);
+    // Cumulative: intersect with the PREVIOUS crop in exact local space so a
+    // second crop can only shrink the visible region, never reveal cut content.
+    const oldClip = s.prevClip ?? null;
+    const tl = centerRectToTL(marqueeClip);
+    const full: Rect = { left: -(s.target.width ?? 0) / 2, top: -(s.target.height ?? 0) / 2, width: s.target.width ?? 0, height: s.target.height ?? 0 };
+    const final = intersectRect(tl, oldClip ? centerRectToTL(oldClip) : full);
+    if (!final) return; // disjoint (rotated-layer AABB slack): leave the layer unchanged
+    const clip = tlRectToCenter(final);
     // zero-size only: sub-UNIT clips are legitimate (a paint-scaled 1x1 image
     // lives in a 0..1 local space, image-scales.ts)
     if (clip.width <= 0 || clip.height <= 0) return;
@@ -1367,7 +1428,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         </button>
       </div>
 
-      {notice && <div className="notice" role="status" style={{ margin: 0, borderRadius: 0, display: "flex", justifyContent: "space-between", padding: "6px 16px" }}>{notice}<button className="iconBtn" aria-label="Dismiss notice" onClick={() => setNotice("")}><I d={icons.x} size={13} /></button></div>}
+      {notice && <div className="notice" role="status" style={{ margin: 0, borderRadius: 0, display: "flex", justifyContent: "space-between", padding: "6px 16px", gap: 8 }}>{notice}<span style={{ display: "flex", gap: 6, alignItems: "center" }}>{removeBgTaskId && <button className="fileLinkBtn" data-testid="remove-bg-stop" onClick={() => void cancelRemoveBackground()}>Stop</button>}<button className="iconBtn" aria-label="Dismiss notice" onClick={() => setNotice("")}><I d={icons.x} size={13} /></button></span></div>}
       <div className="edBody">
         {/* Left rail */}
         <nav className="rail" aria-label="Editor tools">

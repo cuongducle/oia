@@ -69,3 +69,41 @@ export function shadeRects(marquee: Rect, bounds: Rect): Rect[] {
     { left: marquee.left + marquee.width, top: marquee.top, width: Math.max(0, bounds.left + bounds.width - marquee.left - marquee.width), height: marquee.height },
   ];
 }
+
+/** Center-origin rect (fabric clipPath layout) → top-left rect. */
+export function centerRectToTL(r: Rect): Rect {
+  return { left: r.left - r.width / 2, top: r.top - r.height / 2, width: r.width, height: r.height };
+}
+
+/** Top-left rect → center-origin rect. */
+export function tlRectToCenter(r: Rect): Rect {
+  return { left: r.left + r.width / 2, top: r.top + r.height / 2, width: r.width, height: r.height };
+}
+
+/** Axis-aligned intersection in top-left space; null when disjoint or degenerate. */
+export function intersectRect(a: Rect, b: Rect): Rect | null {
+  const left = Math.max(a.left, b.left);
+  const top = Math.max(a.top, b.top);
+  const right = Math.min(a.left + a.width, b.left + b.width);
+  const bottom = Math.min(a.top + a.height, b.top + b.height);
+  if (right - left <= 0 || bottom - top <= 0) return null;
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/** The local-space AABB of a center-origin clip rect mapped through the object
+ *  matrix into canvas space. Exact for axis-aligned layers; for rotated layers
+ *  the AABB only CLAMPS the marquee, the apply-time local intersection stays exact. */
+export function clipWorldAABB(clipCenter: Rect, matrix: number[]): Rect {
+  const tl = centerRectToTL(clipCenter);
+  const corners: Point[] = [
+    { x: tl.left, y: tl.top },
+    { x: tl.left + tl.width, y: tl.top },
+    { x: tl.left, y: tl.top + tl.height },
+    { x: tl.left + tl.width, y: tl.top + tl.height },
+  ].map((p) => apply(matrix, p));
+  const xs = corners.map((p) => p.x);
+  const ys = corners.map((p) => p.y);
+  const left = Math.min(...xs);
+  const top = Math.min(...ys);
+  return { left, top, width: Math.max(...xs) - left, height: Math.max(...ys) - top };
+}

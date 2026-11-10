@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { marqueeToClipRect, clampMarquee, shadeRects, type Rect } from "../src/renderer/lib/crop.js";
+import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, type Rect } from "../src/renderer/lib/crop.js";
 
 /**
  * SG-8 gates, pure math (no fabric): the marquee → clipPath mapping must be
@@ -49,6 +49,33 @@ describe("SG-8 clampMarquee", () => {
   });
   it("never below the min size", () => {
     expect(clampMarquee({ left: 10, top: 10, width: 1, height: 1 }, bounds, 8)).toMatchObject({ width: 8, height: 8 });
+  });
+});
+
+describe("SG-8 cumulative crop helpers (A2)", () => {
+  it("centerRectToTL / tlRectToCenter round-trip", () => {
+    const r = { left: 10, top: 20, width: 100, height: 50 };
+    expect(tlRectToCenter(centerRectToTL(r))).toEqual(r);
+  });
+  it("intersectRect: overlap, disjoint, edge-touch", () => {
+    expect(intersectRect({ left: 0, top: 0, width: 100, height: 100 }, { left: 50, top: 50, width: 100, height: 100 }))
+      .toEqual({ left: 50, top: 50, width: 50, height: 50 });
+    expect(intersectRect({ left: 0, top: 0, width: 10, height: 10 }, { left: 20, top: 20, width: 10, height: 10 })).toBeNull();
+    expect(intersectRect({ left: 0, top: 0, width: 10, height: 10 }, { left: 10, top: 0, width: 10, height: 10 })).toBeNull(); // touching edge is NOT an intersection
+  });
+  it("clipWorldAABB: identity keeps the rect, rotation swaps axes into an AABB", () => {
+    const clip = { left: 50, top: 25, width: 100, height: 50 }; // center-origin
+    expect(clipWorldAABB(clip, [1, 0, 0, 1, 0, 0])).toEqual({ left: 0, top: 0, width: 100, height: 50 });
+    // 90° rotation about the origin: (x,y)→(-y,x), so [0..100]x[0..50] lands in x∈[-50..0], y∈[0..100]
+    expect(clipWorldAABB(clip, [0, 1, -1, 0, 0, 0])).toEqual({ left: -50, top: 0, width: 50, height: 100 });
+    expect(clipWorldAABB(clip, [1, 0, 0, 1, 300, 200])).toEqual({ left: 300, top: 200, width: 100, height: 50 });
+  });
+  it("a second crop intersected with the first can only SHRINK the visible region", () => {
+    const first = { left: 0, top: 0, width: 100, height: 100 }; // top-left space
+    const secondInside = { left: 25, top: 25, width: 200, height: 200 }; // user drags beyond, marquee clamp still inside image
+    const overlap = intersectRect(first, secondInside)!;
+    expect(overlap).toEqual({ left: 25, top: 25, width: 75, height: 75 });
+    expect(overlap.width * overlap.height).toBeLessThan(first.width * first.height);
   });
 });
 
