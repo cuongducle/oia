@@ -43,7 +43,7 @@ chỉ gồm những gì đã thấy. Mục nào chưa kiểm thì ghi rõ.
 | SG-5 | Nền phức tạp sau tách chữ: nghiên cứu inpaint local 0 quota | Chưa hoàn thiện | M | Trung bình |
 | SG-6 | Benchmark chất lượng đa ảnh cho D22/D23 | Chưa hoàn thiện | M | Cao |
 | SG-7 | Wire PPT Translator vào UI tools (skill đã có) | Hoàn thành | S | Cao |
-| SG-8 | Crop ảnh trong editor toolbar | Thiếu | S | Trung bình |
+| SG-8 | Crop ảnh trong editor toolbar | Hoàn thành | S | Trung bình |
 | SG-9 | Nút Remove background trên ContextToolbar ảnh | Hoàn thành | S | Trung bình |
 | SG-10 | Draw tool: layer vẽ tay | Thiếu | M | Thấp |
 | SG-11 | Table trong editor | Thiếu | M | Thấp |
@@ -212,7 +212,7 @@ Việc cần làm:
 3. Shot gate ToolRunner chạy tới completions với file PPTX mẫu nhỏ, error path
    là file hỏng phải báo rõ không crash.
 
-### SG-8. Crop ảnh trong editor toolbar
+### SG-8. Crop ảnh trong editor toolbar — DONE (commit bb77a04, gates: 11 unit test crop.ts thuần (identity/translate/scale/xoay 90 độ/matrix suy biến), shot gate toàn vòng: marquee+shades không vào scene JSON, apply đặt clipPath, serialize + loadFromJSON roundtrip giữ clip, render không đổ, undo xóa clip, cancel không đụng layer; desktop 238; smoke; crash-smoke)
 
 Khoảng trống: ContextToolbar ảnh hiện có Replace, Edit with AI, Circle to edit,
 Make text editable, Split layer (`ContextToolbar.tsx`). Không có Crop. (Crop
