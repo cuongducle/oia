@@ -56,6 +56,9 @@ adversarial self-review; fixed in `442fdf4`. Recorded here because each one is a
 - **Fix:** `before-quit` prevents default, awaits `cancelAll` bounded at 3 s
   (abort → CliRuntime kills the trees), then kills; the utility traps SIGTERM
   and cancels everything before exiting.
+- **Gate:** `test/shutdown-sequence.test.ts` (the sequence extracted as a seam):
+  cancelAll settles BEFORE the kill, a wedged cancelAll is bounded (kill +
+  exit at 3 s), a rejecting cancelAll never blocks the kill.
 - **Pattern:** any detached-child owner needs a shutdown handler that first
   signals the children, THEN dies, and the wait must be bounded so quit can
   never hang.
@@ -69,6 +72,10 @@ adversarial self-review; fixed in `442fdf4`. Recorded here because each one is a
 - **Fix:** per-command timeouts (chatRun 12 min, above the codex budget,
   init/rebuild 2 min, default 30 s) fail fast as `UtilityTimeout`; the pending
   entry is removed so a late response is dropped, not resolved into nothing.
+- **Gate:** `test/utility-timeout.test.ts`: a wedged call fails fast as
+  `UtilityTimeout`, the late response is dropped and the client stays usable,
+  chatRun outlives the 480 s codex budget while store calls hit the default
+  bound, and a crash rejects pending calls as `UtilityProcessCrashed`.
 - **Pattern:** every cross-process call needs a deadline. Choose per-command,
   not one global number, a chat and a store read do not share a budget.
 

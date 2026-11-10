@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { IPC } from "../shared/channels.js";
 import { appMenuTemplate, smokeModeFromEnv, resolveUserDataOverride } from "./releaseGate.js";
+import { shutdownSequence } from "./shutdownSequence.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
 import { fixturePngB64, fixturePptxB64, brokenPptxB64 } from "./shotFixture.js";
 
@@ -2582,18 +2583,13 @@ app.on("before-quit", (e) => {
   if (shuttingDown) return;
   shuttingDown = true;
   e.preventDefault();
-  void (async () => {
-    // Give in-flight generations one honest chance to die BEFORE the kill: cancel
-    // aborts the controllers → CliRuntime kills the detached codex trees. Fire-and-
-    // forget here would race SIGTERM and could orphan a quota-burning child (the
-    // TP-D5 regression this fixes). Bounded so quit never hangs.
-    await Promise.race([
-      utility.call({ cmd: "cancelAll" }).catch(() => {}),
-      new Promise((r) => setTimeout(r, 3000)),
-    ]);
-    utility.kill();
-    app.exit(0);
-  })();
+  // TP-D5 / bug-repro #3: order (cancel settles BEFORE the kill) and the 3s
+  // bound are pinned by test/shutdown-sequence.test.ts through this seam.
+  void shutdownSequence({
+    cancelAll: () => utility.call({ cmd: "cancelAll" }),
+    kill: () => utility.kill(),
+    exit: () => app.exit(0),
+  });
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

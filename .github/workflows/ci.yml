@@ -137,6 +137,12 @@ jobs:
         env:
           OIA_LENS_PYTHON: ${{ github.workspace }}/.lens-venv/bin/python
       - run: pnpm --filter @oia/desktop dist:mac
+      # SG-2: boot the JUST-BUILT installer end to end against a throwaway
+      # userData (renderer + utility + one mock task) and prove bad
+      # OIA_USER_DATA_DIR values fail fast with exit 66. Catches packaging-only
+      # traps (asar paths, ad-hoc keychain fuses) on every tag, not on the
+      # owner's machine. The script self-filters: macOS layout is the default.
+      - run: pnpm --filter @oia/desktop packaged-smoke
       - name: sha256
         run: shasum -a 256 apps/desktop/dist/*.dmg > apps/desktop/dist/checksums.txt && cat apps/desktop/dist/checksums.txt
       - uses: actions/upload-artifact@v7
