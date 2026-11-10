@@ -71,6 +71,7 @@ process.on("SIGTERM", () => {
 });
 
 import { Sam3Segmenter } from "./segmentation/engine.js";
+import { resolveSegmentRuntime } from "./segmentation/runner.js";
 import { LensRecognizer } from "./lens.js";
 import { SegmentModelManager } from "./segmentation/models.js";
 
@@ -145,7 +146,12 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       userDataDir = req.userDataDir;
       serviceEnv = req.env;
       segmentModels.setDir(path.join(userDataDir, "models", "sam3"));
-      segmenter ??= new Sam3Segmenter(segmentModels);
+      // capability gate (segmentation-process-plan.md): without the sidecar
+      // runtime there is no segmenter, the task lane raises
+      // capability_unsupported instead of crashing the utility process.
+      // Created at most once: re-init (mode change) must not leak a runner child.
+      const rt = req.segmentDir ? resolveSegmentRuntime(req.segmentDir) : null;
+      if (rt && !segmenter) segmenter = new Sam3Segmenter(segmentModels, rt);
       await startServices(req.env);
       log(`ctx ready (dataDir=${dataDir})`);
       return null;

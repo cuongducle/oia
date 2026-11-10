@@ -596,3 +596,8 @@ chờ máy vật lý (D3). Chi tiết bằng chứng, khảo sát ngành (node-l
 chạy tay Node thuần giữ tại `apps/desktop/test/segment-real.manual.test.ts`.
 Vụ này cũng xác nhận giá trị của gate e2e thật: 13 test unit + smoke mock đều
 xanh trong khi feature không chạy nổi 1 giây trong app thật.
+
+## Ghi nhận ship sidecar SAM (option A, 2026-11-10, owner "A đi")
+
+Triển khai trọn vẹn trong ngày quyết định: crate Rust `segment-runner`
+(JSON-lines, ORT load-dynamic từ lib pin 1.31.1, cache vision LRU 2 trong\nrunner), client `runner.ts` Electron-free có test error-path bằng fake runner\nthật (crash giữa chừng chỉ là promise reject + respawn, generation bump xóa\ncache), engine giữ nguyên tokenize/preprocess/postprocess (chất lượng trùng\nkhớp tuyệt đối bản in-process), capability gate khi thiếu sidecar,\nprepare-segment + extraResources + Rust toolchain trong cả hai dist job CI.\nE2E đã pass: Node thuần qua sidecar (18,6 giây, box/score trùng), GUI trên dev,\nGUI trên macOS ĐÓNG GÓI (toast "1 layer cut out" ~20 giây, không crash). Một\nbug path đóng gói bắt được khi chạy thật: packaged ghép resourcesPath +\n"resources" thành đường kép, sửa theo pattern codex. Bẫy keychain ad-hoc tái\ndiễn đúng như ghi nhận (mỗi lần build local mới), script packaged-smoke tự dọn\nđủ. Chi tiết đầy đủ: segmentation-process-plan.md (status: implemented).

@@ -79,7 +79,7 @@ async function ensureUtility(): Promise<void> {
     utility.start();
     const mode = await effectiveMode();
     if (ctxMode === mode && utility.gen === ctxGeneration) return;
-    await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), userDataDir: app.getPath("userData"), env: await contextEnv() });
+    await utility.call({ cmd: "init", dataDir: path.join(app.getPath("userData"), "data"), userDataDir: app.getPath("userData"), env: await contextEnv(), segmentDir: path.join(app.isPackaged ? process.resourcesPath : path.join(app.getAppPath(), "resources"), "segment", `${process.platform}-${process.arch}`) });
     ctxMode = mode;
     ctxGeneration = utility.gen;
   });

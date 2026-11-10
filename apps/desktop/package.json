@@ -15,12 +15,13 @@
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
     "shot:busy": "electron-vite build && cross-env OIA_DESKTOP_SHOT_BUSY=1 electron .",
     "prepare-lens": "node scripts/prepare-lens.mjs",
+    "prepare-segment": "node scripts/prepare-segment.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "dist:mac": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac",
-    "dist:mac:dir": "node scripts/fetch-codex.mjs && electron-vite build && electron-builder --mac --dir",
-    "dist:win": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && electron-vite build && electron-builder --win --x64",
-    "dist:win:dir": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && electron-vite build && electron-builder --win --x64 --dir"
+    "dist:mac": "node scripts/fetch-codex.mjs && node scripts/prepare-segment.mjs && electron-vite build && electron-builder --mac",
+    "dist:mac:dir": "node scripts/fetch-codex.mjs && node scripts/prepare-segment.mjs && electron-vite build && electron-builder --mac --dir",
+    "dist:win": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && node scripts/prepare-segment.mjs && electron-vite build && electron-builder --win --x64",
+    "dist:win:dir": "node scripts/fetch-codex.mjs --platform win32 --arch x64 && node scripts/prepare-segment.mjs && electron-vite build && electron-builder --win --x64 --dir"
   },
   "dependencies": {
     "@oia/canvas": "workspace:*",

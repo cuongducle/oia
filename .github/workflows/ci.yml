@@ -141,6 +141,12 @@ jobs:
       - run: pnpm --filter @oia/desktop prepare-lens
         env:
           OIA_LENS_PYTHON: ${{ github.workspace }}/.lens-venv/bin/python
+      # SAM sidecar (option A): the Rust runner builds in-runner; cargo cache
+      # keyed by the lockfile. The pinned ORT lib comes from node_modules.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/segment-runner
       - run: pnpm --filter @oia/desktop dist:mac
       # SG-2: boot the JUST-BUILT installer end to end against a throwaway
       # userData (renderer + utility + one mock task) and prove bad
@@ -183,6 +189,11 @@ jobs:
         env:
           PIP_DISABLE_PIP_VERSION_CHECK: "1"
       - run: pnpm --filter @oia/desktop prepare-lens
+      # SAM sidecar (option A): Rust runner + pinned ORT dll from node_modules.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/segment-runner
       - run: pnpm --filter @oia/desktop dist:win
       # the packaged app must carry the bundled pair where main/runtime.ts looks for it
       - name: bundled codex present

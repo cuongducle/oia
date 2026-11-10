@@ -3,7 +3,7 @@ type: "Design"
 title: "SAM local: chạy ngoài process Electron (kế hoạch sau sự cố SIGTRAP)"
 description: "Bằng chứng root cause crash onnxruntime-node trong mọi process Electron trên macOS, khảo sát cách các app khác xử lý native ML inference, và các phương án kèm khuyến nghị."
 tags: [design, segmentation, electron, onnx]
-status: proposed
+status: implemented
 generated: { by: agent, at: 2026-11-10T00:00:00Z }
 owner: cuongducle
 ---
@@ -122,8 +122,45 @@ nên mọi biến thể "chạy Node bên trong binary Electron" đều chết.
 
 ## 5. Vết lại
 
-- Log thí nghiệm: /tmp đã xoá; con số then chốt đều ghi trong doc này.
-- Gate Node thuần: `apps/desktop/test/segment-real.manual.test.ts` (chạy:
-  `pnpm --filter @oia/desktop exec vitest run test/segment-real.manual.test.ts`).
+- Gate Node thuần (sidecar thật): `apps/desktop/test/segment-real.manual.test.ts`
+  (`pnpm --filter @oia/desktop exec vitest run test/segment-real.manual.test.ts`,
+  cần `node scripts/prepare-segment.mjs` + models dir). Con số then chốt đều
+  ghi trong doc này; log thí nghiệm /tmp đã xoá.
 - Model tải lần đầu nằm ở `<userData>/models/sam3` của dir test
   `~/Desktop/oia-sam-e2e` (giữ lại cho các lần chạy sau).
+
+## 6. Ghi nhận triển khai (2026-11-10, owner chốt "A đi")
+
+Option A đã SHIP trong ngày, cấu trúc:
+
+- **`apps/desktop/segment-runner/`**: crate Rust mỏng (`ort` crate, `load-dynamic`),
+  giao thức JSON-lines (payload base64 LE f32/i64), ops ping/vision/text/decode.
+  Vision outputs cache TRONG runner theo content-hash (LRU 2), chỉ pixels (~12 MB)
+  và masks (~10 MB) qua pipe. ORT load động từ lib pin 1.31.1 copy từ
+  onnxruntime-node (chạy đúng bản đã test). Binary 518 KB sau LTO+strip.
+- **`src/utility/segmentation/runner.ts`**: client Electron-free
+  (node:child_process), tuần tự, timeout, crash giữa chừng = promise reject +
+  spawn lại lần gọi sau (generation bump để engine xóa cache vision), test đủ
+  error path với fake runner thật (7 test).
+- **`engine.ts`**: giữ nguyên BPE tokenize + preprocess + mask postprocess
+  (byte-identical), bỏ hoàn toàn onnxruntime-node trong process Electron.
+- **Capability gate**: thiếu sidecar (chưa prepare-segment) = không có
+  segmenter = task lane trả `capability_unsupported` thay vì crash.
+- **Packaging**: `scripts/prepare-segment.mjs` (cargo build + copy ORT lib,
+  temp+rename), extraResources `resources/segment`, CI dist jobs có Rust
+  toolchain + rust-cache cho cả mac lẫn windows.
+
+Bằng chứng:
+- Gate Node thuần (sidecar thật + model thật): box/score TRÙNG KHỚP tuyệt đối
+  với chạy in-process cũ (0.544 0.299 0.730 0.641, score 0.939); lần đầu
+  18,6 giây, prompt kế tiếp cùng ảnh 8,4 giây (cache hai phía).
+- GUI e2e trên DEV build (đúng luồng từng crash): chọn layer artwork qua panel
+  Layers, Split layer, prompt "bottle", toast "1 layer cut out", lọ serum
+  thành layer riêng có handle, utility sống, runner sống, KHÔNG crash.
+- Gate đóng gói: xem cập nhật SG-1 trong surgepix-parity-todo.md.
+
+Nợ ghi sổ: (1) dylib ORT 45 MB mỗi nền tảng vào installer (SG-14 cân nhắc
+bản ORT tối giản hoặc tối ưu sau); (2) prompt thứ hai 8,4 giây còn chậm do
+base64 decode + upsampleMask tuần tự, tối ưu sau khi có benchmark SG-6;
+(3) Windows chưa chạy thật trên máy vật lý (D3), CI dist-win build binary
+  cùng kênh.

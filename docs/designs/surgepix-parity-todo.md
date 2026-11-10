@@ -102,6 +102,16 @@ cần khối aligned cỡ GB khi vision-encode 1008px nên bị trap; Node thu�
 native runner: `docs/designs/segmentation-process-plan.md`. Gate SG-1 giữ MỞ,
 thêm điều kiện: chọn kiến trúc chạy ngoài process Electron và pass lại e2e.
 
+Cập nhật cuối ngày 10/11/2026 (owner chốt "A đi", sidecar SHIP cùng ngày):
+kiến trúc sidecar Rust + client TS đã lên main theo plan doc; e2e Node thuần
+qua sidecar cho box/score TRÙNG TUYỆT ĐỐI bản in-process (0.544/0.299/0.730/
+0.641, score 0.939; 18,6 giây lần đầu, 8,4 giây prompt kế tiếp); GUI e2e pass
+trên cả dev lẫn MACOS ĐÓNG GÓI (toast "1 layer cut out" sau ~20 giây, utility
+và runner sống) -> gate (1) của D21 ĐẠT. Vẫn còn mở: (2) shot gate dialog
+Split layer, (3) verdict Meta SAM License, (4) Windows máy vật lý (CI dist-win
+đã build binary sidecar cùng kênh), thêm nợ mới: dylib ORT 45 MB/nền tảng vào
+installer (ghi ở plan doc, liên quan SG-14).
+
 ### SG-2. Packaged smoke với userData tạm — DONE (commit b0c9588, gates: release-hardening 14 test mới, desktop 227, turbo build/test/typecheck, smoke, crash-smoke, `pnpm packaged-smoke` 3/3 trên dist/mac-arm64/Oia.app đóng gói đầy đủ fuse)
 
 ĐÍNH CHÍNH (self-review 2026-11-10): claim "3/3" lúc ghi DONE là SAI một phần.

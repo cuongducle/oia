@@ -36,6 +36,11 @@ extraResources:
   - from: resources/lens
     to: lens
     filter: ["lens.onnx", "catalog.json", "manifest.json", "NOTICE.txt"]
+  # SAM sidecar (segmentation-process-plan.md, option A): the Rust runner +
+  # the pinned libonnxruntime per platform dir; the utility spawns
+  # <resources>/segment/<platform>-<arch>/oia-segment-runner at runtime.
+  - from: resources/segment
+    to: segment
 
 asarUnpack:
   - "**/onnxruntime-node/**"

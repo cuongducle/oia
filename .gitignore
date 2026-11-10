@@ -41,3 +41,8 @@ packages/agent/out/
 # python bytecode from the PIL compositing scripts
 __pycache__/
 *.pyc
+
+# SAM sidecar (segmentation-process-plan.md): build artifacts, produced by
+# apps/desktop/scripts/prepare-segment.mjs (cargo + pinned ORT from node_modules)
+apps/desktop/resources/segment/
+apps/desktop/segment-runner/target/

@@ -16,7 +16,7 @@ export type UtilityEnv = Record<string, string | undefined>;
 export type UtilityCommand =
   /** Boot (once): build the ServiceContext from dataDir + provider env, start the
    *  loopback agent API (D9) with its discovery file under userDataDir. */
-  | { cmd: "init"; dataDir: string; userDataDir: string; env: UtilityEnv }
+  | { cmd: "init"; dataDir: string; userDataDir: string; env: UtilityEnv; segmentDir?: string }
   /** Provider mode / codex binary changed: cancel in-flight, rebuild the context
    *  (reuses the dataDir/userDataDir from init; restarts the loopback server). */
   | { cmd: "rebuild"; env: UtilityEnv }

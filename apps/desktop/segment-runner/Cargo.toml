@@ -1,0 +1,21 @@
+[package]
+name = "oia-segment-runner"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "oia-segment-runner"
+path = "src/main.rs"
+
+[dependencies]
+ort = { version = "2.0.0-rc.10", default-features = false, features = ["ndarray", "load-dynamic"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+bytemuck = "1"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
