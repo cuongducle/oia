@@ -82,6 +82,7 @@ export class CodexLlmProvider implements LlmProvider {
         prompt,
         schemaFile,
         lastMessageFile,
+        ...(opts.search ? { search: true } : {}), // same forwarding as plan(), dropped here once = silent no-search
         timeoutMs: this.timeoutMs,
         signal: opts.signal,
         jobId: opts.jobId ?? `chat-${randomUUID()}`,

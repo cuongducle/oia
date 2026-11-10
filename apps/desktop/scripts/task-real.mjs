@@ -24,19 +24,9 @@ if (!type || !paramsJson || !outDirArg) {
 const outDir = path.resolve(outDirArg);
 await mkdir(outDir, { recursive: true });
 
-const { createServiceContext } = await import("@oia/services");
+const { makeRealCtx } = await import("./real-lib.mjs");
 const t0 = Date.now();
-const ctx = await createServiceContext({
-  dataDir: path.join(outDir, "data"),
-  env: {
-    ...process.env,
-    LLM_PROVIDER: "codex",
-    IMAGE_PROVIDER: "codex",
-    CODEX_BIN: path.join(import.meta.dirname, "../resources/codex/current/bin/codex"),
-    CODEX_PLANNER_TIMEOUT_MS: "240000",
-    CODEX_IMAGE_TIMEOUT_MS: "300000",
-  },
-});
+const ctx = await makeRealCtx(outDir);
 
 // upload @file: placeholders
 const params = JSON.parse(paramsJson);

@@ -52,6 +52,7 @@
     "electron": "39.8.10",
     "electron-builder": "26.18.0",
     "electron-vite": "^4.0.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

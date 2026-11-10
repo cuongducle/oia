@@ -12,36 +12,20 @@
  */
 import path from "node:path";
 import { writeFile, mkdir } from "node:fs/promises";
-import { execFileSync, spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const [, , outDirArg] = process.argv;
 if (!outDirArg) {
   console.error("usage: node scripts/cancel-real.mjs <outDir>");
   process.exit(64);
 }
-const root = path.resolve(import.meta.dirname, "..");
 const outDir = path.resolve(outDirArg);
 await mkdir(outDir, { recursive: true });
 
-// the guarded lane lives in desktop src; bundle it for node like loopback-skill-real
-const bundle = path.join(outDir, "loopback-bundle.cjs");
-const esbuild = spawnSync("npx", ["esbuild", path.join(root, "src/utility/loopback.ts"), "--bundle", "--platform=node", "--format=cjs", `--outfile=${bundle}`], { cwd: root, encoding: "utf8" });
-if (esbuild.status !== 0) { console.error(esbuild.stderr); process.exit(1); }
-const { startLoopback } = await import(pathToFileURL(bundle).href);
-const { createServiceContext } = await import("@oia/services");
+const { makeRealCtx, bundleLoopback } = await import("./real-lib.mjs");
+const { startLoopback } = await bundleLoopback();
 const t0 = Date.now();
-const ctx = await createServiceContext({
-  dataDir: path.join(outDir, "data"),
-  env: {
-    ...process.env,
-    LLM_PROVIDER: "codex",
-    IMAGE_PROVIDER: "codex",
-    CODEX_BIN: path.join(root, "resources/codex/current/bin/codex"),
-    CODEX_PLANNER_TIMEOUT_MS: "240000",
-    CODEX_IMAGE_TIMEOUT_MS: "300000",
-  },
-});
+const ctx = await makeRealCtx(outDir, { CODEX_IMAGE_TIMEOUT_MS: "300000" });
 
 const codexProcs = () => {
   try {
@@ -67,9 +51,15 @@ const after = codexProcs();
 const slotT0 = Date.now();
 const probe = await api("/tasks/generate-poster", { method: "POST", body: JSON.stringify({ prompt: "tiny probe poster after cancel", source: "agent" }) });
 const slotReleased = probe.code === 0; // 429/MeteredBusy would be code 429
-const probeRec = (await api(`/tasks/${probe.data.taskId}`, { method: "GET" })).data;
 const slotWaitMs = Date.now() - slotT0;
-await new Promise((r) => setTimeout(r, 60_000)); // let the probe generation settle for its record
+// A3: read the probe record AFTER it settles (a snapshot at "processing"
+// promised more than the evidence showed); poll to terminal, bounded
+let probeRec = null;
+for (let i = 0; i < 90; i++) {
+  probeRec = (await api(`/tasks/${probe.data.taskId}`, { method: "GET" })).data;
+  if (probeRec && probeRec.progress !== "processing") break;
+  await new Promise((r) => setTimeout(r, 2000));
+}
 
 const record = (() => { try { return ctx.taskStore.get(started.taskId); } catch { return null; } })();
 const honest =

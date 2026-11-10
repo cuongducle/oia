@@ -1215,7 +1215,7 @@ async function shot(): Promise<void> {
   const exportGate = await win.webContents.executeJavaScript(`(async () => {
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const openExport = async () => {
-      [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Export"))?.click();
+      document.querySelector('[data-testid="export-open"]')?.click();
       await wait(250);
       return Boolean(document.querySelector('[data-testid="export-download"]'));
     };
@@ -2102,7 +2102,11 @@ async function shot(): Promise<void> {
     // (bare 'fabric' is not importable from the page; reuse the live class)
     const rc = new (Object.getPrototypeOf(c).constructor)(document.createElement("canvas"), { renderOnAddRemove: false });
     await rc.loadFromJSON(c.toObject());
-    const reloadedClip = Boolean(rc.getObjects().find((o) => o.get("clipPath")));
+    const reloaded = rc.getObjects().find((o) => o.get("clipPath"));
+    const reloadedClip = Boolean(reloaded);
+    // C5: the marker must survive serialization, readableCropClip trusts ONLY
+    // clips carrying it (a foreign clipPath must not be treated as our crop)
+    const reloadedMarker = String(reloaded?.get("clipPath")?.name ?? "") === "oia-crop-clip";
     await rc.dispose();
     const rendered = await new Promise((res) => { try { c.toDataURL({ format: "png" }); res(true); } catch { res(false); } });
     // undo removes the clip (non-destructive claim). Re-find the image AFTER
@@ -2153,8 +2157,8 @@ async function shot(): Promise<void> {
       const undone = Boolean(imgB) && !imgB.get("clipPath");
       return { ok: marqueeShrunk && shrunk && undone, marqueeShrunk, area1: Math.round(area1 * 100) / 100, area2: Math.round(area2 * 100) / 100, shrunk, undone };
     })();
-    const ok = clipApplied && histOnePush && helpersGone && serialized && reloadedClip && rendered && undoCleared && cancelClean && secondCrop.ok;
-    return { ok, clipApplied, histOnePush, helpersGone, serialized, reloadedClip, rendered, undoCleared, cancelClean, secondCrop, clipBefore };
+    const ok = clipApplied && histOnePush && helpersGone && serialized && reloadedClip && reloadedMarker && rendered && undoCleared && cancelClean && secondCrop.ok;
+    return { ok, clipApplied, histOnePush, helpersGone, serialized, reloadedClip, reloadedMarker, rendered, undoCleared, cancelClean, secondCrop, clipBefore };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
   console.log("[shot] crop verify:", JSON.stringify(crop));
   if (!crop || !crop.ok) {

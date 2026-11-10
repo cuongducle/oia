@@ -25,7 +25,7 @@ import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
-import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, type Rect } from "../lib/crop.js";
+import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, readableCropClip, OIA_CROP_CLIP, type Rect } from "../lib/crop.js";
 import { dataUrlBytes } from "../lib/data-url.js";
 import type { ChatRequest } from "@oia/services";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
@@ -891,16 +891,6 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setCropping(false);
     return s;
   }
-  /** The existing clip, but ONLY when it is exactly the shape applyCrop writes
-   *  (rect + center origin + finite numbers). Anything else (a foreign clipPath
-   *  from a future feature) is treated as "no clip": bounds stay full and Apply
-   *  replaces, the v1 behavior, rather than intersecting against a guess. */
-  function readableCropClip(obj: CropSession["target"]): Rect | null {
-    const clip = obj.clipPath as Partial<Rect> & { originX?: string; originY?: string; type?: string } | undefined;
-    if (!clip || clip.type !== "rect" || clip.originX !== "center" || clip.originY !== "center") return null;
-    if (![clip.left, clip.top, clip.width, clip.height].every((v) => typeof v === "number" && Number.isFinite(v))) return null;
-    return { left: clip.left!, top: clip.top!, width: clip.width!, height: clip.height! };
-  }
   async function applyCrop() {
     const s = teardownCrop();
     const c = fabricRef.current;
@@ -922,6 +912,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const clipRect = new fabric.Rect({
       left: clip.left, top: clip.top, width: clip.width, height: clip.height,
       originX: "center", originY: "center", strokeWidth: 0, fill: "rgba(0,0,0,0)",
+      name: OIA_CROP_CLIP, // readableCropClip only trusts clips WE wrote
     });
     s.target.set("clipPath", clipRect);
     stampUser(s.target as unknown as import("@oia/schema").FabricObject);
@@ -1423,7 +1414,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             </>
           )}
         </div>
-        <button className="primaryBtn" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => setExportOpen(true)}>
+        <button className="primaryBtn" data-testid="export-open" style={{ display: "flex", alignItems: "center", gap: 5 }} onClick={() => setExportOpen(true)}>
           <I d={icons.download} size={14} /> Export
         </button>
       </div>

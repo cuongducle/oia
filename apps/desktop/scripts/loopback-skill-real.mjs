@@ -1,68 +1,54 @@
 #!/usr/bin/env node
 /**
- * REAL e2e of the agent lane: the loopback API with REAL providers + a REAL
- * API key + the actual skill CLI (oia-ppt-translate), the exact surface an
- * external agent uses (matrix gap C2). Owner pre-approved quota 2026-11-10.
+ * REAL e2e of the agent lane with an ACTUAL skill CLI (matrix A: loopback+skill).
+ * Generic: any skill script, any args; `@file:<path>` args are uploaded to the
+ * run's store and replaced by their /api/files URL first.
  *
- * Usage: node scripts/loopback-skill-real.mjs <input.pptx> <language> <outDir>
- * Bundles src/utility/loopback.ts with esbuild on the fly (it is desktop src,
- * not a package dist), starts it over a REAL ServiceContext, mints a key,
- * then spawns packages/skills/skills/oia-ppt-translate/scripts/task.mjs with
- * OIA_BASE_URL/OIA_API_KEY, exactly as an agent would.
+ * Usage:
+ *   node scripts/loopback-skill-real.mjs <skillScript.mjs> <outDir> [args...]
+ * Example (the skill that the 2026-11-13 bulk patch broke, proving the fix):
+ *   node scripts/loopback-skill-real.mjs \
+ *     ../../packages/skills/skills/oia-image-edit/scripts/image_edit.mjs out \
+ *     --prompt "put the bottle on a marble table" --reference @file:photo.png
  */
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
 
-const [, , inputPath, language, outDirArg] = process.argv;
-if (!inputPath || !language || !outDirArg) {
-  console.error("usage: node scripts/loopback-skill-real.mjs <input.pptx> <language> <outDir>");
+const argv = process.argv.slice(2);
+const skillArg = argv[0];
+const outDirArg = argv[1];
+const skillArgs = argv.slice(2);
+if (!skillArg || !outDirArg) {
+  console.error("usage: node scripts/loopback-skill-real.mjs <skillScript.mjs> <outDir> [args...]");
   process.exit(64);
 }
-const root = path.resolve(import.meta.dirname, "..");
-const repo = path.resolve(root, "../..");
+const skillScript = path.resolve(skillArg);
 const outDir = path.resolve(outDirArg);
 await mkdir(outDir, { recursive: true });
 
-// loopback.ts is desktop TS source: bundle it for node (no electron imports)
-const bundle = path.join(outDir, "loopback-bundle.cjs");
-const esbuild = spawnSync("npx", ["esbuild", path.join(root, "src/utility/loopback.ts"), "--bundle", "--platform=node", "--format=cjs", `--outfile=${bundle}`], { cwd: root, encoding: "utf8" });
-if (esbuild.status !== 0) {
-  console.error("[lb-real] esbuild failed:", esbuild.stderr);
-  process.exit(1);
-}
-const { startLoopback } = await import(pathToFileURL(bundle).href);
-const { createServiceContext } = await import("@oia/services");
-
+const { makeRealCtx, bundleLoopback } = await import("./real-lib.mjs");
 const t0 = Date.now();
-const ctx = await createServiceContext({
-  dataDir: path.join(outDir, "data"),
-  env: {
-    ...process.env,
-    LLM_PROVIDER: "codex",
-    IMAGE_PROVIDER: "codex",
-    CODEX_BIN: path.join(root, "resources/codex/current/bin/codex"),
-    CODEX_PLANNER_TIMEOUT_MS: "240000",
-  },
-});
+const ctx = await makeRealCtx(outDir);
 const jobEvents = [];
-const srv = await startLoopback({
-  ctx: () => ctx,
-  userDataDir: outDir,
-  env: process.env,
-  emit: (ev) => jobEvents.push(ev),
-});
+const { startLoopback } = await bundleLoopback();
+const srv = await startLoopback({ ctx: () => ctx, userDataDir: outDir, env: process.env, emit: (ev) => jobEvents.push(ev) });
+
+// upload @file: placeholders (same contract as task-real.mjs)
+const uploads = [];
+const finalArgs = await Promise.all(skillArgs.map(async (a) => {
+  if (!a.startsWith("@file:")) return a;
+  const bytes = new Uint8Array(await readFile(path.resolve(a.slice(6))));
+  const up = await ctx.files.put(bytes, (a.split(".").pop() ?? "png").toLowerCase());
+  uploads.push({ file: path.basename(a.slice(6)), url: up.url, bytes: bytes.length });
+  return up.url;
+}));
 
 const key = await ctx.keys.create("loopback-skill-real");
-const bytes = new Uint8Array(await readFile(path.resolve(inputPath)));
-const uploaded = await ctx.files.put(bytes, "pptx");
 const base = `http://127.0.0.1:${srv.port}/api`;
-console.log(`[lb-real] loopback on ${base}, deck ${uploaded.url}`);
+console.log(`[lb-real] loopback on ${base}, skill ${path.basename(skillScript)}`, JSON.stringify(uploads));
 
-// THE REAL SKILL, exactly as an agent runs it
-const skill = path.join(repo, "packages/skills/skills/oia-ppt-translate/scripts/task.mjs");
-const child = spawn(process.execPath, [skill, "--file-url", uploaded.url, "--language", language], {
+const child = spawn(process.execPath, [skillScript, ...finalArgs], {
   env: { ...process.env, OIA_BASE_URL: base, OIA_API_KEY: key.plaintext },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -73,11 +59,12 @@ const code = await new Promise((resolve) => child.on("close", (c) => resolve(c ?
 
 const skillResult = (() => { try { return JSON.parse(out); } catch { return { parseError: out.slice(0, 400) }; } })();
 const task = (() => { try { return skillResult.taskId ? ctx.taskStore.get(skillResult.taskId) : null; } catch { return null; } })();
-const downloadBytes = (skillResult.taskResult?.download ?? skillResult.download)?.startsWith?.("/api/files/")
-  ? (await ctx.files.read((skillResult.taskResult?.download ?? skillResult.download).replace(/^\/api\/files\//, ""))).length
+const download = task?.taskResult?.download ?? null;
+const downloadBytes = download?.startsWith("/api/files/")
+  ? (await ctx.files.read(download.replace(/^\/api\/files\//, ""))).length
   : 0;
 const report = {
-  feature: "loopback agent lane + oia-ppt-translate skill (real)",
+  feature: `loopback agent lane + ${path.basename(path.dirname(path.dirname(skillScript)))} skill (real)`,
   skillExit: code,
   skillOk: skillResult.ok === true,
   taskId: skillResult.taskId ?? null,

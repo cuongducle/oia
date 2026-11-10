@@ -24,25 +24,11 @@ if (!inputPath || !language || !outDirArg) {
   console.error("usage: node scripts/ppt-translate-real.mjs <input.pptx> <language> <outDir>");
   process.exit(64);
 }
-const root = path.resolve(import.meta.dirname, ".."); // apps/desktop
 const outDir = path.resolve(outDirArg);
 await mkdir(outDir, { recursive: true });
-
-// The workspace links under apps/desktop/node_modules resolve @oia/services
-// to the built dist, the same code the utility process runs in production.
-const { createServiceContext } = await import("@oia/services");
-
+const { makeRealCtx } = await import("./real-lib.mjs");
 const t0 = Date.now();
-const ctx = await createServiceContext({
-  dataDir: path.join(outDir, "data"),
-  env: {
-    ...process.env,
-    LLM_PROVIDER: "codex",
-    IMAGE_PROVIDER: "codex",
-    CODEX_BIN: path.join(root, "resources/codex/current/bin/codex"),
-    CODEX_PLANNER_TIMEOUT_MS: "240000",
-  },
-});
+const ctx = await makeRealCtx(outDir, { CODEX_IMAGE_TIMEOUT_MS: undefined });
 
 const bytes = new Uint8Array(await readFile(path.resolve(inputPath)));
 const uploaded = await ctx.files.put(bytes, "pptx");

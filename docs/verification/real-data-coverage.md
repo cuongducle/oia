@@ -78,11 +78,25 @@ bài học canvas NaN âm thầm đáng nhớ.
 | Web .data import (legacy) | Fixtures tự dựng | Thấp (data legacy hiếm) | Nếu có data thật của user, import 1 lần |
 | Quota daily-limit hit thật | Meter test dùng clock giả | Thấp (đốt quota để test limit là lỗ) | Giữ synthetic, ghi lý do |
 
-## D. Quota đã tiêu cho các run 2026-11-10 (meter từng report)
+## D. Quota đã tiêu cho các run real (meter từng report)
 
-planner: 5 (gồm 2 lượt fail phát hiện bug) · image: 8 (1 ảnh input remove-bg,
-5 slide presentation, 1 xhs, 1 image-edit). Tổng theo report trong
-`docs/private/real-runs/**/report.json`.
+ĐÍNH CHÍNH 2026-11-13: mục này từng ghi "planner 5, image 8" lấy giữa ngày rồi
+không cập nhật, sai so với thực tế cuối ngày. Số chính xác theo từng report là
+chuẩn (một số report bị lần chạy sau ghi đè, tổng từ report là CẠN DƯỚI). Tính
+lại bất cứ lúc nào:
+
+```bash
+python3 -c "
+import json, glob
+tp = ti = 0
+for f in glob.glob('docs/private/real-runs/**/report.json', recursive=True) + glob.glob('docs/private/real-runs/**/result.json', recursive=True):
+    q = (json.load(open(f)).get('quota') or {}).get('session', {})
+    tp += q.get('planner', 0); ti += q.get('image', 0)
+print('planner >=', tp, 'image >=', ti)"
+```
+
+Mốc 2026-11-13: planner >= 6, image >= 13 (theo report còn lưu; bỏ qua phần
+bị ghi đè). Trong đó các lượt FAIL là các lượt bắt được bug, xem mục B.
 
 ## Cách cập nhật
 

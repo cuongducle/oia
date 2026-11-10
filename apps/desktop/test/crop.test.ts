@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, type Rect } from "../src/renderer/lib/crop.js";
+import { marqueeToClipRect, clampMarquee, shadeRects, centerRectToTL, tlRectToCenter, intersectRect, clipWorldAABB, readableCropClip, OIA_CROP_CLIP, type Rect } from "../src/renderer/lib/crop.js";
 
 /**
  * SG-8 gates, pure math (no fabric): the marquee → clipPath mapping must be
@@ -87,5 +87,19 @@ describe("SG-8 shadeRects", () => {
     const half = shadeRects({ left: 50, top: 0, width: 50, height: 100 }, bounds);
     expect(half[2]).toEqual({ left: 0, top: 0, width: 50, height: 100 }); // left shade
     expect(half[3].width).toBe(0);
+  });
+});
+
+describe("readableCropClip trusts only OUR clips (C5)", () => {
+  const ours = { type: "rect", name: OIA_CROP_CLIP, originX: "center", originY: "center", left: 5, top: 6, width: 10, height: 20 };
+  it("accepts the exact shape applyCrop writes", () => {
+    expect(readableCropClip(ours)).toEqual({ left: 5, top: 6, width: 10, height: 20 });
+  });
+  it("rejects foreign clips: no marker, other origins, non-finite numbers", () => {
+    expect(readableCropClip({ ...ours, name: undefined })).toBeNull();
+    expect(readableCropClip({ ...ours, originX: "left" })).toBeNull();
+    expect(readableCropClip({ ...ours, width: Number.NaN })).toBeNull();
+    expect(readableCropClip(null)).toBeNull();
+    expect(readableCropClip({ type: "circle" })).toBeNull();
   });
 });

@@ -70,6 +70,22 @@ export function shadeRects(marquee: Rect, bounds: Rect): Rect[] {
   ];
 }
 
+/** Marker prop on the clipPath rect applyCrop writes. A clip without it is
+ *  FOREIGN (some future feature): treated as "no crop" (v1 replace) instead of
+ *  guessing geometry, see readableCropClip. Must survive serialization: pinned
+ *  by the shot gate reload check (name rides FabricObject.customProperties). */
+export const OIA_CROP_CLIP = "oia-crop-clip";
+
+/** The existing clip, but ONLY when it is exactly the shape applyCrop writes
+ *  (marker name + center origin + finite numbers). Anything else returns null.
+ *  Pure: unit-tested without fabric. */
+export function readableCropClip(clip: unknown): Rect | null {
+  const c = clip as (Partial<Rect> & { originX?: string; originY?: string; type?: string; name?: string }) | null | undefined;
+  if (!c || c.type !== "rect" || c.name !== OIA_CROP_CLIP || c.originX !== "center" || c.originY !== "center") return null;
+  if (![c.left, c.top, c.width, c.height].every((v) => typeof v === "number" && Number.isFinite(v))) return null;
+  return { left: c.left!, top: c.top!, width: c.width!, height: c.height! };
+}
+
 /** Center-origin rect (fabric clipPath layout) → top-left rect. */
 export function centerRectToTL(r: Rect): Rect {
   return { left: r.left - r.width / 2, top: r.top - r.height / 2, width: r.width, height: r.height };
