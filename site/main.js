@@ -6,9 +6,9 @@
   const REPO = 'cuongducle/oia';
   const RELEASES = `https://github.com/${REPO}/releases`;
   const FALLBACK = {
-    tag: 'v0.5.0',
-    macArm64: { name: 'Oia-0.5.0-arm64.dmg', size: 414470285, label: 'macOS (Apple Silicon)' },
-    win: { name: 'Oia-0.5.0-win-x64.exe', size: 406173638, label: 'Windows 64-bit' },
+    tag: 'v0.6.0',
+    macArm64: { name: 'Oia-0.6.0-arm64.dmg', size: 428182436, label: 'macOS (Apple Silicon)' },
+    win: { name: 'Oia-0.6.0-win-x64.exe', size: 413867838, label: 'Windows 64-bit' },
   };
   const mb = (b) => (b ? `${Math.round(b / 1048576)} MB` : '');
   const isIPadOS = () =>
