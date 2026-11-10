@@ -54,11 +54,14 @@ describe("SG-2 packaged-smoke mode", () => {
   it("a dev build can run it too (the script is testable unpackaged)", () => {
     expect(smokeModeFromEnv(psEnv, false)).toBe("packaged-smoke");
   });
+  it("REAL still wins over packaged-smoke on dev builds (2026-11-07 lesson: a mock mode must never swallow an outer REAL flag)", () => {
+    expect(smokeModeFromEnv({ ...psEnv, OIA_DESKTOP_REAL_SMOKE: "1" }, false)).toBe("real");
+  });
 });
 
 describe("SG-2 OIA_USER_DATA_DIR validation (pure rules)", () => {
   const def = path.resolve("/Users/seller/Library/Application Support/Oia");
-  const ok = (dir) => resolveUserDataOverride({ OIA_USER_DATA_DIR: dir }, def);
+  const ok = (dir: string) => resolveUserDataOverride({ OIA_USER_DATA_DIR: dir }, def);
   it("accepts an absolute dir outside the default profile", () => {
     expect(ok("/tmp/oia-packaged-smoke")).toEqual({ dir: "/tmp/oia-packaged-smoke" });
   });

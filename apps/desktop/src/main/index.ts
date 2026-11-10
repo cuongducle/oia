@@ -539,6 +539,8 @@ async function packagedSmoke(): Promise<void> {
   });
   console.log(`[packaged-smoke] renderer loaded=${loaded} userData=${app.getPath("userData")}`);
   if (!loaded) return fail("renderer did not load");
+  // SAFETY: non-null is guaranteed by smokeModeFromEnv: "packaged-smoke" is
+  // only reachable when OIA_USER_DATA_DIR is set (Boolean(env.OIA_USER_DATA_DIR)).
   const override = process.env.OIA_USER_DATA_DIR!.trim();
   if (path.resolve(app.getPath("userData")) !== path.resolve(override)) {
     return fail("userData is not the OIA_USER_DATA_DIR override");
@@ -1975,6 +1977,62 @@ async function shot(): Promise<void> {
     app.exit(24);
     return;
   }
+
+  // ---- SG-8: non-destructive Crop on the selected image. Pin the full loop:
+  //  button → marquee+shades on canvas (never in scene JSON) → shrink → apply →
+  //  clipPath on the layer AND in serialized scene → undo removes it → cancel
+  //  path leaves the layer untouched. "Khôi phục và export sau crop" also needs
+  //  the roundtrip: reload the serialized scene and check the clip survived.
+  const crop = await win.webContents.executeJavaScript(`(async () => {
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const c = (window).__oiaCanvas;
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    if (!img) return { ok: false, why: "no image layer" };
+    const countBefore = c.getObjects().length;
+    const clipBefore = Boolean(img.get("clipPath"));
+    c.setActiveObject(img); c.requestRenderAll();
+    await wait(150);
+    document.querySelector('[data-testid="ctx-crop"]')?.click();
+    await wait(300);
+    const marqueeVisible = c.getObjects().length === countBefore + 5; // marquee + 4 shades
+    const dialog = Boolean(document.querySelector('[data-testid="crop-apply"]'));
+    if (!marqueeVisible || !dialog) return { ok: false, why: "no marquee/dialog", marqueeVisible, dialog };
+    // shrink the marquee to the top-left quarter, the clamp must keep it inside
+    const marquee = c.getObjects()[c.getObjects().length - 1];
+    const b = img.getBoundingRect();
+    marquee.set({ left: b.left, top: b.top, width: b.width / 2, height: b.height / 2, scaleX: 1, scaleY: 1 });
+    marquee.setCoords();
+    document.querySelector('[data-testid="crop-apply"]')?.click();
+    await wait(300);
+    const clipApplied = Boolean(img.get("clipPath"));
+    const helpersGone = c.getObjects().length === countBefore;
+    const sceneJson = JSON.stringify(c.toObject());
+    const serialized = sceneJson.includes('"clipPath"');
+    // reload the SERIALIZED scene onto a throwaway canvas: the clip must survive
+    // (bare 'fabric' is not importable from the page; reuse the live class)
+    const rc = new (Object.getPrototypeOf(c).constructor)(document.createElement("canvas"), { renderOnAddRemove: false });
+    await rc.loadFromJSON(c.toObject());
+    const reloadedClip = Boolean(rc.getObjects().find((o) => o.get("clipPath")));
+    await rc.dispose();
+    const rendered = await new Promise((res) => { try { c.toDataURL({ format: "png" }); res(true); } catch { res(false); } });
+    // undo removes the clip (non-destructive claim)
+    document.querySelector('.edTop [title="Undo"]')?.click();
+    await wait(400);
+    const undoCleared = !img.get("clipPath");
+    // cancel path: start again, cancel, layer untouched
+    c.setActiveObject(img); c.requestRenderAll(); await wait(150);
+    document.querySelector('[data-testid="ctx-crop"]')?.click(); await wait(250);
+    document.querySelector('[data-testid="crop-cancel"]')?.click(); await wait(250);
+    const cancelClean = !img.get("clipPath") && c.getObjects().length === countBefore;
+    const ok = clipApplied && helpersGone && serialized && reloadedClip && rendered && undoCleared && cancelClean;
+    return { ok, clipApplied, helpersGone, serialized, reloadedClip, rendered, undoCleared, cancelClean, clipBefore };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] crop verify:", JSON.stringify(crop));
+  if (!crop || !crop.ok) {
+    console.error("DESKTOP_SHOT CROP VERIFY FAILED (clip + serialize + reload + undo + cancel)");
+    app.exit(25);
+    return;
+  }
   await win.webContents.executeJavaScript(`(() => { const c = (window).__oiaCanvas; c?.discardActiveObject(); c?.requestRenderAll(); })()`, true);
   // leave the editor for the Tools scenario
   await win.webContents.executeJavaScript(`(() => {
@@ -2426,7 +2484,13 @@ function registerMenu(): void {
 const userDataOverride = applyUserDataOverride();
 if ("error" in userDataOverride) {
   console.error(`[user-data] refusing to start: ${userDataOverride.error}`);
-  dialog.showErrorBox("Oia cannot start", `${userDataOverride.error}\n\nFix or unset OIA_USER_DATA_DIR, then start Oia again.`);
+  // showErrorBox runs a NATIVE MODAL loop before ready: in a scripted run nobody
+  // dismisses it, app.exit(66) below never executes and the process hangs until
+  // the harness kills it. Interactive launches keep the dialog, scripted modes
+  // (any smoke mode, packaged-smoke included) get the log line + fast exit only.
+  if (!smokeModeFromEnv(process.env, app.isPackaged)) {
+    dialog.showErrorBox("Oia cannot start", `${userDataOverride.error}\n\nFix or unset OIA_USER_DATA_DIR, then start Oia again.`);
+  }
   app.exit(66);
 } else {
 if (userDataOverride.dir) {

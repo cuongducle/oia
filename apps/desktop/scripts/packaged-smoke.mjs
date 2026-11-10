@@ -28,6 +28,7 @@ import path from "node:path";
 const DEFAULT_BIN = path.resolve("dist/mac-arm64/Oia.app/Contents/MacOS/Oia");
 const bin = path.resolve(process.argv[2] ?? process.env.OIA_PACKAGED_APP ?? DEFAULT_BIN);
 const REFUSAL_MARKER = "[user-data] refusing to start";
+const REFUSAL_EXIT = 66; // app.exit(66) in main; anything else (incl. -1 = harness kill) is a hang, not a refusal
 
 /** Run one packaged-smoke scenario. Resolves { code, out }. */
 function runScenario(name, env, timeoutMs) {
@@ -70,7 +71,9 @@ if (!happyOk) console.error(`[packaged-smoke.mjs] HAPPY PATH FAILED (code ${happ
 
 // ---- 2. relative path must be refused fast ---------------------------------
 const relative = await runScenario("relative", { OIA_USER_DATA_DIR: "relative/oia-dir", OIA_DESKTOP_PACKAGED_SMOKE: "1" }, 30_000);
-const relativeOk = relative.code !== 0 && relative.out.includes(REFUSAL_MARKER) && relative.out.includes("absolute");
+// Exit must be the app's OWN 66: `code !== 0` also passes on a -1 harness kill
+// (a modal dialog blocking app.exit), which once masked two 30s hangs as PASS.
+const relativeOk = relative.code === REFUSAL_EXIT && relative.out.includes(REFUSAL_MARKER) && relative.out.includes("absolute") && !relative.out.includes("TIMEOUT");
 results.push({ name: "relative OIA_USER_DATA_DIR refused with the marker", ok: relativeOk, code: relative.code });
 if (!relativeOk) console.error(`[packaged-smoke.mjs] RELATIVE REFUSAL FAILED (code ${relative.code})`);
 
@@ -80,7 +83,7 @@ const blockerFile = path.join(tmpdir(), `oia-ps-blocker-${process.pid}`);
 writeFileSync(blockerFile, "not a dir");
 const unwritableDir = path.join(blockerFile, "userData");
 const unwritable = await runScenario("unwritable", { OIA_USER_DATA_DIR: unwritableDir, OIA_DESKTOP_PACKAGED_SMOKE: "1" }, 30_000);
-const unwritableOk = unwritable.code !== 0 && unwritable.out.includes(REFUSAL_MARKER) && unwritable.out.includes("not writable");
+const unwritableOk = unwritable.code === REFUSAL_EXIT && unwritable.out.includes(REFUSAL_MARKER) && unwritable.out.includes("not writable") && !unwritable.out.includes("TIMEOUT");
 results.push({ name: "unwritable OIA_USER_DATA_DIR refused with the marker", ok: unwritableOk, code: unwritable.code });
 if (!unwritableOk) console.error(`[packaged-smoke.mjs] UNWRITABLE REFUSAL FAILED (code ${unwritable.code})`);
 rmSync(blockerFile, { force: true });

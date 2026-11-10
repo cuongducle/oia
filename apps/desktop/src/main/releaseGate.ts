@@ -50,12 +50,12 @@ export function resolveUserDataOverride(
 export function smokeModeFromEnv(env: NodeJS.ProcessEnv, isPackaged: boolean): SmokeMode | null {
   const packagedSmoke = env.OIA_DESKTOP_PACKAGED_SMOKE === "1" && Boolean(env.OIA_USER_DATA_DIR);
   if (isPackaged) return packagedSmoke ? "packaged-smoke" : null; // never any other mode, REAL included
-  if (packagedSmoke) return "packaged-smoke"; // scriptable on dev builds too
-  // REAL wins over mock modes even when both are set: `pnpm smoke` exports
-  // OIA_DESKTOP_SMOKE=1 itself, which used to silently swallow an outer
-  // OIA_DESKTOP_REAL_SMOKE=1, two "real" runs on 2026-11-07 were recorded
-  // that way and were actually mock (pin-comment CORRECTION, D12 ledger).
+  // REAL wins over EVERY mock mode, packaged-smoke included: `pnpm smoke`
+  // exports OIA_DESKTOP_SMOKE=1 itself, and a mock mode silently swallowing an
+  // outer OIA_DESKTOP_REAL_SMOKE=1 recorded two "real" runs on 2026-11-07 that
+  // were actually mock (pin-comment CORRECTION, D12 ledger).
   if (env.OIA_DESKTOP_REAL_SMOKE === "1") return "real";
+  if (packagedSmoke) return "packaged-smoke"; // scriptable on dev builds too
   if (env.OIA_DESKTOP_SI_SMOKE === "1") return "si";
   if (env.OIA_DESKTOP_SMOKE === "1") return "smoke";
   if (env.OIA_DESKTOP_CRASH_SMOKE === "1") return "crash";
