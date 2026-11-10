@@ -25,6 +25,7 @@ import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
+import { marqueeToClipRect, clampMarquee, shadeRects, type Rect } from "../lib/crop.js";
 import { dataUrlBytes } from "../lib/data-url.js";
 import type { ChatRequest } from "@oia/services";
 import { oia, bridgeErrorMessage } from "../lib/bridge.js";
@@ -243,7 +244,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     if (autoFit.current) fitView();
   }, [customW, customH]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setExportOpen(false); setHistoryOpen(false); setPanel(null); } };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setExportOpen(false); setHistoryOpen(false); setPanel(null); if (cropRef.current) cancelCrop(); } };
     const shortcuts = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable="true"],[role="dialog"]'))) return;
       if (e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) void redoOp(); else void undo(); }
@@ -763,6 +764,115 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       removeBgBusyRef.current = false;
     }
   }
+  /** ===== SG-8 crop: non-destructive clipPath crop on the selected image =====
+   *  Marquee + 4 shade rects live on the canvas for the session only (never in
+   *  scene JSON); Apply maps the marquee through the image's inverse matrix into
+   *  a local clipPath Rect (crop.ts), so rotation and scale of the LAYER are
+   *  respected and every export path picks the clip up for free. */
+  interface CropSession {
+    target: fabricNS.FabricImage & { src?: string };
+    bounds: Rect;
+    marquee: fabricNS.Rect;
+    shades: fabricNS.Rect[];
+    prev: { selectable: boolean; evented: boolean };
+    onMoving: (e: { target?: fabricNS.Object }) => void;
+    onScaling: (e: { target?: fabricNS.Object }) => void;
+  }
+  const [cropping, setCropping] = useState(false);
+  const cropRef = useRef<CropSession | null>(null);
+  /** Marquee geometry in scene coords; scaleX/Y stay 1 (scaling events normalize). */
+  function marqueeRectOf(s: CropSession): Rect {
+    const m = s.marquee;
+    return {
+      left: m.left,
+      top: m.top,
+      width: m.width * (m.scaleX ?? 1),
+      height: m.height * (m.scaleY ?? 1),
+    };
+  }
+  function syncCropShades(s: CropSession): void {
+    const c = fabricRef.current;
+    if (!c) return;
+    const next = clampMarquee(marqueeRectOf(s), s.bounds, 8);
+    s.marquee.set({ left: next.left, top: next.top, width: next.width, height: next.height, scaleX: 1, scaleY: 1 });
+    s.marquee.setCoords();
+    shadeRects(next, s.bounds).forEach((r, i) => {
+      s.shades[i].set({ left: r.left, top: r.top, width: r.width, height: r.height });
+      s.shades[i].setCoords();
+    });
+    c.requestRenderAll();
+  }
+  async function beginCrop() {
+    const c = fabricRef.current;
+    const obj = c?.getActiveObject() as CropSession["target"] | undefined;
+    if (!c || !obj || typeof obj.src !== "string") return;
+    const fabric = await import("fabric");
+    const prev = { selectable: obj.selectable, evented: obj.evented };
+    obj.set({ selectable: false, evented: false });
+    c.discardActiveObject();
+    const b = obj.getBoundingRect();
+    const bounds: Rect = { left: b.left, top: b.top, width: b.width, height: b.height };
+    const inset = { x: Math.max(8, bounds.width * 0.12), y: Math.max(8, bounds.height * 0.12) };
+    const marquee = new fabric.Rect({
+      ...clampMarquee({ left: bounds.left + inset.x, top: bounds.top + inset.y, width: bounds.width - inset.x * 2, height: bounds.height - inset.y * 2 }, bounds, 8),
+      fill: "rgba(0,0,0,0)", stroke: "#7c3aed", strokeWidth: 2 / (c.viewportTransform?.[0] ?? 1), strokeDashArray: [6, 4],
+      cornerColor: "#7c3aed", cornerStrokeColor: "#ffffff", transparentCorners: false, borderColor: "#7c3aed",
+    });
+    const shades = shadeRects({ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }, bounds).map((r) =>
+      new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false }));
+    shades.forEach((s) => c.add(s));
+    c.add(marquee);
+    c.setActiveObject(marquee);
+    const session: CropSession = {
+      target: obj, bounds, marquee, shades, prev,
+      onMoving: (e) => { if (e.target === marquee) syncCropShades(session); },
+      onScaling: (e) => { if (e.target === marquee) syncCropShades(session); },
+    };
+    cropRef.current = session;
+    c.on("object:moving", session.onMoving);
+    c.on("object:scaling", session.onScaling);
+    c.requestRenderAll();
+    setCropping(true);
+  }
+  function teardownCrop(): CropSession | null {
+    const s = cropRef.current;
+    const c = fabricRef.current;
+    if (!s || !c) return s;
+    c.off("object:moving", s.onMoving);
+    c.off("object:scaling", s.onScaling);
+    c.remove(s.marquee, ...s.shades);
+    s.target.set({ selectable: s.prev.selectable, evented: s.prev.evented });
+    s.target.setCoords();
+    c.requestRenderAll();
+    cropRef.current = null;
+    setCropping(false);
+    return s;
+  }
+  async function applyCrop() {
+    const s = teardownCrop();
+    const c = fabricRef.current;
+    if (!s || !c) return;
+    const rect = clampMarquee(marqueeRectOf(s), s.bounds, 8);
+    const clip = marqueeToClipRect(rect, s.target.calcTransformMatrix() as number[]);
+    // zero-size only: sub-UNIT clips are legitimate (a paint-scaled 1x1 image
+    // lives in a 0..1 local space, image-scales.ts)
+    if (clip.width <= 0 || clip.height <= 0) return;
+    const fabric = await import("fabric");
+    const clipRect = new fabric.Rect({
+      left: clip.left, top: clip.top, width: clip.width, height: clip.height,
+      originX: "center", originY: "center", strokeWidth: 0, fill: "rgba(0,0,0,0)",
+    });
+    s.target.set("clipPath", clipRect);
+    stampUser(s.target as unknown as import("@oia/schema").FabricObject);
+    s.target.setCoords();
+    c.setActiveObject(s.target);
+    c.requestRenderAll();
+    c.fire("object:modified", { target: s.target }); // undo/history/autosave see the clip
+  }
+  function cancelCrop() {
+    teardownCrop();
+  }
+
   /** R5 "Edit with AI": the AI tab opens with the selection already named in the prompt (A3 step one). */
   function editSelectionWithAi() {
     setAiOpen(true);
@@ -1533,7 +1643,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                     <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
                   </div>
                 )}
-                <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onRemoveBackground={() => void runRemoveBackground()} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />
+                {!cropping && <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onRemoveBackground={() => void runRemoveBackground()} onCrop={() => void beginCrop()} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />}
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1597,6 +1707,17 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       </div>
 
       {/* Export dialog (BR-ED5) */}
+      {/* SG-8 crop dialog: marquee is live on the canvas behind it */}
+      {cropping && (
+        <Dialog onClose={() => cancelCrop()} label="Crop image">
+          <h3>Crop this image</h3>
+          <p>Drag the box or its corners, then apply. The original pixels are kept, undo restores everything.</p>
+          <div className="dialogActions">
+            <button className="secondaryBtn" data-testid="crop-cancel" onClick={() => cancelCrop()}>Cancel</button>
+            <button className="primaryBtn" data-testid="crop-apply" onClick={() => void applyCrop()}>Apply crop</button>
+          </div>
+        </Dialog>
+      )}
       {/* D21 split-layer dialog: local SAM 3, no provider quota */}
       {splitPhase && splitPhase !== "models" && (
         <Dialog onClose={() => { if (splitPhase !== "running") setSplitPhase(null); }} label="Split layer">

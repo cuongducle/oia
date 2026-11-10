@@ -2015,15 +2015,20 @@ async function shot(): Promise<void> {
     const reloadedClip = Boolean(rc.getObjects().find((o) => o.get("clipPath")));
     await rc.dispose();
     const rendered = await new Promise((res) => { try { c.toDataURL({ format: "png" }); res(true); } catch { res(false); } });
-    // undo removes the clip (non-destructive claim)
+    // undo removes the clip (non-destructive claim). Re-find the image AFTER
+    // undo: history restores the scene as NEW object instances, the closure
+    // reference would keep testing a dead object.
     document.querySelector('.edTop [title="Undo"]')?.click();
     await wait(400);
-    const undoCleared = !img.get("clipPath");
+    const img2 = c.getObjects().find((o) => typeof o.get("src") === "string");
+    const undoCleared = Boolean(img2) && !img2.get("clipPath");
     // cancel path: start again, cancel, layer untouched
-    c.setActiveObject(img); c.requestRenderAll(); await wait(150);
+    if (img2) { c.setActiveObject(img2); c.requestRenderAll(); }
+    await wait(150);
     document.querySelector('[data-testid="ctx-crop"]')?.click(); await wait(250);
     document.querySelector('[data-testid="crop-cancel"]')?.click(); await wait(250);
-    const cancelClean = !img.get("clipPath") && c.getObjects().length === countBefore;
+    const img3 = c.getObjects().find((o) => typeof o.get("src") === "string");
+    const cancelClean = Boolean(img3) && !img3.get("clipPath") && c.getObjects().length === countBefore;
     const ok = clipApplied && helpersGone && serialized && reloadedClip && rendered && undoCleared && cancelClean;
     return { ok, clipApplied, helpersGone, serialized, reloadedClip, rendered, undoCleared, cancelClean, clipBefore };
   })()`, true).catch((e) => ({ ok: false, why: String(e) }));
