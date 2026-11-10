@@ -33,6 +33,7 @@ bắt nhờ chạy thật.
 | Editor export pipeline (PNG/JPG/PDF/PPTX/ZIP) | 2026-11-10: shot gate mới chạy đủ 5 format qua doExport thật, magic bytes + pptx là archive thật có slides; artifact size ghi trong log shot | main/index.ts export gate + shot log |
 | Loopback agent API + skill CLI thật | 2026-11-10: oia-ppt-translate skill chạy end-to-end qua loopback + key thật + codex thật (8,5s, download 30KB, agentJob events lane agent) | real-runs/2026-11-10-loopback-skill/ + harness scripts/loopback-skill-real.mjs |
 | Cancel giữa generation codex (TP-D5) | 2026-11-10 qua lane guard loopback: record failed/cancelled trung thực, cây tiến trình codex chết (1→0), slot nhả ngay (submit kế tiếp 11ms, không 429) | real-runs/2026-11-10-cancel/ + harness scripts/cancel-real.mjs |
+| ME markup-edit (khoanh để sửa, flatten) | 2026-11-10: composite bằng markupComposite PRODUCTION trong Chromium thật (marker đỏ 2,99%) + runChat PRODUCTION editMode.markup=flatten trên cặp codex thật (45,7s, 1 planner + 1 image, outcome completed); output không còn marker (0,001%), ảnh đổi 78,3% đúng yêu cầu marble | real-runs/2026-11-10-markup-edit/ |
 
 ## B. Bug thật chỉ chạy thật mới bắt được (ngày 2026-11-10, cả 3 đã fix kèm test)
 
@@ -57,11 +58,19 @@ loopback chỉ trả `{taskId, progress}` (không taskResult), skill in output t
 `download` mà SKILL.md hứa. Tất cả 13 skill đã vá: luôn GET bản ghi cuối trước
 khi in. Bắt được nhờ e2e loopback + skill thật.
 
+Ghi chú harness ME (2026-11-10): chạy runChat trong ELECTRON MAIN bị treo giữa
+chừng (không chẩn đoán được, main process + spawn); bản chạy production code
+trong node thuần hoạt động. Production thật chạy runChat trong UTILITY process
+(đã được chứng minh bằng mọi REAL_SMOKE chat thật), nên hiện tượng treo là của
+harness main-process, không phải của lane sản phẩm. Lần đầu dựng composite
+harness truyền điểm dạng mảng thay vì `{x,y}` nên nét vẽ NaN im lặng: lỗi
+harness (production UI luôn truyền đúng shape, TS chặn ở compile), nhưng là
+bài học canvas NaN âm thầm đáng nhớ.
+
 ## C. Còn mock-only hoặc chưa có gate (việc tiếp theo)
 
 | Mục | Trạng thái | Rủi ro | Việc cần |
 | --- | --- | --- | --- |
-| ME markup-edit generation thật | markup-edit.md ghi "generation thật 1 ảnh chờ duyệt riêng", chưa chạy (image-edit thật 2026-11-10 đi cùng provider path nhưng không phải composite ME + wire markup) | Trung bình | 1 run khoanh-vùng thật trong app hoặc harness chatRun với markup flatten |
 | Mở file export bằng consumer thật (PowerPoint/Keynote/Preview) | Gate mới kiểm magic bytes + cấu trúc archive; chưa ai mở file xuất ra bằng app thật | Thấp-trung | Owner mở 1 lần bộ file trong shot-export hoặc real-runs |
 | segment-image trong app đóng gói (SG-1) | Mở, đang làm song song (PoC engine đã thật) | Cao (nút đã ship) | Theo SG-1 ledger |
 | Windows máy vật lý | Mọi run thật tới nay là macOS; Windows chỉ CI wiring (D3) | Cao cho claim parity | Chạy bộ real tối thiểu trên 1 máy Windows |
