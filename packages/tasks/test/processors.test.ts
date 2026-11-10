@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { parseOutline, makeGeneratePoster } from "../src/processors.js";
+import { parseOutline, makeGeneratePoster, makeImageEdit } from "../src/processors.js";
 import { LocalFileStore } from "../src/storage.js";
 import type { ImageProvider, LlmProvider, ProviderCapabilities } from "@oia/providers";
 import { MockLlmProvider } from "@oia/providers";
@@ -31,6 +31,42 @@ describe("BR-PROC processors", () => {
     const o = parseOutline('{"title":"x","imagePrompt":"p","copy":"C"}');
     expect(o.slides).toHaveLength(1);
     expect(o.slides[0]).toMatchObject({ imagePrompt: "p", bullets: ["C"] });
+  });
+});
+
+describe("image-edit reference resolution (real-run lesson 2026-11-10)", () => {
+  it("/api/files/ refs reach the provider as LOCAL PATHS, never as store URLs (ENOENT in materializeReference)", async () => {
+    const seenRefs: string[][] = [];
+    const probe: ImageProvider = {
+      name: "probe",
+      capabilities: anyCaps(),
+      isAvailable: async () => ({ ok: true, detail: "probe" }),
+      generate: async (input) => {
+        seenRefs.push([...(input.referenceImages ?? [])]);
+        return { url: "data:image/png;base64,iVBORw0KGgo=", provider: "probe", model: "probe", width: 1024, height: 1024 };
+      },
+    };
+    const store = new LocalFileStore(mkdtempSync(path.join(tmpdir(), "oia-imgedit-")));
+    const run = makeImageEdit({ store, image: probe, llm: new MockLlmProvider() });
+    const up = await store.put(new Uint8Array([1, 2, 3]), "png");
+    const out = await run({ reference: [up.url], prompt: "p" }, { jobId: "j", signal: new AbortController().signal });
+    expect(out.urls[0]).toContain("/api/files/");
+    expect(seenRefs[0][0]).not.toContain("/api/files/"); // the provider saw a LOCAL PATH
+    expect(seenRefs[0][0]).toContain(up.url.replace(/^\/api\/files\//, "")); // pointing at the stored file
+  });
+  it("a missing /api/files/ reference fails with a clear message BEFORE any provider call", async () => {
+    let called = 0;
+    const probe: ImageProvider = {
+      name: "probe",
+      capabilities: anyCaps(),
+      isAvailable: async () => ({ ok: true, detail: "probe" }),
+      generate: async () => { called++; throw new Error("must not run"); },
+    };
+    const store = new LocalFileStore(mkdtempSync(path.join(tmpdir(), "oia-imgedit-")));
+    const run = makeImageEdit({ store, image: probe, llm: new MockLlmProvider() });
+    await expect(run({ reference: ["/api/files/uploads/20990101/nope-x.png"], prompt: "p" }, { jobId: "j", signal: new AbortController().signal }))
+      .rejects.toThrow("invalid or has not been uploaded");
+    expect(called).toBe(0);
   });
 });
 

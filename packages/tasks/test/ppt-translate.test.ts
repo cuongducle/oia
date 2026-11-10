@@ -3,7 +3,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
-import { makePptTranslate, xmlEscape } from "../src/processors.js";
+import { makePptTranslate, xmlEscape, OUTLINE_JSON_SCHEMA } from "../src/processors.js";
+import { PPT_TRANSLATE_JSON_SCHEMA } from "@oia/schema";
 import { TaskStore } from "../src/store.js";
 import { LocalFileStore } from "../src/storage.js";
 import type { LlmProvider, ProviderCapabilities } from "@oia/providers";
@@ -60,6 +61,31 @@ async function makeCtx(llm: LlmProvider) {
   await files.hydrate();
   return { files, ctx: { store: files, image: undefined as never, llm } as Parameters<typeof makePptTranslate>[0] };
 }
+
+
+describe("codex output schemas obey the API dialect (real-run lesson 2026-11-10)", () => {
+  /** The real codex response_format rejects optional keys: every property must
+   *  appear in required (invalid_json_schema 400, caught by the first real
+   *  generate-presentation run; mock providers cannot see this). */
+  function assertNoOptionalProps(node: unknown, path: string): void {
+    if (Array.isArray(node)) return node.forEach((n, i) => assertNoOptionalProps(n, `${path}[${i}]`));
+    if (!node || typeof node !== "object") return;
+    const o = node as Record<string, unknown>;
+    if (o.type === "object" && o.properties && typeof o.properties === "object") {
+      const props = Object.keys(o.properties as object);
+      const required = (o.required as string[] | undefined) ?? [];
+      const missing = props.filter((p) => !required.includes(p));
+      if (missing.length) throw new Error(`${path}: optional properties rejected by codex response_format: ${missing.join(", ")}`);
+    }
+    for (const [k, v] of Object.entries(o)) assertNoOptionalProps(v, `${path}.${k}`);
+  }
+  it("PPT_TRANSLATE_JSON_SCHEMA: every property is required", () => {
+    expect(() => assertNoOptionalProps(PPT_TRANSLATE_JSON_SCHEMA, "ppt")).not.toThrow();
+  });
+  it("OUTLINE_JSON_SCHEMA: every property is required (slides.items included)", () => {
+    expect(() => assertNoOptionalProps(OUTLINE_JSON_SCHEMA, "outline")).not.toThrow();
+  });
+});
 
 describe("SG-7 ppt-translate", () => {
   it("xmlEscape round-trips the five XML specials in text bodies", () => {

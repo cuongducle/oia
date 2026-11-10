@@ -68,7 +68,18 @@ export function makeImageEdit(ctx: ProcCtx) {
     if (!ctx.image.capabilities.referenceImages) {
       throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
     }
-    const img = await ctx.image.generate({ prompt, width: 1024, height: 1024, referenceImages: refs, signal: tctx.signal });
+    // Same-origin /api/files/ URLs are a SHELL concept the provider cannot
+    // resolve (found by the first real image-edit run, 2026-11-10: ENOENT on
+    // '/api/files/...' inside materializeReference; the mock accepted anything).
+    // Resolve them to the store's LOCAL PATH, the in-process ref form (P2, the
+    // deconstruct platePath precedent). data:/http(s) refs pass through.
+    const resolvedRefs = await Promise.all(refs.map(async (r) => {
+      if (!r.startsWith("/api/files/")) return r;
+      const local = await ctx.store.pathOf(r.replace(/^\/api\/files\//, "")).catch(() => null);
+      if (!local) throw new Error(`reference ${r} is invalid or has not been uploaded`);
+      return local;
+    }));
+    const img = await ctx.image.generate({ prompt, width: 1024, height: 1024, referenceImages: resolvedRefs, signal: tctx.signal });
     const bytes = await fetchBytes(img.url, ctx.store);
     const saved = await ctx.store.put(bytes, "png");
     return { urls: [saved.url] };
@@ -288,8 +299,11 @@ export interface SlideOutline { title: string; slides: { title: string; bullets:
  *  ppt-translate. generate-presentation asked for {title, slides[]} through the
  *  plan-pinned chat lane, which mangles the shape against the real provider
  *  (latent bug, never run real before 2026-11-10). parseOutline stays lenient
- *  for the mock's demo shapes. */
-const OUTLINE_JSON_SCHEMA = {
+ *  for the mock's demo shapes. RULE (learned from the real API 2026-11-10,
+ *  invalid_json_schema 400): codex response_format requires EVERY property to
+ *  appear in required, optional keys are rejected; a lint test pins this for
+ *  every schema we send. */
+export const OUTLINE_JSON_SCHEMA = {
   type: "object",
   properties: {
     title: { type: "string" },
@@ -303,7 +317,7 @@ const OUTLINE_JSON_SCHEMA = {
           bullets: { type: "array", items: { type: "string" } },
           imagePrompt: { type: "string" },
         },
-        required: ["title", "imagePrompt"],
+        required: ["title", "bullets", "imagePrompt"],
         additionalProperties: false,
       },
     },
