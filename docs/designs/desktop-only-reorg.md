@@ -522,7 +522,22 @@ Ghi đè bộ hình marketing của hai đợt 2026-11-08/09 phía trên, không
 - Trước push theo yêu cầu owner: chạy lại build (8 tác vụ), test (16),
   typecheck (15), mock Electron smoke (`events=10`), crash-smoke (31 project
   trước/sau), shot (gõ chữ, reload/clone/Enter/textbox thường đều đạt), media
-  self-test/audit và diff check. Không chạy task trả phí hoặc model thật.## Phát hành v0.5.0 (2026-11-10, owner "triển khai hết")
+  self-test/audit và diff check. Không chạy task trả phí hoặc model thật.## Phát hành v0.6.0 (2026-11-10, owner "push deploy tạo tag")
+
+- Release commit fa207ed (bump 0.6.0) + tag v0.6.0. CI tag run 42814394825
+  XANH TOÀN BỘ: ci, smoke, unit-windows, smoke-windows, dist-mac 5m6s (kèm
+  packaged-smoke SG-2 chạy trong CI lần đầu), dist-windows 6m32s.
+- GitHub release v0.6.0 (Latest): dmg arm64 428.182.436 B + exe x64
+  413.867.838 B + 2 checksums; SHA-256 đối chiếu checksum CI trước khi upload.
+- Site: fallback main.js + nhãn v0.6.0 (commit dda7a6b), wrangler deploy
+  twilight-sun-6b7b (version 448baf80); verify live: releases/latest = v0.6.0,
+  size khớp, oia.solutions 200. Nội dung: PPT Translator, Remove background,
+  Crop, packaged-smoke mỗi tag, 6 bug biên provider bắt nhờ real-data, sidecar
+  SAM + fix Windows từ lane song song.
+- Vẫn không ký (kế hoạch ngân sách không-signing): hướng dẫn vượt Gatekeeper/
+  SmartScreen giữ nguyên trong release notes; chưa có auto-update.
+
+## Phát hành v0.5.0 (2026-11-10, owner "triển khai hết")
 
 - Cloudflare `twilight-sun-6b7b` deploy hai lần cho landing mới + fallback
   text v0.5.0; 10 file khớp SHA-256 same-origin. Chi tiết ở
