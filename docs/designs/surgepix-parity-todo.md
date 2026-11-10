@@ -37,14 +37,14 @@ chỉ gồm những gì đã thấy. Mục nào chưa kiểm thì ghi rõ.
 | ID | Việc | Nhóm | Size | Ưu tiên |
 | --- | --- | --- | --- | --- |
 | SG-1 | Split layer: chạy e2e model thật trong app đóng gói + shot gate dialog + đọc Meta SAM License | Chưa hoàn thiện | M | Cao |
-| SG-2 | Packaged smoke: override userData cho app đóng gói, không chạm profile thật | Chưa hoàn thiện | S | Cao |
+| SG-2 | Packaged smoke: override userData cho app đóng gói, không chạm profile thật | Hoàn thành | S | Cao |
 | SG-3 | Mở rộng ứng viên khớp phông (classifier OFL hoặc catalog lớn hơn) | Chưa hoàn thiện | L | Trung bình |
 | SG-4 | OCR dấu tiếng Việt: crop re-read hai bước (đã có bằng chứng nguyên lý) | Chưa hoàn thiện | S | Trung bình |
 | SG-5 | Nền phức tạp sau tách chữ: nghiên cứu inpaint local 0 quota | Chưa hoàn thiện | M | Trung bình |
 | SG-6 | Benchmark chất lượng đa ảnh cho D22/D23 | Chưa hoàn thiện | M | Cao |
-| SG-7 | Wire PPT Translator vào UI tools (skill đã có) | Thiếu | S | Cao |
+| SG-7 | Wire PPT Translator vào UI tools (skill đã có) | Hoàn thành | S | Cao |
 | SG-8 | Crop ảnh trong editor toolbar | Thiếu | S | Trung bình |
-| SG-9 | Nút Remove background trên ContextToolbar ảnh | Thiếu (chỉ thiếu ở toolbar) | S | Trung bình |
+| SG-9 | Nút Remove background trên ContextToolbar ảnh | Hoàn thành | S | Trung bình |
 | SG-10 | Draw tool: layer vẽ tay | Thiếu | M | Thấp |
 | SG-11 | Table trong editor | Thiếu | M | Thấp |
 | SG-12 | Code signing + notarization | Phân phối | M | Cao |
@@ -91,7 +91,7 @@ Gate nghiệm thu: e2e thật 1 ảnh + 1 prompt pass trên macOS đóng gói, s
 vào CI xanh, verdict license có văn bản. Sau đó mới đổi caption landing từ
 preview sang output thật (đồng thời cập nhật `docs/verification/feature-assets.json`).
 
-### SG-2. Packaged smoke với userData tạm
+### SG-2. Packaged smoke với userData tạm — DONE (commit b0c9588, gates: release-hardening 14 test mới, desktop 227, turbo build/test/typecheck, smoke, crash-smoke, `pnpm packaged-smoke` 3/3 trên dist/mac-arm64/Oia.app đóng gói đầy đủ fuse)
 
 Khoảng trống: app đóng gói không có cơ chế test-mode dir như `electron .`. Lần
 boot nhầm 11/2026 đã để asset GC chạy trên profile thật (dọn 2/32 upload mồ côi,
@@ -114,6 +114,14 @@ Việc cần làm:
 
 Gate: packaged smoke pass trên macOS đóng gói; không ghi nhận về Windows cho
 đến khi có máy (D3).
+
+Phát hiện kèm khi làm (ghi lại vì ảnh hưởng phân phối, không chỉ test): bản
+đóng gói local bật fuse `enableCookieEncryption` + ký ad-hoc với identity mới
+mỗi lần build → keychain item "Oia Safe Storage" cũ không còn khớp ACL → macOS
+đứng dialog SecurityAgent chờ bấm Allow, app KHÔNG mở cửa sổ, KHÔNG in log,
+process sống. Script packaged-smoke tự dọn key cũ trước khi chạy (vô hại: app
+không lưu cookie đăng nhập, auth codex nằm trong CODEX_HOME). Khi có signing
+thật (SG-12) hiện tượng tự hết.
 
 ### SG-3. Mở rộng ứng viên khớp phông
 
@@ -188,7 +196,7 @@ Việc cần làm:
 
 ## B. Thiếu hẳn so với những gì đã thấy ở SurgePix
 
-### SG-7. Wire PPT Translator vào UI tools
+### SG-7. Wire PPT Translator vào UI tools — DONE (commit 06599b8, gates: packages/tasks 167 test gồm 9 test mới zip round-trip + TaskStore lane, desktop 220, shot gate 2 mục mới: translate e2e với deck fixture + file hỏng báo rõ không crash, nội dung pptx kết quả kiểm tra chứa run đã dịch)
 
 Khoảng trống: `apps/desktop/src/renderer/lib/tools-registry.ts` dòng 37 ghi
 `implemented: false`, `kind: "landing"`, trong khi skill đã có:
@@ -213,7 +221,7 @@ trong `font-mask.ts` là nội bộ khớp phông, không phải công cụ ngư
 Hướng: dùng Fabric crop hoặc thay clipPath, cập nhật scene schema nếu cần
 trường crop, giữ phím tắt, shot gate khôi phục và export sau crop.
 
-### SG-9. Nút Remove background trên ContextToolbar ảnh
+### SG-9. Nút Remove background trên ContextToolbar ảnh — DONE (commit f87bcf6, gates: shot gate hai nhánh dùng fake rembg stateful trên PATH: nhánh lỗi giữ nguyên layer + thông báo trung thực, nhánh thành công đổi src layer qua getSrc(); desktop 220; smoke; crash-smoke)
 
 Khoảng trống: task `remove-background` đã đăng ký trong
 `packages/services/src/context.ts` (dòng ~97) và có skill `oia-remove-background`,

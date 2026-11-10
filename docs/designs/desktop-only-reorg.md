@@ -533,11 +533,19 @@ Ghi đè bộ hình marketing của hai đợt 2026-11-08/09 phía trên, không
 - CI dist job phải sinh `resources/lens` trong runner (pip torch build-time,
   venv workspace trên mac vì PEP 668). Lần tag đầu fail đúng dist-mac, sửa
   rồi re-tag cùng tên, không rerun SHA cũ.
-- Nợ D21 cập nhật: (1) GIẢM một nửa: cấu trúc dmg thật + boot profile thật
-  đã xác minh, nhưng scripted packaged-smoke với userData tạm vẫn chưa có;
-  (2) e2e model SAM 880 MB trong app đóng gói vẫn mở; (3) Meta SAM License
-  chưa đọc kỹ, notes phát hành đã nêu license riêng của model; (4) Windows:
-  CI runner xanh, máy vật lý vẫn mở; (5) shot gate Split dialog vẫn mở.
+- Nợ D21 cập nhật: (1) ĐÓNG (commit b0c9588, SG-2): cấu trúc dmg thật + boot
+  profile thật đã xác minh, scripted packaged-smoke với userData tạm đã có
+  (`pnpm --filter @oia/desktop packaged-smoke`, env `OIA_USER_DATA_DIR` tuyệt
+  đối, từ chối profile mặc định, fail sớm khi không ghi được); (2) e2e model SAM
+  880 MB trong app đóng gói vẫn mở; (3) Meta SAM License chưa đọc kỹ, notes
+  phát hành đã nêu license riêng của model; (4) Windows: CI runner xanh, máy
+  vật lý vẫn mở; (5) shot gate Split dialog vẫn mở.
 - Bài học: app đóng gói không có test-mode userData; một lần chạy nhầm vào
   profile thật đã để asset GC dọn 2 upload mồ côi (đúng chính sách boot thường
   xuyên). Cần cơ chế override userData cho packaged smoke trước khi lặp lại.
+- Phát hiện phân phối (2026-11-10, khi đóng SG-2): bản build local unsigned
+  với fuse `enableCookieEncryption` lần đầu boot có thể treo vĩnh viễn sau một
+  dialog keychain "Oia Safe Storage" không ai bấm (identity ad-hoc đổi mỗi
+  build, ACL key cũ không khớp). Triệu chứng: không cửa sổ, không log, process
+  sống. Đã ghi cơ chế dọn key trong `scripts/packaged-smoke.mjs`; hết hẳn khi
+  có signing thật (SG-12).
