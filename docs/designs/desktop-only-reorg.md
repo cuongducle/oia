@@ -549,3 +549,30 @@ Ghi đè bộ hình marketing của hai đợt 2026-11-08/09 phía trên, không
   build, ACL key cũ không khớp). Triệu chứng: không cửa sổ, không log, process
   sống. Đã ghi cơ chế dọn key trong `scripts/packaged-smoke.mjs`; hết hẳn khi
   có signing thật (SG-12).
+
+## Ghi nhận thu hẹp khoảng cách gate CI vs docs (2026-11-10, owner "1b, bỏ 2 cờ")
+
+Đối chiếu "lời hứa gate" trong docs với test thật phát hiện CI xanh hẹp hơn
+những gì docs tuyên bố đã verify. Hai quyết định owner:
+
+- **Shot gate là gate MÁY OWNER, có chủ đích, không đưa vào CI (chọn phương án
+  1b).** Mọi pixel-claim (D22 đo pixel chữ, C1 outline card, ME markup, DA cost
+  label, SG-7 verify PPT Translator, SG-9 rembg giữ layer) chỉ có hiệu lực khi
+  owner chạy `pnpm --filter @oia/desktop shot` (và `shot:busy`) trước khi phát
+  hành. CI xanh KHÔNG bao gồm kiểm thị giác, đã ghi chú thẳng trong ci.yml cạnh
+  job desktop-smoke. Lý do không chạy CI Linux: chưa đo độ ổn định trên xvfb
+  (font Be Vietnam Pro, timing chụp pixel); ai đó định nâng lên gate CI thì đo
+  flake trước rồi xóa mục nợ này. Bài học giữ lại từ antipatterns: từng có 2
+  tuần thumbnail vẽ cụt nửa vì gate chỉ check element tồn tại, thị giác phải có
+  mắt.
+- **unit-windows mở rộng chạy TOÀN BỘ unit suite** (bỏ 2 cờ filter cũ chỉ
+  `@oia/tasks` + `@oia/providers`). Từ 2026-11-10, schema/protocol/canvas/
+  agent/services không còn mặc định giả định POSIX trên Windows. Comment 7f cũ
+  trong ci.yml nói "whole unit suite" nhưng filter chỉ 2/7 package: lời comment
+  giờ mới đúng sự thật. Nếu package nào đỏ trên Windows thì đó chính là loại
+  bug thầm lặng job này tồn tại để bắt: sửa hoặc ghi nợ đích danh, không thu
+  hẹp filter lại.
+
+Kèm theo trong cùng đợt (commit 5dc2db6): 2 defect bug-repro 2026-10-30 số 3
+(quit race) và số 4 (không RPC timeout) có đủ regression gate như doc tự hứa;
+CI dist-mac chạy packaged-smoke trên artifact vừa build mỗi tag v*.
