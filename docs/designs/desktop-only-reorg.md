@@ -576,3 +576,23 @@ những gì docs tuyên bố đã verify. Hai quyết định owner:
 Kèm theo trong cùng đợt (commit 5dc2db6): 2 defect bug-repro 2026-10-30 số 3
 (quit race) và số 4 (không RPC timeout) có đủ regression gate như doc tự hứa;
 CI dist-mac chạy packaged-smoke trên artifact vừa build mỗi tag v*.
+
+## Ghi nhận SG-1 e2e thật phát hiện crash nền tảng của Split layer (2026-11-10)
+
+Owner duyệt chạy thật toàn luồng SAM (quota thật không dùng vì engine local).
+Kết quả: download model 880 MB ~100 giây đúng thiết kế, dialog đúng, nhưng task
+`segment-image` giết utility process bằng SIGTRAP (hiện trên UI là "exit code
+5"). Ma trận thí nghiệm chứng minh root cause: mọi process liên kết Electron
+trên macOS có malloc đi qua zone shim PartitionAlloc của Chromium, ONNX Runtime
+CPU EP cần khối aligned cỡ GB khi vision-encode 1008px và bị trap. Node thuần
+(21/22/25) chạy trọn pipeline 31,5 giây, tìm đúng vật thể score 0,939. Không
+cứu được bằng CoreML EP (CPU fallback vẫn chết), giảm thread, tắt arena, hay
+ELECTRON_RUN_AS_NODE (shim nạp cả ở chế độ đó). Nút Split layer vì vậy đang là
+feature chết chìm trong mọi bản build macOS; Windows khả năng cao tương tự,
+chờ máy vật lý (D3). Chi tiết bằng chứng, khảo sát ngành (node-llama-cpp,
+@electron/llm, Ollama/LM Studio sidecar, transformers.js wasm) và các phương
+án kèm khuyến nghị sidecar native runner nằm ở
+`docs/designs/segmentation-process-plan.md` (chờ owner chốt hướng). Gate thật
+chạy tay Node thuần giữ tại `apps/desktop/test/segment-real.manual.test.ts`.
+Vụ này cũng xác nhận giá trị của gate e2e thật: 13 test unit + smoke mock đều
+xanh trong khi feature không chạy nổi 1 giây trong app thật.

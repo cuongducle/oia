@@ -59,7 +59,7 @@ chỉ gồm những gì đã thấy. Mục nào chưa kiểm thì ghi rõ.
 
 ## A. Chưa hoàn thiện: code có, gate còn mở
 
-### SG-1. Split layer đóng đủ gate để quảng cáo bằng output app
+### SG-1. Split layer đóng đủ gate để quảng cáo bằng output app (e2e thật 10/11/2026: PHÁT HIỆN CRASH NỀN TẢNG, xem segmentation-process-plan.md)
 
 Khoảng trống: landing hiện chỉ dán nhãn preview, không dám dùng output app làm
 bằng chứng. Nợ ghi tại D21: (2) e2e model thật, (3) Meta SAM License, (4)
@@ -90,6 +90,17 @@ Việc cần làm:
 Gate nghiệm thu: e2e thật 1 ảnh + 1 prompt pass trên macOS đóng gói, shot gate
 vào CI xanh, verdict license có văn bản. Sau đó mới đổi caption landing từ
 preview sang output thật (đồng thời cập nhật `docs/verification/feature-assets.json`).
+
+Cập nhật 10/11/2026 sau e2e thật (owner cho chạy quota thật): luồng GUI +
+download 880 MB (~100 giây) + dialog prompt chạy đúng, nhưng task segment làm
+utility process chết SIGTRAP (báo "exit code 5") trong CẢ dev lẫn bản đóng gói
+trên macOS. Root cause đã chứng minh bằng ma trận thí nghiệm: malloc của mọi
+process Electron bị Chromium PartitionAlloc chặn qua zone shim, ONNX Runtime
+cần khối aligned cỡ GB khi vision-encode 1008px nên bị trap; Node thuần chạy
+đẹp (31,5 giây, đúng lọ serum score 0,939). CoreML EP, giảm thread, tắt arena
+đều không cứu; ELECTRON_RUN_AS_NODE cũng chết. Phương án + khuyến nghị sidecar
+native runner: `docs/designs/segmentation-process-plan.md`. Gate SG-1 giữ MỞ,
+thêm điều kiện: chọn kiến trúc chạy ngoài process Electron và pass lại e2e.
 
 ### SG-2. Packaged smoke với userData tạm — DONE (commit b0c9588, gates: release-hardening 14 test mới, desktop 227, turbo build/test/typecheck, smoke, crash-smoke, `pnpm packaged-smoke` 3/3 trên dist/mac-arm64/Oia.app đóng gói đầy đủ fuse)
 
