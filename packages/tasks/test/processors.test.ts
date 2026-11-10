@@ -52,7 +52,8 @@ describe("image-edit reference resolution (real-run lesson 2026-11-10)", () => {
     const out = await run({ reference: [up.url], prompt: "p" }, { jobId: "j", signal: new AbortController().signal });
     expect(out.urls[0]).toContain("/api/files/");
     expect(seenRefs[0][0]).not.toContain("/api/files/"); // the provider saw a LOCAL PATH
-    expect(seenRefs[0][0]).toContain(up.url.replace(/^\/api\/files\//, "")); // pointing at the stored file
+    // Windows materializes native separators; compare on a normalized copy (D3)
+    expect(seenRefs[0][0].replaceAll("\\", "/")).toContain(up.url.replace(/^\/api\/files\//, "")); // pointing at the stored file
   });
   it("a missing /api/files/ reference fails with a clear message BEFORE any provider call", async () => {
     let called = 0;
