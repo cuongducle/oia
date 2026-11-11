@@ -6,7 +6,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { atomicWriteJson, renameWithRetry } from "@oia/tasks";
 import { deconstructTextSchema } from "@oia/schema";
-import { prepareDeconstructRegions, readDeconstructPng } from "../../../packages/tasks/dist/deconstruct-plate.js";
+import { prepareDeconstructRegions } from "../../../packages/tasks/dist/deconstruct/text-layout.js";
+import { readDeconstructPng } from "../../../packages/tasks/dist/deconstruct/source-image.js";
 
 const [, , originalArg, textsArg, plateArg, outputArg] = process.argv;
 if (!originalArg || !textsArg || !plateArg || !outputArg) {

@@ -2,7 +2,7 @@ import { FONT_MATCH_JSON_SCHEMA, FONT_MATCH_PROMPT, fontMatchesSchema, fontRefer
 import { ProviderError } from "@oia/providers";
 import type { ProcCtx } from "./processors.js";
 import type { TaskContext } from "./store.js";
-import { readDeconstructPng } from "./deconstruct-plate.js";
+import { readDeconstructPng } from "./deconstruct/source-image.js";
 
 /** D23: one metered visual comparison; the desktop owns font rasterization. */
 export function makeMatchFonts(ctx: ProcCtx) {

@@ -40,6 +40,36 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Tách mô-đun theo trách nhiệm (2026-11-12, owner duyệt)
+
+Chỉ tổ chức lại mã, không đổi thuật toán, prompt, ngưỡng, giới hạn 15 giây,
+chi phí hay hợp đồng tác vụ. Bản đồ và luồng:
+[deconstruct-flow.md](../reference/deconstruct-flow.md).
+
+- Phần tác vụ chuyển vào `packages/tasks/src/deconstruct/`: điều phối,
+  đọc chữ, bảng ảnh cắt, màu mực, khung mực, vùng xóa, nền và sót chữ.
+  `processors.ts` vẫn xuất tên cũ. Hai tệp plate/sheets cũ chỉ chuyển tiếp
+  để các kịch bản đã ghi trước đây không gãy; không giữ bản sao thuật toán.
+- Phần giao diện tách `font-reference-board.ts` (chuẩn bị) và
+  `font-ranking.ts` (chấm phông); `font-reference.ts` giữ tên xuất cũ.
+- Chỉ kịch bản shot deconstruct chuyển khỏi main sang
+  `main/shots/deconstruct.ts`. Không tái cấu trúc toàn bộ Electron shell.
+- Hàm tải dữ liệu ảnh chung chuyển nguyên sang `asset-bytes.ts`, không
+  viết một bản khác riêng cho deconstruct. Bỏ hàm chết `ctxNameUnused`.
+
+Bằng chứng trước/sau trong
+`docs/private/real-runs/2026-11-12-deconstruct-refactor/`: so với `906cf20`,
+36 thân hàm được chuyển không đổi (chỉ chuẩn hóa tên hai hàm canvas nội bộ
+khi đối chiếu). Trên ảnh owner, texts-final.json, erase-regions.json và PNG
+đầu ra giống hệt từng byte; đã mở ảnh sau. Cả hai lượt đều chạm giới hạn
+so phông và trả bản ban đầu, nên đây không phải chứng cứ nhánh xếp hạng
+hoàn tất trên ảnh dày. Nhánh chấm phông được chạy qua text-smoke với nguồn
+Canvas2D độc lập. 0 lượt trả phí mới, không chạy provider/detector mới.
+
+Gates cục bộ: build/test/typecheck, text-smoke, smoke, crash-smoke, shot xanh.
+Các giới hạn chất lượng D22 vẫn giữ nguyên, refactor không đồng nghĩa ảnh
+tốt hơn.
+
 ### Tối ưu vị trí/cỡ chữ/khung chữ theo chỉ định owner (2026-11-12)
 
 Owner chốt giữ kiến trúc hiện tại, chỉ tối ưu vị trí, cỡ chữ, khung chữ.

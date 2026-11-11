@@ -1,7 +1,7 @@
 import { lensSuggestionSchema, type DeconstructText, type LensSuggestion } from "@oia/schema";
 import type { OiaBridge } from "../../shared/bridge.js";
 import { fittedDeconstructScene } from "./deconstruct-typography.js";
-import { FontComparisonBudgetExceeded, rankArtworkFonts } from "./font-reference.js";
+import { FontComparisonBudgetExceeded, rankArtworkFonts } from "./font-ranking.js";
 import { pollTask } from "./poll-task.js";
 
 type FontMatchBridge = Pick<OiaBridge, "uploadAsset" | "submitTask" | "getTask" | "cancelTask">;
