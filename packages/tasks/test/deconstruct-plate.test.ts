@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
 import { deconstructTextSchema } from "@oia/schema";
-import { composeTextPlate, localTextPlate, readDeconstructPng, refineTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
+import { composeTextPlate, localTextPlate, prepareDeconstructRegions, readDeconstructPng, refineTextRegions, retainedTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
 
 function solid(w: number, h: number, rgb: number[]) {
   const p = new PNG({ width: w, height: h });
@@ -14,6 +14,50 @@ const line = (angle = 0) => deconstructTextSchema.parse({
 });
 
 describe("D22 text plate", () => {
+  it("rejects retained ink but accepts removal and does not classify a solid background as ink", () => {
+    const src = solid(200, 200, [245, 245, 245]);
+    for (let y = 62; y < 80; y++) for (let x = 62; x < 138; x += 3) src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+    expect(retainedTextRegions(src, src, [line()])).toEqual([0]);
+    expect(retainedTextRegions(src, solid(200, 200, [245, 245, 245]), [line()])).toEqual([]);
+    expect(retainedTextRegions(solid(200, 200, [229, 34, 51]), solid(200, 200, [229, 34, 51]), [line()])).toEqual([]);
+  });
+
+  it.each([
+    { name: "recolored strokes", seed: "#e52233", color: [209, 14, 31] },
+    { name: "incorrect color seed", seed: "#0000ff", color: [229, 34, 51] },
+  ])("rejects $name instead of interpreting a color mismatch as removal", ({ seed, color }) => {
+    const src = solid(200, 200, [245, 245, 245]);
+    const plate = solid(200, 200, [245, 245, 245]);
+    for (let y = 62; y < 80; y++) for (let x = 62; x < 138; x += 3) {
+      src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+      plate.data.set([...color, 255], (y * 200 + x) * 4);
+    }
+    const selected = line();
+    if (!selected.typography) throw new Error("Fixture typography is missing.");
+    selected.typography.fill = seed;
+    expect(retainedTextRegions(src, plate, [selected])).toEqual([0]);
+    expect(retainedTextRegions(src, solid(200, 200, [245, 245, 245]), [selected])).toEqual([]);
+  });
+
+  it("does not move a line to a larger same-color neighboring headline in the search margin", () => {
+    const src = solid(200, 200, [245, 245, 245]);
+    for (let y = 60; y < 75; y++) for (let x = 60; x < 140; x += 4) src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+    for (let y = 82; y < 93; y++) for (let x = 60; x < 140; x++) src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+    const [refined] = refineTextRegions(src, [line()]);
+    expect(Math.abs(refined.box.y * 200 - 60)).toBeLessThan(1);
+    expect((refined.box.y + refined.box.h) * 200).toBeLessThan(82);
+  });
+  it("recovers a short label whose full-image box starts inside the word", () => {
+    const src = solid(200, 200, [245, 245, 245]);
+    for (let y = 60; y < 72; y++) for (let x = 116; x < 153; x += 2) src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+    const input = { ...line(), text: "dễ dàng", box: { x: 0.65, y: 0.3, w: 0.2, h: 0.08 } };
+    const { texts, eraseRegions } = prepareDeconstructRegions(src, [input]);
+    expect(texts[0].box.x * 200).toBeLessThanOrEqual(117);
+    expect(eraseRegions[0].box.x + eraseRegions[0].box.w).toBeGreaterThanOrEqual(input.box.x + input.box.w);
+    const plate = readDeconstructPng(composeTextPlate(src, solid(200, 200, [245, 245, 245]), eraseRegions));
+    expect(retainedTextRegions(src, plate, texts)).toEqual([]);
+  });
+
   it("does not copy imagegen drift outside a rotated OCR region; source alpha survives", () => {
     const src = solid(100, 100, [10, 20, 30]);
     src.data[3] = 0;

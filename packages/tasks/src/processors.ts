@@ -1,5 +1,5 @@
 import type { FileStore } from "./storage.js";
-import { composeTextPlate, localTextPlate, readDeconstructPng, refineTextRegions, sampleTextColors } from "./deconstruct-plate.js";
+import { composeTextPlate, localTextPlate, readDeconstructPng, prepareDeconstructRegions, retainedTextRegions } from "./deconstruct-plate.js";
 import { ProviderError } from "@oia/providers";
 import type { ImageProvider, LlmProvider } from "@oia/providers";
 import type { TaskContext } from "./store.js";
@@ -162,33 +162,34 @@ export function makeDeconstruct(ctx: ProcCtx) {
       tctx.signal?.throwIfAborted();
       return { urls: [fileUrl], texts: [], note: "No readable text was found. The original image is unchanged." };
     }
-    const texts = sampleTextColors(original, refineTextRegions(original, read.texts));
+    const { texts, eraseRegions } = prepareDeconstructRegions(original, read.texts);
     await tctx.checkpoint?.({ urls: [], texts, note: "Text recognition was preserved. Background cleanup has not completed; the original image is unchanged." });
     tctx.signal?.throwIfAborted();
-    const local = localTextPlate(original, texts);
-    if (local) {
-      const saved = await ctx.store.put(local, "png");
-      return { urls: [saved.url], texts, note: "The smooth background was restored locally; no image generation was used." };
-    }
-    if (!ctx.image.capabilities.referenceImages) {
+    const local = localTextPlate(original, eraseRegions);
+    if (!local && !ctx.image.capabilities.referenceImages) {
       throw new ProviderError("capability_unsupported", `provider ${ctx.image.name} does not accept reference images`, { provider: ctx.image.name });
     }
-    const size = original;
-    // in-process ref: the store's LOCAL PATH, no base64 round-trip (P2)
-    const platePath = await ctx.store.pathOf(fileUrl.replace(/^\/api\/files\//, ""));
-    if (!platePath) throw new Error("fileUrl is invalid or has not been uploaded");
-    const img = await ctx.image.generate({
-      prompt: `${DECONSTRUCT_INPAINT_PROMPT}\nOCR data (fraction boxes, clockwise angle about top-left): ${JSON.stringify(texts.map((t) => ({ text: t.text, box: t.box, angle: t.typography?.angle ?? 0 })))}`,
-      width: size.width,
-      height: size.height,
-      referenceImages: [platePath],
-      signal: tctx.signal,
-    });
-    const bytes = await fetchBytes(img.url, ctx.store);
+    let plate = local;
+    if (!plate) {
+      // P2: reference bytes live in the store, not a renderer URL.
+      const platePath = await ctx.store.pathOf(fileUrl.replace(/^\/api\/files\//, ""));
+      if (!platePath) throw new Error("fileUrl is invalid or has not been uploaded");
+      const img = await ctx.image.generate({
+        prompt: `${DECONSTRUCT_INPAINT_PROMPT}\nOCR data (fraction boxes, clockwise angle about top-left): ${JSON.stringify(eraseRegions.map(t => ({ text: t.text, box: t.box, angle: t.typography?.angle ?? 0 })))}`,
+        width: original.width, height: original.height,
+        referenceImages: [platePath], signal: tctx.signal,
+      });
+      const bytes = await fetchBytes(img.url, ctx.store);
+      tctx.signal?.throwIfAborted();
+      plate = composeTextPlate(original, readDeconstructPng(bytes), eraseRegions);
+    }
+    const retained = retainedTextRegions(original, readDeconstructPng(plate), texts);
+    if (retained.length) {
+      throw new ProviderError("no_output", `Background cleanup left original text in ${retained.length} selected regions. The original image and recognized text were preserved; no automatic retry was made.`, { provider: ctx.image.name });
+    }
     tctx.signal?.throwIfAborted();
-    const plate = composeTextPlate(original, readDeconstructPng(bytes), texts);
     const saved = await ctx.store.put(plate, "png");
-    return { urls: [saved.url], texts };
+    return { urls: [saved.url], texts, ...(local ? { note: "The smooth background was restored locally; no image generation was used." } : {}) };
   };
 }
 

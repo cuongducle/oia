@@ -16,8 +16,8 @@ function clamp(v: number, lo: number, hi: number): number {
 export function deconstructScene(input: { imageUrl: string; w: number; h: number; texts: DeconstructText[] }): SceneCanvas {
   const { imageUrl, w, h, texts } = input;
   const objects: FabricObject[] = [
-    { type: "Rect", name: "clip", left: 0, top: 0, width: w, height: h, fill: "white", selectable: false },
-    { type: "Image", left: 0, top: 0, width: w, height: h, src: imageUrl, crossOrigin: "anonymous", selectable: true },
+    { type: "Rect", name: "clip", left: 0, top: 0, originX: "left", originY: "top", width: w, height: h, fill: "white", selectable: false },
+    { type: "Image", left: 0, top: 0, originX: "left", originY: "top", width: w, height: h, src: imageUrl, crossOrigin: "anonymous", selectable: true },
   ];
   for (const t of texts) {
     // clamp placement INSIDE the artboard: models can return boxes whose x+w

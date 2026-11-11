@@ -1,7 +1,7 @@
 import { lensSuggestionSchema, type DeconstructText, type LensSuggestion } from "@oia/schema";
 import type { OiaBridge } from "../../shared/bridge.js";
 import { fittedDeconstructScene } from "./deconstruct-typography.js";
-import { buildFontReference, rankFontReferences, releaseFontReference } from "./font-reference.js";
+import { FontComparisonBudgetExceeded, rankArtworkFonts } from "./font-reference.js";
 import { pollTask } from "./poll-task.js";
 
 type FontMatchBridge = Pick<OiaBridge, "uploadAsset" | "submitTask" | "getTask" | "cancelTask">;
@@ -32,28 +32,28 @@ export async function matchedDeconstructScene(input: {
   if (run.stopped() || !input.texts.some((t) => t.typography)) return { scene: baseline, note: "" };
   const suggestions = await recognizeFontsLocally(input.png, input.texts, bridge, run);
   if (run.stopped()) return { scene: baseline, note: "" };
-  let board: Awaited<ReturnType<typeof buildFontReference>> = null;
   try {
-    board = await buildFontReference(input.png, input.texts, input.w, input.h, run.stopped, suggestions);
-    if (!board) return { scene: baseline, note: "No reliable text crop was available for visual font comparison." };
-    if (run.stopped()) throw new DOMException("Stopped", "AbortError");
-    // D23: all bounded candidates are measured locally. A paid shortlist cannot add candidates or improve the pixel optimum.
-    const ranked = await rankFontReferences(board, [], input.texts, input.w, input.h, run.stopped);
+    const ranked = await rankArtworkFonts(input.png, input.texts, input.w, input.h, run.stopped, suggestions);
+    if (!ranked.compared) return { scene: baseline, note: "No reliable text crop was available for visual font comparison." };
     if (run.stopped()) throw new DOMException("Stopped", "AbortError");
     const scene = await fittedDeconstructScene({ ...input, texts: ranked.texts, fits: ranked.fits });
-    for (const line of board.lines) {
-      const source = board.sources.find((s) => s.lineIndex === line.lineIndex && s.family === ranked.texts[line.lineIndex]?.typography?.fontFamily);
-      if (source && scene.objects[line.lineIndex + 2]) scene.objects[line.lineIndex + 2].fontSource = source.source;
+    for (const source of ranked.sources) {
+      if (source.family === ranked.texts[source.lineIndex]?.typography?.fontFamily && scene.objects[source.lineIndex + 2]) {
+        scene.objects[source.lineIndex + 2].fontSource = source.source;
+      }
     }
     const eligible = input.texts.filter((t) => t.typography).length;
-    const note = board.rows.length < eligible ? `Visual font comparison covered ${board.rows.length} of ${eligible} text regions; other regions keep their initial font.` : "";
+    const note = ranked.compared < eligible ? `Visual font comparison covered ${ranked.compared} of ${eligible} text regions; other regions keep their initial font. Fonts are approximations; review the result before exporting.`
+      : "Fonts are approximations; review the result before exporting.";
     if (note) scene.deconstructFontNote = note;
     return { scene, note };
   } catch (error) {
     const stopped = run.stopped() || (error instanceof DOMException && error.name === "AbortError");
     const note = stopped ? "Font comparison was stopped. The initial editable text and cleaned background were kept."
-      : "Font comparison was unavailable. The initial editable text and cleaned background were kept.";
+      : error instanceof FontComparisonBudgetExceeded
+        ? "Font comparison reached its local time limit. The initial editable text and cleaned background were kept."
+        : "Font comparison was unavailable. The initial editable text and cleaned background were kept.";
     baseline.deconstructFontNote = note;
     return { scene: baseline, note };
-  } finally { if (board) releaseFontReference(board); }
+  }
 }

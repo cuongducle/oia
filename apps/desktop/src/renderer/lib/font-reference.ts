@@ -2,8 +2,10 @@ import {
   DECONSTRUCT_FONTS, FONT_REFERENCE_MAX_LINES, FONT_REFERENCE_MAX_CANDIDATES,
   type DeconstructText, type FontMatch, type FontReferenceRow, type LensSuggestion,
 } from "@oia/schema";
+import type { FabricText as FabricTextObject } from "fabric";
+import { glyphScale, rasterizeGlyphs } from "./glyph-raster.js";
 import { fabricV6OriginDefaults } from "@oia/canvas";
-import { fittedDeconstructScene, inkBounds, type DeconstructFit } from "./deconstruct-typography.js";
+import { fitTextMetrics, type DeconstructFit } from "./deconstruct-typography.js";
 import { fontMaskPlacement, type InkMask } from "./font-mask.js";
 import { loadLensFont } from "./scene-fonts.js";
 import { dataUrlBytes } from "./data-url.js";
@@ -68,7 +70,7 @@ function drawCandidate(ctx: CanvasRenderingContext2D, text: string, family: Fami
 }
 
 /** Build at most six panels in one image; every sample uses the exact OCR content. */
-export async function buildFontReference(png: Uint8Array, texts: DeconstructText[], w: number, h: number, stopped: () => boolean, suggestions: LensSuggestion[] = []): Promise<FontReferenceBoard | null> {
+export async function buildFontReference(png: Uint8Array, texts: DeconstructText[], w: number, h: number, stopped: () => boolean, suggestions: LensSuggestion[] = [], renderBoard = true): Promise<FontReferenceBoard | null> {
   const sources: LensSuggestion[] = [];
   for (const suggestion of suggestions) {
     if (stopped()) throw new DOMException("Stopped", "AbortError");
@@ -97,6 +99,8 @@ export async function buildFontReference(png: Uint8Array, texts: DeconstructText
       return document.fonts.load(`${t.typography?.fontStyle ?? "normal"} ${t.typography?.fontWeight ?? 400} 36px "${candidate.family}"`, t.text);
     })));
     if (stopped()) throw new DOMException("Stopped", "AbortError");
+    const rows = lines.map(line => ({ lineIndex: line.lineIndex, candidateIds: line.candidates.slice(0, FONT_REFERENCE_MAX_CANDIDATES).map(c => c.id) }));
+    if (!renderBoard) return { png: new Uint8Array(), rows, lines, sources };
     const panelHeight = 96 + Math.ceil(Math.min(FONT_REFERENCE_MAX_CANDIDATES, Math.max(...lines.map((line) => line.candidates.length))) / 4) * 70;
     const board = canvasOf(1600, lines.length * panelHeight), ctx = context(board);
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, board.width, board.height);
@@ -142,6 +146,33 @@ export async function rankFontReferences(board: FontReferenceBoard, matches: Fon
     let baseline = 0;
     let best: Fit = { score: 0, family: style.fontFamily, fontWeight: style.fontWeight, fontSize: 12, charSpacing: 0 };
     const coarse: Fit[] = [];
+    const evaluate = (text: FabricTextObject, family: string, fontWeight: number, fontSize: number, charSpacing: number, fixed = false): Fit => {
+      checkStopped();
+      text.set({ fontSize: Math.max(4, fontSize), charSpacing: Math.max(-20, Math.min(1000, charSpacing)) });
+      let raster: ReturnType<typeof rasterizeGlyphs>;
+      try { raster = rasterizeGlyphs(text); } catch { return { score: 0, family, fontWeight, fontSize: text.fontSize, charSpacing: text.charSpacing }; }
+      if (!raster) return { score: 0, family, fontWeight, fontSize: text.fontSize, charSpacing: text.charSpacing };
+      let normalized: HTMLCanvasElement | undefined;
+      try {
+        // The same transform the renderer will apply: what is scored is what is painted.
+        const transform = glyphScale(raster.bounds, { width: t.box.w * w, height: t.box.h * h });
+        const width = raster.bounds.width * transform.scaleX * line.scale;
+        const height = raster.bounds.height * transform.scaleY * line.scale;
+        normalized = canvasOf(Math.max(1, Math.ceil(width)), Math.max(1, Math.ceil(height)));
+        const ctx = context(normalized);
+        ctx.drawImage(raster.canvas, raster.bounds.x, raster.bounds.y, raster.bounds.width, raster.bounds.height, 0, 0, width, height);
+        const pixels = ctx.getImageData(0, 0, normalized.width, normalized.height).data;
+        const data = new Uint8Array(normalized.width * normalized.height);
+        for (let i = 0; i < data.length; i++) data[i] = Number(pixels[i * 4 + 3] >= 128);
+        const placement = fontMaskPlacement(line.mask, { width: normalized.width, height: normalized.height, data }, fixed ? 0 : minX, fixed ? 0 : minY, fixed ? 0 : 2);
+        return { score: placement.score, family, fontWeight, fontSize: text.fontSize, charSpacing: text.charSpacing, offsetX: placement.x / line.scale, offsetY: placement.y / line.scale };
+      } catch {
+        return { score: 0, family, fontWeight, fontSize: text.fontSize, charSpacing: text.charSpacing };
+      } finally {
+        if (raster) raster.canvas.width = raster.canvas.height = 0;
+        if (normalized) normalized.width = normalized.height = 0;
+      }
+    };
     for (const family of families) {
       // Give Stop and painting a turn between bounded chunks of CPU work.
       await new Promise<void>((resolve) => setTimeout(resolve, 0)); checkStopped();
@@ -150,31 +181,19 @@ export async function rankFontReferences(board: FontReferenceBoard, matches: Fon
       const weights = source && !source.variable ? [source.weight] : [...new Set([style.fontWeight, 400, 700])];
       for (const fontWeight of weights) {
         checkStopped();
-        const candidate = { ...t, box: { ...t.box, x: 0, y: 0 }, typography: { ...style, fontFamily: family, fontWeight, angle: 0 } };
-        const scene = await fittedDeconstructScene({ imageUrl: "", w, h, texts: [candidate] });
-        const object = scene.objects[2];
-        if (!object) continue;
-        const text = new FabricText(t.text, { fontFamily: family, fontWeight, fontStyle: style.fontStyle, fill: "#000000", strokeWidth: 0, originX: "left", originY: "top" });
-        const evaluate = (fontSize: number, charSpacing: number, fixed = false): Fit => {
-          checkStopped();
-          text.set({ fontSize: Math.max(4, fontSize), charSpacing: Math.max(-80, Math.min(1000, charSpacing)) });
-          const raster = text.toCanvasElement(), ink = inkBounds(raster);
-          if (!ink) { raster.width = raster.height = 0; return { score: 0, family, fontWeight, fontSize, charSpacing }; }
-          const normalized = canvasOf(Math.max(1, Math.ceil(ink.width * line.scale)), Math.max(1, Math.ceil(ink.height * line.scale)));
-          const ctx = context(normalized);
-          ctx.drawImage(raster, ink.x, ink.y, ink.width, ink.height, 0, 0, ink.width * line.scale, ink.height * line.scale);
-          const pixels = ctx.getImageData(0, 0, normalized.width, normalized.height).data;
-          const data = new Uint8Array(normalized.width * normalized.height);
-          for (let i = 0; i < data.length; i++) data[i] = Number(pixels[i * 4 + 3] >= 200);
-          const placement = fontMaskPlacement(line.mask, { width: normalized.width, height: normalized.height, data }, fixed ? 0 : minX, fixed ? 0 : minY, fixed ? 0 : 2);
-          raster.width = raster.height = normalized.width = normalized.height = 0;
-          return { score: placement.score, family, fontWeight, fontSize: text.fontSize, charSpacing: text.charSpacing, offsetX: placement.x / line.scale, offsetY: placement.y / line.scale };
-        };
+        await document.fonts.load(`${style.fontStyle} ${fontWeight} 48px "${family}"`, t.text);
+        const text = new FabricText(t.text, { fontFamily: family, fontWeight, fontStyle: style.fontStyle, fontSize: 48, fill: "#000000", strokeWidth: 0, originX: "left", originY: "top" });
         try {
-          const size = object.fontSize ?? 12, spacing = typeof object.charSpacing === "number" ? object.charSpacing : 0;
-          if (family === style.fontFamily && fontWeight === style.fontWeight) baseline = evaluate(size, spacing, true).score;
+          const measured = rasterizeGlyphs(text);
+          if (!measured) continue;
+          let initial: { fontSize: number; charSpacing: number };
+          try {
+            initial = fitTextMetrics({ inkWidth: measured.bounds.width * 100 / 48, inkHeight: measured.bounds.height * 100 / 48, targetWidth: t.box.w * w, targetHeight: t.box.h * h, characters: Array.from(t.text).length, spacingEm: style.spacingEm });
+          } finally { measured.canvas.width = measured.canvas.height = 0; }
+          const size = initial.fontSize, spacing = initial.charSpacing;
+          if (family === style.fontFamily && fontWeight === style.fontWeight) baseline = evaluate(text, family, fontWeight, size, spacing, true).score;
           for (const offset of [0, -50, 50]) {
-            const fit = evaluate(size, spacing + offset);
+            const fit = evaluate(text, family, fontWeight, size, spacing + offset);
             if (!familyBest || fit.score > familyBest.score) familyBest = fit;
           }
         } finally { text.dispose(); }
@@ -191,16 +210,8 @@ export async function rankFontReferences(board: FontReferenceBoard, matches: Fon
           const anchor = local;
           for (const sizeFactor of [1 - step, 1, 1 + step]) for (const delta of [-step * 1000, 0, step * 1000]) {
             checkStopped();
-            text.set({ fontSize: Math.max(4, anchor.fontSize * sizeFactor), charSpacing: Math.max(-80, Math.min(1000, anchor.charSpacing + delta)) });
-            const raster = text.toCanvasElement(), ink = inkBounds(raster);
-            if (!ink) { raster.width = raster.height = 0; continue; }
-            const normalized = canvasOf(Math.max(1, Math.ceil(ink.width * line.scale)), Math.max(1, Math.ceil(ink.height * line.scale))), ctx = context(normalized);
-            ctx.drawImage(raster, ink.x, ink.y, ink.width, ink.height, 0, 0, ink.width * line.scale, ink.height * line.scale);
-            const rgba = ctx.getImageData(0, 0, normalized.width, normalized.height).data, data = new Uint8Array(normalized.width * normalized.height);
-            for (let p = 0; p < data.length; p++) data[p] = Number(rgba[p * 4 + 3] >= 200);
-            const placement = fontMaskPlacement(line.mask, { width: normalized.width, height: normalized.height, data }, minX, minY, 2);
-            if (placement.score > local.score) local = { ...seed, score: placement.score, fontSize: text.fontSize, charSpacing: text.charSpacing, offsetX: placement.x / line.scale, offsetY: placement.y / line.scale };
-            raster.width = raster.height = normalized.width = normalized.height = 0;
+            const fit = evaluate(text, seed.family, seed.fontWeight, anchor.fontSize * sizeFactor, anchor.charSpacing + delta);
+            if (fit.score > local.score) local = fit;
           }
         }
       } finally { text.dispose(); }
@@ -213,6 +224,44 @@ export async function rankFontReferences(board: FontReferenceBoard, matches: Fon
     scores.push({ lineIndex: line.lineIndex, family: chosen[line.lineIndex].typography?.fontFamily ?? style.fontFamily, fontWeight: chosen[line.lineIndex].typography?.fontWeight ?? style.fontWeight, before: baseline, after: fits.has(line.lineIndex) ? best.score : baseline });
   }
   return { texts: chosen, fits, scores };
+}
+
+export class FontComparisonBudgetExceeded extends Error {
+  constructor() { super("Local font comparison exceeded its time budget."); }
+}
+
+/** D22: bounded CPU work across the artwork, not just its first six lines. */
+export async function rankArtworkFonts(png: Uint8Array, texts: DeconstructText[], w: number, h: number, stopped: () => boolean, suggestions: LensSuggestion[] = [], options: { budgetMs?: number } = {}) {
+  const budget = options.budgetMs ?? 15_000;
+  if (!Number.isFinite(budget) || budget < 0) throw new Error("Invalid font comparison budget.");
+  const deadline = performance.now() + budget;
+  const checkStopped = () => {
+    if (stopped()) return true;
+    if (performance.now() >= deadline) throw new FontComparisonBudgetExceeded();
+    return false;
+  };
+  const chosen = [...texts];
+  const fits = new Map<number, DeconstructFit>();
+  const sources: LensSuggestion[] = [];
+  let compared = 0;
+  const scores: FontReferenceScore[] = [];
+  for (let start = 0; start < texts.length; start += FONT_REFERENCE_MAX_LINES) {
+    if (checkStopped()) throw new DOMException("Stopped", "AbortError");
+    const chunk = texts.slice(start, start + FONT_REFERENCE_MAX_LINES);
+    const local = suggestions.filter(s => s.lineIndex >= start && s.lineIndex < start + chunk.length)
+      .map(s => ({ ...s, lineIndex: s.lineIndex - start }));
+    const board = await buildFontReference(png, chunk, w, h, checkStopped, local, false);
+    if (!board) continue;
+    try {
+      const ranked = await rankFontReferences(board, [], chunk, w, h, checkStopped);
+      ranked.texts.forEach((t, i) => { chosen[start + i] = t; });
+      for (const [index, fit] of ranked.fits) fits.set(start + index, fit);
+      sources.push(...board.sources.map(s => ({ ...s, lineIndex: s.lineIndex + start })));
+      scores.push(...ranked.scores.map(score => ({ ...score, lineIndex: score.lineIndex + start })));
+      compared += ranked.scores.length;
+    } finally { releaseFontReference(board); }
+  }
+  return { texts: chosen, fits, sources, compared, scores };
 }
 
 export function releaseFontReference(board: FontReferenceBoard) {

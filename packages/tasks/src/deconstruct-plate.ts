@@ -26,12 +26,15 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
     const g = geometry(t, src.width, src.height);
     const fill = t.typography.fill;
     const seed = [1, 3, 5].map((i) => parseInt(fill.slice(i, i + 2), 16));
-    const margin = Math.max(3, g.bh * 0.4);
-    const sideMargin = Math.min(margin, Math.max(3, g.bw * 0.02));
+    const margin = Math.max(6, g.bh * (g.bh < 40 ? 0.7 : 0.4));
+    const topMargin = g.bh < 40 ? margin : Math.max(3, g.bh * 0.15);
+    const sideMargin = Array.from(t.text).length <= 12
+      ? Math.max(3, Math.min(g.bw * 0.4, g.bh * 1.5))
+      : Math.max(3, Math.min(g.bw * 0.1, g.bh * 0.8));
     const step = Math.max(1, Math.ceil(Math.sqrt((g.bw + 2 * sideMargin) * (g.bh + 2 * margin) / 120000)));
     let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity, count = 0;
-    const ink: { u: number; v: number }[] = [];
-    for (let v = -margin; v < g.bh + margin; v += step) for (let u = -sideMargin; u < g.bw + sideMargin; u += step) {
+    let ink: { u: number; v: number }[] = [];
+    for (let v = -topMargin; v < g.bh + margin; v += step) for (let u = -sideMargin; u < g.bw + sideMargin; u += step) {
       const x = Math.round(g.x + u * g.cos - v * g.sin), y = Math.round(g.y + u * g.sin + v * g.cos);
       if (x < 0 || y < 0 || x >= src.width || y >= src.height) continue;
       const i = (y * src.width + x) * 4;
@@ -40,6 +43,21 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
       if (distance > 40 ** 2) continue;
       ink.push({ u, v });
     }
+    // D22: recover a clipped word edge, but do not absorb a separate same-color icon.
+    const columns = new Map<number, number>();
+    for (const p of ink) columns.set(p.u, (columns.get(p.u) ?? 0) + 1);
+    const occupied = [...columns].filter(([, count]) => count >= 2).map(([u]) => u);
+    const gap = Math.max(3, g.bh * 0.12);
+    let leftLimit = 0, rightLimit = g.bw;
+    for (const u of occupied.filter(u => u < 0).sort((a, b) => b - a)) {
+      if (leftLimit - u > gap + step) break;
+      leftLimit = u;
+    }
+    for (const u of occupied.filter(u => u > g.bw).sort((a, b) => a - b)) {
+      if (u - rightLimit > gap + step) break;
+      rightLimit = u;
+    }
+    ink = ink.filter(p => p.u >= leftLimit && p.u <= rightLimit);
     // D22: blank row bands separate neighboring lines even when their ink colors match.
     const bands: { start: number; end: number; points: typeof ink }[] = [];
     const maxGap = Math.max(3, g.bh * 0.12);
@@ -52,14 +70,20 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
       if (!band || p.v - band.end > maxGap + step) bands.push({ start: p.v, end: p.v, points: [p] });
       else { band.end = p.v; band.points.push(p); }
     }
-    const band = bands.filter((b) => b.end >= 0 && b.start <= g.bh)
-      .sort((a, b) => b.points.length - a.points.length)[0];
+    // D22: a larger neighboring headline must not steal the OCR line's box.
+    const overlap = (b: typeof bands[number]) => Math.max(0, Math.min(g.bh, b.end + step) - Math.max(0, b.start));
+    const candidates = bands.filter((b) => overlap(b) >= Math.min(g.bh * 0.25, (b.end - b.start + step) * 0.5));
+    const band = candidates.sort((a, b) => {
+      const coverage = (b: typeof bands[number]) => overlap(b) / (b.end - b.start + step);
+      return coverage(b) - coverage(a) || b.points.length - a.points.length;
+    })[0] ?? (g.bh < 40 ? bands.sort((a, b) => Math.abs((a.start + a.end) / 2 - g.bh / 2) - Math.abs((b.start + b.end) / 2 - g.bh / 2))[0] : undefined);
     for (const { u, v } of band?.points ?? []) {
-      u0 = Math.min(u0, u); v0 = Math.min(v0, v); u1 = Math.max(u1, u + step); v1 = Math.max(v1, v + step); count++;
+      u0 = Math.min(u0, u); v0 = Math.min(v0, v); u1 = Math.max(u1, u + step + 0.5); v1 = Math.max(v1, v + step + 0.5); count++;
     }
     // A speck matching the seed is not evidence for replacing a whole line's box.
     const sampledArea = (g.bw + 2 * sideMargin) * (g.bh + 2 * margin) / (step * step);
-    if (count < 8 || count > sampledArea * 0.5 || u1 - u0 < g.bw * 0.4 || v1 - v0 < g.bh * 0.3) return t;
+    if (count < 8 || count > sampledArea * 0.5 || u1 - u0 < g.bw * 0.4 || v1 - v0 < g.bh * 0.3
+      || u1 - u0 > g.bw * 1.4 || v1 - v0 > g.bh * 1.6) return t;
     const clamp = (v: number) => Math.min(1, Math.max(0, v));
     return { ...t, box: {
       x: clamp((g.x + u0 * g.cos - v0 * g.sin) / src.width),
@@ -111,9 +135,13 @@ export function sampleTextColors(src: PNG, texts: DeconstructText[]): Deconstruc
           bins.set(key, [...(bins.get(key) ?? []), rgb]);
         }
         const ranked = [...bins.values()].sort((a, b) => b.length - a.length);
-        const winner = ranked[0], runnerUp = ranked[1] ?? [];
-        // Real ink must dominate the strays: at least 8 pixels and clearly ahead of the second cluster.
-        if (winner && winner.length >= 8 && winner.length >= 1.5 * runnerUp.length) {
+        const seed = [1, 3, 5].map((i) => parseInt(style.fill.slice(i, i + 2), 16));
+        const supported = ranked.find(bin => bin.length >= Math.max(8, ranked[0].length * 0.5)
+          && seed.reduce((s, c, k) => s + (bin[0][k] - c) ** 2, 0) < 65 ** 2);
+        const winner = supported ?? ranked[0], runnerUp = ranked[1] ?? [];
+        // D22: confirmed seed-colored ink wins over a large patch of exposed background.
+        if (winner && winner.length >= 8 && (supported || winner.length >= 1.5 * runnerUp.length)
+          && winner.length < Math.ceil(g.bw / step) * Math.ceil(g.bh / step) * 0.5) {
           const fill = "#" + [0, 1, 2].map((c) => {
             const sorted = winner.map((p) => p[c]).sort((a, b) => a - b);
             return Math.round(sorted[Math.floor(sorted.length / 2)]).toString(16).padStart(2, "0");
@@ -125,6 +153,67 @@ export function sampleTextColors(src: PNG, texts: DeconstructText[]): Deconstruc
     // Degenerate box or low-contrast ink: the vision estimate is the only remaining evidence.
     return t;
   });
+}
+
+/** D22: reject surviving stroke contrast, including recolored glyphs. Not an OCR completeness proof. */
+export function retainedTextRegions(src: PNG, plate: PNG, texts: DeconstructText[]): number[] {
+  if (src.width !== plate.width || src.height !== plate.height) throw new Error("Text plate dimensions do not match the source.");
+  const distance = (image: PNG, a: number, b: number) => Math.hypot(
+    image.data[a] - image.data[b], image.data[a + 1] - image.data[b + 1], image.data[a + 2] - image.data[b + 2],
+  );
+  return texts.flatMap((t, index) => {
+    const g = geometry(t, src.width, src.height);
+    const fill = t.typography?.fill;
+    const ink = fill ? [1, 3, 5].map(i => parseInt(fill.slice(i, i + 2), 16)) : null;
+    const step = Math.max(1, Math.ceil(Math.sqrt(g.bw * g.bh / 16000)));
+    const positions: number[] = [];
+    let matching = 0;
+    const nearInk = (i: number) => ink !== null && Math.hypot(...ink.map((c, k) => src.data[i + k] - c)) <= 45;
+    for (let v = 0; v < g.bh; v += step) for (let u = 0; u < g.bw; u += step) {
+      const x = Math.round(g.x + u * g.cos - v * g.sin), y = Math.round(g.y + u * g.sin + v * g.cos);
+      if (x < 0 || y < 0 || x >= src.width || y >= src.height) continue;
+      const i = (y * src.width + x) * 4;
+      if (src.data[i + 3] < 200) continue;
+      positions.push(i);
+      if (nearInk(i)) matching++;
+    }
+    // An unsupported/dominant seed is not permission to accept an unchanged image.
+    const supported = matching >= 12 && matching < positions.length * 0.65;
+    let edges = 0, retained = 0;
+    for (const i of positions) {
+      if (supported && !nearInk(i)) continue;
+      const x = i / 4 % src.width, y = Math.floor(i / 4 / src.width);
+      let strongest = 0, neighbor = -1;
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= src.width || yy >= src.height) continue;
+        const j = (yy * src.width + xx) * 4;
+        if (src.data[j + 3] < 200) continue;
+        const contrast = distance(src, i, j);
+        if (contrast > strongest) { strongest = contrast; neighbor = j; }
+      }
+      if (strongest < 45 || neighbor < 0) continue;
+      edges++;
+      if (distance(plate, i, neighbor) >= Math.max(20, strongest * 0.2)) retained++;
+    }
+    return edges >= 8 && retained >= 8 && retained / edges > 0.15 ? [index] : [];
+  });
+}
+
+export function prepareDeconstructRegions(src: PNG, texts: DeconstructText[]) {
+  const located = sampleTextColors(src, refineTextRegions(src, texts));
+  // Erase must cover both the measured ink and the seed box; a clipped seed box
+  // must not leave edge ink behind while the renderer trusts the measured one.
+  const eraseRegions = located.map((t, index) => {
+    if (Math.abs(t.typography?.angle ?? 0) > 0.5) return t;
+    const boxes = [t.box, texts[index].box];
+    const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+    return { ...t, box: { x, y,
+      w: Math.min(1 - x, Math.max(...boxes.map(b => b.x + b.w)) - x),
+      h: Math.min(1 - y, Math.max(...boxes.map(b => b.y + b.h)) - y),
+    } };
+  });
+  return { texts: located, eraseRegions };
 }
 
 type Plane = number[][];
@@ -209,7 +298,7 @@ export function localTextPlate(src: PNG, texts: DeconstructText[]): Uint8Array |
   const smooth = texts.every((t) => {
     const g = geometry(t, src.width, src.height);
     if (!g.bw || !g.bh) return false;
-    return backgroundPlane(src, g, Math.max(3, Math.min(16, g.bh * 0.12)), t.typography?.fill) !== null;
+    return backgroundPlane(src, g, Math.max(4, Math.min(20, g.bh * 0.4)), t.typography?.fill) !== null;
   });
   return smooth ? composeTextPlate(src, src, texts) : null;
 }
@@ -223,7 +312,7 @@ export function composeTextPlate(src: PNG, generated: PNG, texts: DeconstructTex
   for (const t of texts) {
     const g = geometry(t, w, h);
     if (g.bw <= 0 || g.bh <= 0) continue;
-    const pad = Math.max(3, Math.min(16, g.bh * 0.12));
+    const pad = Math.max(4, Math.min(20, g.bh * 0.4));
     const plane = backgroundPlane(src, g, pad, t.typography?.fill);
     const corners = [[-pad, -pad], [g.bw + pad, -pad], [-pad, g.bh + pad], [g.bw + pad, g.bh + pad]];
     const xs = corners.map(([u, v]) => g.x + u * g.cos - v * g.sin);

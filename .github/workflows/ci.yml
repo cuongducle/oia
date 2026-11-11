@@ -44,6 +44,7 @@ jobs:
           if [ "$COUNT" -gt "$BASE" ]; then echo "::error::@oia-web imports increased ($COUNT > $BASE)"; exit 1; fi
       - run: pnpm --filter @oia/desktop typecheck
       - run: pnpm --filter @oia/desktop test
+      - run: xvfb-run -a pnpm --filter @oia/desktop text-smoke
       # the scripted end-to-end: mock pair -> runChat over the real Electron main process
       # (--no-sandbox: CI containers run as root; ELECTRON_SKIP_BINARY_DOWNLOAD is NOT set)
       - run: xvfb-run -a npx electron . --no-sandbox
@@ -93,6 +94,7 @@ jobs:
       - run: pnpm build
       - run: pnpm --filter @oia/desktop typecheck
       - run: pnpm --filter @oia/desktop test
+      - run: pnpm --filter @oia/desktop text-smoke
       - run: npx electron .
         working-directory: apps/desktop
         env:

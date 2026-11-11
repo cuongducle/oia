@@ -1881,7 +1881,11 @@ async function shot(): Promise<void> {
       const r = o.angle * Math.PI / 180;
       const anchor = [o.left + dx * Math.cos(r) - dy * Math.sin(r), o.top + dx * Math.sin(r) + dy * Math.cos(r)];
       const b = boxes[i];
-      const anchorOk = Math.abs(anchor[0] - b[0] * dims[0]) <= 3 && Math.abs(anchor[1] - b[1] * dims[1]) <= 3;
+      // D23b/D22 fix round: the anchor follows the MEASURED ink, not the seed box.
+      // The fixture's price line starts at x≈181 inside its loose seed box (x=60);
+      // pinning the seed origin would reward placing editable text over blank plate.
+      const expected = i === 1 ? [181, 124.5] : [b[0] * dims[0], b[1] * dims[1]];
+      const anchorOk = Math.abs(anchor[0] - expected[0]) <= 3 && Math.abs(anchor[1] - expected[1]) <= 3;
       const sizeOk = x1 >= x0 && y1 >= y0 && x1 - x0 + 1 <= b[2] * dims[0] + 3 && Math.abs(y1 - y0 + 1 - b[3] * dims[1]) <= 3;
       return { anchorOk, sizeOk, anchor, ink: [x1 - x0 + 1, y1 - y0 + 1], angle: o.angle, fill: o.fill, spacing: o.charSpacing, lines: o.textLines.length };
     });

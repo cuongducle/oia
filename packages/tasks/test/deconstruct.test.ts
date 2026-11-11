@@ -83,6 +83,32 @@ describe("B1 deconstruct processor (deconstruct-import.md DC-3)", () => {
     expect(restored.get(result.taskId)).toMatchObject({ progress: "failed", errorClass: "no_output", taskResult: result.taskResult });
   });
 
+  it.each([0, 20])("rejects retained provider glyphs after an RGB shift of %i, preserving OCR without retry", async (shift) => {
+    const store = new LocalFileStore(root);
+    const png = new PNG({ width: 200, height: 200 });
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 200; x++) {
+      const c = (x * 71 + y * 13) % 255;
+      png.data.set([c, 255 - c, c, 255], (y * 200 + x) * 4);
+    }
+    for (let y = 62; y < 80; y++) for (let x = 62; x < 138; x += 3) png.data.set([229, 34, 51, 255], (y * 200 + x) * 4);
+    const bytes = PNG.sync.write(png);
+    const returned = PNG.sync.read(bytes);
+    for (let y = 62; y < 80; y++) for (let x = 62; x < 138; x += 3) returned.data.set([229 - shift, 34 - shift, 51 - shift, 255], (y * 200 + x) * 4);
+    const returnedBytes = PNG.sync.write(returned);
+    const uploaded = await store.put(bytes, "png");
+    const read = JSON.stringify({ texts: [{ text: "TEST", box: { x: 0.3, y: 0.3, w: 0.4, h: 0.12 }, typography: {
+      fontFamily: "Arial", fontWeight: 700, fontStyle: "normal", fill: "#e52233", angle: 0, spacingEm: 0, textAlign: "left",
+    } }] });
+    const seen = { calls: [] };
+    const tasks = new TaskStore();
+    tasks.register("deconstruct", makeDeconstruct({ store, llm: fakeLlm(() => read), image: probeImage(seen, `data:image/png;base64,${returnedBytes.toString("base64")}`) }));
+    const result = await tasks.submit("deconstruct", { fileUrl: uploaded.url }, { noWait: true });
+    expect(result).toMatchObject({ progress: "failed", errorClass: "no_output" });
+    expect(result.taskResult?.texts?.[0].text).toBe("TEST");
+    expect(result.taskResult?.download).toBeUndefined();
+    expect(seen.calls).toHaveLength(1);
+  });
+
   it("preserves OCR when cancelled before cleanup without calling the image provider", async () => {
     const { store, fileUrl } = await setup();
     const tasks = new TaskStore(), seen = { calls: [] };

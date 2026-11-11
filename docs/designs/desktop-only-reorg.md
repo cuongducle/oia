@@ -40,6 +40,177 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Vòng sửa sau review chất lượng (2026-11-12, owner duyệt "sửa đi")
+
+Review độc lập (17 điểm) kết luận đám thay đổi D22 trước đó là chùm thử nghiệm
+không nhất quán, chặn merge. Đã sửa theo thứ tự chặn lỗi:
+
+1. **Một luồng duy nhất cho sản phẩm và kiểm chứng.** Bỏ hẳn nhánh
+   `locateDenseText` (LLM làm chủ tọa độ, 4 lượt đọc vùng, đã bị owner bác)
+   khỏi processor; xóa luôn file + test. Chín script/file thử nghiệm bị bác
+   (detector harness che chữ bằng chip số, xóa nền min/max, replay trích mực
+   theo chênh lệch ảnh nền, heuristic font-coverage đo độ rộng suy glyph)
+   chuyển sang `docs/private/real-runs/2026-11-11-deconstruct-detector/rejected-source/`
+   kèm manifest SHA-256, không xóa bằng chứng.
+2. **Hai nhánh xóa nền qua cùng một gate.** Processor giờ chạy
+   `retainedTextRegions` cho CẢ nền dựng cục bộ lẫn nền provider; trước đó
+   nhánh local được tin mặc định.
+3. **Gate hết chữ bỏ phép đo màu.** `retainedTextRegions` đo tương phản biên
+   nét (so 4 láng giềng ±2px giữa gốc và nền): chữ đổi màu nhẹ (shift RGB 20)
+   hoặc seed màu sai không còn được coi là đã xóa. Test hồi quy cả hai ca.
+4. **Chấm phông và vẽ phông cùng một hình.** Rút `rasterizeGlyphs` +
+   `glyphScale` vào `glyph-raster.ts`; ranker dựng ứng viên bằng đúng biến
+   đổi renderer sẽ áp (không còn chấm trên toCanvasElement bị cắt dấu rồi
+   vẽ hình khác). `glyphScale`: co giãn đồng nhất, chỉ cho lệch hai trục tối
+   đa 1,25x, vượt thì letterbox (hết hiện tượng kéo ngang chữ 2,5 lần phát
+   hiện qua cổng shot); ranker bắt lỗi đo từng ứng viên, một phông dị không
+   làm sập cả bộ so sánh.
+5. **Ngân sách CPU có giới hạn.** `rankArtworkFonts` có trần 15 giây
+   (FontComparisonBudgetExceeded), hết hạn giữ phông mồi + ghi chú trung
+   thực; test phủ cả timeout lẫn cancel. Trên poster dày 45 dòng của owner
+   bộ so phông CHẠM TRẦN và thoát đúng thiết kế (ghi trong replay harness):
+   đổi đánh đổi có chủ đích, chưa owner duyệt ngưỡng.
+6. **Bỏ rào nhóm phông.** Ranker không còn loại ứng viên theo nhóm
+   serif/mono/viết tay của seed; mọi phông đo được cùng tranh bằng pixel
+   (test: seed Georgia sai được sửa lại Be Vietnam Pro, IoU 0,47→0,97).
+7. **Gate pixel lặp lại được, chạy thật Electron.**
+   `pnpm --filter @oia/desktop text-smoke` (CI cả Ubuntu lẫn Windows):
+   4 ca neo/serialize, xoay ±độ so với canvas độc lập (IoU 0,98), sửa sai
+   nhóm phông, giới hạn biến dạng và cấp phát (raster quá 4MP bị chặn),
+   timeout/cancel. Không dùng fixture riêng tư, không quota.
+8. **Cổng shot D22 đổi neo theo lý do.** Chữ giá fixture bắt mực thật ở
+   x≈181 trong hộp seed x=60; pin theo neo seed cũ sẽ thưởng cho việc đặt chữ lên nền
+   trống. Đã pin neo đo được (181, 124,5) kèm comment lý do, theo tiền
+   lệ fill #ffcc00→#000000.
+
+Gates toàn xanh sau vòng sửa: build, test, typecheck (repo), smoke,
+crash-smoke, shot, text-smoke (macOS thật). Harness render offline chạy qua
+đúng `matchedDeconstructScene` production, ghi hash SHA-256 mọi đầu vào
+(gốc/nền/texts/fonts.css) + ghi atom; từ chối ghi đè bằng chứng.
+
+Còn mở (trung thực): tích hợp DBNet vào sidecar Rust chưa làm (vẫn nghiên
+   cứu, owner đã duyệt kiến trúc detector); chưa có bộ ảnh đối chiếu độc lập
+   nhiều bố cục; text-smoke Windows mới thêm vào CI, chưa chạy trên máy
+   Windows vật lý; ngưỡng 15 giây chờ owner duyệt.
+
+### Detector architecture chạy thật trên ảnh owner (2026-11-11, chiều)
+
+Sau khi owner chốt đổi quyết định (cần tọa độ chính xác, LLM chỉ đọc nội dung
+và kiểm chính tả), đã chạy chuỗi detector qua harness
+`apps/desktop/scripts/deconstruct-detector-real.mjs` + `dbnet-detect.py` +
+`cv-inpaint-erase.py`: DBNet cho 114 hộp, một lượt đọc vision trên ảnh phủ số
+chip trong hộp (114/114 pairing), 43 dòng design giữ lại, 71 dòng chữ
+màn hình/vật thể loại đúng chính sách. Plate provider xóa không sạch chữ
+tiêu đề lớn theo phép đo cũ. **Đính chính sau khi owner yêu cầu mở ảnh:**
+run-03-local KHÔNG ĐẠT, dù phép đếm màu báo 43/43: chữ cũ chỉ đổi màu, nền
+bị phá và chữ mới lệch. Nhận định seed sai 43/43 không đáng tin vì phép đo
+cũng nhầm nền với mực. Chưa có bằng chứng OpenCV lỗi: opening trên nét tối
+có thể làm nét nở ra đúng định nghĩa, không được quy thành lỗi thư viện.
+
+Owner duyệt sửa tiếp. run-04-crops đọc hai bảng ảnh cắt, số nằm ngoài ảnh:
+44 dòng được đọc lại, khôi phục EM MỜI, TỰ ĐỘNG, AN TOÀN và dòng dễ dàng (ID
+104 từng bị loại nhầm). Đây là lựa chọn phạm vi đã rà cho ảnh owner, chưa
+phải bộ phân loại tự động mới. replay-10-residual dùng lại nền provider
+run-02 (không tạo ảnh mới), chỉ inpaint mực tối sót trên thẻ trắng với ngữ
+cảnh toàn ảnh; bỏ phép vá nền min/max đã thất bại. Màu và hộp mực đo từ
+chênh lệch gốc/nền; loại mảnh dòng lân cận ở mép; tách dòng hai màu thành
+45 lớp. Thử Roboto Condensed từ google/fonts, OFL, chỉ trong bằng chứng,
+chưa đóng kèm sản phẩm.
+
+Renderer đã sửa đo glyph trên canvas có đệm (toCanvasElement cắt dấu/độ
+nhô chữ nghiêng); chữ sau serialize Textbox giữ nguyên hộp mực bằng scaleX/Y,
+không để font ranking thay đổi kích thước hay dời hộp. Font có thể bị co giãn,
+không cam kết giống bản gốc. Đã tự mở nền và bản dựng mới: hết các mảng vá,
+chồng chữ nặng trước đó; độ đậm, dáng chữ và viền vẫn khác gốc. Phép kiểm
+pixel từng lớp sau loadFromJSON: 45 lớp trong 3px so với hộp trích, chỉ chứng
+minh renderer giữ hộp, KHÔNG chứng minh hộp detector hoặc OCR đúng hoàn toàn.
+Regression lặp lại, offline, dùng font đóng kèm:
+`node apps/desktop/scripts/deconstruct-geometry-smoke.mjs` (4 ca dấu/chữ
+nghiêng/chữ nhỏ, sai lệch 1px). build, test, typecheck, desktop shot, smoke,
+crash-smoke đều qua.
+Chưa nghiệm thu Editor luồng detector và Windows, chưa thêm op Rust, chưa
+phát hành. Chi phí detector tổng: 4 đọc + 2 ảnh, riêng vòng sửa này 2 đọc +
+0 ảnh; các replay không trả phí. Bằng chứng riêng:
+`docs/private/real-runs/2026-11-11-deconstruct-detector/`, xem
+`replay-10-residual/reconstructed.png` và `RECHECK.md`.
+
+### Nghiên cứu + thử nghiệm model phát hiện chữ riêng (2026-11-11, theo yêu cầu owner)
+
+Sau khi SAM text-prompted chứng minh không đủ (mục dưới), owner yêu cầu research
+HF và thử nghiệm model riêng. Đã chạy 5 candidate trên chính ảnh owner với
+protocol chung (eval.py, tham chiếu 45 dòng LLM+refine, bằng chứng riêng
+`docs/private/real-runs/2026-11-11-text-detectors/RESULTS.md`):
+RapidOCR DBNet PP-OCRv4 mobile det (ONNX, Apache-2.0, trong wheel 14,9 MB) khớp
+45/45 dòng trong 1,2 s; PP-OCRv5 det monkt HF 88 MB khớp 45/45 trong 1,1 s;
+macOS Vision khớp 45/45 nhưng 26,4 s và chỉ macOS; EasyOCR CRAFT 44/45, cần
+torch; Tesseract 33/45, sót hết tiêu đề cách điệu (xác nhận lại D15). Các
+phát hiện thừa đều là chữ UI trong màn hình laptop/điện thoại, đúng phạm vi
+cần lọc theo chính sách. Kết luận: CẦN model detection riêng, DBNet dòng
+PP-OCR qua ONNX là ứng viên hợp nhất (Apache-2.0, offline, nhẹ, chạy bằng
+ORT trong Rust sidecar như SAM). Kiến trúc đề xuất: detector cho hộp + quad +
+bản đồ xác suất, LLM vision chỉ đọc nội dung từng dòng đã cắt, mặt nạ xóa từ
+quad + màu mực. Thay đổi này chạm tính chất D15/D22 (thêm model OCR detection
+vào app): CHỜ OWNER CHỖT trước khi viết code sản phẩm. Giới hạn: mới thử 1
+ảnh, tham chiếu chưa phải ground truth, chưa soi overlay bằng mắt, chưa thử
+DBNet++ server/PSENet/ảnh cong. Không đổi code sản phẩm, không commit.
+
+### Kiểm SAM 3 trên chữ theo yêu cầu owner (2026-11-11)
+
+Owner chỉ ra segmentation đã có, yêu cầu thử ngay trước khi đề xuất thêm mô
+hình. Đã chạy Sam3Segmenter production + native sidecar + ONNX int8 có sẵn,
+0 provider trả phí, không sửa code sản phẩm. Năm gợi ý trên ảnh gốc: woman
+làm đối chứng đúng người; text bắt hai vùng chữ lớn; letters chỉ bắt ĐANG;
+printed text chọn nhầm 97,47% ảnh; headline chọn nhầm đầu/tóc. Đã mở mặt nạ:
+bao cụm chữ, không bám riêng từng nét. Thêm bốn lượt trên hai vùng cắt phần
+dưới (text/words): bắt một số lời kêu gọi, vẫn bỏ sót hầu hết chữ nhỏ, sáu
+cột tính năng và số điện thoại. Tổng 9 lượt khoảng 102,2 giây, native runner
+được dừng sau mỗi phiên. Cấu hình hiện tại: score >0,5, cap 8, lưới mask 288;
+không kết luận về mọi cấu hình/checkpoint SAM. Kết luận ca này: chưa thể lấy
+SAM hiện tại làm bộ phát hiện đầy đủ chữ tự động. Bằng chứng riêng:
+`docs/private/real-runs/2026-11-11-sam-text/RESULTS.md`, contact-sheet.png,
+text/mask.png, crop-contact-sheet.png và report.json. Nhánh LLM tọa độ vẫn
+WIP chưa phát hành; thử nghiệm này không chứng minh luồng thay thế đã xong.
+
+### Sửa ca quảng cáo dày chữ của owner (2026-11-11, đang kiểm chứng)
+
+Owner duyệt sửa sau khi ảnh so sánh hỏng. Ghi đè giới hạn một lượt đọc bên
+ dưới cho ảnh dày chữ: dưới 12 mục vẫn một lượt đọc; từ 12 mục trở lên có tối
+đa bốn lượt đọc vùng bổ sung (tổng tối đa 5 đọc + 1 ảnh), không tự thử lại.
+Hộp vùng được ánh xạ về ảnh gốc; lượt đọc vùng phải giữ nguyên danh sách và
+thứ tự chữ, sai thì dừng trước tạo nền. Dialog phải hiển thị trần mới.
+Phạm vi mặc định là chữ thiết kế phẳng: bỏ chữ trong màn hình/vật thể chụp,
+nhãn sản phẩm và logo. Đây là hướng dẫn vision, chưa phải bảo đảm phân đoạn.
+Cùng danh sách chữ đã định vị được dùng để xóa nền và dựng chữ. Chặn nền
+còn giữ phần lớn pixel mực gốc trong vùng chọn bằng lỗi `no_output`, giữ
+checkpoint OCR, không tự retry; phép đo này không thay thế kiểm ảnh trực tiếp.
+Bản dựng kiểm chứng dùng phông đóng kèm và hàm căn/khớp phông production;
+bằng chứng mỗi lượt ở thư mục riêng, lưu final.json cùng plate. Không còn
+chấp nhận bản dựng tạm thiếu phông, sai origin hoặc ghép chữ/plate chéo lượt.
+Trạng thái: **WIP, chưa đạt chất lượng, chưa phát hành**. Đã sửa origin tường
+minh, đọc lại vùng có kiểm nội dung/thứ tự, kiểm pixel trước chấp nhận hộp
+vùng, giữ seed màu toàn ảnh, hạn chế hút nền/biểu tượng cùng màu, ghép vùng
+xóa bao cả hộp gốc và hộp tinh chỉnh. Khớp phông chạy theo lô sáu mục đến hết
+ảnh, không chỉ sáu mục đầu; loại ứng viên đổi nhóm serif/sans/mono/chữ viết
+tay, kiểm thiếu glyph bằng metric fallback (heuristic, không phải cmap), giảm
+ép spacing âm. Không tuyên bố khôi phục đúng phông hay xóa sạch mọi nét cũ.
+
+Bằng chứng riêng: `docs/private/real-runs/2026-11-11-deconstruct-fix/`.
+Bốn lượt task thật: run-01 lỗi provider không có ảnh (1 đọc + 1 ảnh), run-02
+trả ảnh nhưng kiểm trực tiếp phát hiện tái dựng sai (4 đọc + 1 ảnh), run-03
+và run-04 bị chặn bởi kiểm mực còn lại (mỗi lượt 4 đọc + 1 ảnh). Tổng ledger
+của bốn lượt: 13 đọc + 4 ảnh. Không gồm các integration provider chạy trong
+`pnpm test`. Sau các bản sửa, replay-12 chạy lại đầu ra provider đã lưu của
+run-04 qua processor/renderer hiện tại, 0 quota mới. Đã mở ảnh: nền/vị trí
+chính tốt hơn bản đầu, nhưng cột An toàn - Bảo mật vẫn chồng chữ, phần chữ
+nhỏ còn lệch/sót nét, kiểu chữ chưa giống gốc. Replay `succeeded` không phải
+đạt kiểm chất lượng. Chưa chạy task trả phí thành công nguyên luồng sau bản
+sửa cuối; chưa nghiệm thu Editor thật với ảnh owner, chưa xác minh Windows.
+
+Gates giữa phiên: build/typecheck/test toàn repo xanh, shot lần đầu bắt lỗi
+refine sau lấy màu trên fixture xoay; đã sửa lại thứ tự refine rồi lấy màu,
+shot chạy lại xanh. Gates cuối được ghi trong báo cáo WIP; không dùng các
+gate này để phủ nhận ảnh kiểm trực tiếp vẫn thất bại.
+
 Owner duyệt thực hiện sau D21. Nâng cấp luồng `deconstruct` hiện có, không thêm mô hình OCR và không thêm lượt trả phí: một lượt đọc ảnh bằng LLM, tối đa một lượt tạo nền sạch bằng nhà cung cấp hiện tại.
 
 - OCR trả nội dung đúng dấu, hộp chữ trước xoay, góc xoay quanh góc trái trên, màu, họ phông gần nhất trong danh sách khả dụng, độ đậm, kiểu nghiêng, căn lề và spacing theo em. `typography` tùy chọn để đọc được kết quả cũ theo D14, nhưng schema gửi Codex yêu cầu đủ các thuộc tính. Không tuyên bố nhận diện chính xác phông gốc.
