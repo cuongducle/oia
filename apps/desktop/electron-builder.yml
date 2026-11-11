@@ -36,6 +36,11 @@ extraResources:
   - from: resources/lens
     to: lens
     filter: ["lens.onnx", "catalog.json", "manifest.json", "NOTICE.txt"]
+  # D22 detector lane: the pinned DBNet det ONNX + checksum manifest + license,
+  # provisioned by `pnpm --filter @oia/desktop prepare-textdet`.
+  - from: resources/textdet
+    to: textdet
+    filter: ["det.onnx", "manifest.json", "LICENSE"]
   # SAM sidecar (segmentation-process-plan.md, option A): the Rust runner +
   # the pinned libonnxruntime per platform dir; the utility spawns
   # <resources>/segment/<platform>-<arch>/oia-segment-runner at runtime.

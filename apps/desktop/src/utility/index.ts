@@ -13,7 +13,7 @@ import { TaskNotFound, importWebData } from "@oia/tasks";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { seedSampleProjects } from "./seedSamples.js";
-import { unlinkSync } from "node:fs";
+import { unlinkSync, existsSync } from "node:fs";
 import path from "node:path";
 import {
   type UtilityRequest,
@@ -74,6 +74,7 @@ process.on("SIGTERM", () => {
 import { Sam3Segmenter } from "./segmentation/engine.js";
 import { resolveSegmentRuntime, SegmentRunner } from "./segmentation/runner.js";
 import { LensRecognizer } from "./lens.js";
+import { DbNetTextDetector } from "./textdet.js";
 import { SegmentModelManager } from "./segmentation/models.js";
 
 async function startServices(env: Record<string, string | undefined>): Promise<void> {
@@ -82,7 +83,13 @@ async function startServices(env: Record<string, string | undefined>): Promise<v
   toolLane?.dispose();
   // Lens rides the SAME sidecar as SAM: no ORT inside the utility process.
   const fontRecognizer = env.OIA_LENS_DIR && env.LLM_PROVIDER === "codex" && segmentRunner ? new LensRecognizer(env.OIA_LENS_DIR, segmentRunner) : undefined;
-  ctx = await createServiceContext({ dataDir, env, ...(segmenter ? { segmenter } : {}), ...(fontRecognizer ? { fontRecognizer } : {}) });
+  // D22 detector lane: real mode only (mock CI keeps the read lane), and only
+  // when the model dir actually shipped; a missing model degrades to the read
+  // lane instead of failing every deconstruct task.
+  const textDetector = env.OIA_TEXTDET_DIR && env.LLM_PROVIDER === "codex" && segmentRunner
+    && existsSync(path.join(env.OIA_TEXTDET_DIR, "manifest.json"))
+    ? new DbNetTextDetector(env.OIA_TEXTDET_DIR, segmentRunner) : undefined;
+  ctx = await createServiceContext({ dataDir, env, ...(segmenter ? { segmenter } : {}), ...(textDetector ? { textDetector } : {}), ...(fontRecognizer ? { fontRecognizer } : {}) });
   // reorg step 4c, the quick-tools renderer lane: SAME TaskStore + SAME G3 metered
   // guard as the loopback, attributed to source "web" (the web tools UI contract).
   // Its lifecycle frames stream to the UI too (lane "tool"), a metered generation

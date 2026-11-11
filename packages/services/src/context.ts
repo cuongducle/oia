@@ -44,7 +44,7 @@ function parseDailyLimit(env: NodeJS.ProcessEnv, name: string): number | undefin
   return n;
 }
 
-export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv; segmenter?: import("@oia/tasks").Segmenter; fontRecognizer?: import("@oia/tasks").FontRecognizer } = {}): Promise<ServiceContext> {
+export async function createServiceContext(opts: { dataDir?: string; env?: NodeJS.ProcessEnv; segmenter?: import("@oia/tasks").Segmenter; textDetector?: import("@oia/tasks").TextDetector; fontRecognizer?: import("@oia/tasks").FontRecognizer } = {}): Promise<ServiceContext> {
   const env = opts.env ?? process.env;
   // TP.2/TP.4: a mock provider paired with a real provider never boots silently
   try {
@@ -87,7 +87,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   // image-edit/reference tasks/presentation + generic image tasks; image-translate is a
   // clear failure, never a hang). Providers come from `chat` (env-configured + metered):
   // tasks must burn the SAME quota ledger as chat, never a bare registry lookup.
-  const procCtx = { store: files, image: chat.image, llm: chat.llm, ...(opts.segmenter ? { segmenter: opts.segmenter } : {}), ...(opts.fontRecognizer ? { fontRecognizer: opts.fontRecognizer } : {}) };
+  const procCtx = { store: files, image: chat.image, llm: chat.llm, ...(opts.segmenter ? { segmenter: opts.segmenter } : {}), ...(opts.textDetector ? { textDetector: opts.textDetector } : {}), ...(opts.fontRecognizer ? { fontRecognizer: opts.fontRecognizer } : {}) };
   taskStore.register("generate-poster", makeGeneratePoster(procCtx));
   taskStore.register("image-edit", makeImageEdit(procCtx));
   taskStore.register("deconstruct", makeDeconstruct(procCtx));

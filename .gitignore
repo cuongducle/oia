@@ -45,4 +45,5 @@ __pycache__/
 # SAM sidecar (segmentation-process-plan.md): build artifacts, produced by
 # apps/desktop/scripts/prepare-segment.mjs (cargo + pinned ORT from node_modules)
 apps/desktop/resources/segment/
+apps/desktop/resources/textdet/
 apps/desktop/segment-runner/target/

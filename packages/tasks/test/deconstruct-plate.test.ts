@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
 import { deconstructTextSchema } from "@oia/schema";
-import { composeTextPlate, localTextPlate, prepareDeconstructRegions, readDeconstructPng, refineTextRegions, retainedTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
+import { composeTextPlate, localTextPlate, mergeEraseRegions, prepareDeconstructRegions, readDeconstructPng, refineTextRegions, repairRetainedRegions, retainedTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
 
 function solid(w: number, h: number, rgb: number[]) {
   const p = new PNG({ width: w, height: h });
@@ -37,6 +37,48 @@ describe("D22 text plate", () => {
     selected.typography.fill = seed;
     expect(retainedTextRegions(src, plate, [selected])).toEqual([0]);
     expect(retainedTextRegions(src, solid(200, 200, [245, 245, 245]), [selected])).toEqual([]);
+  });
+
+  it("rebuilds a flagged smooth region locally and refuses a textured one", () => {
+    const src = new PNG({ width: 200, height: 200 });
+    for (let y = 0; y < 200; y++) for (let x = 0; x < 200; x++) {
+      const flat = x < 100;
+      const c = flat ? 245 : (x * 7 + y * 3) % 255; // trái phẳng, phải hoa văn
+      src.data.set([c, flat ? 245 : 255 - c, c, 255], (y * 200 + x) * 4);
+    }
+    for (let y = 60; y < 74; y++) for (let x = 20; x < 90; x += 3) src.data.set([200, 30, 40, 255], (y * 200 + x) * 4);
+    for (let y = 160; y < 172; y++) for (let x = 120; x < 180; x += 3) src.data.set([200, 30, 40, 255], (y * 200 + x) * 4);
+    const lineAt = (x: number, y: number, w: number, h: number) => deconstructTextSchema.parse({
+      text: "SALE", box: { x, y, w, h },
+      typography: { fontFamily: "Arial", fontWeight: 400, fontStyle: "normal", fill: "#c81e28", angle: 0, spacingEm: 0, textAlign: "left" },
+    });
+    const smooth = lineAt(0.1, 0.3, 0.35, 0.07);
+    const textured = lineAt(0.6, 0.8, 0.3, 0.06);
+    // plate = gốc (chưa xóa gì): cả hai vùng bị flag
+    expect(retainedTextRegions(src, src, [smooth, textured])).toEqual([0, 1]);
+    const repaired = repairRetainedRegions(src, src, [smooth, textured]);
+    expect(repaired).not.toBeNull();
+    const after = retainedTextRegions(src, readDeconstructPng(repaired!), [smooth, textured]);
+    expect(after).toEqual([1]); // vùng phẳng được dựng lại, vùng hoa văn vẫn thất bại trung thực
+    const pixels = readDeconstructPng(repaired!);
+    const i = (65 * 200 + 40) * 4;
+    expect(Math.abs(pixels.data[i] - 245)).toBeLessThanOrEqual(2); // mực đã thay bằng nền phẳng
+  });
+
+  it("merges detector fragments of one visual line into one erase region", () => {
+    const line = (x: number, w: number, text = "AB") => deconstructTextSchema.parse({
+      text, box: { x, y: 0.3, w, h: 0.05 },
+      typography: { fontFamily: "Arial", fontWeight: 400, fontStyle: "normal", fill: "#123456", angle: 0, spacingEm: 0, textAlign: "left" },
+    });
+    // same band, adjacent: merged
+    const merged = mergeEraseRegions([line(0.1, 0.2), line(0.32, 0.2)]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].box.w).toBeCloseTo(0.42, 5);
+    expect(merged[0].box.h).toBeCloseTo(0.05, 5);
+    // different rows: kept separate
+    expect(mergeEraseRegions([line(0.1, 0.2), { ...line(0.12, 0.2), box: { x: 0.12, y: 0.5, w: 0.2, h: 0.05 } }])).toHaveLength(2);
+    // far apart horizontally on the same band: kept separate
+    expect(mergeEraseRegions([line(0.05, 0.1), line(0.6, 0.1)])).toHaveLength(2);
   });
 
   it("does not move a line to a larger same-color neighboring headline in the search margin", () => {

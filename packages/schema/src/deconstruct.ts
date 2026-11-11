@@ -48,6 +48,40 @@ export const deconstructReadSchema = z
 export type DeconstructText = z.infer<typeof deconstructTextSchema>;
 export type DeconstructRead = z.infer<typeof deconstructReadSchema>;
 
+/** D22 detector lane: the detector owns geometry, the model only classifies
+ *  (design copy vs photographed-object text) and transcribes numbered crops. */
+export const deconstructClassifyLineSchema = z.object({
+  i: z.number().int().min(0),
+  design: z.boolean(),
+}).strict();
+export const deconstructTranscribeLineSchema = z.object({
+  i: z.number().int().min(0),
+  text: z.string().max(500),
+  bold: z.boolean(),
+  italic: z.boolean(),
+}).strict();
+export const DECONSTRUCT_CLASSIFY_MARKER = "deconstruct.classify.v1";
+export const DECONSTRUCT_TRANSCRIBE_MARKER = "deconstruct.transcribe.v1";
+/** JSON Schemas handed to codex `--output-schema` (dialect: every property in required). */
+export const DECONSTRUCT_CLASSIFY_JSON_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["lines"],
+  properties: { lines: { type: "array", items: {
+    type: "object", additionalProperties: false, required: ["i", "design"],
+    properties: { i: { type: "integer", minimum: 0 }, design: { type: "boolean" } },
+  } } },
+} as const;
+export const DECONSTRUCT_TRANSCRIBE_JSON_SCHEMA = {
+  type: "object", additionalProperties: false, required: ["lines"],
+  properties: { lines: { type: "array", items: {
+    type: "object", additionalProperties: false, required: ["i", "text", "bold", "italic"],
+    properties: {
+      i: { type: "integer", minimum: 0 },
+      text: { type: "string", maxLength: 500 },
+      bold: { type: "boolean" }, italic: { type: "boolean" },
+    },
+  } } },
+} as const;
+
 /** JSON Schema handed to codex `--output-schema` for the read turn. */
 export const DECONSTRUCT_JSON_SCHEMA = {
   type: "object",

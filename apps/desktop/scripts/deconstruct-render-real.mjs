@@ -54,16 +54,23 @@ window.replay = async ({ original, plate, texts, w, h }) => {
       const objects = c.getObjects();
       objects.forEach(o => o.set('visible', false));
       const geometry = [];
+      // The renderer contract (pinned by test/deconstruct-pixels.browser.ts):
+      // exact anchor, no overflow, the bound dimension fills its box; the other
+      // may letterbox when its aspect is past the 1.25x distortion budget.
       for (const [i, t] of texts.entries()) {
         const object = objects[i + 2];
         object.set('visible', true); c.renderAll();
         const ink = inkBounds(c.getElement());
         const expected = { x: t.box.x*w, y: t.box.y*h, width: t.box.w*w, height: t.box.h*h };
+        const anchorError = ink ? Math.max(Math.abs(ink.x - expected.x), Math.abs(ink.y - expected.y)) : null;
+        const overflow = ink ? ink.width - expected.width > 3 || ink.height - expected.height > 3 : null;
+        const fillsBound = ink ? Math.abs(ink.width - expected.width) <= 3 || Math.abs(ink.height - expected.height) <= 3 : null;
         const error = ink ? Math.max(...Object.keys(expected).map(k => Math.abs(ink[k]-expected[k]))) : null;
-        geometry.push({ i, text: t.text, ink, expected, maxErrorPx: error, checked: (t.typography?.angle ?? 0) === 0 });
+        const ok = anchorError !== null && anchorError <= 3 && !overflow && fillsBound;
+        geometry.push({ i, text: t.text, ink, expected, maxErrorPx: error, anchorError, overflow, fillsBound, ok, checked: (t.typography?.angle ?? 0) === 0 });
         object.set('visible', false);
       }
-      return { png, scene, fontNote: result.note, geometry, geometryPassed: geometry.every(g => !g.checked || (g.maxErrorPx !== null && g.maxErrorPx <= 3)) };
+      return { png, scene, fontNote: result.note, geometry, geometryPassed: geometry.every(g => !g.checked || g.ok) };
     } finally { c.dispose(); }
   }
 };`, resolveDir: desktop }, bundle: true, format: "iife", outfile: path.join(dir, "bundle.js") });

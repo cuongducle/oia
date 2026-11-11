@@ -283,7 +283,7 @@ export function Workspace({ onOpenProject, onOpenSession, onNew, initialDeconFil
             <div>
               <strong>{decon.file.name}</strong>
               <span>{decon.w} × {decon.h}</span>
-              {imageMock === false && <span data-testid="decon-cost">Up to 1 image + 1 read; font matching runs locally</span>}
+              {imageMock === false && <span data-testid="decon-cost">Up to 1 image + up to 6 reads on dense artwork; font matching runs locally</span>}
             </div>
           </div>
           {deconBusy && <p role="status" style={{ fontSize: 12.5 }}>Reading text, restoring the background and comparing font samples…</p>}

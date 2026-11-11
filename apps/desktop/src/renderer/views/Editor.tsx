@@ -932,7 +932,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     mentionSelection();
   }
   /** D16 poster-mode edit path: the copy is baked into the artwork, deconstruct
-   *  THIS page (up to 1 image + 1 read) into a clean plate + native text layers.
+   *  THIS page (up to 1 image + a few reads) into a clean plate + native text layers.
    *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
    *  scene through replaceCurrentScene so undo/history/save all behave. */
   // teardown #2: one phase instead of two booleans (ask → running → null)
@@ -1799,7 +1799,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         <Dialog onClose={() => { if (textEditPhase !== "running") setTextEditPhase(null); }} label="Make text editable">
           <h3>Make this text editable?</h3>
           <p>Oia reads the text on this page, cleans the text regions, and rebuilds editable layers with matching color, angle and spacing. Fonts are approximated from available families; complex lettering may need adjustment.</p>
-          {!imageMock && <p className="hintP" data-testid="text-edit-cost">Up to 1 image + 1 read; font matching runs locally</p>}
+          {!imageMock && <p className="hintP" data-testid="text-edit-cost">Up to 1 image + up to 6 reads on dense artwork; font matching runs locally</p>}
           {textEditPhase === "running" && <p className="hintP">Reading text, restoring the background and comparing font samples…</p>}
           <div className="dialogActions">
             <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditPhase === "running" ? "Stop" : "Cancel"}</button>

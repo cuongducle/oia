@@ -213,7 +213,47 @@ export function prepareDeconstructRegions(src: PNG, texts: DeconstructText[]) {
       h: Math.min(1 - y, Math.max(...boxes.map(b => b.y + b.h)) - y),
     } };
   });
-  return { texts: located, eraseRegions };
+  return { texts: located, eraseRegions: mergeEraseRegions(eraseRegions) };
+}
+
+/** D22 detector lane: DBNet fragments one visual line into overlapping boxes;
+ *  sending duplicates confuses the plate generator (run-02 evidence). Merge
+ *  same-band neighbors into one union box; per-line render boxes stay separate. */
+export function mergeEraseRegions<T extends DeconstructText>(regions: T[]): T[] {
+  type Group = { box: { x: number; y: number; w: number; h: number }; first: T };
+  const groups: Group[] = [];
+  for (const region of regions) {
+    const target = groups.find((group) => {
+      const a = group.box, b = region.box;
+      const bandOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+      const minHeight = Math.min(a.h, b.h);
+      if (bandOverlap < minHeight * 0.55) return false; // different rows
+      const gap = Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w);
+      return gap < minHeight * 1.2; // same visual line, close enough to merge
+    });
+    if (!target) { groups.push({ box: { ...region.box }, first: region }); continue; }
+    const x = Math.min(target.box.x, region.box.x), y = Math.min(target.box.y, region.box.y);
+    target.box = {
+      x, y,
+      w: Math.max(target.box.x + target.box.w, region.box.x + region.box.w) - x,
+      h: Math.max(target.box.y + target.box.h, region.box.y + region.box.h) - y,
+    };
+  }
+  return groups.map((group) => ({ ...group.first, box: group.box }));
+}
+
+/** D22 detector lane: the provider plate can miss small dense lines (run-02/03
+ *  evidence). Rebuild ONLY the flagged regions from their local background
+ *  plane, reusing the paid generation; regions without a smooth plane stay as
+ *  they are and the gate fails honestly. Returns null when nothing changed. */
+export function repairRetainedRegions(src: PNG, plate: PNG, flagged: DeconstructText[]): Uint8Array | null {
+  if (!flagged.length) return null;
+  const repairable = flagged.filter((t) => {
+    const g = geometry(t, src.width, src.height);
+    return g.bw > 0 && g.bh > 0 && backgroundPlane(src, g, Math.max(4, Math.min(20, g.bh * 0.4)), t.typography?.fill) !== null;
+  });
+  if (!repairable.length) return null;
+  return composeTextPlate(src, plate, repairable);
 }
 
 type Plane = number[][];

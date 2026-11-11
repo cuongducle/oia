@@ -65,6 +65,8 @@ async function contextEnv(): Promise<Record<string, string | undefined>> {
   const det = mode === "codex" ? await getProvisionerSafe() : null;
   const env = buildServiceEnv(process.env, mode, det);
   env.OIA_LENS_DIR = process.env.OIA_LENS_DIR ?? (app.isPackaged ? path.join(process.resourcesPath, "lens") : path.resolve(here, "../../resources/lens"));
+  // D22 detector lane model dir, same dev/packaged resolution as Lens.
+  env.OIA_TEXTDET_DIR = process.env.OIA_TEXTDET_DIR ?? (app.isPackaged ? path.join(process.resourcesPath, "textdet") : path.resolve(here, "../../resources/textdet"));
   // shot-busy paces the mock pair so the mid-run UI stays photographable,
   // registry-only knob (T3 pattern), injected here, never via process.env mutation.
   if (smokeModeFromEnv(process.env, app.isPackaged) === "shot-busy") env.OIA_MOCK_STEP_DELAY_MS = "350";

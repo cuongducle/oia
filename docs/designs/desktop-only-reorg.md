@@ -40,6 +40,35 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Detector lane DBNet vào sản phẩm (2026-11-12, owner duyệt "làm nốt vụ dbnet")
+
+Xong phần tích hợp chính: model PP-OCRv4 det ONNX ghim SHA (trùng byte bản
+benchmark 45/45) + op `det` trong sidecar Rust + tiền/hậu xử lý DB thuần TS
+(`utility/textdet.ts`, tham số dịch đúng config RapidOCR) + lane processor
+(detector tọa độ → 1 lượt classify trên ảnh chip số → lượt transcribe crop
+không che chữ 36/sheet trần 5 → pairing nghiêm ngặt trước mọi chi phí →
+cùng đuôi xóa nền + gate). Copy dialog: "up to 1 image + up to 6 reads".
+Lane chỉ bật ở mode codex khi model tồn tại; mock CI vẫn đi lane đọc cũ.
+Dày chữ: gộp vùng xóa vỡ hạt (mergeEraseRegions) + dựng lại cục bộ vùng bị
+gate flag từ nền phẳng (repairRetainedRegions, tái dùng ảnh đã trả tiền);
+hết cách thì no_output kèm tên dòng bị sót.
+
+Hai bug hình học bắt được nhờ test mask tổng hợp + đối chiếu vùng tham chiếu:
+unclip nhân nhầm tọa độ với khoảng nới; orient theo thứ tự đỉnh làm MẤT HẲN
+hai tiêu đề lớn nhất (đỉnh đi phải-sang-trái, góc 180 bị coi dọc). Sau sửa:
+109 dòng detect, 1/45 vùng tham chiếu không có hộp riêng (bị gộp cùng dòng).
+
+Chạy thật trên ảnh owner (chi tiết + 4 run trong
+`docs/private/real-runs/2026-11-12-textdet-e2e/`): run-01 thành công lúc
+còn bug (34 dòng), run-02/03 thất bại trung thực ở gate (provider sót mực
+vùng nhỏ, không retry, 3 đọc + 1 ảnh mỗi run) → sinh merge + repair;
+run-04 THÀNH CÔNG: 109 detect / loại 65 dòng màn hình / 44 dòng design,
+3 đọc + 1 ảnh, 136 giây, gate hết chữ qua, render 44/44 dòng đúng hợp đồng
+hình học. Tổng chi phí 11 đọc + 4 ảnh. Gates xanh: build/test/typecheck,
+smoke, crash-smoke, shot, text-smoke. Còn mở: owner chưa soi
+comparison-run04.png bằng mắt; trần 15 giây so phông trên ảnh dày chờ
+duyệt; Windows máy vật lý; tham chiếu 45 dòng là LLM-derived.
+
 ### Vòng sửa sau review chất lượng (2026-11-12, owner duyệt "sửa đi")
 
 Review độc lập (17 điểm) kết luận đám thay đổi D22 trước đó là chùm thử nghiệm

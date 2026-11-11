@@ -19,7 +19,8 @@
     "@oia/providers": "workspace:*",
     "@oia/schema": "workspace:*",
     "jszip": "^3.10.2",
-    "pptxgenjs": "^4.0.1"
+    "pptxgenjs": "^4.0.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^22",

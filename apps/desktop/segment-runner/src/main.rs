@@ -59,6 +59,9 @@ enum Req {
     /** D22 Lens font classifier: input "image" [1,3,128,384], output "logits".
      *  Preprocess/ranking stay in TS (lens.ts); only the session run is here. */
     Lens { lens_dir: String, pixels: TensorIn },
+    /** D22 detector lane: DBNet det, input "x" [1,3,H,W], output sigmoid
+     *  prob map [1,1,H,W]. Pre/postprocess stay in TS (textdet.ts). */
+    Det { det_dir: String, pixels: TensorIn },
 }
 
 #[derive(Serialize)]
@@ -74,6 +77,8 @@ enum Resp {
     Decode { masks: TensorOut, boxes: TensorOut, logits: TensorOut },
     #[serde(rename = "lens")]
     Lens { logits: TensorOut },
+    #[serde(rename = "det")]
+    Det { probs: TensorOut },
     #[serde(rename = "error")]
     Error { message: String },
 }
@@ -132,6 +137,7 @@ struct State {
     models_dir: Option<String>,
     models: Option<Models>,
     lens: Option<(String, Session)>,
+    det: Option<(String, Session)>,
     /** the four decoder-facing vision outputs per engine content-hash, LRU 2 like engine.ts */
     vision_cache: HashMap<String, Vec<Tensor<f32>>>,
     vision_order: Vec<String>,
@@ -276,6 +282,36 @@ fn handle(state: &mut State, req: Req) -> Resp {
                 Err(e) => Resp::Error { message: e },
             }
         }
+        Req::Det { det_dir, pixels } => {
+            // session cache keyed by dir, options mirror textdet.ts (cpu, 4 threads)
+            if state.det.as_ref().map(|(d, _)| d != &det_dir).unwrap_or(true) {
+                let built = Session::builder(&state.env)
+                    .map_err(|e| format!("builder: {e}"))
+                    .and_then(|mut b| {
+                        b = b.with_optimization_level(GraphOptimizationLevel::Level3).map_err(|e| format!("opt level: {e}"))?;
+                        b = b.with_intra_threads(4).map_err(|e| format!("threads: {e}"))?;
+                        b.commit_from_file(Path::new(&det_dir).join("det.onnx")).map_err(|e| format!("det session: {e}"))
+                    });
+                match built {
+                    Ok(s) => state.det = Some((det_dir.clone(), s)),
+                    Err(e) => return Resp::Error { message: e },
+                }
+            }
+            let pixels = match decode_f32_payload(&pixels) {
+                Ok(t) => t,
+                Err(e) => return Resp::Error { message: e },
+            };
+            let (_, det_session) = state.det.as_mut().unwrap();
+            let run = det_session.run(ort::inputs!["x" => pixels]);
+            let mut outputs = match run {
+                Ok(o) => o,
+                Err(e) => return Resp::Error { message: format!("det run: {e}") },
+            };
+            match take_f32(&mut outputs, "sigmoid_0.tmp_0") {
+                Ok(t) => Resp::Det { probs: tensor_out_f32(&t) },
+                Err(e) => Resp::Error { message: e },
+            }
+        }
     }
 }
 
@@ -293,7 +329,7 @@ fn main() {
     };
     eprintln!("[segment-runner] up, ORT {}", ort::info());
 
-    let mut state = State { env, models_dir: None, models: None, lens: None, vision_cache: HashMap::new(), vision_order: Vec::new() };
+    let mut state = State { env, models_dir: None, models: None, lens: None, det: None, vision_cache: HashMap::new(), vision_order: Vec::new() };
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
