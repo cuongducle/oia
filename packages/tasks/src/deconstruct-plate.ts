@@ -20,7 +20,11 @@ function geometry(t: DeconstructText, w: number, h: number) {
 }
 
 /** D22: vision boxes can clip descenders; verify the ink extent against original pixels. */
-export function refineTextRegions(src: PNG, texts: DeconstructText[]): DeconstructText[] {
+export function refineTextRegions(src: PNG, texts: DeconstructText[], opts: { inkCoverageLimit?: number } = {}): DeconstructText[] {
+  // Default 0.5: a seed matching over half the search area is probably the
+  // background color. The detector lane's second pass runs with the MEASURED
+  // fill and passes a higher limit.
+  const inkCoverageLimit = opts.inkCoverageLimit ?? 0.5;
   return texts.map((t) => {
     if (!t.typography || !t.box.w || !t.box.h) return t;
     const g = geometry(t, src.width, src.height);
@@ -58,11 +62,31 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
       rightLimit = u;
     }
     ink = ink.filter(p => p.u >= leftLimit && p.u <= rightLimit);
+    // D22 detector lane: the kernel box (t.inkBox) is the dense text core the
+    // detector fired on. Same-color decor rows outside its vertical range
+    // (a band edge 8px above VẮNG KHÁCH?) must carry >= 15% of the peak row
+    // density to count; Vietnamese diacritic rows INSIDE the kernel range are
+    // always kept (a global density floor cut real accents before).
+    if (t.inkBox) {
+      const kv = [[0, 0], [0, t.inkBox.h * src.height], [t.inkBox.w * src.width, 0], [t.inkBox.w * src.width, t.inkBox.h * src.height]]
+        .map(([u, v]) => v * g.cos - u * g.sin);
+      const v0 = Math.min(...kv), v1 = Math.max(...kv);
+      const margin = (v1 - v0) * 0.8 + step;
+      ink = ink.filter((p) => p.v >= v0 - margin && p.v <= v1 + margin);
+    }
     // D22: blank row bands separate neighboring lines even when their ink colors match.
     const bands: { start: number; end: number; points: typeof ink }[] = [];
     const maxGap = Math.max(3, g.bh * 0.12);
     const rowCounts = new Map<number, number>();
     for (const p of ink) rowCounts.set(p.v, (rowCounts.get(p.v) ?? 0) + 1);
+    if (t.inkBox) {
+      const kv = [[0, 0], [0, t.inkBox.h * src.height], [t.inkBox.w * src.width, 0], [t.inkBox.w * src.width, t.inkBox.h * src.height]]
+        .map(([u, v]) => v * g.cos - u * g.sin);
+      const v0 = Math.min(...kv), v1 = Math.max(...kv);
+      const peak = Math.max(1, ...[...rowCounts.values()]);
+      ink = ink.filter((p) => (p.v >= v0 && p.v <= v1) || (rowCounts.get(p.v) ?? 0) >= peak * 0.15);
+      for (const band of bands) band.points = band.points.filter((p) => ink.includes(p));
+    }
     const minRowInk = Math.max(g.bw >= 30 ? 2 : 1, Math.ceil(g.bw * 0.01 / step));
     for (const p of ink) {
       if ((rowCounts.get(p.v) ?? 0) < minRowInk) continue;
@@ -82,7 +106,7 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
     }
     // A speck matching the seed is not evidence for replacing a whole line's box.
     const sampledArea = (g.bw + 2 * sideMargin) * (g.bh + 2 * margin) / (step * step);
-    if (count < 8 || count > sampledArea * 0.5 || u1 - u0 < g.bw * 0.4 || v1 - v0 < g.bh * 0.3
+    if (count < 8 || count > sampledArea * inkCoverageLimit || u1 - u0 < g.bw * 0.4 || v1 - v0 < g.bh * 0.3
       || u1 - u0 > g.bw * 1.4 || v1 - v0 > g.bh * 1.6) return t;
     const clamp = (v: number) => Math.min(1, Math.max(0, v));
     return { ...t, box: {
@@ -287,7 +311,10 @@ export function prepareDeconstructRegions(src: PNG, texts: DeconstructText[]) {
       const measured = kernelInkColor(src, t);
       return measured ? { ...t, typography: { ...t.typography!, fill: measured } } : t;
     });
-    const located = refineTextRegions(src, colored.map((t) => ({ ...t, typography: t.typography })));
+    // measured fill is never the background color: allow bold glyphs to
+    // legitimately cover most of the search area while tightening (VẮNG KHÁCH?
+    // and HÀNG NGHÌN stayed 1.24-1.28x too tall under the default 0.5 limit).
+    const located = refineTextRegions(src, colored.map((t) => ({ ...t, typography: t.typography })), { inkCoverageLimit: 0.95 });
     const eraseRegions = located.map((t, index) => {
       if (Math.abs(t.typography?.angle ?? 0) > 0.5) return t;
       const boxes = [t.box, texts[index].box];

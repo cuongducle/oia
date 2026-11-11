@@ -120,7 +120,11 @@ export async function run() {
   const uniform = glyphScale({ width: 100, height: 100 }, { width: 1000, height: 10 });
   if (uniform.scaleX !== uniform.scaleY || uniform.scaleX !== 0.1) throw new Error(`Uniform fallback is wrong: ${JSON.stringify(uniform)}`);
   const mild = glyphScale({ width: 100, height: 100 }, { width: 112, height: 100 });
-  if (Math.max(mild.scaleX / mild.scaleY, mild.scaleY / mild.scaleX) > 1.25) throw new Error("Anisotropic fill exceeded the distortion budget");
+  if (Math.max(mild.scaleX / mild.scaleY, mild.scaleY / mild.scaleX) > 2) throw new Error("Anisotropic fill exceeded the distortion budget");
+  // condensed headline case: a wide fallback font stretched toward the measured
+  // box aspect (the owner-directed fill, formerly letterboxed at 63% height)
+  const condensed = glyphScale({ width: 380, height: 100 }, { width: 240, height: 100 });
+  if (condensed.scaleY / condensed.scaleX < 1.5) throw new Error(`Expected vertical stretch toward the box, got ${JSON.stringify(condensed)}`);
   results.push({ test: "bounded glyph scaling", uniform, mild });
   const oversized = new FabricText("W".repeat(500), { fontSize: 600, originX: "left", originY: "top" });
   try {

@@ -40,6 +40,30 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Tối ưu vị trí/cỡ chữ/khung chữ theo chỉ định owner (2026-11-12)
+
+Owner chốt sau nghiên cứu: KHÔNG làm VecFont/LaMa, giữ kiến trúc hiện tại,
+chỉ tối ưu vị trí, cỡ chữ, khung chữ. Ba thay đổi (bằng chứng
+real-runs/2026-11-12-textdet-e2e/README.md, mục cuối, ảnh
+comparison-sizefill.png, mọi vòng lặp 0 quota):
+
+1. glyphScale giãn một trục tới 2,0x (trước 1,25x): phông dự phòng rộng hơn
+   phông condensed gốc làm tiêu đề vẽ 52-73% chiều cao; giờ 99-102%.
+2. Kẹp dải refine theo khoảng dọc kernel + sàn mật độ 15% CHỈ ngoài kernel:
+   decor cùng màu cách 8px không dính hộp; dấu tiếng Việt trong kernel luôn
+   giữ. Lần thử sàn mật độ toàn cục 20% xẻ mất dấu, đã hoàn tác có ghi chú.
+3. refineTextRegions nhận inkCoverageLimit (mặc định 0,5 giữ lane LLM;
+   lượt màu đo được dùng 0,95).
+
+Kết quả: bbox-IoU khớp khung 0,714->0,778, VẮNG 111->83px (mực 85), HÀNG
+NGHÌN 94->74px. Đổi đánh đổi ghi trung thực: SSIM vùng/IoU màu GIẢM
+(0,407->0,338 / 0,237->0,198) vì nét giãn khác dáng phông gốc condensed:
+   giới hạn phông xấp xỉ, không phải sai vị trí. Nếu owner thấy giãn xấu,
+   hạ ngân sách về 1,5 là một hằng số. Gates: build/test/typecheck,
+text-smoke, smoke, shot đều xanh (một lần test providers timeout do tải,
+chạy lại pass, không đổi code). VecFont/LaMa ghi status REJECTED theo chỉ
+định trong deconstruct-quality-research.md.
+
 ### Metric chất lượng gốc-vs-tái-tạo (2026-11-12, owner hỏi "đạt chưa, đo bằng gì")
 
 Trước đó: so sánh gốc-vs-tái-tạo chỉ bằng MẮT (comparison PNG) + gate hình

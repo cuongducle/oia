@@ -40,16 +40,18 @@ export function rasterizeGlyphs(text: FabricText) {
 }
 
 /** The ranker and the emitted object must apply the same bounded transform.
- *  Anisotropic fill is allowed only within 1.25x (beyond that glyphs look
- *  broken); otherwise the scale is uniform and the ink letterboxes its box,
- *  exactly the shipped D22 geometry. */
+ *  Anisotropic fill up to 2.0x (owner directive 2026-11-12: fill the measured
+ *  box). The box aspect comes from the detector's measured ink, so stretching
+ *  toward it restores the original's condensed proportions; the old 1.25x
+ *  budget left big display lines at 52-75% of their true height. Pathological
+ *  ratios still degrade to a uniform letterbox scale. */
 export function glyphScale(ink: { width: number; height: number }, target: { width: number; height: number }) {
   const scaleX = target.width / ink.width, scaleY = target.height / ink.height;
   if (![scaleX, scaleY].every(v => Number.isFinite(v) && v > 0)) {
     throw new Error("The text box cannot size its glyphs. Review the recognized region.");
   }
   const ratio = Math.max(scaleX, scaleY) / Math.min(scaleX, scaleY);
-  if (ratio <= 1.25) return { scaleX, scaleY };
+  if (ratio <= 2) return { scaleX, scaleY };
   const uniform = Math.min(scaleX, scaleY);
   return { scaleX: uniform, scaleY: uniform };
 }

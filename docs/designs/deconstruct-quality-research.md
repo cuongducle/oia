@@ -3,11 +3,15 @@ type: Design
 title: "Deconstruct quality: hướng tốt nhất cho bài toán khôi phục chữ editable"
 description: "Nghiên cứu các hướng trong tài liệu + đề xuất kiến trúc VecFont (truy vết glyph từ ảnh, dựng phông per-line) cho D22, kèm bảng quyết định và metric target."
 tags: [design, research, deconstruct, d22]
-status: proposal
+status: rejected-by-owner
 generated: { by: agent, at: 2026-11-12T00:00:00Z }
 ---
 
 # Bài toán
+
+> 2026-11-12: owner chốt KHÔNG đi VecFont/LaMa; giữ kiến trúc hiện tại,
+> chỉ tối ưu vị trí/cỡ chữ/khung chữ (đã làm, xem ledger D22). Tài liệu
+> giữ làm tham khảo nếu sau này đổi ý.
 
 Input: poster bán hàng (dày chữ, tiếng Việt). Output: nền sạch + các lớp chữ
 EDITABLE trong Fabric (đúng vị trí, kích thước, màu). Hiện trạng đo được bằng
