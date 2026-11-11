@@ -40,6 +40,30 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Metric chất lượng gốc-vs-tái-tạo (2026-11-12, owner hỏi "đạt chưa, đo bằng gì")
+
+Trước đó: so sánh gốc-vs-tái-tạo chỉ bằng MẮT (comparison PNG) + gate hình
+hình học/màu theo dòng; D23 từng đo SSIM tay trên banner đơn giản (0,849).
+Nay có harness lặp lại được `apps/desktop/scripts/deconstruct-metrics.py`:
+SSIM + PSNR theo vùng chữ (đúng quy ước paper scene text editing: CVPR26
+Training-free STE 89,30 SSIM / 22,47 PSNR; AAAI23 stroke-level cùng bộ;
+nghi chú 2026: SSIM/PSNR nhạy dịch chuyển + khử răng cưa), ink IoU nội bộ,
+bảo toàn nền ngoài mặt nạ chữ (chỉ số này đã bắt được giả định: bug vá ô
+màu cũ đổi 17% pixel, nền lành chỉ 0,26-0,43% pixel lệch >30).
+
+Số trên ảnh owner: detector lane 0,397 SSIM / 0,237 IoU; lane LLM replay-10
+(render không trần) 0,574 / 0,441; texts replay-10 + harness trần 15 giây
+0,544 / 0,390 (trần tốn ~0,03 SSIM). Phát hiện kèm: fonts.css + trần 15s là
+no-op (fallback phông mồi trước khi ranking kịp dùng phông thêm). Khoảng
+0,4-0,6 là đặc trưng phông xấp xỉ + nền provider vẽ lại trong vùng chữ trên
+poster dày; paper 0,7-0,9 là method train theo style từng cảnh. Chi tiết +
+bảng: real-runs/2026-11-12-textdet-e2e/README.md.
+
+Đề xuất chờ owner duyệt: metrics vào real-run làm số liệu BÁO CÁO; gate tự
+động = bảo toàn nền + gate hình học/màu hiện có; KHÔNG gate SSIM vùng chữ
+trong khi phông còn xấp xỉ. SSIM/IoU dùng đo tiến bộ (bundled condensed
+font, ranking tốt hơn).
+
 ### Sửa màu chữ lane detector (2026-11-12, owner báo "màu chữ đang sai")
 
 Run-04 mọi dòng ĐỎ/TRẮNG đều về seed #000000 (đo màu thất bại, rơi dự phòng).
