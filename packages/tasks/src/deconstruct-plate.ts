@@ -27,12 +27,13 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[], opts: { in
   const inkCoverageLimit = opts.inkCoverageLimit ?? 0.5;
   return texts.map((t) => {
     if (!t.typography || !t.box.w || !t.box.h) return t;
-    const g = geometry(t, src.width, src.height);
+    const g = geometry(t.inkBox ? { ...t, box: t.inkBox } : t, src.width, src.height);
     const fill = t.typography.fill;
     const seed = [1, 3, 5].map((i) => parseInt(fill.slice(i, i + 2), 16));
-    const margin = Math.max(6, g.bh * (g.bh < 40 ? 0.7 : 0.4));
-    const topMargin = g.bh < 40 ? margin : Math.max(3, g.bh * 0.15);
-    const sideMargin = Array.from(t.text).length <= 12
+    // D22: detector kernels exclude stroke ends and detached accents on ALL sides.
+    const margin = t.inkBox ? Math.max(6, g.bh * 1.2) : Math.max(6, g.bh * (g.bh < 40 ? 0.7 : 0.4));
+    const topMargin = t.inkBox || g.bh < 40 ? margin : Math.max(3, g.bh * 0.15);
+    const sideMargin = t.inkBox ? Math.max(3, g.bh) : Array.from(t.text).length <= 12
       ? Math.max(3, Math.min(g.bw * 0.4, g.bh * 1.5))
       : Math.max(3, Math.min(g.bw * 0.1, g.bh * 0.8));
     const step = Math.max(1, Math.ceil(Math.sqrt((g.bw + 2 * sideMargin) * (g.bh + 2 * margin) / 120000)));
@@ -62,32 +63,12 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[], opts: { in
       rightLimit = u;
     }
     ink = ink.filter(p => p.u >= leftLimit && p.u <= rightLimit);
-    // D22 detector lane: the kernel box (t.inkBox) is the dense text core the
-    // detector fired on. Same-color decor rows outside its vertical range
-    // (a band edge 8px above VẮNG KHÁCH?) must carry >= 15% of the peak row
-    // density to count; Vietnamese diacritic rows INSIDE the kernel range are
-    // always kept (a global density floor cut real accents before).
-    if (t.inkBox) {
-      const kv = [[0, 0], [0, t.inkBox.h * src.height], [t.inkBox.w * src.width, 0], [t.inkBox.w * src.width, t.inkBox.h * src.height]]
-        .map(([u, v]) => v * g.cos - u * g.sin);
-      const v0 = Math.min(...kv), v1 = Math.max(...kv);
-      const margin = (v1 - v0) * 0.8 + step;
-      ink = ink.filter((p) => p.v >= v0 - margin && p.v <= v1 + margin);
-    }
-    // D22: blank row bands separate neighboring lines even when their ink colors match.
+    // D22: sparse accents outside the kernel are ink, not decorative noise.
     const bands: { start: number; end: number; points: typeof ink }[] = [];
-    const maxGap = Math.max(3, g.bh * 0.12);
+    const maxGap = Math.max(3, g.bh * (t.inkBox ? 0.2 : 0.12));
     const rowCounts = new Map<number, number>();
     for (const p of ink) rowCounts.set(p.v, (rowCounts.get(p.v) ?? 0) + 1);
-    if (t.inkBox) {
-      const kv = [[0, 0], [0, t.inkBox.h * src.height], [t.inkBox.w * src.width, 0], [t.inkBox.w * src.width, t.inkBox.h * src.height]]
-        .map(([u, v]) => v * g.cos - u * g.sin);
-      const v0 = Math.min(...kv), v1 = Math.max(...kv);
-      const peak = Math.max(1, ...[...rowCounts.values()]);
-      ink = ink.filter((p) => (p.v >= v0 && p.v <= v1) || (rowCounts.get(p.v) ?? 0) >= peak * 0.15);
-      for (const band of bands) band.points = band.points.filter((p) => ink.includes(p));
-    }
-    const minRowInk = Math.max(g.bw >= 30 ? 2 : 1, Math.ceil(g.bw * 0.01 / step));
+    const minRowInk = t.inkBox ? 2 : Math.max(g.bw >= 30 ? 2 : 1, Math.ceil(g.bw * 0.01 / step));
     for (const p of ink) {
       if ((rowCounts.get(p.v) ?? 0) < minRowInk) continue;
       const band = bands[bands.length - 1];
@@ -107,7 +88,7 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[], opts: { in
     // A speck matching the seed is not evidence for replacing a whole line's box.
     const sampledArea = (g.bw + 2 * sideMargin) * (g.bh + 2 * margin) / (step * step);
     if (count < 8 || count > sampledArea * inkCoverageLimit || u1 - u0 < g.bw * 0.4 || v1 - v0 < g.bh * 0.3
-      || u1 - u0 > g.bw * 1.4 || v1 - v0 > g.bh * 1.6) return t;
+      || u1 - u0 > g.bw * 1.4 || v1 - v0 > g.bh * (t.inkBox ? 3.4 : 1.6)) return t;
     const clamp = (v: number) => Math.min(1, Math.max(0, v));
     return { ...t, box: {
       x: clamp((g.x + u0 * g.cos - v0 * g.sin) / src.width),
@@ -311,10 +292,9 @@ export function prepareDeconstructRegions(src: PNG, texts: DeconstructText[]) {
       const measured = kernelInkColor(src, t);
       return measured ? { ...t, typography: { ...t.typography!, fill: measured } } : t;
     });
-    // measured fill is never the background color: allow bold glyphs to
-    // legitimately cover most of the search area while tightening (VẮNG KHÁCH?
-    // and HÀNG NGHÌN stayed 1.24-1.28x too tall under the default 0.5 limit).
-    const located = refineTextRegions(src, colored.map((t) => ({ ...t, typography: t.typography })), { inkCoverageLimit: 0.95 });
+    // D22: measured colors permit dense bold strokes; disconnected accents
+    // still belong to the line even when they cover very few pixels per row.
+    const located = refineTextRegions(src, colored, { inkCoverageLimit: 0.95 });
     const eraseRegions = located.map((t, index) => {
       if (Math.abs(t.typography?.angle ?? 0) > 0.5) return t;
       const boxes = [t.box, texts[index].box];

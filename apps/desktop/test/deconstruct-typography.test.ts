@@ -14,6 +14,11 @@ describe("D22 typography fitting", () => {
     expect(fit.fontSize).toBe(100);
     expect(fit.charSpacing).toBeCloseTo(50); // 4 gaps * 5px = 20px
   });
+  it.each([0, 0.05])("does not invent tracking to fill a wide box (spacing %s)", (spacingEm) => {
+    const fit = fitTextMetrics({ inkWidth: 200, inkHeight: 100, targetWidth: 500, targetHeight: 40, characters: 24, spacingEm });
+    expect(fit.charSpacing).toBeCloseTo(spacingEm * 1000);
+    expect(fit.fontSize).toBe(40);
+  });
   it("shrinks a mismatched wide font rather than making letters overlap heavily", () => {
     const fit = fitTextMetrics({ inkWidth: 800, inkHeight: 100, targetWidth: 200, targetHeight: 100, characters: 8, spacingEm: 0 });
     expect(fit.fontSize).toBeLessThan(30);

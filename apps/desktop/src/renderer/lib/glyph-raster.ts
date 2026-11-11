@@ -39,12 +39,9 @@ export function rasterizeGlyphs(text: FabricText) {
   } finally { text.set(transform); }
 }
 
-/** The ranker and the emitted object must apply the same bounded transform.
- *  Anisotropic fill up to 2.0x (owner directive 2026-11-12: fill the measured
- *  box). The box aspect comes from the detector's measured ink, so stretching
- *  toward it restores the original's condensed proportions; the old 1.25x
- *  budget left big display lines at 52-75% of their true height. Pathological
- *  ratios still degrade to a uniform letterbox scale. */
+/** D22: ranking and rendering share a bounded transform, not synthetic tracking.
+ *  Up to 2x aspect correction accommodates condensed faces; larger differences
+ *  letterbox uniformly. Neither case proves the detected box is correct. */
 export function glyphScale(ink: { width: number; height: number }, target: { width: number; height: number }) {
   const scaleX = target.width / ink.width, scaleY = target.height / ink.height;
   if (![scaleX, scaleY].every(v => Number.isFinite(v) && v > 0)) {

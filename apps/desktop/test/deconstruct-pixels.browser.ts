@@ -83,6 +83,24 @@ export async function run() {
   }
   base.width = base.height = 0;
 
+  // D22 regression: natural tracking survives aspect fitting and JSON reload.
+  for (const [sx, sy] of [[0.7, 1.2], [1.3, 0.85]]) {
+    const reference = canvasOf(), refCtx = context(reference);
+    await document.fonts.load('italic 700 48px "Be Vietnam Pro"', "ANH CHỊ NÀO");
+    refCtx.translate(40, 40); refCtx.scale(sx, sy);
+    refCtx.font = 'italic 700 48px "Be Vietnam Pro"'; refCtx.fillStyle = "#111111";
+    refCtx.fillText("ANH CHỊ NÀO", 0, 65);
+    const box = inkBounds(reference);
+    if (!box) throw new Error("Missing natural-tracking reference pixels");
+    const fitted = await scene([line("ANH CHỊ NÀO", { x: box.x / SIZE.width, y: box.y / SIZE.height, w: box.width / SIZE.width, h: box.height / SIZE.height })]);
+    const image = await painted(fitted);
+    const score = overlap(reference, image);
+    if (score < 0.7) throw new Error(`Aspect fitting changed natural tracking: ${JSON.stringify({ sx, sy, score })}`);
+    if (fitted.objects[2].charSpacing !== 0) throw new Error("Normal text acquired synthetic tracking");
+    results.push({ test: "natural tracking after aspect fit and serialization", sx, sy, iou: score });
+    reference.width = reference.height = image.width = image.height = 0;
+  }
+
   // Source pixels use Canvas2D directly, never the function under test.
   const source = canvasOf(), ctx = context(source);
   await document.fonts.load('italic 700 60px "Be Vietnam Pro"', "VẮNG KHÁCH?");

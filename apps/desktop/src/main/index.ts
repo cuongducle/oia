@@ -1780,8 +1780,24 @@ async function shot(): Promise<void> {
     await new Promise((r) => setTimeout(r, 300));
     const input = document.querySelector('input[aria-label="Bring an image"]');
     if (!input) return "no-input";
-    // real PNG bytes (the shared shot fixture), a garbage blob would fail the preview Image load
-    const bytes = Uint8Array.from(atob("${fixturePngB64()}"), (c) => c.charCodeAt(0));
+    // D22: source pixels must contain all three lines returned by the mock.
+    // The old SALE-only fixture made the price gate pin an unrelated glyph edge.
+    await document.fonts.load('700 24px "Be Vietnam Pro"', "SALE 50 299.000₫");
+    await document.fonts.load('italic 400 14px "Be Vietnam Pro"', "Chỉ hôm nay");
+    const source = document.createElement("canvas"); source.width = 600; source.height = 200;
+    const ctx = source.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 600, 200);
+    ctx.fillStyle = "#28315d"; ctx.fillRect(0, 0, 600, 80); ctx.fillRect(0, 160, 600, 40);
+    const draw = (text, x, y, font, fill, angle, tracking = "0px") => {
+      ctx.save(); ctx.font = font; ctx.fillStyle = fill; ctx.letterSpacing = tracking;
+      const m = ctx.measureText(text);
+      ctx.translate(x, y); ctx.rotate(angle * Math.PI / 180);
+      ctx.fillText(text, m.actualBoundingBoxLeft, m.actualBoundingBoxAscent); ctx.restore();
+    };
+    draw("SALE 50", 48, 20, '700 24px "Be Vietnam Pro"', "#ffffff", 0);
+    draw("299.000₫", 60, 144, '700 18px "Be Vietnam Pro"', "#000000", -8);
+    draw("Chỉ hôm nay", 60, 162, 'italic 400 14px "Be Vietnam Pro"', "#ffffff", 0, "1.4px");
+    const bytes = Uint8Array.from(atob(source.toDataURL("image/png").split(",")[1]), c => c.charCodeAt(0));
     const file = new File([bytes], "old-banner.png", { type: "image/png" });
     const dt = new DataTransfer();
     dt.items.add(file);
@@ -1883,10 +1899,8 @@ async function shot(): Promise<void> {
       const r = o.angle * Math.PI / 180;
       const anchor = [o.left + dx * Math.cos(r) - dy * Math.sin(r), o.top + dx * Math.sin(r) + dy * Math.cos(r)];
       const b = boxes[i];
-      // D23b/D22 fix round: the anchor follows the MEASURED ink, not the seed box.
-      // The fixture's price line starts at x≈181 inside its loose seed box (x=60);
-      // pinning the seed origin would reward placing editable text over blank plate.
-      const expected = i === 1 ? [181, 124.5] : [b[0] * dims[0], b[1] * dims[1]];
+      // D22: Canvas2D above independently paints the source at these anchors.
+      const expected = [b[0] * dims[0], b[1] * dims[1]];
       const anchorOk = Math.abs(anchor[0] - expected[0]) <= 3 && Math.abs(anchor[1] - expected[1]) <= 3;
       const sizeOk = x1 >= x0 && y1 >= y0 && x1 - x0 + 1 <= b[2] * dims[0] + 3 && Math.abs(y1 - y0 + 1 - b[3] * dims[1]) <= 3;
       return { anchorOk, sizeOk, anchor, ink: [x1 - x0 + 1, y1 - y0 + 1], angle: o.angle, fill: o.fill, spacing: o.charSpacing, lines: o.textLines.length };

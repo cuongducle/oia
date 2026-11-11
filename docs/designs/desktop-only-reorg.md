@@ -42,27 +42,53 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ### Tối ưu vị trí/cỡ chữ/khung chữ theo chỉ định owner (2026-11-12)
 
-Owner chốt sau nghiên cứu: KHÔNG làm VecFont/LaMa, giữ kiến trúc hiện tại,
-chỉ tối ưu vị trí, cỡ chữ, khung chữ. Ba thay đổi (bằng chứng
-real-runs/2026-11-12-textdet-e2e/README.md, mục cuối, ảnh
-comparison-sizefill.png, mọi vòng lặp 0 quota):
+Owner chốt giữ kiến trúc hiện tại, chỉ tối ưu vị trí, cỡ chữ, khung chữ.
+Không triển khai VecFont/LaMa. Giãn tối đa 2x là lựa chọn triển khai của
+agent, KHÔNG phải con số do owner chỉ định.
 
-1. glyphScale giãn một trục tới 2,0x (trước 1,25x): phông dự phòng rộng hơn
-   phông condensed gốc làm tiêu đề vẽ 52-73% chiều cao; giờ 99-102%.
-2. Kẹp dải refine theo khoảng dọc kernel + sàn mật độ 15% CHỈ ngoài kernel:
-   decor cùng màu cách 8px không dính hộp; dấu tiếng Việt trong kernel luôn
-   giữ. Lần thử sàn mật độ toàn cục 20% xẻ mất dấu, đã hoàn tác có ghi chú.
-3. refineTextRegions nhận inkCoverageLimit (mặc định 0,5 giữ lane LLM;
-   lượt màu đo được dùng 0,95).
+**Đính chính sau owner báo sai:** kết luận ở commit `f62876f` không hợp lệ.
+Các hàng từng gọi là "decor" có dấu tiếng Việt thật. Hộp VẮNG 83px/HÀNG
+74px đã cắt dấu, không phải đo khít hơn. Không được giải thích chỉ số giảm
+chỉ bằng "đánh đổi phông chữ" khi chưa mở ảnh và đối chiếu dấu.
 
-Kết quả: bbox-IoU khớp khung 0,714->0,778, VẮNG 111->83px (mực 85), HÀNG
-NGHÌN 94->74px. Đổi đánh đổi ghi trung thực: SSIM vùng/IoU màu GIẢM
-(0,407->0,338 / 0,237->0,198) vì nét giãn khác dáng phông gốc condensed:
-   giới hạn phông xấp xỉ, không phải sai vị trí. Nếu owner thấy giãn xấu,
-   hạ ngân sách về 1,5 là một hằng số. Gates: build/test/typecheck,
-text-smoke, smoke, shot đều xanh (một lần test providers timeout do tải,
-chạy lại pass, không đổi code). VecFont/LaMa ghi status REJECTED theo chỉ
-định trong deconstruct-quality-research.md.
+Sửa sau kiểm tra:
+
+- Refine dùng hệ tọa độ của chính inkBox (gồm cả x/y và góc), thay vì lấy
+  kích thước kernel rồi kẹp vào gốc của hộp padded. Tìm mực quanh kernel
+  cho cả đầu/cuối nét và dấu rời; bỏ sàn mật độ 15% ngoài kernel. Hàng dấu
+  2 pixel không bị loại chỉ vì tiêu đề dài. Lối không có inkBox giữ nguyên.
+- Khoảng cách ký tự ban đầu theo spacingEm đã đọc, không tự phân phối phần
+  chiều ngang còn dư thành tracking tới 0,15 em. Co giãn khung vẫn có giới
+  hạn 2x và dùng chung trong xếp hạng phông lẫn vẽ.
+- Shot trước đây dùng ảnh chỉ có SALE 50 nhưng mock khai 3 dòng. Mốc giá
+  [181,124.5] là nét SALE không liên quan, không phải chứng cứ giá đúng chỗ.
+  Nay nguồn Canvas2D độc lập vẽ đúng 3 dòng (có giá xoay và dấu tiếng Việt),
+  gate so với tọa độ nguồn thật, giữ sai số 3px. Không nới ngưỡng để ép xanh.
+- Kiểm thử chống tái phát: kernel dịch vị trí, biểu tượng cùng màu bên cạnh,
+  dấu trên/dưới ngoài kernel, hàng dấu chỉ 2 pixel trên dòng dài, tracking
+  không tự sinh, ảnh chữ co giãn đối chiếu nguồn Canvas2D sau lưu/nạp JSON.
+
+Bằng chứng: `real-runs/2026-11-12-textdet-e2e/run-08-layout-harness/`;
+harness lặp lại `apps/desktop/scripts/deconstruct-layout-replay.mjs`, từ
+texts-final.json có inkBox đã ghi, giữ nguyên paid plate, ghim SHA và từ
+chối ghi đè. 0 lượt trả phí mới; KHÔNG phải chạy lại provider/detector hay
+Editor trên ảnh owner. Đã mở ảnh so sánh và ảnh tái tạo kích thước gốc.
+
+So trên CÙNG vùng cố định của run-04-colorfix, không đổi crop theo bản sửa:
+
+| Bản | SSIM | IoU mực |
+|---|---|---|
+| Trước tối ưu (colorfix) | 0,397 | 0,237 |
+| Bản lỗi đã ship (fill4) | 0,360 | 0,217 |
+| Sửa tọa độ và dấu (run-08) | 0,418 | 0,321 |
+
+Nền ngoài mặt nạ lệch >30 giữ khoảng 0,257%. Phông vẫn xấp xỉ; plate đã
+trả tiền từ run-04 vẫn có vài vệt mờ quanh dấu VẮNG. Không sửa nền trong
+vòng này, không tuyên bố ảnh đã giống gốc/được owner duyệt.
+
+Gates: build/test/typecheck, text-smoke, smoke, shot xanh. Shot bắt lỗi
+fixture trước khi được sửa đúng nguồn; không hạ ngưỡng. CI và máy Windows
+thật là hai loại bằng chứng khác nhau, máy Windows thật chưa chạy.
 
 ### Metric chất lượng gốc-vs-tái-tạo (2026-11-12, owner hỏi "đạt chưa, đo bằng gì")
 

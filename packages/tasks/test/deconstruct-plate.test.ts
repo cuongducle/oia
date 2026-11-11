@@ -103,6 +103,34 @@ describe("D22 text plate", () => {
     expect(Math.abs(refined.box.y * 200 - 60)).toBeLessThan(1);
     expect((refined.box.y + refined.box.h) * 200).toBeLessThan(82);
   });
+  it.each([0, 30])("refines around the translated kernel without cutting sparse accents or taking the adjacent icon (shift %s)", (shift) => {
+    const src = solid(320, 240, [245, 245, 245]);
+    const pixel = (x: number, y: number) => src.data.set([229, 34, 51, 255], (y * 320 + x + shift) * 4);
+    for (let y = 83; y <= 112; y++) for (let x = 115; x <= 215; x += 3) pixel(x, y);
+    // Sparse detached accent and underdot, both OUTSIDE the detector kernel.
+    for (const y of [76, 77, 78, 79, 116, 117, 118]) for (let x = 150; x <= 153; x++) pixel(x, y);
+    for (let y = 85; y < 106; y++) for (let x = 80; x <= 105; x++) pixel(x, y);
+    const input = { ...line(), text: "CHỊ NÀO", box: { x: (75 + shift) / 320, y: 55 / 240, w: 155 / 320, h: 95 / 240 },
+      inkBox: { x: (120 + shift) / 320, y: 90 / 240, w: 90 / 320, h: 15 / 240 } };
+    const [refined] = refineTextRegions(src, [input]);
+    expect(refined.box.x * 320).toBeCloseTo(115 + shift, 1);
+    expect(refined.box.y * 240).toBeCloseTo(76, 1);
+    expect((refined.box.x + refined.box.w) * 320).toBeGreaterThanOrEqual(214 + shift);
+    expect((refined.box.y + refined.box.h) * 240).toBeGreaterThanOrEqual(119);
+    expect(refined.box.w * 320).toBeLessThan(103);
+  });
+
+  it("keeps a two-pixel accent row on a long line, independent of headline width", () => {
+    const src = solid(900, 200, [245, 245, 245]);
+    for (let y = 83; y <= 115; y++) for (let x = 215; x <= 625; x += 3) src.data.set([229, 34, 51, 255], (y * 900 + x) * 4);
+    for (let y = 76; y <= 79; y++) for (const x of [350, 351]) src.data.set([229, 34, 51, 255], (y * 900 + x) * 4);
+    const input = { ...line(), text: "ANH CHỊ NÀO KINH DOANH", box: { x: 180 / 900, y: 60 / 200, w: 480 / 900, h: 80 / 200 },
+      inkBox: { x: 220 / 900, y: 90 / 200, w: 400 / 900, h: 20 / 200 } };
+    const [refined] = refineTextRegions(src, [input]);
+    expect(refined.box.y * 200).toBeCloseTo(76, 1);
+    expect((refined.box.y + refined.box.h) * 200).toBeGreaterThan(115);
+  });
+
   it("recovers a short label whose full-image box starts inside the word", () => {
     const src = solid(200, 200, [245, 245, 245]);
     for (let y = 60; y < 72; y++) for (let x = 116; x < 153; x += 2) src.data.set([229, 34, 51, 255], (y * 200 + x) * 4);

@@ -7,17 +7,12 @@ export { inkBounds } from "./glyph-raster.js";
 export function fitTextMetrics(input: { inkWidth: number; inkHeight: number; targetWidth: number; targetHeight: number; characters: number; spacingEm: number }) {
   const { inkWidth, inkHeight, targetWidth, targetHeight, characters } = input;
   if (inkWidth <= 0 || inkHeight <= 0 || !Number.isFinite(inkWidth + inkHeight)) return { fontSize: 12, charSpacing: 0 };
-  let fontSize = Math.max(4, Math.min(600, targetHeight * 100 / inkHeight));
   const gaps = Math.max(0, characters - 1);
-  // D22: preserve the height first; shrink if matching width would over-compress letters.
-  if (gaps && inkWidth / 100 - gaps * 0.02 > 0) {
-    fontSize = Math.min(fontSize, targetWidth / (inkWidth / 100 - gaps * 0.02));
-  } else if (!gaps) fontSize = Math.min(fontSize, targetWidth * 100 / inkWidth);
-  fontSize = Math.max(4, fontSize);
-  const gapEm = gaps ? (targetWidth - inkWidth * fontSize / 100) / (gaps * fontSize) : 0;
-  // Do not manufacture widely spaced lettering when the vision read says it is normal.
-  const maxGap = Math.max(0.15, Math.min(1, input.spacingEm + 0.15));
-  return { fontSize, charSpacing: 1000 * Math.max(-0.02, Math.min(maxGap, gapEm)) };
+  // D22: letter spacing is style evidence, not leftover space to distribute.
+  const spacingEm = gaps ? Math.max(-0.02, Math.min(1, input.spacingEm)) : 0;
+  const advance = Math.max(1, inkWidth + gaps * spacingEm * 100);
+  const fontSize = Math.max(4, Math.min(600, targetHeight * 100 / inkHeight, targetWidth * 100 / advance));
+  return { fontSize, charSpacing: spacingEm * 1000 };
 }
 
 export interface DeconstructFit { fontSize: number; charSpacing: number; offsetX?: number; offsetY?: number }
