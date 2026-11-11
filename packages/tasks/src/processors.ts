@@ -58,11 +58,12 @@ export interface Segmenter {
   >;
 }
 
-/** D22 detector lane (owner decision 2026-11-11): the detector owns the geometry. */
+/** Detector geometry in the renderer contract. `box` is the padded placement
+ *  box (post-unclip); `inkBox` is the tight pre-unclip kernel box whose ring
+ *  sits on the line's own background, the reliable place to measure ink color. */
 export interface DetectedTextLine {
-  /** Tight ink rect BEFORE rotation, fractions of the image, rotated clockwise
-   *  by `angle` degrees about (x, y): the same contract the renderer consumes. */
   box: { x: number; y: number; w: number; h: number };
+  inkBox: { x: number; y: number; w: number; h: number };
   angle: number;
   score: number;
 }
@@ -298,6 +299,7 @@ async function detectorLaneTexts(
     texts.push({
       text,
       box: line.box,
+      inkBox: line.inkBox,
       typography: {
         fontFamily: "Be Vietnam Pro",
         fontWeight: entry!.bold ? 700 : 400,

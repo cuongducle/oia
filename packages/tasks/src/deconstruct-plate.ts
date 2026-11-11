@@ -93,6 +93,87 @@ export function refineTextRegions(src: PNG, texts: DeconstructText[]): Deconstru
   });
 }
 
+/** Shared 4-bit binning with near-neighbor merge: antialiasing splits ONE ink
+ *  color across adjacent bins (the red of "VẮNG KHÁCH?" never dominated its
+ *  own sibling bin before this merge existed). */
+function clusterPixels(pixels: number[][]): number[][][] {
+  const bins = new Map<number, number[][]>();
+  for (const rgb of pixels) {
+    const key = ((rgb[0] >> 4) << 8) | ((rgb[1] >> 4) << 4) | (rgb[2] >> 4);
+    bins.set(key, [...(bins.get(key) ?? []), rgb]);
+  }
+  const keys = [...bins.keys()];
+  const parent = new Map(keys.map((k) => [k, k] as const));
+  const find = (k: number): number => { while (parent.get(k) !== k) k = parent.get(k)!; return k; };
+  const centerOf = (k: number) => [(k >> 8) & 15, (k >> 4) & 15, k & 15].map((v) => v * 16 + 8);
+  for (let a = 0; a < keys.length; a++) for (let b = a + 1; b < keys.length; b++) {
+    const ca = centerOf(keys[a]), cb = centerOf(keys[b]);
+    if (Math.hypot(ca[0] - cb[0], ca[1] - cb[1], ca[2] - cb[2]) <= 40) parent.set(find(keys[a]), find(keys[b]));
+  }
+  const clusters = new Map<number, number[][]>();
+  for (const k of keys) {
+    const root = find(k);
+    clusters.set(root, [...(clusters.get(root) ?? []), ...bins.get(k)!]);
+  }
+  return [...clusters.values()].sort((a, b) => b.length - a.length);
+}
+
+
+/** D22 detector lane ink color. Ring estimates around the PADDED box straddle
+ *  badge/band edges; the strips immediately above and below the KERNEL box are
+ *  the line's own background (badge, band or page). Ink = the largest merged
+ *  cluster inside the kernel clearly past that background. */
+export function kernelInkColor(src: PNG, text: DeconstructText): string | null {
+  if (!text.inkBox || !text.typography) return null;
+  const kernel = geometry({ ...text, box: text.inkBox }, src.width, src.height);
+  const rad = (text.typography.angle ?? 0) * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  if (kernel.bw < 2 || kernel.bh < 2) return null;
+  const strip = kernel.bh * 0.35;
+  const at = (u: number, v: number) => {
+    const x = Math.round(kernel.x + u * kernel.cos - v * kernel.sin);
+    const y = Math.round(kernel.y + u * kernel.sin + v * kernel.cos);
+    if (x < 0 || y < 0 || x >= src.width || y >= src.height) return null;
+    const i = (y * src.width + x) * 4;
+    return src.data[i + 3] < 200 ? null : [src.data[i], src.data[i + 1], src.data[i + 2]];
+  };
+  const step = Math.max(1, Math.ceil(kernel.bw / 96));
+  const background: number[][] = [];
+  const inside: number[][] = [];
+  for (let u = 0; u <= kernel.bw; u += step) {
+    for (const v0 of [-strip, kernel.bh]) {
+      for (let d = 0; d < strip; d += Math.max(1, step)) {
+        const px = at(u, v0 + (v0 < 0 ? -d : d));
+        if (px) background.push(px);
+      }
+    }
+  }
+  const innerStep = Math.max(1, Math.ceil(Math.sqrt(kernel.bw * kernel.bh / 12000)));
+  for (let v = 0; v < kernel.bh; v += innerStep) for (let u = 0; u < kernel.bw; u += innerStep) {
+    const px = at(u, v);
+    if (px) inside.push(px);
+  }
+  if (background.length < 8 || inside.length < 8) return null;
+  const bgCluster = clusterPixels(background)[0];
+  if (!bgCluster) return null;
+  const bg = [0, 1, 2].map((c) => bgCluster.reduce((s, p) => s + p[c], 0) / bgCluster.length);
+  const far = inside.filter((p) => Math.hypot(p[0] - bg[0], p[1] - bg[1], p[2] - bg[2]) >= 70);
+  if (far.length < 8) return null;
+  const winner = clusterPixels(far)[0];
+  if (!winner || winner.length < 8 || winner.length > inside.length * 0.95) return null;
+  // Antialias blends dilute a plain median toward the background; the ink truth
+  // lives at the far end: median of the quartile FARTHEST from the background.
+  const byDistance = [...winner].sort((a, b) =>
+    Math.hypot(b[0] - bg[0], b[1] - bg[1], b[2] - bg[2]) - Math.hypot(a[0] - bg[0], a[1] - bg[1], a[2] - bg[2]));
+  const core = byDistance.slice(0, Math.max(4, Math.ceil(winner.length * 0.25)));
+  const fill = "#" + [0, 1, 2].map((c) => {
+    const sorted = core.map((p) => p[c]).sort((a, b) => a - b);
+    return Math.round(sorted[Math.floor(sorted.length / 2)]).toString(16).padStart(2, "0");
+  }).join("");
+  return fill;
+}
+
+
 /** Measure the ink color from pixels: the cluster far from the LOCAL background, never the vision seed. */
 export function sampleTextColors(src: PNG, texts: DeconstructText[]): DeconstructText[] {
   return texts.map((t) => {
@@ -128,20 +209,17 @@ export function sampleTextColors(src: PNG, texts: DeconstructText[]): Deconstruc
         inks.push(rgb);
       }
       if (inks.length >= 3) {
-        // Textured backgrounds scatter many stray "far" colors; the ink is the DOMINANT cluster among them.
-        const bins = new Map<number, number[][]>();
-        for (const rgb of inks) {
-          const key = ((rgb[0] >> 4) << 8) | ((rgb[1] >> 4) << 4) | (rgb[2] >> 4);
-          bins.set(key, [...(bins.get(key) ?? []), rgb]);
-        }
-        const ranked = [...bins.values()].sort((a, b) => b.length - a.length);
+        // Textured backgrounds scatter many stray "far" colors; the ink is the
+        // DOMINANT merged cluster among them (clusterPixels folds antialiasing
+        // siblings so one ink color can actually dominate its own fragments).
+        const ranked = clusterPixels(inks);
         const seed = [1, 3, 5].map((i) => parseInt(style.fill.slice(i, i + 2), 16));
         const supported = ranked.find(bin => bin.length >= Math.max(8, ranked[0].length * 0.5)
           && seed.reduce((s, c, k) => s + (bin[0][k] - c) ** 2, 0) < 65 ** 2);
         const winner = supported ?? ranked[0], runnerUp = ranked[1] ?? [];
         // D22: confirmed seed-colored ink wins over a large patch of exposed background.
         if (winner && winner.length >= 8 && (supported || winner.length >= 1.5 * runnerUp.length)
-          && winner.length < Math.ceil(g.bw / step) * Math.ceil(g.bh / step) * 0.5) {
+          && winner.length < Math.ceil(g.bw / step) * Math.ceil(g.bh / step) * 0.65) {
           const fill = "#" + [0, 1, 2].map((c) => {
             const sorted = winner.map((p) => p[c]).sort((a, b) => a - b);
             return Math.round(sorted[Math.floor(sorted.length / 2)]).toString(16).padStart(2, "0");
@@ -201,6 +279,26 @@ export function retainedTextRegions(src: PNG, plate: PNG, texts: DeconstructText
 }
 
 export function prepareDeconstructRegions(src: PNG, texts: DeconstructText[]) {
+  // D22 detector lane: kernelInkColor reads glyph color from kernel-vs-annulus
+  // concentration (a badge smaller than the padded box breaks every ring
+  // estimate); vision-read texts keep the shipped sample(refine(box)) path.
+  if (texts.some((t) => t.inkBox)) {
+    const colored = texts.map((t) => {
+      const measured = kernelInkColor(src, t);
+      return measured ? { ...t, typography: { ...t.typography!, fill: measured } } : t;
+    });
+    const located = refineTextRegions(src, colored.map((t) => ({ ...t, typography: t.typography })));
+    const eraseRegions = located.map((t, index) => {
+      if (Math.abs(t.typography?.angle ?? 0) > 0.5) return t;
+      const boxes = [t.box, texts[index].box];
+      const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+      return { ...t, box: { x, y,
+        w: Math.min(1 - x, Math.max(...boxes.map(b => b.x + b.w)) - x),
+        h: Math.min(1 - y, Math.max(...boxes.map(b => b.y + b.h)) - y),
+      } };
+    });
+    return { texts: located, eraseRegions: mergeEraseRegions(eraseRegions) };
+  }
   const located = sampleTextColors(src, refineTextRegions(src, texts));
   // Erase must cover both the measured ink and the seed box; a clipped seed box
   // must not leave edge ink behind while the renderer trusts the measured one.

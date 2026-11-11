@@ -98,7 +98,13 @@ describe("D22 detector lane (makeDeconstruct + textDetector)", () => {
     expect(seen.images).toBe(0);
     expect(result.texts).toHaveLength(2);
     expect(result.texts![0]).toMatchObject({ text: "GIẢM GIÁ 50%" });
-    expect(result.texts![0].box).toEqual(LINES[0].box);
+    // the detector box gets tightened to the measured ink like every lane
+    const box = result.texts![0].box;
+    expect(box.y * 200).toBeGreaterThanOrEqual(59);
+    expect((box.y + box.h) * 200).toBeLessThanOrEqual(76);
+    expect(box.x * 200).toBeGreaterThanOrEqual(18);
+    expect((box.x + box.w) * 200).toBeLessThanOrEqual(152);
+    expect(result.texts![0].typography.fill.toLowerCase()).toBe("#c81e28"); // measured red, not the black seed
     expect(result.texts![1].typography).toMatchObject({ fontStyle: "italic", fontWeight: 400 });
     expect(result.note).toContain("Detected 3 text lines, dropped 1");
     expect(lane.calls).toHaveLength(2); // 1 classify + 1 sheet

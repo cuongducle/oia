@@ -40,6 +40,32 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 ## D22: khôi phục kiểu chữ khi Make text editable
 
+### Sửa màu chữ lane detector (2026-11-12, owner báo "màu chữ đang sai")
+
+Run-04 mọi dòng ĐỎ/TRẮNG đều về seed #000000 (đo màu thất bại, rơi dự phòng).
+Ba nguyên nhân chồng nhau, lần lượt cô lập bằng dữ liệu thật:
+
+1. Unclip làm hộp detector nới rộng; refine theo màu seed đen không siết được
+   hộp chữ đỏ/trắng; hộp to làm vành đo nền xuyên mép badge/band.
+2. Một màu mực bị tách thành nhiều bin 4-bit cạnh nhau do khử răng cưa
+   (đỏ = c80838 + d80838 + b80838...), không bin nào thắng 1,5 lần chính nó.
+   clusterPixels giờ gộp bin láng giềnh (≤40) trước khi xếp hạng.
+3. Giải pháp đo màu cho lane detector: kernelInkColor đọc NỀN từ hai dải sát
+   trên/dưới hộp KERNEL (nền đúng của dòng: badge/band/trang), mực = cụm lớn
+   trong kernel xa nền ≥70, và lấy median TỨP XA NHẤT của cụm (chống pha màu
+   viền). DetectedTextLine/schema thêm inkBox (optional, D14) từ quad
+   pre-unclip; processor lane truyền kèm. Hai lần thử sai có bằng chứng:
+   đo-trên-inkBox-kiểu-vành và kernel-vs-annulus đều sai giả định nền, đã bỏ.
+
+Kết quả tái đo OFFLINE trên đúng dữ liệu run-04 (0 quota, ghi trong
+run-04-colorfix/provenance.json): 43/43 dòng đúng màu so với bảng
+replay-10 (0 dòng rơi seed; "MIỄN PHÍ" đỏ trên badge vàng từng bị coi
+sai là do bảng kỳ vọng trùng tên hai dòng). Render lại đủ 44/44 hợp đồng
+hình học. comparison-run04-colorfix.png chờ owner soi. Unit test mới:
+badge vàng chữ đỏ, kernelInkColor; khớp 193 test tasks + 284 desktop.
+Còn giới hạn: dòng hai màu trong một hộp ("MÀ" trắng + còn lại vàng) vẫn
+chỉ nhận một màu (cụm lớn); cần tách run màu khi nào owner yêu cầu.
+
 ### Detector lane DBNet vào sản phẩm (2026-11-12, owner duyệt "làm nốt vụ dbnet")
 
 Xong phần tích hợp chính: model PP-OCRv4 det ONNX ghim SHA (trùng byte bản

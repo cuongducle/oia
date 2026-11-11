@@ -35,6 +35,9 @@ export const deconstructTextSchema = z
   .object({
     text: z.string().trim().min(1).max(500),
     box: deconstructBoxSchema,
+    /** D22 detector lane: the tight pre-unclip kernel box, a reliable place to
+     *  measure ink color; additive optional (D14), absent on vision-read texts. */
+    inkBox: deconstructBoxSchema.optional(),
     typography: deconstructTypographySchema.optional(),
   })
   .strict();

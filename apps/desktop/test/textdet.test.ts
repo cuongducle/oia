@@ -71,10 +71,15 @@ describe("DBNet postprocess (textdet.ts)", () => {
   });
 
   it("quadToLine matches the renderer ink-rect-before-rotation contract", () => {
-    const line = quadToLine([[10, 20], [110, 40], [100, 60], [0, 40]], 200, 100, 0.9);
+    const quad = [[10, 20], [110, 40], [100, 60], [0, 40]];
+    const inkQuad = [[20, 24], [100, 40], [92, 56], [12, 40]];
+    const line = quadToLine(quad, inkQuad, 200, 100, 0.9);
     if (!line) throw new Error("expected a line");
     const angle = Math.atan2(20, 100) * 180 / Math.PI;
     expect(line.angle).toBeCloseTo(angle, 1);
+    if (!line.inkBox) throw new Error("missing inkBox");
+    expect(line.inkBox.x * 200).toBeGreaterThan(10);
+    expect(line.inkBox.w * 200).toBeLessThan(line.box.w * 200);
     const rad = line.angle * Math.PI / 180;
     // the ink rect rotated back about (x,y) must cover the quad's corners
     const x = line.box.x * 200, y = line.box.y * 100, w = line.box.w * 200, h = line.box.h * 100;

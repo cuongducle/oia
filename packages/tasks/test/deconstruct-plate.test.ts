@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
 import { deconstructTextSchema } from "@oia/schema";
-import { composeTextPlate, localTextPlate, mergeEraseRegions, prepareDeconstructRegions, readDeconstructPng, refineTextRegions, repairRetainedRegions, retainedTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
+import { composeTextPlate, kernelInkColor, localTextPlate, mergeEraseRegions, prepareDeconstructRegions, readDeconstructPng, refineTextRegions, repairRetainedRegions, retainedTextRegions, sampleTextColors } from "../src/deconstruct-plate.js";
 
 function solid(w: number, h: number, rgb: number[]) {
   const p = new PNG({ width: w, height: h });
@@ -63,6 +63,20 @@ describe("D22 text plate", () => {
     const pixels = readDeconstructPng(repaired!);
     const i = (65 * 200 + 40) * 4;
     expect(Math.abs(pixels.data[i] - 245)).toBeLessThanOrEqual(2); // mực đã thay bằng nền phẳng
+  });
+
+  it("kernelInkColor reads red text off a yellow badge smaller than the padded box", () => {
+    const src = new PNG({ width: 200, height: 200 });
+    for (let i = 0; i < src.data.length; i += 4) src.data.set([255, 255, 255, 255], i); // trang trắng
+    for (let y = 90; y < 130; y++) for (let x = 60; x < 140; x++) src.data.set([250, 210, 60, 255], (y * 200 + x) * 4); // badge vàng
+    for (let y = 100; y < 120; y++) for (let x = 70; x < 130; x += 3) src.data.set([200, 30, 50, 255], (y * 200 + x) * 4); // chữ đỏ
+    const badge = deconstructTextSchema.parse({
+      text: "MIỄN PHÍ", box: { x: 0.26, y: 0.42, w: 0.48, h: 0.24 }, inkBox: { x: 0.34, y: 0.49, w: 0.31, h: 0.11 },
+      typography: { fontFamily: "Arial", fontWeight: 700, fontStyle: "normal", fill: "#000000", angle: 0, spacingEm: 0, textAlign: "left" },
+    });
+    expect(kernelInkColor(src, badge)).toBe("#c81e32");
+    // không có inkBox: trả null, đường cũ tự lo
+    expect(kernelInkColor(src, { ...badge, inkBox: undefined })).toBeNull();
   });
 
   it("merges detector fragments of one visual line into one erase region", () => {

@@ -170,23 +170,25 @@ function unclipRect(quad: Quad): Quad {
 }
 
 /** Detector quad -> the renderer's contract: the tight rect BEFORE rotation
- *  (fractions), rotated clockwise by `angle` about x,y. */
-export function quadToLine(quad: Quad, imgW: number, imgH: number, score: number): DetectedTextLine | null {
+ *  (fractions), rotated clockwise by `angle` about x,y. Computes BOTH the
+ *  padded placement box (post-unclip) and the kernel ink box (pre-unclip). */
+export function quadToLine(quad: Quad, inkQuad: Quad, imgW: number, imgH: number, score: number): DetectedTextLine | null {
   const [tl, tr] = quad;
   const angle = Math.atan2(tr[1] - tl[1], tr[0] - tl[0]) * 180 / Math.PI;
   if (Math.abs(angle) > 45) return null; // vertical text is out of scope, dropped honestly
-  const rad = angle * Math.PI / 180;
-  const cos = Math.cos(rad), sin = Math.sin(rad);
-  const us = quad.map((p) => (p[0] - tl[0]) * cos + (p[1] - tl[1]) * sin);
-  const vs = quad.map((p) => -(p[0] - tl[0]) * sin + (p[1] - tl[1]) * cos);
-  const u0 = Math.min(...us), v0 = Math.min(...vs);
-  const originX = tl[0] + u0 * cos - v0 * sin, originY = tl[1] + u0 * sin + v0 * cos;
-  const w = Math.max(...us) - u0, h = Math.max(...vs) - v0;
-  return {
-    box: { x: originX / imgW, y: originY / imgH, w: w / imgW, h: h / imgH },
-    angle: Math.round(angle * 100) / 100,
-    score,
+  const toRect = (q: Quad) => {
+    const rad = angle * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const us = q.map((p) => (p[0] - tl[0]) * cos + (p[1] - tl[1]) * sin);
+    const vs = q.map((p) => -(p[0] - tl[0]) * sin + (p[1] - tl[1]) * cos);
+    const u0 = Math.min(...us), v0 = Math.min(...vs);
+    const originX = tl[0] + u0 * cos - v0 * sin, originY = tl[1] + u0 * sin + v0 * cos;
+    return {
+      x: originX / imgW, y: originY / imgH,
+      w: (Math.max(...us) - u0) / imgW, h: (Math.max(...vs) - v0) / imgH,
+    };
   };
+  return { box: toRect(quad), inkBox: toRect(inkQuad), angle: Math.round(angle * 100) / 100, score };
 }
 
 /** The DB postprocess on a sigmoid probability map; grid -> original scale. */
@@ -238,7 +240,11 @@ export function dbLinesFromProbMap(probs: Float32Array, mapW: number, mapH: numb
       Math.min(imgH, Math.max(0, Math.round(y * imgH / mapH))),
     ]) as Quad;
     if (Math.min(side(scaled[0], scaled[1]), side(scaled[0], scaled[3])) <= MIN_SIZE) continue;
-    const line = quadToLine(scaled, imgW, imgH, score);
+    const kernel = mini.map(([x, y]) => [
+      Math.min(imgW, Math.max(0, Math.round(x * imgW / mapW))),
+      Math.min(imgH, Math.max(0, Math.round(y * imgH / mapH))),
+    ]) as Quad;
+    const line = quadToLine(scaled, kernel, imgW, imgH, score);
     if (line && line.box.w * imgW > MIN_SIZE && line.box.h * imgH > MIN_SIZE) lines.push(line);
   }
   // reading order: band by height, then left to right
