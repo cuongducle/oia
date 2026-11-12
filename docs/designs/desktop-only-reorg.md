@@ -1242,5 +1242,21 @@ Bản này ghi đè cách trình bày ở mục trên:
   browser khác hoặc tự giành focus.
 - Gates sau bản rút gọn: build 22 trang, typecheck, site-links (4 self-test),
   media (6 self-test, 160 tham chiếu), 7 test download/landing (đã nối vào
-  Pages workflow), diff-check xanh. Đang chuẩn bị commit/deploy. Không đổi
-  desktop runtime, chưa kiểm Windows máy thật hoặc CI của SHA mới.
+  Pages workflow), diff-check xanh. Không đổi desktop runtime, không kiểm
+  Windows máy thật trong vòng này.
+
+### Phát hành và nghiệm thu bản live
+
+- Commit `038a8aa` đẩy main. CI xanh đủ job (run 43182536794, 2m39s, gồm
+  desktop smoke); workflow Landing site → GitHub Pages xanh (43182536848).
+  Cloudflare Worker twilight-sun-6b7b deploy version b73d909d (30 asset mới,
+  58 giữ nguyên), không cần purge cache thủ công.
+- Đối chiếu live bằng curl: trang EN là bản mới (có Sale banners/visual-hero,
+  không dính cache cũ); MP4 252.845B đúng MIME video/mp4; VTT EN/VI 200
+  (text/vtt); livestream-example.webp 200; /vi/ 200; sitemap có đúng 1 mục
+  /vi/; URL lạ trả 404 đúng trang.
+- Chrome thật trên oia.solutions: console sạch, không tràn ngang 1193px;
+  bấm 30% OFF chuyển ảnh (show-p30); mở disclosure video, phần tử video và
+  nguồn MP4 tải đúng; hai nút tải giải về asset v0.6.1 đúng cặp tag.
+  Playback video trên bản live vẫn chưa xác minh (tab nền trì hoãn media,
+  như đã ghi ở vòng local); cần chủ động bấm play khi tiện.
