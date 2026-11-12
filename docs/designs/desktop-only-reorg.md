@@ -1137,3 +1137,33 @@ không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm b
 - Gates: pnpm build/test/typecheck toàn repo (turbo gồm @oia/site), media
   audit 5 self-test + 149 tham chiếu, 3 test download. Chưa deploy lúc ghi
   dòng này; kết quả deploy và đối chiếu live ghi ở evidence riêng.
+
+## Vá đợt review code Astro (2026-11-12, owner "tear it to shreds" rồi "sửa hết")
+
+Review thẳng đã chỉ ra và đã sửa hết, commit `5f5c194` (force-with-lease sau
+khi amend thông điệp cho khớp nội dung, chưa ai dựa vào SHA cũ):
+
+- Gate nói dối: media audit pass xanh khi không có dist. Giờ fail-closed
+  (thiếu dist là lỗi rõ lời), ratchet tối thiểu 20 trang build, cross-check
+  `src/data/releases.json` khớp tuyệt đối FALLBACK trong main.js (6 self-test).
+- Gate mới `config/audit/site-links.py`: link nội bộ đều giải được, anchor
+  trong/ngoài trang tồn tại, id DOM duy nhất mỗi trang, sitemap parity hai
+  chiều; chạy trong workflow Pages. Bắt ngay lỗi thật: 404 dùng link tương đối
+  sẽ gãy ở URL sâu bất kỳ → 404 standalone (CSS inline, link gốc-tuyệt-đối,
+  wrangler `not_found_handling`), đã kiểm live trả HTTP 404 đúng trang.
+- Khử trùng lặp: 5 trang port bỏ block tải copy tay, dùng DownloadButtons đọc
+  `releases.json` duy nhất; FAQ và head chung thành component; landing còn
+  đúng 1 `id="download"` (trước 3); canonical là prop tường minh, termCode
+  join chuỗi thường chống `${` interpolate.
+- Data layer: `catalog.ts` validate từng dòng + ratchet 35 + đủ 8 category
+  (mảng assert build.py cũ đã mất được hồi sinh), thay 2 cast trần; tsc vào
+  repo typecheck (astro check hỏng dưới pnpm strict layout, ghi lý do).
+- Vệ sinh: xóa porter chết, feature-review rời public/ sang docs/verification
+  (không còn ship nội bộ ra production), export-previews.py chạy thử lại
+  tại vị trí mới cho ra output byte-đối-byte, desktop-audit tách apps/site
+  khỏi phạm vi shipped (advisory của Astro không chặn release desktop, cảnh
+  báo site-only vẫn in ra), tắt telemetry CI.
+- Bằng chứng: repo build/test/typecheck xanh; 3 audit xanh trên build mới;
+  screenshot landing 1432161 byte giống hệt trước vá (không đổi gì thị giác);
+  Z.AI Vision PASS; live: các trang khớp hash, 404 thật trả 404, 1 nút
+  #download duy nhất; Pages + CI xanh.
