@@ -218,6 +218,13 @@ footer .meta{font-size:10.5px;color:var(--faint)}
   .term pre{font-size:11.5px}
 }
 
+/* Tablet balance (651-960): two-up grids instead of one skinny capped column */
+@media (min-width:651px) and (max-width:960px){
+  .editable-proof{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;max-width:760px}
+  .template-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;max-width:760px;margin-inline:auto}
+  .reference-pair figure,.editable-proof figure{max-width:none}
+}
+
 /* a11y: skip link + focus */
 .skip{position:fixed;top:-48px;left:16px;z-index:300;background:var(--accent-btn);color:#fff;font-weight:600;font-size:13px;padding:9px 16px;border-radius:8px;transition:top .2s}
 .skip:focus{top:12px}
