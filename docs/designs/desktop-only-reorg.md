@@ -989,3 +989,24 @@ smoke, crash-smoke, shot, template-qa xanh; 35 scene không tràn/chồng khung
 chữ, desktop 288 test qua và 1 manual test bỏ qua. Bằng chứng riêng:
 `docs/private/real-runs/2026-11-12-template-backgrounds-ai/`. Không tuyên bố
 owner đã duyệt thẩm mỹ, không có kiểm Windows máy thật.
+
+## Phát hành v0.6.1 (2026-11-12, owner yêu cầu)
+
+Tag `v0.6.1` trỏ `71a28f8`, GitHub release đã công khai và đặt Latest.
+CI tag run `43147338780` xanh đủ 6 job: ci, unit-windows, desktop-smoke,
+desktop-smoke-windows, desktop-dist-mac, desktop-dist-windows. Bản macOS
+đóng gói còn qua packaged-smoke. Không tuyên bố Windows máy vật lý đã chạy.
+
+Hai bộ cài lấy từ chính artifact CI, tải về đối chiếu SHA-256 với checksum
+của runner, rồi đối chiếu digest GitHub sau upload, đều khớp:
+
+- `Oia-0.6.1-arm64.dmg`: 433574780 byte,
+  `bf002c187f496a197384aab3c97d386020044569939d34090a2c321b4bb3f918`.
+- `Oia-0.6.1-win-x64.exe`: 419234278 byte,
+  `e5b89eb802d86a7469552ce7494ae3879e77430c93b2200869a23223a06e3836`.
+
+Kèm `checksums-macos.txt` và `checksums-windows.txt`. Giữ phân phối unsigned,
+không tự cập nhật; release notes nhắc giấy phép model và giới hạn so phông.
+Nguồn: https://github.com/cuongducle/oia/releases/tag/v0.6.1.
+Bằng chứng tải về và notes ở `docs/private/releases/`. Site SEO/fallback
+không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm bản mới.
