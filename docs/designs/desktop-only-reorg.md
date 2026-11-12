@@ -1335,3 +1335,8 @@ Bản này ghi đè cách trình bày ở mục trên:
   khối dùng lại stylesheet đã kiểm mobile vòng trước (flex-wrap).
 - Còn mở: owner chưa tự soi mắt; chưa deploy lúc ghi (phát hành ghi ở mục
   sau nếu có).
+
+- Phát hành vòng này: commit `777774f`, CI + Pages workflow xanh (run
+  43188957659 / 43188957649), worker deploy d90ce109. Đối chiếu live: số từ
+  hiển thị khớp dist (install 218, livestream 152, presentations 163,
+  flash-sale 163), ảnh livestream-example và factRow có mặt trên bản live.
