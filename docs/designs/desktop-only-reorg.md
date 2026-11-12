@@ -1167,3 +1167,80 @@ khi amend thông điệp cho khớp nội dung, chưa ai dựa vào SHA cũ):
   screenshot landing 1432161 byte giống hệt trước vá (không đổi gì thị giác);
   Z.AI Vision PASS; live: các trang khớp hash, 404 thật trả 404, 1 nút
   #download duy nhất; Pages + CI xanh.
+
+## Sửa landing theo review của owner (2026-11-12)
+
+- Giữ tiếng Anh mặc định theo D19. Chưa thêm /vi/, chuyển ngôn ngữ hay tự
+  chuyển hướng theo trình duyệt. Bản địa hóa đầy đủ vẫn là việc riêng, không
+  thêm nút chuyển ngôn ngữ dẫn đến trang chưa tồn tại.
+- Hấp thụ: copy ngắn theo công việc của seller, H1 giữ cá tính nhưng H2 và
+  các bước chuyển sang chữ thường dễ đọc, nhãn nhỏ chính tăng lên 12px.
+  Hero căn giữa, thêm liên kết đến 35 mẫu, editor thật và mã nguồn thay cho
+  số người dùng/đánh giá chưa có chứng cứ. Livestream lên sau ảnh sản phẩm.
+  Hai cách đổi ưu đãi gộp chung: sửa lớp chữ miễn phí và repaint dùng AI;
+  giữ cả hai ví dụ nhìn được không cần JavaScript, không giấu trong tab.
+- Bác các đề xuất thiếu chứng cứ: tạo trong một phút, cài trong hai phút,
+  giá tiền cố định/banner, số sao/shop minh họa, bảo đảm bao bì không đổi,
+  safe zone không bao giờ bị che. Không đánh đồng sửa mẫu với tách chữ ảnh.
+  Không đổi MiB thành MB mà giữ nguyên số. Không quảng cáo form API key đã
+  bị rút ở D18, không khẳng định AI chạy offline hoặc không cần ChatGPT.
+- Điều kiện ChatGPT/hạn mức hiện cạnh CTA. FAQ nói rõ dữ liệu gửi provider,
+  chi phí tách chữ, phông xấp xỉ và giới hạn Lens phi thương mại (D23).
+  Thông tin nguồn ảnh gom về FAQ, giữ caption ngắn và giới hạn liên quan
+  ngay tại ví dụ. Chưa tạo video hay mockup livestream mới; ảnh hiện có
+  được giữ nguyên, hero ghi rõ nút chỉ đổi hai đầu ra đã lưu.
+- Hai nút tải macOS/Windows vẫn luôn hiện đúng yêu cầu owner trước đó.
+  Nhận diện hệ điều hành chỉ đổi độ nhấn, không ẩn nút hoặc đoán CPU;
+  mobile/hệ lạ giữ cả hai nút chính, kể cả iPad báo MacIntel.
+- Sửa lỗi thật phát hiện trên trang live: DownloadButtons không được truyền
+  installHref ở landing, làm Install help thành thẻ a không href. Landing
+  nay truyền đường dẫn tương đối; component không vẽ link khi thiếu đích.
+  Site-links thêm gate bắt liên kết vô hiệu và regression tái hiện lỗi.
+- Gates: site build (21 trang), typecheck, site-links (4 self-test), media
+  (6 self-test, 142 tham chiếu), download (4 test, gồm mất mạng/thiếu asset
+  và nền tảng chưa xác định) đều xanh; git diff --check sạch. Đã mở xem ảnh
+  desktop Chrome thật 1193 × 730. Kiểm tương tác/mobile đang chờ Chrome trả
+  quyền điều khiển từ người dùng. Chưa deploy, chưa chạy CI hay Windows
+  máy thật; không sửa sản phẩm desktop, không phát sinh lượt AI trả phí.
+
+### Bản ưu tiên thị giác sau phản hồi owner
+
+Owner yêu cầu làm nốt, rồi bác hướng vẫn nhiều chữ: "show don't tell".
+Bản này ghi đè cách trình bày ở mục trên:
+
+- Landing EN mặc định, thêm VI tại /vi/ qua cùng Landing.astro, không sao
+  chép hai trang; canonical/hreflang EN/VI/x-default và sitemap có đủ. EN/VI
+  chuyển tường minh, không tự chuyển hướng hay hiện hộp gợi ý ngôn ngữ.
+  Các trang thư viện/hướng dẫn vẫn EN, bản VI ghi rõ khi liên kết sang đó.
+- Hero chỉ còn tiêu đề ngắn, một câu giới thiệu, hai nút tải, chi tiết cài
+  thu gọn và một dòng ChatGPT. Hai ảnh campaign lớn dẫn thị giác; nút 20/30
+  chuyển đầu ra đã lưu, không giả tạo ảnh trực tiếp. Bỏ hàng prompt giả lập,
+  phần thương hiệu và quy trình chữ lặp. Nội dung main ở trạng thái mặc định
+  đo trong Chrome thật là 173 từ tiếng Anh (không tính chữ trong ảnh).
+- Phần còn lại: ảnh sản phẩm → campaign, cặp menu sửa giá, ba mẫu thật,
+  screenshot studio lớn, minh họa livestream. FAQ và phần dev đóng mặc định.
+  Link fragment đến FAQ/dev tự mở đúng details, gồm tải trực tiếp với hash;
+  regression phủ hash sai định dạng và không có đích. Giữ anchor workflow
+  cho liên kết từ các trang cũ, dẫn đến ví dụ sửa mẫu; bring ở control hero.
+- Tạo video 16 giây từ scene render thật, không phải quay thao tác ứng dụng;
+  minh họa livestream dùng preset PNG có alpha thật và ảnh STILL đã có.
+  Chạy template-qa Electron trên 35 mẫu, không lỗi hình học; đã mở xem hình
+  ghép và poster bằng mắt. Không lấy gate hình học làm chứng cứ thẩm mỹ.
+  Video không tiếng, có WebVTT EN/VI, tải theo yêu cầu. Script lặp lại:
+  apps/site/scripts/build-walkthrough.py, hash/giới hạn trong
+  docs/verification/landing-walkthrough-assets.json. Không tạo ảnh mới,
+  không sửa template bundle, không trả thêm quota. Không coi video này
+  là demo generation hay bằng chứng tốc độ app.
+- QA: Chrome thật desktop 1193 × 730 và mobile 390 × 844, đã mở xem ảnh
+  trước/sau. Kiểm nút đổi offer, chuyển EN/VI, FAQ mở từ link chi phí,
+  href installer hai nền tảng và không tràn ngang 390px. Kiểm thêm 320px
+  phát hiện headline EN thành ba dòng quá cao, đã giảm cỡ chữ mobile.
+  Console không lỗi. WebVTT tải đủ bốn cue; MP4 ffprobe đúng 16 giây.
+  Playback chưa xác minh được: Chrome background trì hoãn media, play()
+  không trả trong hạn; không ghi là đã chạy video. Full-page capture bị
+  browser từ chối do tab nền; dùng ảnh viewport từng phần, không lách sang
+  browser khác hoặc tự giành focus.
+- Gates sau bản rút gọn: build 22 trang, typecheck, site-links (4 self-test),
+  media (6 self-test, 160 tham chiếu), 7 test download/landing (đã nối vào
+  Pages workflow), diff-check xanh. Đang chuẩn bị commit/deploy. Không đổi
+  desktop runtime, chưa kiểm Windows máy thật hoặc CI của SHA mới.

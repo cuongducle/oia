@@ -11,6 +11,16 @@
     win: { name: 'Oia-0.6.1-win-x64.exe', size: 419234278, label: 'Windows 64-bit' },
   };
   const mb = (b) => (b ? `${Math.round(b / 1048576)} MiB` : '');
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  const preferred = /Windows|Win32|Win64/i.test(platform) ? 'win'
+    : /Mac/i.test(platform) && !(navigator.maxTouchPoints > 1) ? 'macArm64' : null;
+  if (preferred) {
+    document.querySelectorAll('a[data-dl]').forEach((link) => {
+      const secondary = link.dataset.dl !== preferred;
+      link.classList.toggle('btn-accent', !secondary);
+      link.classList.toggle('btn-ghost', secondary);
+    });
+  }
   const latestAssets = async () => {
     try {
       const ctl = new AbortController();
@@ -47,19 +57,24 @@
 
   /* The example stays readable; only a deliberate choice changes the artwork. */
   const frame = document.getElementById('artFrame');
-  const promptEl = document.getElementById('heroPrompt');
   const buttons = [...document.querySelectorAll('.rbtn')];
   buttons.forEach((button) => button.addEventListener('click', () => {
     if (!frame) return;
     const repaint = button.dataset.art === 'p30';
     frame.classList.toggle('show-p30', repaint);
     buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === button)));
-    if (promptEl) {
-      const offer = document.createElement('em');
-      offer.textContent = repaint ? '30% off' : '20% off';
-      promptEl.replaceChildren(document.createTextNode('matcha campaign, '), offer);
-    }
   }));
+
+  const openLinkedDetails = () => {
+    const hash = window.location?.hash;
+    if (!hash) return;
+    let id;
+    try { id = decodeURIComponent(hash.slice(1)); } catch { return; }
+    const target = document.getElementById(id);
+    if (target?.tagName === 'DETAILS') target.open = true;
+  };
+  openLinkedDetails();
+  window.addEventListener('hashchange', openLinkedDetails);
 
   const reveals = document.querySelectorAll('.reveal');
   if (reveals.length && 'IntersectionObserver' in window && !reduced) {

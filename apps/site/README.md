@@ -1,6 +1,8 @@
 # Oia landing site (Astro)
 
-Static marketing site for marketplace sellers, English surface per D8/D19 in
+Static marketing site for marketplace sellers. English is the default; the
+Vietnamese landing is at `vi/`, with an explicit EN/VI switch (no locale
+redirect). Desktop UI stays English per D8/D19 in
 `../../docs/designs/desktop-only-reorg.md`. Astro 7, static output, no client
 framework, no CDN, self-hosted fonts.
 
@@ -16,7 +18,9 @@ framework, no CDN, self-hosted fonts.
   parallel runtime fallback that `config/audit/marketing-assets.py` forces to
   match, so a release bump cannot update one and miss the other.
 - `src/layouts/Page.astro` — content-page shell (sticky nav + footer + main.js).
-  `src/pages/index.astro` owns its own landing shell.
+  `src/components/Landing.astro` shares the image-led landing shell and copy
+  between `src/pages/index.astro` and `src/pages/vi/index.astro`. Relative bases,
+  canonical and reciprocal hreflang tags are explicit. Content pages remain English.
 - `public/` ships verbatim: `main.js`, `styles.css`, `pages.css`, fonts,
   assets, sitemap, robots, `feature-review/`. Nothing in `public/` is
   processed, hashed or bundled.
@@ -56,7 +60,7 @@ python3 config/audit/site-links.py --self-test
 python3 config/audit/site-links.py    # links, anchors, unique ids, sitemap parity
 python3 config/audit/marketing-assets.py --self-test
 python3 config/audit/marketing-assets.py   # scans dist/, run after build
-node --test config/audit/marketing-downloads.test.cjs
+node --test config/audit/marketing-downloads.test.cjs config/audit/landing-surface.test.cjs
 pnpm --filter @oia/site preview      # or: python3 -m http.server 8765 --directory apps/site/dist
 ```
 
@@ -90,6 +94,22 @@ outputs when available; it never runs AI. Exact prompts, hashes and evidence
 boundaries: `../../docs/verification/marketing-assets-provenance.json` and
 `../../docs/verification/feature-assets.json`.
 
+## Landing walkthrough and livestream illustration
+
+```bash
+pnpm --filter @oia/desktop template-qa
+python3 apps/site/scripts/build-walkthrough.py
+```
+
+The builder uses real Electron scene renders, Pillow and ffmpeg, no AI calls.
+The 16-second video is a disclosed edited walkthrough, not a live app recording
+or generation-speed benchmark. EN/VI WebVTT captions accompany a no-audio MP4
+loaded only on demand. The livestream layout composites an actual transparent
+preset over the existing AI product image; it is not a real broadcast or safe-zone
+certification. Sources, boundaries and hashes are recorded in
+`docs/verification/landing-walkthrough-assets.json` (relative to repo root).
+Use `--font` with a local TrueType file on machines without Arial/DejaVu Sans.
+
 ## Blog (planned, not built)
 
 When the blog is green-lit: content collections under `src/content/blog/`,
@@ -99,7 +119,7 @@ when the first post is ready.
 
 ## Known debt (deliberate)
 
-- `src/pages/index.astro` keeps the landing body as one verified block;
+- `src/components/Landing.astro` keeps the two locales in one verified block;
   section components are a future cleanup, not a regression to fix urgently.
 - Content pages pass their own nav/footer link arrays: the old site had
   context-specific navs and the port preserved them.

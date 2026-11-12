@@ -23,11 +23,14 @@ class PageParser(HTMLParser):
         super().__init__()
         self.ids = []
         self.urls = []  # (attribute, url, line)
+        self.inert_links = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if attrs.get('id'):
             self.ids.append(attrs['id'])
+        if tag == 'a' and not attrs.get('href') and not (attrs.get('id') or attrs.get('name')):
+            self.inert_links.append(self.getpos()[0])
         for attr in ('href', 'src'):
             url = attrs.get(attr)
             if url:
@@ -51,6 +54,8 @@ def check(root):
         for i in dupes:
             problems.append(f'{rel}: id "{i}" appears {Counter(parser.ids)[i]} times')
         ids_by_page[page] = set(parser.ids)
+        for line in parser.inert_links:
+            problems.append(f'{rel}:{line}: anchor has no href (inert link)')
 
     for page in pages:
         parser = PageParser()
@@ -110,6 +115,18 @@ class SiteLinksTest(unittest.TestCase):
             self.assertTrue(any('#top' in p for p in problems))
             self.assertTrue(any('id "a"' in p for p in problems))
             (dist / 'index.html').write_text('<a href="./#">home</a>')
+            self.assertEqual(check(root), [])
+
+    def test_install_help_without_href_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dist = root / 'apps/site/dist'
+            dist.mkdir(parents=True)
+            (dist / 'sitemap.xml').write_text('<urlset><url><loc>https://oia.solutions/</loc></url></urlset>')
+            for anchor in ('<a>Install help</a>', '<a href="">Install help</a>'):
+                (dist / 'index.html').write_text(anchor)
+                self.assertTrue(any('inert link' in p for p in check(root)))
+            (dist / 'index.html').write_text('<a href="#guide">Install help</a><section id="guide">Steps</section>')
             self.assertEqual(check(root), [])
 
     def test_sitemap_parity_both_ways(self):

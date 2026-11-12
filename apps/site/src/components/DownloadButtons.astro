@@ -1,5 +1,5 @@
 ---
-// The dual direct-download buttons plus their per-platform metadata lines.
+// Direct downloads stay available for both platforms, including without JS.
 // Version facts live ONLY in src/data/releases.json; public/main.js carries a
 // parallel runtime FALLBACK that config/audit/marketing-assets.py forces to
 // match this file, so a release bump cannot update one and miss the other.
@@ -19,17 +19,24 @@ interface Props {
   installHref?: string
   noteLinks?: boolean
   ghost?: Ghost
+  locale?: 'en' | 'vi'
+  compact?: boolean
 }
-const { rowClass = 'ctas', anchorId, installHref, noteLinks = true, ghost } = Astro.props
+const { rowClass = 'ctas', anchorId, installHref, noteLinks = true, ghost, locale = 'en', compact = false } = Astro.props
+const vi = locale === 'vi'
+const NoteContainer = compact ? 'details' : 'div'
 ---
 <div class={`${rowClass} download-options`} id={anchorId}>
-  <a class="btn btn-accent" data-dl="macArm64" href={macHref}>Download for macOS</a>
-  <a class="btn btn-accent" data-dl="win" href={winHref}>Download for Windows</a>
+  <a class="btn btn-accent" data-dl="macArm64" href={macHref}>{vi ? 'Tải cho macOS' : 'Download for macOS'}</a>
+  <a class="btn btn-accent" data-dl="win" href={winHref}>{vi ? 'Tải cho Windows' : 'Download for Windows'}</a>
   {ghost && <a class="btn btn-ghost" href={ghost.href}>{ghost.label}</a>}
 </div>
+<NoteContainer class={compact ? 'download-details' : undefined}>
+{compact && <summary>{vi ? 'Mac chip M · Windows 64-bit · Cách cài' : 'Apple Silicon Mac · Windows 64-bit · Install details'}</summary>}
 <p class="cta-note">
   <span class="download-meta" data-dl-ver="macArm64">{macNote}</span>
   <span class="download-meta" data-dl-ver="win">{winNote}</span>
-  {noteLinks && <a href={installHref}>install help</a>}
-  {noteLinks && <> · <a href={RELEASES}>all releases</a></>}
+  {noteLinks && installHref && <><a href={installHref}>{vi ? 'Hướng dẫn cài (EN)' : 'Install help'}</a> · </>}
+  {noteLinks && <a href={RELEASES}>{vi ? 'Các phiên bản' : 'All releases'}</a>}
 </p>
+</NoteContainer>

@@ -1,0 +1,113 @@
+---
+import DownloadButtons from './DownloadButtons.astro'
+import BaseHead from './BaseHead.astro'
+
+interface Props { locale?: 'en' | 'vi' }
+const { locale = 'en' } = Astro.props
+const vi = locale === 'vi'
+const base = vi ? '../' : ''
+const t = (en: string, vn: string) => vi ? vn : en
+const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}`
+const description = t('Make sale banners for Shopee, Lazada and TikTok Shop from your product photo. Edit 35 included templates for free. Mac and Windows; AI uses your ChatGPT plan.', 'Làm banner Shopee, Lazada và TikTok Shop từ ảnh sản phẩm. Sửa miễn phí 35 mẫu có sẵn. Cho Mac và Windows; tạo ảnh AI dùng hạn mức ChatGPT của bạn.')
+const faq = [
+  { id: 'cost-faq', question: t('What is free? Do I need ChatGPT?', 'Phần nào miễn phí? Có cần ChatGPT không?'), answer: t('The app, 35 included templates, manual editing and exports are free. No Oia account is needed. For AI generation, open Runtime and sign in with a ChatGPT plan that supports image generation. ChatGPT Free has been found not to provide the image tool Oia uses. Generation consumes your plan allowance, not free Oia credits. Usage depends on the requested work, including research and refinement; the app shows an estimate before you run. There is no fixed cash price per banner. No API key is required, and the app has no API-key setup form.', 'Ứng dụng, 35 mẫu đi kèm, chỉnh sửa thủ công và xuất file đều miễn phí. Không cần tài khoản Oia. Để tạo ảnh AI, mở Runtime rồi đăng nhập gói ChatGPT có quyền tạo ảnh. Qua kiểm tra, ChatGPT Free không có công cụ tạo ảnh mà Oia dùng. Tạo ảnh dùng hạn mức gói của bạn, không phải lượt miễn phí do Oia cấp. Mức dùng phụ thuộc công việc, gồm cả tra cứu và tinh chỉnh; ứng dụng hiển thị dự kiến trước khi chạy. Không có giá tiền cố định cho mỗi banner. Bạn không cần khóa API và ứng dụng không có form nhập khóa API.') },
+  { id: 'editing-faq', question: t('Is every price change free?', 'Đổi giá có luôn miễn phí không?'), answer: t('Editing existing text layers is free, including text in the included templates. Lettering painted into an AI image is different: repainting uses your allowance, even if you do not apply the preview. Make text editable can rebuild lettering as layers, using up to one generated image and six AI image reads for dense artwork. Fonts are approximate, recognition needs checking and erased background areas can change. You can choose Editable text right away before generating to start with separate text layers. AI image edits can also alter product and packaging details.', 'Sửa lớp chữ có sẵn là miễn phí, kể cả chữ trong mẫu đi kèm. Chữ AI vẽ liền trong ảnh thì khác: vẽ lại dùng hạn mức, dù bạn không áp dụng bản xem trước. Make text editable có thể dựng lại chữ thành lớp riêng, dùng tối đa một ảnh tạo mới và sáu lượt AI đọc ảnh với thiết kế dày chữ. Phông chỉ gần đúng, chữ nhận diện cần kiểm tra và nền vùng xóa có thể đổi. Bạn có thể chọn Editable text right away trước khi tạo để có lớp chữ riêng từ đầu. Sửa ảnh AI cũng có thể làm thay đổi chi tiết sản phẩm và bao bì.') },
+  { id: 'license-faq', question: t('Can I use it for commercial work?', 'Dùng cho công việc kinh doanh được không?'), answer: t("App code is MIT-licensed, but models have separate terms. The bundled Lens font recognizer has a non-commercial restriction: commercial use of that component requires the author's permission or removing/replacing it. Do not assume the distributed app is cleared for every commercial workflow. Check your provider's terms and rights to uploaded photos, logos and generated assets.", 'Mã ứng dụng dùng giấy phép MIT, nhưng mô hình có điều khoản riêng. Bộ nhận diện phông Lens đi kèm bị giới hạn phi thương mại: dùng thành phần đó cho mục đích thương mại cần tác giả cho phép hoặc phải gỡ/thay thế. Không mặc định bản phát hành được phép dùng cho mọi quy trình kinh doanh. Cần kiểm tra điều khoản nhà cung cấp và quyền dùng ảnh, logo tải lên cùng tài nguyên tạo ra.') },
+  { id: 'privacy-faq', question: t('Where do my photos and projects go?', 'Ảnh và dự án của tôi được lưu ở đâu?'), answer: t('Projects, assets and conversations are saved on your machine, not an Oia server. AI generation and image-reading requests send prompts and relevant images to your provider. Local storage does not mean offline AI generation. Review the provider’s data policy before sending sensitive material.', 'Dự án, tài nguyên và hội thoại lưu trên máy bạn, không trên máy chủ Oia. Yêu cầu tạo và đọc ảnh AI gửi mô tả cùng ảnh liên quan đến nhà cung cấp. Lưu trên máy không có nghĩa AI chạy ngoại tuyến. Xem chính sách dữ liệu của nhà cung cấp trước khi gửi nội dung nhạy cảm.') },
+  { id: 'system-faq', question: t('Mac, Windows, Vietnamese?', 'Máy nào dùng được? Có hỗ trợ tiếng Việt không?'), answer: t('Packaged builds are available for Apple Silicon Macs (M1 and newer) and Windows 10/11 64-bit. No packaged Intel Mac build is available. App UI is English; prompts and banner content can be Vietnamese. Check spelling, accents and product details before posting. See the installation guide for setup and platform warnings.', 'Có bản đóng gói cho Mac Apple Silicon (M1 trở lên) và Windows 10/11 64-bit, chưa có bản cho Mac Intel. Giao diện ứng dụng bằng tiếng Anh; mô tả và chữ trên banner có thể bằng tiếng Việt. Kiểm tra chính tả, dấu và chi tiết sản phẩm trước khi đăng. Xem hướng dẫn cài đặt để biết cách thiết lập và cảnh báo hệ điều hành.') },
+  { id: 'export-faq', question: t('What can I export?', 'Xuất được những định dạng nào?'), answer: t('PNG, JPG, PDF, PPTX and ZIP. Built-in sizes cover Shopee, Lazada, TikTok Shop, social posts, stories, posters, presentations, YouTube thumbnails and A4. Livestream presets include three portrait and two landscape transparent overlays. Countdown frames are static, not live timers. Safe-zone guides are community-measured, not official specifications, may change with platform updates and are not exported. Check the current platform layout before going live.', 'PNG, JPG, PDF, PPTX và ZIP. Có kích thước sẵn cho Shopee, Lazada, TikTok Shop, bài mạng xã hội, tin ngắn, poster, thuyết trình, ảnh bìa YouTube và A4. Livestream có ba mẫu trong suốt dọc, hai mẫu ngang. Khung đếm ngược là hình tĩnh, không phải đồng hồ chạy. Vùng an toàn do cộng đồng đo, không phải thông số chính thức, có thể đổi theo cập nhật nền tảng và không xuất vào ảnh. Kiểm tra giao diện nền tảng trước khi phát trực tiếp.') },
+  { id: 'research-faq', question: t('What do Research and Auto refine do?', 'Research và Auto refine làm gì?'), answer: t('Research looks up current facts with sources. Auto refine checks generated artwork against your brief and may generate another version for fixable issues. Both use your AI allowance within the limits shown before a run. Neither replaces your final check.', 'Research tra cứu thông tin hiện tại kèm nguồn. Auto refine đối chiếu ảnh với yêu cầu và có thể tạo phiên bản khác khi phát hiện lỗi sửa được. Cả hai dùng hạn mức AI trong giới hạn hiển thị trước khi chạy. Không tính năng nào thay thế bước bạn kiểm tra bản cuối.') },
+  { id: 'examples-faq', question: t('Are these real outputs?', 'Đây có phải đầu ra thật không?'), answer: t('MORI, STILL and FORMA are fictional brands with real AI-generated outputs. The STILL campaign used its product image as a reference; packaging details can change. These are image-channel examples, not recordings of a complete research and auto-refine run. Template previews and the 16-second walkthrough use real desktop scene renders; the video is an edited walkthrough, not a live screen recording or speed benchmark. The livestream illustration combines a real transparent preset and an AI product image, not a real broadcast. The studio screenshot is the actual app. Hero controls switch two saved outputs.', 'MORI, STILL và FORMA là thương hiệu minh họa với đầu ra AI thật. Banner STILL dùng ảnh sản phẩm làm tham chiếu; chi tiết bao bì có thể đổi. Đây là ví dụ đầu ra tạo ảnh, không phải bản quay trọn quy trình tra cứu và tự tinh chỉnh. Ảnh mẫu và video 16 giây dùng ảnh xuất từ cảnh desktop thật; video được biên tập, không phải bản quay màn hình trực tiếp hay phép đo tốc độ. Hình livestream ghép mẫu trong suốt thật với ảnh sản phẩm AI, không phải buổi phát thật. Ảnh studio là ứng dụng thật. Nút trên hero chuyển hai đầu ra đã lưu.') },
+]
+const schema = { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Oia', applicationCategory: 'DesignApplication', operatingSystem: 'macOS, Windows', description, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, license: 'https://opensource.org/licenses/MIT', softwareVersion: '0.6.1', isAccessibleForFree: true, repository: 'https://github.com/cuongducle/oia', url: canonical, inLanguage: locale }
+const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '  -H "Authorization: Bearer $OIA_API_KEY" \\', '  -d \'{"prompt":"matcha flash sale, 20% off today"}\''].join('\n')
+---
+<!doctype html>
+<html lang={locale}>
+<head>
+  <BaseHead title={t('Oia: sale banners for Shopee, Lazada and TikTok Shop', 'Oia: tự làm banner Shopee, Lazada và TikTok Shop')} description={description} canonical={canonical} base={base}>
+    <link rel="stylesheet" href={`${base}visual-landing.css`}>
+    <link rel="alternate" hreflang="en" href="https://oia.solutions/">
+    <link rel="alternate" hreflang="vi" href="https://oia.solutions/vi/">
+    <link rel="alternate" hreflang="x-default" href="https://oia.solutions/">
+    <meta property="og:locale" content={vi ? 'vi_VN' : 'en_US'}>
+    <meta property="og:locale:alternate" content={vi ? 'en_US' : 'vi_VN'}>
+    <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content={t('Oia banner studio for marketplace sellers', 'Oia, ứng dụng làm banner cho người bán trên sàn')}>
+    <meta property="og:site_name" content="Oia"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://oia.solutions/assets/og-hero.png">
+    <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  </BaseHead>
+</head>
+<body id="top" class="visual-landing">
+<a class="skip" href="#main">{t('Skip to content', 'Đến nội dung chính')}</a>
+<nav aria-label={t('Main', 'Điều hướng chính')}>
+  <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
+  <div class="navlinks"><a href="#product">{t('Examples', 'Xem mẫu')}</a><a href={`${base}templates/`}>{t('Templates', 'Thư viện')}</a><a href="#faq">{t('FAQ', 'Hỏi đáp')}</a></div>
+  <div class="navcta"><div class="language-switch" role="group" aria-label={t('Language', 'Ngôn ngữ')}><a href={vi ? '../' : './'} lang="en" hreflang="en" aria-current={!vi ? 'page' : undefined}>EN</a><a href={vi ? './' : 'vi/'} lang="vi" hreflang="vi" aria-current={vi ? 'page' : undefined}>VI</a></div><a class="btn btn-ghost" href="#download">{t('Download', 'Tải ứng dụng')}</a></div>
+</nav>
+<header class="hero visual-hero" id="hero">
+  <div class="hero-copy">
+    <h1 class="display">{t('Sale banners.', 'Banner sale.')}<br><span class="acc">{t('Your way.', 'Đúng gu shop.')}</span></h1>
+    <p class="sub">{t('Your product photo. Your next campaign. For Shopee, Lazada and TikTok Shop.', 'Ảnh sản phẩm của bạn. Banner cho đợt sale tới. Cho Shopee, Lazada và TikTok Shop.')}</p>
+    <DownloadButtons installHref={`${base}install/`} locale={locale} compact />
+    <p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p>
+  </div>
+  <div class="hero-artwork">
+    <div class="art-frame" id="artFrame">
+      <img class="art-a" src={`${base}assets/mori-campaign.webp`} alt={t('MORI matcha sale banner, 20% off', 'Banner matcha MORI, giảm 20%')} width="1536" height="1536" fetchpriority="high">
+      <img class="art-b" src={`${base}assets/mori-repaint.webp`} alt="" aria-hidden="true" width="1536" height="1536">
+    </div>
+    <figure class="hero-second"><img src={`${base}assets/forma-editorial.webp`} alt={t('FORMA skincare campaign in blush and burgundy', 'Banner mỹ phẩm FORMA màu hồng và đỏ rượu')} width="1122" height="1402" loading="eager"></figure>
+    <div class="offer-switch" id="bring" role="group" aria-label={t('Compare saved AI outputs', 'So sánh đầu ra AI đã lưu')}><button class="rbtn" type="button" data-art="p20" aria-pressed="true">20% OFF</button><button class="rbtn" type="button" data-art="p30" aria-pressed="false">30% OFF</button><span>{t('Try a new offer', 'Thử đổi ưu đãi')} ↗</span></div>
+    <p class="art-disclosure">{t('AI-generated examples', 'Ví dụ tạo bằng AI')}</p>
+  </div>
+</header>
+<main id="main">
+<section id="product" class="visual-product">
+  <div class="wrap">
+    <h2>{t('Your photo. A whole new campaign.', 'Ảnh của bạn. Diện mạo mới.')}</h2>
+    <div class="reference-pair">
+      <figure><img loading="lazy" src={`${base}assets/still-product.webp`} alt={t('Product reference: fictional STILL coffee bag', 'Ảnh tham chiếu túi cà phê STILL minh họa')} width="1254" height="1254"><figcaption>{t('The starting point', 'Ảnh ban đầu')}</figcaption></figure>
+      <span class="reference-arrow" aria-hidden="true">→</span>
+      <figure><img loading="lazy" src={`${base}assets/still-campaign.webp`} alt={t('AI campaign built around the STILL coffee reference', 'Banner AI dựng theo ảnh cà phê STILL tham chiếu')} width="1254" height="1254"><figcaption>{t('The campaign', 'Banner hoàn chỉnh')}</figcaption></figure>
+    </div>
+    <p class="visual-caption">{t('Fictional brand, AI-generated images. Product details may change.', 'Thương hiệu minh họa, ảnh AI. Chi tiết sản phẩm có thể thay đổi.')}</p>
+  </div>
+</section>
+<section id="editable-text" class="visual-edit">
+  <div class="wrap" id="workflow">
+    <div class="visual-section-title"><h2>{t('New price.', 'Giá mới.')}<br>{t('Same everything else.', 'Ảnh vẫn nguyên.')}</h2><span class="method-label">{t('Text edit · No AI cost', 'Sửa chữ · Không tốn lượt AI')}</span></div>
+    <div class="editable-proof">
+      <figure><img loading="lazy" src={`${base}assets/templates/studio-ed-menu.webp`} alt={t('Original menu: price 42,000 dong', 'Thực đơn gốc: giá 42.000 đồng')} width="1080" height="1350"><figcaption>42.000₫</figcaption></figure>
+      <figure><img loading="lazy" src={`${base}assets/templates/menu-price-edited.webp`} alt={t('Edited menu: price 46,000 dong, unchanged photo', 'Thực đơn đã sửa: giá 46.000 đồng, ảnh giữ nguyên')} width="1080" height="1350"><figcaption><strong class="changed-price">46.000₫</strong></figcaption></figure>
+    </div>
+    <details class="demo-disclosure" id="demo"><summary>▶ {t('Watch the edit · 16 sec', 'Xem cách sửa · 16 giây')}</summary><video controls playsinline preload="none" poster={`${base}assets/template-walkthrough-poster.webp`} width="1280" height="800" aria-label={t('Template price edit walkthrough', 'Video hướng dẫn sửa giá trong mẫu')}><source src={`${base}assets/template-walkthrough.mp4`} type="video/mp4"><track kind="captions" src={`${base}assets/template-walkthrough-${locale}.vtt`} srclang={locale} label={vi ? 'Tiếng Việt' : 'English'} default /><a href={`${base}assets/template-walkthrough.mp4`}>{t('Download video', 'Tải video')}</a></video><p class="visual-caption">{t('Edited real scene renders, not a live screen recording.', 'Biên tập từ ảnh xuất của cảnh thật, không quay màn hình trực tiếp.')}</p></details>
+  </div>
+</section>
+<section id="templates" class="visual-templates">
+  <div class="wrap">
+    <div class="visual-section-title"><h2>{t('Skip the blank page.', 'Chọn mẫu. Bắt tay làm.')}</h2><a class="text-link" href={`${base}templates/`}>{t('All 35 templates', 'Xem 35 mẫu (EN)')} ↗</a></div>
+    <div class="template-gallery">
+      <figure><a href={`${base}templates/flash-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-swiss-flashsale.webp`} alt={t('Clearance 50% sneaker sale template', 'Mẫu sale giày giảm 50%')} width="1080" height="1350"></a><figcaption>{t('Flash sale', 'Sale chớp nhoáng')}</figcaption></figure>
+      <figure><a href={`${base}templates/menu/`}><img loading="lazy" src={`${base}assets/templates/studio-ed-menu.webp`} alt={t('Morning Rituals café menu template', 'Mẫu thực đơn cà phê Morning Rituals')} width="1080" height="1350"></a><figcaption>{t('Menu', 'Thực đơn')}</figcaption></figure>
+      <figure><a href={`${base}templates/packs/tet-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-tet-swiss.webp`} alt={t('Tết sale template with gift boxes', 'Mẫu sale Tết có hộp quà')} width="1080" height="1350"></a><figcaption>{t('Seasonal', 'Theo mùa')}</figcaption></figure>
+    </div>
+  </div>
+</section>
+<section id="layers" class="visual-studio">
+  <div class="wrap"><h2>{t('Not just an image. A studio.', 'Không chỉ có ảnh. Có cả studio.')}</h2><figure class="product-shot"><a href={`${base}assets/studio.webp`}><img loading="lazy" src={`${base}assets/studio.webp`} alt={t('Actual Oia desktop canvas and layer controls', 'Canvas và bảng lớp trong ứng dụng Oia thật')} width="2880" height="1666"></a><figcaption>{t('The real app. Add text, arrange layers, export.', 'Ứng dụng thật. Thêm chữ, xếp lớp, xuất file.')}</figcaption></figure></div>
+</section>
+<section id="livestream" class="visual-live">
+  <div class="wrap bring-grid"><div><h2>{t('Go live.', 'Lên sóng.')}<br>{t('Bring your offer.', 'Mang theo ưu đãi.')}</h2><p class="sub">{t('Transparent overlays. Room for you.', 'Khung trong suốt. Chừa chỗ cho bạn.')}</p><a class="text-link" href={`${base}use-cases/livestream-overlays/`}>{t('Explore livestream', 'Xem mẫu livestream (EN)')} ↗</a></div><figure class="live-mockup"><img loading="lazy" src={`${base}assets/livestream-example.webp`} alt={t('Livestream layout illustration with an actual price overlay', 'Bố cục livestream minh họa với mẫu thẻ giá thật')} width="900" height="1120"><figcaption>{t('Illustration, not a real broadcast. Community-measured safe zones.', 'Minh họa, không phải buổi phát thật. Vùng an toàn do cộng đồng đo.')}</figcaption></figure></div>
+</section>
+<section id="faq" class="visual-faq">
+  <div class="wrap"><h2>{t('A few useful details.', 'Vài điều cần biết.')}</h2><div class="faq">{faq.map(item => <details id={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div><p class="visual-caption"><a class="text-link" href={`${base}install/`}>{t('Install guide', 'Hướng dẫn cài (EN)')}</a> · <a class="text-link" href="https://github.com/cuongducle/oia#contributing--limits">{t('License limits', 'Giới hạn giấy phép (EN)')}</a></p>
+    <details id="oss" class="developer-details"><summary>{t('Open source. For developers.', 'Mã nguồn mở. Dành cho lập trình viên.')}</summary><p>{t('MIT app code. Model terms apply separately, including Lens’s non-commercial restriction. Projects save locally; AI requests go to your provider. ChatGPT sign-in is in the app; other adapters are configurable in code. A local authenticated HTTP API lets agents drive Oia.', 'Mã ứng dụng MIT; mô hình có điều khoản riêng, gồm giới hạn phi thương mại của Lens. Dự án lưu cục bộ; yêu cầu AI gửi đến nhà cung cấp. App có đăng nhập ChatGPT; các bộ kết nối khác cấu hình trong mã. API HTTP cục bộ có xác thực cho tác tử điều khiển Oia.')}</p><div class="term"><pre>{termCode}</pre></div><a class="text-link" href="https://github.com/cuongducle/oia">GitHub ↗</a></details>
+  </div>
+</section>
+<section id="download" class="visual-download"><div class="wrap center"><h2>{t('Your next sale.', 'Đợt sale tới.')}<br><span class="acc">{t('Make it yours.', 'Tự tay làm.')}</span></h2><DownloadButtons installHref={`${base}install/`} locale={locale} compact /><p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p></div></section>
+</main>
+<footer><a class="brand" href="#top"><span class="o">◆ OIA</span></a><div class="footlinks"><a href={`${base}templates/`}>{t('Templates', 'Thư viện (EN)')}</a><a href={`${base}install/`}>{t('Install help', 'Cài đặt (EN)')}</a><a href="https://github.com/cuongducle/oia/issues">{t('Support', 'Hỗ trợ')}</a><a href="#oss">{t('Open source', 'Mã nguồn mở')}</a></div><span class="meta mono">MIT · oia.solutions</span></footer>
+<script src={`${base}faq-schema.js`} is:inline type="module"></script><script src={`${base}main.js`} is:inline defer></script>
+</body>
+</html>

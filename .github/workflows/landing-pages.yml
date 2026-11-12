@@ -30,8 +30,8 @@ jobs:
       - run: pnpm --filter @oia/site build
         env:
           ASTRO_TELEMETRY_DISABLED: '1'
-      - name: Check download fallback paths
-        run: node --test config/audit/marketing-downloads.test.cjs
+      - name: Check downloads and bilingual landing
+        run: node --test config/audit/marketing-downloads.test.cjs config/audit/landing-surface.test.cjs
       - name: Check site links, anchors and sitemap parity
         run: python3 config/audit/site-links.py --self-test && python3 config/audit/site-links.py
       - name: Check marketing media references

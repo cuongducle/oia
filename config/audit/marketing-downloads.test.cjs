@@ -5,17 +5,21 @@ const { runInNewContext } = require('node:vm');
 
 const source = readFileSync(new URL('../../apps/site/public/main.js', `file://${__filename}`), 'utf8');
 
-async function resolveDownloads(release) {
-  const links = [
-    { dataset: { dl: 'macArm64' }, href: 'initial-mac' },
-    { dataset: { dl: 'win' }, href: 'initial-win' },
-  ];
+async function resolveDownloads(release, navigator = {}) {
+  const makeLink = (platform) => {
+    const classes = new Set(['btn', 'btn-accent']);
+    return {
+      dataset: { dl: platform }, href: `initial-${platform}`, classes,
+      classList: { toggle: (name, active) => active ? classes.add(name) : classes.delete(name) },
+    };
+  };
+  const links = [makeLink('macArm64'), makeLink('win')];
   const notes = { macArm64: { textContent: '' }, win: { textContent: '' } };
   runInNewContext(source, {
     AbortController,
     setTimeout: () => 0,
     matchMedia: () => ({ matches: true }),
-    navigator: {},
+    navigator,
     fetch: async () => {
       if (release === null) throw new Error('GitHub is unavailable');
       return { ok: true, json: async () => release };
@@ -30,14 +34,30 @@ async function resolveDownloads(release) {
       },
       getElementById: () => null,
     },
-    window: {},
+    window: { addEventListener() {} },
   });
   await new Promise(setImmediate);
   return {
-    mac: { href: links[0].href, note: notes.macArm64.textContent },
-    win: { href: links[1].href, note: notes.win.textContent },
+    mac: { href: links[0].href, note: notes.macArm64.textContent, primary: links[0].classes.has('btn-accent') },
+    win: { href: links[1].href, note: notes.win.textContent, primary: links[1].classes.has('btn-accent') },
   };
 }
+
+test('platform emphasis survives GitHub outage without hiding either download', async () => {
+  for (const [navigator, expected] of [
+    [{ platform: 'MacIntel', maxTouchPoints: 0 }, [true, false]],
+    [{ platform: 'Win32' }, [false, true]],
+    [{ userAgentData: { platform: 'Windows' } }, [false, true]],
+    [{ platform: 'MacIntel', maxTouchPoints: 5 }, [true, true]],
+    [{ platform: 'Linux armv8l' }, [true, true]],
+    [{}, [true, true]],
+  ]) {
+    const { mac, win } = await resolveDownloads(null, navigator);
+    assert.deepEqual([mac.primary, win.primary], expected);
+    assert.match(mac.href, /arm64\.dmg$/);
+    assert.match(win.href, /win-x64\.exe$/);
+  }
+});
 
 test('GitHub outage keeps both platform buttons on exact v0.6.1 fallback files', async () => {
   const { mac, win } = await resolveDownloads(null);

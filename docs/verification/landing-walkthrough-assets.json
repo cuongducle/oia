@@ -1,0 +1,45 @@
+{
+  "method": "Real Electron template-qa renders; Pillow layout; ffmpeg 16-second scene walkthrough. No provider calls.",
+  "layoutFontSha256": "525979822591a3447cfc49d943d6f7683508e25543407871c0ed8fed05fd2bd9",
+  "limits": "Not a live app recording, generation-speed measurement, real livestream, or platform-certified safe-zone proof. Live controls are illustrative.",
+  "sources": [
+    {
+      "path": "apps/desktop/out/template-qa/studio-ed-menu.png",
+      "sha256": "ab8dc9c76611dd6bf500e606ef1e911fa87557418f28c5c07d84c4b5b952ceaf"
+    },
+    {
+      "path": "apps/desktop/out/template-qa/menu-price-edited.png",
+      "sha256": "cc0ac2a66adddb7cd1a643392945fd92990d20b11916f6681fef4c05ee3ed64a"
+    },
+    {
+      "path": "apps/desktop/out/template-qa/live-flash-sale.png",
+      "sha256": "39bae8bdfcaf4064ab64bf6143f984b6ef931664f3564b209cd4e1b298fb1fe7"
+    },
+    {
+      "path": "apps/site/public/assets/still-product.webp",
+      "sha256": "65e85b48733d497fcb709cc7dcbffa10815998f78f4fbbc19dc23f7847428e3d"
+    }
+  ],
+  "outputs": [
+    {
+      "path": "apps/site/public/assets/template-walkthrough.mp4",
+      "sha256": "efc3a957b309d6717f6e5520494549a13a82e26d5625958caaa8e528c4923ca6"
+    },
+    {
+      "path": "apps/site/public/assets/template-walkthrough-poster.webp",
+      "sha256": "a1c45a346d8242376737246005d84e8224fe276729b52929a1d468949025c14c"
+    },
+    {
+      "path": "apps/site/public/assets/template-walkthrough-en.vtt",
+      "sha256": "f8edbdc91e1c5a4e122c6b944a21cabee50362aa98570c7de421ca76476ba77d"
+    },
+    {
+      "path": "apps/site/public/assets/template-walkthrough-vi.vtt",
+      "sha256": "118e4c875e4ad005d16b6dca54f08f346659d36515079ead4e87c51183956f3a"
+    },
+    {
+      "path": "apps/site/public/assets/livestream-example.webp",
+      "sha256": "875247a987d594523f6f02d53faeb39130a1253e8a5552d3c5f1e0cdcb428d83"
+    }
+  ]
+}
