@@ -11,17 +11,6 @@
     win: { name: 'Oia-0.6.1-win-x64.exe', size: 419234278, label: 'Windows 64-bit' },
   };
   const mb = (b) => (b ? `${Math.round(b / 1048576)} MiB` : '');
-  const isIPadOS = () =>
-    /iPad/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isMac = () => !isIPadOS() && /Mac/.test(navigator.platform || navigator.userAgent);
-  const isWin = () => /Win/.test(navigator.platform || navigator.userAgent);
-  const arch = async () => {
-    try {
-      const d = await navigator.userAgentData?.getHighEntropyValues?.(['architecture']);
-      return d?.architecture || null;
-    } catch { return null; }
-  };
   const latestAssets = async () => {
     try {
       const ctl = new AbortController();
@@ -43,34 +32,17 @@
     const links = [...document.querySelectorAll('a[data-dl]')];
     if (!links.length) return;
     const rel = (await latestAssets()) || { tag: FALLBACK.tag, macArm64: null, win: null };
-    const fb = (k) => ({
-      ...FALLBACK[k],
-      url: `${RELEASES}/download/${FALLBACK.tag}/${FALLBACK[k].name}`,
-    });
-    let target = null;
-    let ver = (rel.tag || FALLBACK.tag).replace(/^v/, '');
-    let note = '';
-    if (isWin()) {
-      target = rel.win || fb('win');
-      ver = (rel.win ? rel.tag : FALLBACK.tag).replace(/^v/, '');
-      note = `${ver} · ${FALLBACK.win.label} · ${mb(target.size)}`;
-    } else if (isMac()) {
-      const a = await arch();
-      if (a === 'x86') {
-        note = `${ver} · no Intel-Mac build yet, see all releases`;
-      } else {
-        target = rel.macArm64 || fb('macArm64');
-        ver = (rel.macArm64 ? rel.tag : FALLBACK.tag).replace(/^v/, '');
-        note = `${ver} · ${FALLBACK.macArm64.label} · ${mb(target.size)}`;
-      }
-    } else {
-      note = `${ver} · macOS 13+ (Apple Silicon) / Windows 10+`;
+    for (const key of ['macArm64', 'win']) {
+      const target = rel[key] || FALLBACK[key];
+      const tag = rel[key] ? rel.tag : FALLBACK.tag;
+      const href = target.browser_download_url || `${RELEASES}/download/${tag}/${target.name}`;
+      links.filter((link) => link.dataset.dl === key).forEach((link) => {
+        link.href = href;
+        link.title = `Download ${target.name}`;
+      });
+      const note = `${FALLBACK[key].label} · ${mb(target.size)} · ${tag}`;
+      document.querySelectorAll(`[data-dl-ver="${key}"]`).forEach((el) => { el.textContent = note; });
     }
-    if (target?.browser_download_url || target?.url) {
-      const href = target.browser_download_url || target.url;
-      links.forEach((l) => { l.href = href; l.title = `Download ${target.name}`; });
-    }
-    document.querySelectorAll('[data-dl-ver]').forEach((el) => { el.textContent = note; });
   })();
 
   /* The example stays readable; only a deliberate choice changes the artwork. */

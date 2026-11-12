@@ -51,6 +51,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:cent
 .hero .trust b{color:var(--paper);font-weight:600}
 .hero .ctas{display:flex;gap:14px;margin-top:26px;flex-wrap:wrap}
 .cta-note{margin-top:14px;font-size:12.5px;color:var(--faint)}
+.download-meta{display:block;margin-bottom:5px}
+.download-options{scroll-margin-top:100px}
+.download-options .btn{justify-content:center}
 .cta-note a{color:var(--accent-text);text-decoration:underline;text-underline-offset:3px}
 
 /* the studio: one finished banner + the sentence that made it */
@@ -177,7 +180,7 @@ h2{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(
 #download .center{text-align:center}
 #download h2{margin-inline:auto}
 #download .sub{margin:14px auto 0}
-#download .ctas{justify-content:center;margin-top:28px}
+#download .ctas{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:28px}
 #download .cta-note{margin-top:16px}
 
 /* ---------- FOOTER ---------- */

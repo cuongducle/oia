@@ -1047,3 +1047,21 @@ không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm b
   tác nhân HTTP nên không tính lượt đó là kiểm đạt. Pages run `43153223534`
   xanh; CI run `43153223616` xanh 4 job, 2 job đóng gói bỏ qua đúng chính
   sách chỉ build bộ cài theo tag. Không phát hành lại ứng dụng.
+
+## Nút tải hai nền tảng (2026-11-12, owner "nút download phải có cả mac cả windows")
+
+- Hero và mục Download cuối trang giờ hiện sẵn hai nút macOS + Windows; trang
+  install tương tự. Bỏ logic đo hệ điều hay Apple Silicon/x86 để chọn một nút
+  duy nhất: người dùng không thể tải nhầm nền tảng còn lại chỉ vì đang xem
+  trên máy này.
+- Resolver giờ cập nhật từng nút độc lập theo GitHub latest: thiếu asset nền
+  tảng nào thì nút đó giữ fallback v0.6.1 đúng cặp tag + tên file, không trộn
+  tag bản mới với file cũ. Ghi chú dưới nút ghi đúng nhãn, dung lượng MiB và
+  phiên bản của từng nền tảng.
+- Test tải viết lại theo hành vi mới (3 test: mất mạng giữ đúng 2 file v0.6.1,
+  bản mới đủ asset chuyển cả hai nút, bản mới thiếu một nền tảng không trộn
+  tag). Media audit 149 tham chiếu + 4 self-test đạt. Chrome thật kiểm desktop
+  1193 px: hai nút cùng hàng, không tràn; mobile 390 × 844: hai nút xếp dọc,
+  ghi chú hai dòng, không tràn ngang; trang install tương tự, console sạch.
+  Bản thân ảnh chụp không mở xem được trong phiên này, kết luận dựa số đo
+  bounding box thật của Chrome, không phải kiểm thị giác bằng mắt.

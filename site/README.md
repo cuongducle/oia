@@ -103,9 +103,12 @@ local origin for visual QA when a browser has cached previous site versions.
   content pages. Keep these stable. One `max-width:960px` block owns landing
   responsiveness.
 - `fonts/` is self-hosted, including Vietnamese subsets for content.
-- `main.js` null-guards landing-specific elements. Content pages reuse the
-  download resolver, GitHub API with a bounded timeout and one fallback version.
-  Release assets still have versioned names, unversioned URLs remain D19 debt.
+- `main.js` null-guards landing-specific elements. Both macOS and Windows
+  download buttons are always visible on the landing and install pages; the
+  resolver updates each link independently from the GitHub latest release,
+  falling back per platform to the pinned v0.6.1 files. A platform missing
+  from a newer release keeps that button on the matching fallback tag, never a
+  mixed tag/filename URL. Bounded timeout, one fallback version.
 - `faq-schema.js` derives JSON-LD from the visible FAQ, no duplicate copy.
 - `templates/catalog.json` is exported from the shared desktop template catalog,
   not manually maintained. `templates/build.py` generates the hub, eight category
