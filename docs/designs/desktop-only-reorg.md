@@ -1377,3 +1377,8 @@ Bản này ghi đè cách trình bày ở mục trên:
 - Còn mở: owner chưa tự soi mắt bản VI; nền tảng semantic (deck/overlay)
   giữ thuật ngữ quốc tế; nhãn "Copy prompt" trên trang VI chưa dịch (script
   reset theo nguyên văn); chưa deploy lúc ghi mục này.
+
+- Phát hành: commit `1d862b5`, CI xanh (43193508235, gồm desktop smoke),
+  Pages xanh, worker deploy 19b82b83. Live: 7 trang VI mẫu trả 200;
+  /vi/templates/ có lang=vi, canonical VI, cặp hreflang en/vi/x-default đúng
+  đích; sitemap chứa 24 URL VI. Không đổi desktop runtime, không tốn lượt AI.
