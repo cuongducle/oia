@@ -1,0 +1,27 @@
+---
+// One top bar for every page: landing passes anchor links, content pages
+// route through their base. Landing adds the EN/VI pair switch.
+interface Props { base?: string; landing?: boolean; locale?: 'en' | 'vi' }
+const { base = '', landing = false, locale = 'en' } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const anchor = (fragment: string) => (landing ? `#${fragment}` : `${base}#${fragment}`)
+---
+<nav class={landing ? 'siteNav' : 'siteNav pageNav'} aria-label={t('Main', 'Điều hướng chính')}>
+  <a class="brand" href={landing ? '#top' : base}><span class="o">◆ OIA</span></a>
+  <div class="navlinks">
+    <a href={anchor('product')}>{t('Examples', 'Xem mẫu')}</a>
+    <a href={`${base}templates/`}>{t('Templates', 'Thư viện')}</a>
+    <a href={`${base}blog/`}>Blog</a>
+    <a href={anchor('faq')}>{t('FAQ', 'Hỏi đáp')}</a>
+  </div>
+  <div class="navcta">
+    {landing && (
+      <div class="language-switch" role="group" aria-label={t('Language', 'Ngôn ngữ')}>
+        <a href={vi ? '../' : './'} lang="en" hreflang="en" aria-current={!vi ? 'page' : undefined}>EN</a>
+        <a href={vi ? './' : 'vi/'} lang="vi" hreflang="vi" aria-current={vi ? 'page' : undefined}>VI</a>
+      </div>
+    )}
+    <a class="btn btn-accent" href="#download">{t('Download', 'Tải ứng dụng')}</a>
+  </div>
+</nav>

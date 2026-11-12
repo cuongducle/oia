@@ -41,6 +41,15 @@
     <priority>0.8</priority>
   </url>
 
+  <url>
+    <loc>https://oia.solutions/blog/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url><loc>https://oia.solutions/blog/change-sale-price-without-redesigning/</loc></url>
+  <url><loc>https://oia.solutions/blog/livestream-overlay-safe-zones/</loc></url>
+  <url><loc>https://oia.solutions/blog/tet-sale-banner-checklist/</loc></url>
+
   <url><loc>https://oia.solutions/templates/flash-sale/</loc></url>
   <url><loc>https://oia.solutions/templates/menu/</loc></url>
   <url><loc>https://oia.solutions/templates/social-post/</loc></url>

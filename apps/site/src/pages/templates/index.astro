@@ -7,20 +7,6 @@ import TemplateFaq from '../../components/TemplateFaq.astro'
 import DownloadButtons from '../../components/DownloadButtons.astro'
 
 const count = (slug: string) => byCategory(slug).length
-
-const links = [
-  { href: '../#workflow', label: 'How it works' },
-  { href: '../prompts/', label: 'Prompt library' },
-  { href: '../use-cases/flash-sale-banners/', label: 'Use cases' },
-  { href: 'https://github.com/cuongducle/oia', label: 'GitHub' },
-]
-const footerLinks = [
-  { href: '../', label: 'Home' },
-  { href: '../prompts/', label: 'Prompt library' },
-  { href: '../use-cases/flash-sale-banners/', label: 'Flash-sale banners' },
-  { href: '../use-cases/livestream-overlays/', label: 'Livestream overlays' },
-  { href: '../use-cases/presentations/', label: 'Presentations' },
-]
 ---
 <Page
   title="Free editable design templates"
@@ -29,8 +15,6 @@ const footerLinks = [
   ogDescription="Studio posters, livestream overlay presets and decks, every template is a real editable scene."
   canonical="https://oia.solutions/templates/"
   base="../"
-  links={links}
-  footerLinks={footerLinks}
 >
 <header class="pageHero">
   <p class="kicker">The bundled library · v0.6.1</p>

@@ -110,12 +110,14 @@ certification. Sources, boundaries and hashes are recorded in
 `docs/verification/landing-walkthrough-assets.json` (relative to repo root).
 Use `--font` with a local TrueType file on machines without Arial/DejaVu Sans.
 
-## Blog (planned, not built)
+## Blog
 
-When the blog is green-lit: content collections under `src/content/blog/`,
-one Markdown file per post with frontmatter, list + post pages under
-`src/pages/blog/`. No scaffolding exists yet on purpose; build it properly
-when the first post is ready.
+`src/content/blog/*.md` (title, description, pubDate) feeds `/blog/` through
+`src/content.config.ts`. Adding a post: drop the Markdown file in, then add
+its URL to `public/sitemap.xml` — `site-links.py` fails the build if the two
+drift. Post images use plain `<img>` tags into `public/assets/` (Markdown
+image syntax routes through Astro's optimizer and cannot reach `public/`).
+Posts are English (D8/D19); Vietnamese posts are future debt.
 
 ## Known debt (deliberate)
 

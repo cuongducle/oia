@@ -1260,3 +1260,36 @@ Bản này ghi đè cách trình bày ở mục trên:
   nguồn MP4 tải đúng; hai nút tải giải về asset v0.6.1 đúng cặp tag.
   Playback video trên bản live vẫn chưa xác minh (tab nền trì hoãn media,
   như đã ghi ở vòng local); cần chủ động bấm play khi tiện.
+
+## Thống nhất topbar + blog SEO (2026-11-12, owner yêu cầu)
+
+- Owner báo topbar các trang chưa thống nhất và yêu cầu thêm blog cho SEO.
+  Trước đó mỗi trang con tự truyền mảng links riêng (templates có How it
+  works/Prompt library/Use cases/GitHub; install, prompts, use-cases mỗi trang
+  một bộ) còn landing có nav riêng ba link.
+- Nav mới dùng chung `SiteNav.astro` cho mọi trang: brand + Examples ·
+  Templates · Blog · FAQ + nút Download accent; landing EN/VI thêm cặp chuyển
+  ngôn ngữ (chỉ hai trang này). Page.astro bỏ props links/footerLinks, footer
+  dùng một bộ link chung; 7 trang con bỏ mảng riêng. pageNav gióng hệ cao 64px
+  như landing, mobile ẩn navlinks đúng ngưỡng 960px như landing từ trước.
+- Blog theo đúng kế hoạch README chờ duyệt: content collection
+  `src/content/blog` + `content.config.ts`, trang danh sách và bài viết tại
+  /blog/, mỗi bài có canonical, og, JSON-LD BlogPosting, CTA tải. Ba bài đầu
+  viết bám sự thật sản phẩm (đổi giá ba đường với chi phí thật, overlay
+  livestream + giới hạn vùng an toàn, checklist Tết), liên kết nội bộ tới
+  templates/use-cases/prompts/install. Không bịa số liệu nền tảng; ảnh bài
+  viết dùng asset có sẵn qua thẻ img thường (cú pháp markdown ảnh bị Astro
+  optimizer trỏ ra ngoài public/).
+- Gate mới trong landing-surface.test: mọi trang build (trừ 404) phải có
+  đúng nav chung (siteNav + đủ Templates/Blog/#product/#faq/#download, nút
+  Download/Tải ứng dụng), language-switch chỉ được xuất hiện ở cặp landing;
+  blog post phải có canonical + BlogPosting + nút tải + main.js, và nằm trong
+  sitemap. Lỗi thật bắt được khi dựng: id=download trùng trên landing (section
+  CTA + anchorId nút hero) và trang danh sách blog thiếu khối #download cho
+  anchor nav; cả hai đã sửa.
+- Gates: build 26 trang, typecheck, site-links (kể cả sitemap parity 4 URL blog mới), media audit 167 tham chiếu,
+  9 test download/landing xanh. Chrome thật kiểm /, /vi/, /templates/, /blog/,
+  bài Tết: nav 64px sticky/fixed đúng chỗ,\n  link relative đúng base từng tầng, JSON-LD đúng loại, ảnh bài tải thật,\n  console sạch, không tràn ngang ở 1193px lẫn 390px (navlinks ẩn). Ảnh chụp thu được nhưng phiên agent không tự mở được; kết luận nav/blog dựa
+  số đo DOM thật, không phải kiểm thị giác bằng mắt.
+- Còn mở: bài viết tiếng Việt (nợ ghi README), RSS, và owner chưa tự xem mắt bản mới.
+  Chưa deploy lúc ghi mục này; phát hành và nghiệm live ghi ở mục sau.

@@ -1,6 +1,7 @@
 ---
 import DownloadButtons from './DownloadButtons.astro'
 import BaseHead from './BaseHead.astro'
+import SiteNav from './SiteNav.astro'
 
 interface Props { locale?: 'en' | 'vi' }
 const { locale = 'en' } = Astro.props
@@ -40,11 +41,7 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
 </head>
 <body id="top" class="visual-landing">
 <a class="skip" href="#main">{t('Skip to content', 'Đến nội dung chính')}</a>
-<nav aria-label={t('Main', 'Điều hướng chính')}>
-  <a class="brand" href="#top"><span class="o">◆ OIA</span></a>
-  <div class="navlinks"><a href="#product">{t('Examples', 'Xem mẫu')}</a><a href={`${base}templates/`}>{t('Templates', 'Thư viện')}</a><a href="#faq">{t('FAQ', 'Hỏi đáp')}</a></div>
-  <div class="navcta"><div class="language-switch" role="group" aria-label={t('Language', 'Ngôn ngữ')}><a href={vi ? '../' : './'} lang="en" hreflang="en" aria-current={!vi ? 'page' : undefined}>EN</a><a href={vi ? './' : 'vi/'} lang="vi" hreflang="vi" aria-current={vi ? 'page' : undefined}>VI</a></div><a class="btn btn-ghost" href="#download">{t('Download', 'Tải ứng dụng')}</a></div>
-</nav>
+<SiteNav base={base} landing locale={locale} />
 <header class="hero visual-hero" id="hero">
   <div class="hero-copy">
     <h1 class="display">{t('Sale banners.', 'Banner sale.')}<br><span class="acc">{t('Your way.', 'Đúng gu shop.')}</span></h1>
@@ -107,7 +104,7 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
 </section>
 <section id="download" class="visual-download"><div class="wrap center"><h2>{t('Your next sale.', 'Đợt sale tới.')}<br><span class="acc">{t('Make it yours.', 'Tự tay làm.')}</span></h2><DownloadButtons installHref={`${base}install/`} locale={locale} compact /><p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p></div></section>
 </main>
-<footer><a class="brand" href="#top"><span class="o">◆ OIA</span></a><div class="footlinks"><a href={`${base}templates/`}>{t('Templates', 'Thư viện (EN)')}</a><a href={`${base}install/`}>{t('Install help', 'Cài đặt (EN)')}</a><a href="https://github.com/cuongducle/oia/issues">{t('Support', 'Hỗ trợ')}</a><a href="#oss">{t('Open source', 'Mã nguồn mở')}</a></div><span class="meta mono">MIT · oia.solutions</span></footer>
+<footer><a class="brand" href="#top"><span class="o">◆ OIA</span></a><div class="footlinks"><a href={`${base}templates/`}>{t('Templates', 'Thư viện (EN)')}</a><a href={`${base}blog/`}>{t('Blog', 'Blog (EN)')}</a><a href={`${base}prompts/`}>{t('Prompt library', 'Gợi ý mô tả (EN)')}</a><a href={`${base}install/`}>{t('Install help', 'Cài đặt (EN)')}</a><a href="https://github.com/cuongducle/oia/issues">{t('Support', 'Hỗ trợ')}</a><a href="#oss">{t('Open source', 'Mã nguồn mở')}</a></div><span class="meta mono">MIT · oia.solutions</span></footer>
 <script src={`${base}faq-schema.js`} is:inline type="module"></script><script src={`${base}main.js`} is:inline defer></script>
 </body>
 </html>

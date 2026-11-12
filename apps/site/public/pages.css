@@ -2,13 +2,9 @@
    Static, JS-light (copy button only), no CDN, fast and crawlable. */
 
 body.page{font-size:15.5px}
-.pageNav{position:sticky;top:0;/* 200: stay above reading extensions that pin page navs fixed at z50 over the header */z-index:200;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
-.pageNav .links{display:flex;gap:22px;flex-wrap:wrap}
-.pageNav a{font-size:13px;color:var(--muted)}
-/* .btn labels must keep their own colors: the rule above outspecifies .btn-accent otherwise. */
-.pageNav a.btn-accent{color:#fff}
-.pageNav a.btn-ghost{color:var(--paper)}
-.pageNav a:hover{color:var(--paper)}
+.pageNav{position:sticky;top:0;/* 200: stay above reading extensions that pin page navs fixed at z50 over the header */z-index:200;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
+.pageNav .navlinks a{font-size:13px;color:var(--muted)}
+.pageNav .navlinks a:hover{color:var(--paper)}
 .pageHero{padding:clamp(48px,7vh,84px) clamp(20px,4vw,48px) 8px;max-width:880px}
 .pageHero .kicker{margin-bottom:14px}
 .pageHero h1{font-family:'Anton';font-weight:400;text-transform:uppercase;font-size:clamp(30px,4.4vw,52px);line-height:1.05;letter-spacing:.01em;text-wrap:balance}
@@ -72,3 +68,26 @@ body.page{font-size:15.5px}
 .instCard pre{white-space:pre-wrap;font-family:'JetBrains Mono';font-size:12px;color:var(--paper);background:rgba(11,10,24,.7);border:1px solid var(--hairline);border-radius:8px;padding:10px 12px;margin:10px 0}
 .instCard code{font-family:'JetBrains Mono';font-size:12px;color:var(--paper);background:rgba(11,10,24,.7);border-radius:4px;padding:1px 5px}
 .cta-note{margin-top:14px;font-size:12.5px;color:var(--faint)}
+
+/* ---------- blog ---------- */
+.blogList{display:flex;flex-direction:column;gap:14px;margin-top:12px;max-width:760px}
+.blogCard{border:1px solid var(--hairline);border-radius:10px;padding:18px 20px;background:rgba(21,19,50,.35);display:flex;flex-direction:column;gap:8px}
+.blogCard:hover{border-color:var(--accent)}
+.blogCard h2{font-size:20px;line-height:1.35;font-weight:600;letter-spacing:-.02em}
+.blogCard p{color:var(--muted);font-size:14.5px;line-height:1.7}
+.blogDate{color:var(--accent-text);letter-spacing:.08em}
+.blogRead{color:var(--accent-text);font-size:13px;margin-top:4px}
+.postBody{max-width:720px}
+.postBody h2{font-size:22px;font-weight:600;margin:34px 0 10px;letter-spacing:-.02em}
+.postBody p{color:var(--muted);font-size:15.5px;line-height:1.75;margin:12px 0}
+.postBody ol,.postBody ul{color:var(--muted);font-size:15.5px;line-height:1.75;margin:12px 0;padding-left:22px}
+.postBody li{margin:6px 0}
+.postBody img{border-radius:8px;border:1px solid var(--hairline);margin:18px 0}
+.postBody a{color:var(--accent-text);text-decoration:underline;text-underline-offset:3px}
+.postBody strong{color:var(--paper)}
+.postCta{border:1px solid var(--hairline);border-radius:12px;padding:22px 24px;margin-top:40px;background:rgba(21,19,50,.35)}
+.postCta h2{font-size:18px}
+.postCta p{color:var(--muted);font-size:14px;margin:6px 0 4px}
+.postBack{margin-top:26px}
+.postBack a{color:var(--muted)}
+.postBack a:hover{color:var(--paper)}

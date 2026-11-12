@@ -1,9 +1,53 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
+const { readFileSync, readdirSync, statSync } = require('node:fs');
 const { runInNewContext } = require('node:vm');
+const { fileURLToPath } = require('node:url');
 
 const source = readFileSync(new URL('../../apps/site/public/main.js', `file://${__filename}`), 'utf8');
+
+function builtPages() {
+  const dist = fileURLToPath(new URL('../../apps/site/dist/', `file://${__filename}`));
+  const pages = [];
+  (function walk(directory, relative) {
+    for (const entry of readdirSync(directory)) {
+      if (statSync(`${directory}/${entry}`).isDirectory()) walk(`${directory}/${entry}`, `${relative}${entry}/`);
+      else if (entry.endsWith('.html')) pages.push(`${relative}${entry}`.replace(/index\.html$/, ''));
+    }
+  })(dist, '/');
+  return pages;
+}
+
+test('every built page shares one top bar; only the landing pair carries the language switch', () => {
+  const pages = builtPages().filter(path => path !== '/404.html');
+  assert.ok(pages.length >= 25, `expected the built site to keep growing, saw ${pages.length} pages`);
+  const withSwitch = [];
+  for (const path of pages) {
+    const file = path.endsWith('/') ? `${path}index.html` : path;
+    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist${file}`, `file://${__filename}`)), 'utf8');
+    assert.match(html, /<nav[^>]*class="[^"]*siteNav/, `${path}: no shared nav`);
+    for (const needle of ['templates/', 'blog/', '#product', '#faq', 'href="#download"']) {
+      assert.ok(html.includes(needle), `${path}: nav/link drift, missing ${needle}`);
+    }
+    const download = html.match(/<a class="btn btn-accent" href="#download">([^<]+)<\/a>/);
+    assert.ok(['Download', 'Tải ứng dụng'].includes(download?.[1]), `${path}: unexpected nav CTA ${download?.[1]}`);
+    if (html.includes('language-switch')) withSwitch.push(path);
+  }
+  assert.deepEqual(withSwitch.sort(), ['/', '/vi/'], 'language switch belongs to the landing pair only');
+});
+
+test('blog posts build with article metadata and land in the sitemap', () => {
+  const posts = ['change-sale-price-without-redesigning', 'livestream-overlay-safe-zones', 'tet-sale-banner-checklist'];
+  const sitemap = readFileSync(fileURLToPath(new URL('../../apps/site/dist/sitemap.xml', `file://${__filename}`)), 'utf8');
+  assert.ok(sitemap.includes('https://oia.solutions/blog/'));
+  for (const slug of posts) {
+    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist/blog/${slug}/index.html`, `file://${__filename}`)), 'utf8');
+    assert.ok(html.includes(`rel="canonical" href="https://oia.solutions/blog/${slug}/"`));
+    assert.ok(html.includes('"@type":"BlogPosting"'));
+    assert.ok(html.includes('data-dl="macArm64"') && html.includes('main.js'));
+    assert.ok(sitemap.includes(`https://oia.solutions/blog/${slug}/`));
+  }
+});
 
 test('EN and VI builds preserve their locale, relative base and direct downloads without JavaScript', () => {
   for (const [locale, path, base, label] of [

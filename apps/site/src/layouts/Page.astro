@@ -1,7 +1,7 @@
 ---
 import BaseHead from '../components/BaseHead.astro'
+import SiteNav from '../components/SiteNav.astro'
 
-interface NavLink { href: string; label: string }
 interface Props {
   title: string
   description: string
@@ -9,10 +9,15 @@ interface Props {
   ogDescription?: string
   canonical: string
   base?: string
-  links?: NavLink[]
-  footerLinks?: NavLink[]
 }
-const { title, description, ogTitle, ogDescription, canonical, base = '../', links = [], footerLinks = [] } = Astro.props
+const { title, description, ogTitle, ogDescription, canonical, base = '../' } = Astro.props
+const footerLinks = [
+  { href: `${base}templates/`, label: 'Templates' },
+  { href: `${base}blog/`, label: 'Blog' },
+  { href: `${base}prompts/`, label: 'Prompt library' },
+  { href: `${base}install/`, label: 'Install help' },
+  { href: 'https://github.com/cuongducle/oia', label: 'GitHub' },
+]
 ---
 <!doctype html>
 <html lang="en">
@@ -23,13 +28,7 @@ const { title, description, ogTitle, ogDescription, canonical, base = '../', lin
 </BaseHead>
 </head>
 <body class="page">
-<nav class="pageNav" aria-label="Main">
-  <a class="brand" href={`${base}`}><span class="o">◆ OIA</span></a>
-  <div class="links">
-    {links.map((l) => <a href={l.href}>{l.label}</a>)}
-  </div>
-  <a class="btn btn-accent" href="#download">Download</a>
-</nav>
+<SiteNav base={base} />
 <slot />
 <footer class="pageFooter">
   <a class="brand" href={`${base}`}><span class="o">◆ OIA</span></a>

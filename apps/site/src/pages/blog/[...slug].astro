@@ -1,0 +1,53 @@
+---
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../../components/DownloadButtons.astro'
+import { getCollection, render } from 'astro:content'
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog')
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+}
+
+const { post } = Astro.props
+const { Content } = await render(post)
+const canonical = `https://oia.solutions/blog/${post.id}/`
+const dateFormat = post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.pubDate.toISOString(),
+  inLanguage: 'en',
+  author: { '@type': 'Organization', name: 'Oia', url: 'https://oia.solutions/' },
+  publisher: { '@type': 'Organization', name: 'Oia', url: 'https://oia.solutions/' },
+  mainEntityOfPage: canonical,
+  image: 'https://oia.solutions/assets/og-hero.png',
+}
+---
+<Page
+  title={`${post.data.title} | Oia`}
+  description={post.data.description}
+  ogTitle={post.data.title}
+  ogDescription={post.data.description}
+  canonical={canonical}
+  base="../../"
+>
+<article class="post">
+  <header class="pageHero">
+    <p class="kicker">Blog · <time datetime={post.data.pubDate.toISOString()}>{dateFormat}</time></p>
+    <h1>{post.data.title}</h1>
+    <p class="lede">{post.data.description}</p>
+  </header>
+  <div class="pageMain postBody">
+    <Content />
+    <div class="postCta">
+      <h2>Try it in Oia</h2>
+      <p>Free, open source, no account. AI generation uses your own ChatGPT plan.</p>
+      <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../../install/" />
+    </div>
+    <p class="postBack"><a href="../">← All posts</a></p>
+  </div>
+</article>
+</Page>
+<script slot="head" type="application/ld+json" set:html={JSON.stringify(schema)} />

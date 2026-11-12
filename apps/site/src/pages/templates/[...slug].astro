@@ -38,19 +38,6 @@ const title = route.kind === 'category'
 const description = route.kind === 'category'
   ? `${list.length} editable ${route.label.toLowerCase()} templates included in Oia v0.6.1. Real scenes, native text layers, no image quota needed to open or edit.`
   : `${list.length} real editable scenes from the ${route.label} collection, bundled with Oia v0.6.1. Choose a composition, change the copy, and export.`
-
-const links = [
-  { href: `${base}#workflow`, label: 'How it works' },
-  { href: `${base}prompts/`, label: 'Prompt library' },
-  { href: `${base}use-cases/flash-sale-banners/`, label: 'Use cases' },
-  { href: 'https://github.com/cuongducle/oia', label: 'GitHub' },
-]
-const footerLinks = [
-  { href: `${base}`, label: 'Home' },
-  { href: `${base}prompts/`, label: 'Prompts' },
-  { href: `${base}install/`, label: 'Install help' },
-  { href: 'https://github.com/cuongducle/oia', label: 'GitHub' },
-]
 ---
 <Page
   title={title}
@@ -59,8 +46,6 @@ const footerLinks = [
   ogDescription={description}
   canonical={`https://oia.solutions/templates/${route.path}`}
   base={base}
-  links={links}
-  footerLinks={footerLinks}
 >
 <header class="pageHero">
   <p class="kicker">The bundled library · v0.6.1</p>
