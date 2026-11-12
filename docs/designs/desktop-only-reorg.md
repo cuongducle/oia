@@ -1010,3 +1010,40 @@ không tự cập nhật; release notes nhắc giấy phép model và giới h�
 Nguồn: https://github.com/cuongducle/oia/releases/tag/v0.6.1.
 Bằng chứng tải về và notes ở `docs/private/releases/`. Site SEO/fallback
 không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm bản mới.
+
+## Landing và README sau v0.6.1 (2026-11-12, owner yêu cầu rà ảnh xấu)
+
+- Giữ ảnh MORI, FORMA và cặp STILL đã xem; bỏ bộ minh họa chữ nền nâu
+  và ảnh livestream caro khỏi landing/README. Không dùng ảnh nền trần để
+  giả làm mẫu hoàn chỉnh. Livestream giải thích bằng chữ, giữ đúng bản chất
+  trong suốt và countdown tĩnh, không dựng ảnh video hay giao diện giả.
+- Xuất 30 ảnh WebP từ scene Studio thật qua Electron/Fabric, không cắt bố
+  cục. Landing/README chọn ba ảnh mẫu mới; hub và các trang nhóm/style/pack
+  dùng đủ catalog 35 scene từ desktop, không duy trì danh sách tên mẫu riêng.
+  Thêm trang Livestream và Overlay cùng liên kết sitemap. Năm đồ họa trong
+  suốt hiển thị thông tin, không ghép ảnh quảng cáo đánh tráo công dụng.
+- Ví dụ menu 42.000₫ thành 46.000₫ là một lần sửa chữ native. Exporter buộc
+  PNG nguồn chỉ khác trong khung giá (891, 558, 930, 582); WebP công khai là
+  nén mất dữ liệu. Không gọi đó là chứng cứ OCR hay trả quota sinh ảnh mới.
+- README/link tải/fallback lên v0.6.1, kích thước đúng 413/400 MiB. Sửa luôn
+  lỗi fallback ghép tag bản mới với tên file bản cũ khi thiếu asset nền tảng;
+  có test mất mạng, thiếu asset, bản mới đủ asset và hệ không hỗ trợ. Sửa
+  mức đọc ảnh OCR thành tối đa 6 lượt và bỏ mô tả PPT Translator còn placeholder.
+- Gates local: build/test/typecheck toàn repo, template-qa 35 scene không
+  tràn/chồng khung chữ, media audit 149 tham chiếu + 31 SHA-256, 4 self-test,
+  4 test download và diff check đều đạt. Chrome thật qua bsk kiểm desktop
+  1224 px và mobile 390 × 844, bấm mẫu menu mở đúng 4 mẫu, không tràn ngang
+  hoặc lỗi console. Đã mở xem đủ 30 preview trên bảng ảnh, ảnh gốc và ảnh
+  Chrome. Chụp toàn trang bị bsk chặn vì page hidden, chỉ nhận các ảnh viewport
+  thực sự chụp được, không dùng ảnh ghép làm chứng cứ kiểm toàn trang.
+- Tái dùng ảnh thật đã sinh ở đợt template, không gọi provider thêm. Chỉ sửa
+  site, docs và harness; không sửa bản cài hay đổi tag v0.6.1. Bằng chứng ở
+  `docs/private/real-runs/2026-11-12-marketing-v061/` và manifest công khai
+  `docs/verification/template-marketing-assets.json`. Không tuyên bố owner
+  đã duyệt thẩm mỹ hoặc đã chạy Windows máy thật.
+- Đã push `98f0670`, deploy Cloudflare và GitHub Pages. Đối chiếu SHA-256
+  52 file công khai (HTML/JS/CSS/sitemap và đủ 31 ảnh mới) với file commit:
+  tất cả khớp, tải bằng curl HTTP thành công. Python urllib nhận 403 theo
+  tác nhân HTTP nên không tính lượt đó là kiểm đạt. Pages run `43153223534`
+  xanh; CI run `43153223616` xanh 4 job, 2 job đóng gói bỏ qua đúng chính
+  sách chỉ build bộ cài theo tag. Không phát hành lại ứng dụng.
