@@ -91,3 +91,8 @@ body.page{font-size:15.5px}
 .postBack{margin-top:26px}
 .postBack a{color:var(--muted)}
 .postBack a:hover{color:var(--paper)}
+
+/* ---------- fact chips + image captions (use-case pages) ---------- */
+.factRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.factRow span{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.06em;color:var(--muted);border:1px solid var(--hairline);border-radius:999px;padding:6px 12px}
+.frameCaption{display:block;text-align:right;margin-top:8px;font-size:11px;color:var(--faint)}

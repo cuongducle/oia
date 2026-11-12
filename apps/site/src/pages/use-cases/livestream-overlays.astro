@@ -14,30 +14,34 @@ import Page from '../../layouts/Page.astro';
 <header class="pageHero">
   <p class="kicker">Use case, live commerce</p>
   <h1>Overlays that dodge the UI.<br>Prices that change mid-stream.</h1>
-  <p class="lede">Flash-sale price cards, freeship badges, countdown frames, 1080×1920 transparent PNG with TikTok and Shopee Live safe-zone guides built into the editor. When the price drops live, repaint the card with one prompt.</p>
+  <p class="lede">Transparent 1080×1920 overlays with safe-zone guides built into the editor.</p>
   <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../../install/" ghost={{ href: '../../prompts/', label: 'Copy the prompts' }} />
 </header>
 
 <main class="pageMain">
-  <p class="catNote">Open Templates in the desktop editor and choose a livestream overlay to preview the transparent canvas and safe-zone guides.</p>
+  <div class="frame">
+    <img loading="lazy" src="../../assets/livestream-example.webp" alt="Illustrated vertical livestream layout: a real transparent sale-price preset composited over a product image" width="900" height="1120">
+    <span class="frameCaption mono">illustration · real overlay preset over an AI product image</span>
+  </div>
 
   <div class="ucGrid">
     <div>
       <h2 class="catH" style="margin-top:8px">The overlay loop</h2>
       <div class="stepsList">
-        <div><span class="n">01: PICK</span><h3>Overlay preset or template</h3><p>Livestream overlay 1080×1920 transparent, or start from Flash sale price / Freeship badge / Countdown frame.</p></div>
-        <div><span class="n">02: GUIDE</span><h3>Safe zones on</h3><p>TikTok and Shopee Live guides mark where the platform's buttons and comments land: keep your card out of the hatched bands.</p></div>
-        <div><span class="n">03: REPRICE</span><h3>One prompt, same style</h3><p>Price drop mid-stream? Ask for the new number: the repaint keeps the glossy card treatment, previewed before it replaces the layer.</p></div>
-        <div><span class="n">04: EXPORT</span><h3>Transparent PNG</h3><p>Guides never reach the exported bytes: a clean alpha PNG for OBS or your streaming tool.</p></div>
+        <div><span class="n">01: PICK</span><h3>Overlay preset</h3><p>Price, freeship or countdown, 1080×1920 transparent.</p></div>
+        <div><span class="n">02: GUIDE</span><h3>Safe zones on</h3><p>Keep your card out of the hatched bands.</p></div>
+        <div><span class="n">03: REPRICE</span><h3>One prompt, same style</h3><p>Price drop mid-stream: ask, preview, apply.</p></div>
+        <div><span class="n">04: EXPORT</span><h3>Transparent PNG</h3><p>Guides never reach the exported bytes.</p></div>
       </div>
     </div>
     <div>
       <h2 class="catH" style="margin-top:8px">Why it works</h2>
-      <div class="promptGrid">
-        <div class="promptCard"><h3>Community-measured zones</h3><p class="mono" style="font-size:11px;color:var(--muted)">TikTok &amp; Shopee Live layouts, honest label: not an official spec, measured where the UI actually lands.</p></div>
-        <div class="promptCard"><h3>Text that stays editable</h3><p class="mono" style="font-size:11px;color:var(--muted)">Template prices are native text layers: swap $8.90 → $5.90 for free, no regeneration.</p></div>
-        <div class="promptCard"><h3>3:4 refused, honestly</h3><p class="mono" style="font-size:11px;color:var(--muted)">Ask for a wrong-ratio overlay and Oia tells you instead of silently shipping a stretched card.</p></div>
-        <div class="promptCard"><h3>Live covers too</h3><p class="mono" style="font-size:11px;color:var(--muted)">Shopee live cover 500×500 and TikTok cover 1080×1920 presets ship alongside the overlay.</p></div>
+      <div class="factRow" role="group" aria-label="Overlay facts">
+        <span>community-measured zones, not an official spec</span>
+        <span>template prices are native text: edit free</span>
+        <span>wrong ratio refused, honestly</span>
+        <span>live covers 500×500 · 1080×1920</span>
+        <span>countdown frames are static</span>
       </div>
       <div class="faq" style="margin-top:26px">
         <details><summary>What size is a TikTok livestream overlay?</summary><p>1080×1920 (9:16). Oia ships the preset with a transparent background and community-measured safe-zone guides so your card never hides behind TikTok's buttons and comments.</p></details>

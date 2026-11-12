@@ -14,33 +14,33 @@ import Page from '../../layouts/Page.astro';
 <header class="pageHero">
   <p class="kicker">Use case, e-commerce</p>
   <h1>Flash-sale banners that look designed, and change in one prompt.</h1>
-  <p class="lede">Describe the sale, pick the marketplace size, and the copy is rendered into the artwork with glossy 3D typography. When the price moves, you don't rebuild anything, ask for the repaint and the style stays.</p>
+  <p class="lede">One sentence in. The copy renders into the artwork. When the price moves, a repaint keeps the style.</p>
   <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../../install/" ghost={{ href: '../../prompts/', label: 'Copy the prompts' }} />
 </header>
 
 <main class="pageMain">
   <div class="frame">
     <img loading="lazy" src="../../assets/mori-comparison.webp" alt="MORI campaign before and after a reference-image edit: 20% OFF becomes 30% OFF, retaining the visual style" width="1600" height="860">
-    <span class="mono" style="display:block;text-align:right;margin-top:8px;font-size:10px">real generations · same banner, one repaint</span>
+    <span class="frameCaption mono">real generations · same banner, one repaint</span>
   </div>
 
   <div class="ucGrid">
     <div>
       <h2 class="catH" style="margin-top:8px">From idea to live banner</h2>
       <div class="stepsList">
-        <div><span class="n">01: DESCRIBE</span><h3>One sentence, right size</h3><p>"Milk-tea flash-sale banner, 20% off today" + the Shopee 1:1 chip. The planner writes the copy into the image prompt: English or Vietnamese, your call.</p></div>
-        <div><span class="n">02: GENERATE</span><h3>Typography baked in</h3><p>≈ 1 image on your own provider quota. Headline, discount, urgency line: rendered as part of the artwork, not flat overlay text.</p></div>
-        <div><span class="n">03: REPRICE</span><h3>@ the layer, ask for the repaint</h3><p>Select the banner, type the new number. Oia sends exactly that image, locks the dimensions, previews the result: nothing touches your page until you apply.</p></div>
-        <div><span class="n">04: EXPORT</span><h3>Marketplace-ready</h3><p>PNG or JPG at the preset size, PDF and PPTX for the whole campaign. Undo keeps the previous version one step away.</p></div>
+        <div><span class="n">01: DESCRIBE</span><h3>One sentence, right size</h3><p>“Milk-tea flash sale, 20% off today” + Shopee 1:1.</p></div>
+        <div><span class="n">02: GENERATE</span><h3>Typography baked in</h3><p>≈ 1 image, on your plan.</p></div>
+        <div><span class="n">03: REPRICE</span><h3>Ask, preview, apply</h3><p>Select the banner, type the new number.</p></div>
+        <div><span class="n">04: EXPORT</span><h3>Marketplace-ready</h3><p>PNG · JPG · PDF · PPTX.</p></div>
       </div>
     </div>
     <div>
       <h2 class="catH" style="margin-top:8px">Built for marketplaces</h2>
-      <div class="promptGrid">
-        <div class="promptCard"><h3>Sizes that match the listing</h3><p class="mono" style="font-size:11px;color:var(--muted)">Shopee 1024 · Lazada 800 · TikTok Shop 1080: one chip each, no math.</p></div>
-        <div class="promptCard"><h3>Brand kit per request</h3><p class="mono" style="font-size:11px;color:var(--muted)">Palette + guidance ride along every generation: pick the kit in the composer.</p></div>
-        <div class="promptCard"><h3>Real product, real scene</h3><p class="mono" style="font-size:11px;color:var(--muted)">Attach your product photo: the scene is built around it (image-to-image).</p></div>
-        <div class="promptCard"><h3>Honest costs</h3><p class="mono" style="font-size:11px;color:var(--muted)">≈ 1 image shown before every run; a daily counter in the sidebar. No credits, no subscription.</p></div>
+      <div class="factRow" role="group" aria-label="Marketplace facts">
+        <span>Shopee 1024 · Lazada 800 · TikTok Shop 1080</span>
+        <span>brand kit rides along</span>
+        <span>attach your product photo</span>
+        <span>≈ 1 image, shown first</span>
       </div>
       <div class="faq" style="margin-top:26px">
         <details><summary>How do I change the price on an AI banner?</summary><p>Select the banner layer and ask: <em>change '20% OFF TODAY' to '30% OFF TODAY', keep everything else the same</em>. Oia regenerates with the new number in the same style, previews it, and replaces the layer only when you apply.</p></details>

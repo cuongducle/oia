@@ -17,14 +17,13 @@ const count = (slug: string) => byCategory(slug).length
   base="../"
 >
 <header class="pageHero">
-  <p class="kicker">The bundled library · v0.6.1</p>
+  <p class="kicker">The bundled library · 35 templates</p>
   <h1>Start with real artwork.<br>Make the words yours.</h1>
-  <p class="lede">Start from 35 bundled scenes: sales, product launches, menus, social posts, posters, decks and transparent live graphics. Opening a template uses no AI quota.</p>
+  <p class="lede">Real scenes, editable text. Opening one uses no AI quota.</p>
   <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../install/" ghost={{ href: '../templates/', label: 'All 35 templates' }} />
 </header>
 
 <main class="pageMain">
-  <p class="catNote">35 real scenes across eight categories. Select any image for a full-size preview. Transparent livestream and overlay graphics are listed without photographic mockups.</p>
   <div class="catNav" role="group" aria-label="Template categories">
     {CATEGORIES.map(([slug, label]) => <a href={`${slug}/`}>{label} · {count(slug)}</a>)}
   </div>
@@ -37,7 +36,7 @@ const count = (slug: string) => byCategory(slug).length
     <>
       <h2 class="catH" id={slug}><a href={`${slug}/`}>{label}</a> <span class="count">{count(slug)}</span></h2>
       {slug === 'livestream' && (
-        <p class="catNote">Transparent compositing graphics for your own video. Safe-zone guides stay in the editor; the countdown is a static frame.</p>
+        <p class="catNote">Transparent compositing graphics. Guides stay in the editor; the countdown frame is static.</p>
       )}
       <div class="tplGrid">
         {byCategory(slug).map((item) => <TemplateCard item={item} base="../" />)}

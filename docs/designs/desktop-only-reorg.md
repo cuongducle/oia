@@ -1307,3 +1307,31 @@ Bản này ghi đè cách trình bày ở mục trên:
   `siteNav` + `href="#download"`; `language-switch` chỉ ở cặp landing;
   bài viết có canonical + JSON-LD BlogPosting; sitemap chứa 4 URL blog.
 - Không đổi desktop runtime; không lượt AI trả phí trong vòng này.
+
+## Rút chữ các trang con theo hướng "show don't tell" (2026-11-12, owner yêu cầu)
+
+- Owner duyệt landing ít chữ nhưng báo các trang khác vẫn nhiều chữ. Đo mốc
+  bằng đếm từ hiển thị (loại nav/footer và nội dung details đóng, cùng parser
+  cho hai bản) trước/sau: install 442→218 (−50%), flash-sale 297→163 (−45%),
+  livestream-overlays 279→152 (−45%), presentations 292→163 (−44%),
+  templates 722→677 (−6%), prompts 782→755 (−3%).
+- Cách làm: lede mỗi trang còn một câu; bước 4 bước mỗi bước một dòng; 4 thẻ
+  giải thích mỗi trang use-case đổi thành dải chip dữ kiện (factRow, mono một
+  dòng); install rút về mệnh lệnh ngắn, giữ nguyên lệnh xattr và checksum.
+  Trang livestream-overlays và presentations thêm ảnh dẫn đầu (preset thật
+  ghép minh họa / template deck thật) kèm chú thích nguồn; trang templates
+  bỏ catNote, rút lede; TemplateFaq đổi heading "Good to know" (nội dung
+  vẫn là details đóng, JSON-LD FAQ giữ nguyên).
+- templates/prompts giảm ít là chủ đích: chữ còn lại là nhãn trên bộ 35 ảnh
+  (tên + kiểu mẫu) và thân thư viện prompt copy-paste, đó là sản phẩm đang
+  show, không phải văn giải thích. Không cắt bớt prompt hay nhãn mẫu.
+- meta description/title các trang giữ nguyên cho SEO; chỉ rút chữ hiển thị.
+- Gates: build 26 trang, typecheck, site-links, media 169 tham chiếu, 9 test
+  download/landing xanh. Chrome thật: 4 trang use-case/install chụp ảnh,
+  console sạch; DOM khẳng định ảnh mới tải thật (900px/1600px), chip
+  4-5 phần tử, 4 bước, không tràn ngang 1193px. Phiên này không mở được
+  ảnh chụp bằng mắt; emulate mobile hai lần bị observation churn từ
+  IntersectionObserver nên mobile của chính các trang này chưa đo lại, các
+  khối dùng lại stylesheet đã kiểm mobile vòng trước (flex-wrap).
+- Còn mở: owner chưa tự soi mắt; chưa deploy lúc ghi (phát hành ghi ở mục
+  sau nếu có).

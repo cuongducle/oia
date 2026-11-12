@@ -14,7 +14,7 @@ import Page from '../layouts/Page.astro';
 <header class="pageHero">
   <p class="kicker">Install help</p>
   <h1>Two minutes, no account.</h1>
-  <p class="lede">Oia ships as a plain installer for macOS and Windows. The builds are unsigned (no signing budget yet), so the first open needs one extra click, here is exactly what you will see.</p>
+  <p class="lede">Plain installers for macOS and Windows. Unsigned (no signing budget yet): expect one extra click on first open.</p>
   <DownloadButtons rowClass="ctaRow" anchorId="download" />
 </header>
 
@@ -23,58 +23,56 @@ import Page from '../layouts/Page.astro';
   <div class="instGrid">
     <div class="instCard">
       <h3>macOS · Apple Silicon</h3>
-      <p><code>Oia-arm64.dmg</code>, for M1, M2, M3 and M4 Macs (macOS 13 or newer). This is the build the Download button picks on a Mac. Open the .dmg and drag <strong>Oia</strong> to Applications.</p>
+      <p>M1 to M4, macOS 13+. Open the .dmg, drag <strong>Oia</strong> to Applications.</p>
     </div>
     <div class="instCard">
       <h3>Windows · 64-bit</h3>
-      <p><code>Oia-win-x64.exe</code>, Windows 10/11, installs per-user into <code>%LOCALAPPDATA%\Programs\Oia</code> (no admin). Your projects live in <code>%APPDATA%\Oia</code> and survive uninstall and upgrade.</p>
+      <p>Windows 10/11, per-user, no admin. Projects survive uninstall and upgrade.</p>
     </div>
     <div class="instCard">
       <h3>macOS · Intel</h3>
-      <p>There is no Intel build yet. You can still run Oia by <a href="https://github.com/cuongducle/oia#build-from-source">building from source</a>, or watch the releases page; an x64 build is a packaging task, not a rewrite.</p>
+      <p>No packaged build yet. <a href="https://github.com/cuongducle/oia#build-from-source">Build from source</a>.</p>
     </div>
     <div class="instCard">
       <h3>iPhone / iPad / Android</h3>
-      <p>Oia is a desktop app, there is no mobile build. The website works on anything; the studio needs macOS or Windows.</p>
+      <p>Desktop only. The website works on anything.</p>
     </div>
   </div>
 
   <h2 class="catH">First open: the security prompts</h2>
-  <p class="catNote">Unsigned does not mean broken. It means macOS and Windows show one warning because they have not seen this developer before. Both OSes offer a built-in way through.</p>
   <div class="instGrid">
     <div class="instCard">
-      <h3>macOS: “can’t be opened” / unidentified developer</h3>
-      <p>In <strong>Applications</strong>, <strong>right-click Oia → Open → Open</strong>. The right-click route is the built-in Gatekeeper bypass for unsigned apps. If the dialog still bothers you: <strong>System Settings → Privacy &amp; Security</strong> → scroll to the bottom → <strong>Open Anyway</strong>.</p>
+      <h3>macOS: “can’t be opened”</h3>
+      <p><strong>Right-click Oia → Open → Open.</strong> Or System Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.</p>
     </div>
     <div class="instCard">
-      <h3>macOS: “is damaged and can’t be opened”</h3>
-      <p>This is the quarantine flag some browsers add, not real damage. Open <strong>Terminal</strong> and run:</p>
+      <h3>macOS: “is damaged”</h3>
+      <p>Quarantine flag, not damage. In Terminal:</p>
       <pre>xattr -d com.apple.quarantine /Applications/Oia.app</pre>
-      <p>Then open Oia normally.</p>
     </div>
     <div class="instCard">
-      <h3>Windows: “Windows protected your PC”</h3>
-      <p>SmartScreen shows this for unknown publishers. Click <strong>More info → Run anyway</strong>. The installer needs no admin rights.</p>
+      <h3>Windows: “protected your PC”</h3>
+      <p><strong>More info → Run anyway.</strong> No admin needed.</p>
     </div>
     <div class="instCard">
-      <h3>Antivirus scanning the .exe</h3>
-      <p>Unsigned installers occasionally get flagged. The release publishes <code>checksums-*.txt</code> next to each file, compare with <code>shasum -a 256 &lt;file&gt;</code> if you want to verify the download.</p>
+      <h3>Verify the download</h3>
+      <p>Each release ships <code>checksums-*.txt</code>: compare with <code>shasum -a 256</code>.</p>
     </div>
   </div>
 
   <h2 class="catH">First run</h2>
   <div class="instGrid">
     <div class="instCard">
-      <h3>1 · Explore with zero setup</h3>
-      <p>Oia opens with a bundled sample project and the mock provider, real text and object editing, no login, nothing generated.</p>
+      <h3>1 · Zero setup</h3>
+      <p>Opens with a sample project and the mock provider. Edit without login.</p>
     </div>
     <div class="instCard">
       <h3>2 · Sign in to generate</h3>
-      <p>Open <strong>Runtime</strong> in the app, sign in with ChatGPT, and generations run on your plan quota through the bundled Codex CLI. No API key needed. OpenAI/fal keys work too.</p>
+      <p>In <strong>Runtime</strong>, sign in with ChatGPT. No API key needed.</p>
     </div>
     <div class="instCard">
-      <h3>3 · No auto-update (yet)</h3>
-      <p>Until the builds are signed there is no update channel, pick up new versions from the releases page. Your projects survive upgrades.</p>
+      <h3>3 · No auto-update yet</h3>
+      <p>New versions from the releases page. Projects survive upgrades.</p>
     </div>
   </div>
 </main>
