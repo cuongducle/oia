@@ -9,29 +9,55 @@ interface Props {
   ogDescription?: string
   canonical: string
   base?: string
+  locale?: 'en' | 'vi'
+  route?: string
 }
-const { title, description, ogTitle, ogDescription, canonical, base = '../' } = Astro.props
+const {
+  title, description, ogTitle, ogDescription, canonical,
+  base = '../', locale = 'en', route = '',
+} = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+// VI pages live in a tree of their own: assets resolve against the site
+// root (base), sibling pages against /vi/ (vbase, one level shallower).
+const vbase = vi ? base.replace('../', '') || './' : base
+const enCanonical = `https://oia.solutions/${route}`
+const viCanonical = `https://oia.solutions/vi/${route}`
 const footerLinks = [
-  { href: `${base}templates/`, label: 'Templates' },
-  { href: `${base}blog/`, label: 'Blog' },
-  { href: `${base}prompts/`, label: 'Prompt library' },
-  { href: `${base}install/`, label: 'Install help' },
+  { href: `${vi ? vbase : base}templates/`, label: t('Templates', 'Thư viện') },
+  { href: `${vi ? vbase : base}blog/`, label: 'Blog' },
+  { href: `${vi ? vbase : base}prompts/`, label: t('Prompt library', 'Gợi ý mô tả') },
+  { href: `${vi ? vbase : base}install/`, label: t('Install help', 'Hướng dẫn cài') },
   { href: 'https://github.com/cuongducle/oia', label: 'GitHub' },
 ]
+const navProps = {
+  locale,
+  home: vi ? vbase : base,
+  templates: `${vi ? vbase : base}templates/`,
+  blog: `${vi ? vbase : base}blog/`,
+  examples: `${vi ? vbase : base}#product`,
+  faq: `${vi ? vbase : base}#faq`,
+  alt: vi ? `${base}${route}` : `${base}vi/${route}`,
+}
 ---
 <!doctype html>
-<html lang="en">
+<html lang={locale}>
 <head>
 <BaseHead title={title} description={description} canonical={canonical} base={base} ogTitle={ogTitle} ogDescription={ogDescription}>
   <link rel="stylesheet" href={`${base}pages.css`}>
+  <link rel="alternate" hreflang="en" href={enCanonical}>
+  <link rel="alternate" hreflang="vi" href={viCanonical}>
+  <link rel="alternate" hreflang="x-default" href={enCanonical}>
+  <meta property="og:locale" content={vi ? 'vi_VN' : 'en_US'}>
+  <meta property="og:locale:alternate" content={vi ? 'en_US' : 'vi_VN'}>
   <slot name="head" />
 </BaseHead>
 </head>
 <body class="page">
-<SiteNav base={base} />
+<SiteNav {...navProps} />
 <slot />
 <footer class="pageFooter">
-  <a class="brand" href={`${base}`}><span class="o">◆ OIA</span></a>
+  <a class="brand" href={vi ? vbase : base}><span class="o">◆ OIA</span></a>
   <div class="links">
     {footerLinks.map((l) => <a href={l.href}>{l.label}</a>)}
   </div>

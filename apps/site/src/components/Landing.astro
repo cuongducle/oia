@@ -7,6 +7,8 @@ interface Props { locale?: 'en' | 'vi' }
 const { locale = 'en' } = Astro.props
 const vi = locale === 'vi'
 const base = vi ? '../' : ''
+// Content pages exist in both trees; assets only at the site root.
+const content = vi ? './' : ''
 const t = (en: string, vn: string) => vi ? vn : en
 const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}`
 const description = t('Make sale banners for Shopee, Lazada and TikTok Shop from your product photo. Edit 35 included templates for free. Mac and Windows; AI uses your ChatGPT plan.', 'Làm banner Shopee, Lazada và TikTok Shop từ ảnh sản phẩm. Sửa miễn phí 35 mẫu có sẵn. Cho Mac và Windows; tạo ảnh AI dùng hạn mức ChatGPT của bạn.')
@@ -41,12 +43,12 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
 </head>
 <body id="top" class="visual-landing">
 <a class="skip" href="#main">{t('Skip to content', 'Đến nội dung chính')}</a>
-<SiteNav base={base} landing locale={locale} />
+<SiteNav landing locale={locale} home="#top" templates={`${content}templates/`} blog={`${content}blog/`} examples="#product" faq="#faq" alt={vi ? '../' : 'vi/'} />
 <header class="hero visual-hero" id="hero">
   <div class="hero-copy">
     <h1 class="display">{t('Sale banners.', 'Banner sale.')}<br><span class="acc">{t('Your way.', 'Đúng gu shop.')}</span></h1>
     <p class="sub">{t('Your product photo. Your next campaign. For Shopee, Lazada and TikTok Shop.', 'Ảnh sản phẩm của bạn. Banner cho đợt sale tới. Cho Shopee, Lazada và TikTok Shop.')}</p>
-    <DownloadButtons installHref={`${base}install/`} locale={locale} compact />
+    <DownloadButtons installHref={`${content}install/`} locale={locale} compact />
     <p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p>
   </div>
   <div class="hero-artwork">
@@ -83,11 +85,11 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
 </section>
 <section id="templates" class="visual-templates">
   <div class="wrap">
-    <div class="visual-section-title"><h2>{t('Skip the blank page.', 'Chọn mẫu. Bắt tay làm.')}</h2><a class="text-link" href={`${base}templates/`}>{t('All 35 templates', 'Xem 35 mẫu (EN)')} ↗</a></div>
+    <div class="visual-section-title"><h2>{t('Skip the blank page.', 'Chọn mẫu. Bắt tay làm.')}</h2><a class="text-link" href={`${content}templates/`}>{t('All 35 templates', 'Xem 35 mẫu')} ↗</a></div>
     <div class="template-gallery">
-      <figure><a href={`${base}templates/flash-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-swiss-flashsale.webp`} alt={t('Clearance 50% sneaker sale template', 'Mẫu sale giày giảm 50%')} width="1080" height="1350"></a><figcaption>{t('Flash sale', 'Sale chớp nhoáng')}</figcaption></figure>
-      <figure><a href={`${base}templates/menu/`}><img loading="lazy" src={`${base}assets/templates/studio-ed-menu.webp`} alt={t('Morning Rituals café menu template', 'Mẫu thực đơn cà phê Morning Rituals')} width="1080" height="1350"></a><figcaption>{t('Menu', 'Thực đơn')}</figcaption></figure>
-      <figure><a href={`${base}templates/packs/tet-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-tet-swiss.webp`} alt={t('Tết sale template with gift boxes', 'Mẫu sale Tết có hộp quà')} width="1080" height="1350"></a><figcaption>{t('Seasonal', 'Theo mùa')}</figcaption></figure>
+      <figure><a href={`${content}templates/flash-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-swiss-flashsale.webp`} alt={t('Clearance 50% sneaker sale template', 'Mẫu sale giày giảm 50%')} width="1080" height="1350"></a><figcaption>{t('Flash sale', 'Sale chớp nhoáng')}</figcaption></figure>
+      <figure><a href={`${content}templates/menu/`}><img loading="lazy" src={`${base}assets/templates/studio-ed-menu.webp`} alt={t('Morning Rituals café menu template', 'Mẫu thực đơn cà phê Morning Rituals')} width="1080" height="1350"></a><figcaption>{t('Menu', 'Thực đơn')}</figcaption></figure>
+      <figure><a href={`${content}templates/packs/tet-sale/`}><img loading="lazy" src={`${base}assets/templates/studio-tet-swiss.webp`} alt={t('Tết sale template with gift boxes', 'Mẫu sale Tết có hộp quà')} width="1080" height="1350"></a><figcaption>{t('Seasonal', 'Theo mùa')}</figcaption></figure>
     </div>
   </div>
 </section>
@@ -95,16 +97,16 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
   <div class="wrap"><h2>{t('Not just an image. A studio.', 'Không chỉ có ảnh. Có cả studio.')}</h2><figure class="product-shot"><a href={`${base}assets/studio.webp`}><img loading="lazy" src={`${base}assets/studio.webp`} alt={t('Actual Oia desktop canvas and layer controls', 'Canvas và bảng lớp trong ứng dụng Oia thật')} width="2880" height="1666"></a><figcaption>{t('The real app. Add text, arrange layers, export.', 'Ứng dụng thật. Thêm chữ, xếp lớp, xuất file.')}</figcaption></figure></div>
 </section>
 <section id="livestream" class="visual-live">
-  <div class="wrap bring-grid"><div><h2>{t('Go live.', 'Lên sóng.')}<br>{t('Bring your offer.', 'Mang theo ưu đãi.')}</h2><p class="sub">{t('Transparent overlays. Room for you.', 'Khung trong suốt. Chừa chỗ cho bạn.')}</p><a class="text-link" href={`${base}use-cases/livestream-overlays/`}>{t('Explore livestream', 'Xem mẫu livestream (EN)')} ↗</a></div><figure class="live-mockup"><img loading="lazy" src={`${base}assets/livestream-example.webp`} alt={t('Livestream layout illustration with an actual price overlay', 'Bố cục livestream minh họa với mẫu thẻ giá thật')} width="900" height="1120"><figcaption>{t('Illustration, not a real broadcast. Community-measured safe zones.', 'Minh họa, không phải buổi phát thật. Vùng an toàn do cộng đồng đo.')}</figcaption></figure></div>
+  <div class="wrap bring-grid"><div><h2>{t('Go live.', 'Lên sóng.')}<br>{t('Bring your offer.', 'Mang theo ưu đãi.')}</h2><p class="sub">{t('Transparent overlays. Room for you.', 'Khung trong suốt. Chừa chỗ cho bạn.')}</p><a class="text-link" href={`${content}use-cases/livestream-overlays/`}>{t('Explore livestream', 'Xem mẫu livestream')} ↗</a></div><figure class="live-mockup"><img loading="lazy" src={`${base}assets/livestream-example.webp`} alt={t('Livestream layout illustration with an actual price overlay', 'Bố cục livestream minh họa với mẫu thẻ giá thật')} width="900" height="1120"><figcaption>{t('Illustration, not a real broadcast. Community-measured safe zones.', 'Minh họa, không phải buổi phát thật. Vùng an toàn do cộng đồng đo.')}</figcaption></figure></div>
 </section>
 <section id="faq" class="visual-faq">
-  <div class="wrap"><h2>{t('A few useful details.', 'Vài điều cần biết.')}</h2><div class="faq">{faq.map(item => <details id={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div><p class="visual-caption"><a class="text-link" href={`${base}install/`}>{t('Install guide', 'Hướng dẫn cài (EN)')}</a> · <a class="text-link" href="https://github.com/cuongducle/oia#contributing--limits">{t('License limits', 'Giới hạn giấy phép (EN)')}</a></p>
+  <div class="wrap"><h2>{t('A few useful details.', 'Vài điều cần biết.')}</h2><div class="faq">{faq.map(item => <details id={item.id}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div><p class="visual-caption"><a class="text-link" href={`${content}install/`}>{t('Install guide', 'Hướng dẫn cài')}</a> · <a class="text-link" href="https://github.com/cuongducle/oia#contributing--limits">{t('License limits', 'Giới hạn giấy phép (EN)')}</a></p>
     <details id="oss" class="developer-details"><summary>{t('Open source. For developers.', 'Mã nguồn mở. Dành cho lập trình viên.')}</summary><p>{t('MIT app code. Model terms apply separately, including Lens’s non-commercial restriction. Projects save locally; AI requests go to your provider. ChatGPT sign-in is in the app; other adapters are configurable in code. A local authenticated HTTP API lets agents drive Oia.', 'Mã ứng dụng MIT; mô hình có điều khoản riêng, gồm giới hạn phi thương mại của Lens. Dự án lưu cục bộ; yêu cầu AI gửi đến nhà cung cấp. App có đăng nhập ChatGPT; các bộ kết nối khác cấu hình trong mã. API HTTP cục bộ có xác thực cho tác tử điều khiển Oia.')}</p><div class="term"><pre>{termCode}</pre></div><a class="text-link" href="https://github.com/cuongducle/oia">GitHub ↗</a></details>
   </div>
 </section>
-<section id="download" class="visual-download"><div class="wrap center"><h2>{t('Your next sale.', 'Đợt sale tới.')}<br><span class="acc">{t('Make it yours.', 'Tự tay làm.')}</span></h2><DownloadButtons installHref={`${base}install/`} locale={locale} compact /><p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p></div></section>
+<section id="download" class="visual-download"><div class="wrap center"><h2>{t('Your next sale.', 'Đợt sale tới.')}<br><span class="acc">{t('Make it yours.', 'Tự tay làm.')}</span></h2><DownloadButtons installHref={`${content}install/`} locale={locale} compact /><p class="generation-note">{t('Free app. AI uses your ChatGPT plan.', 'Ứng dụng miễn phí. AI dùng hạn mức ChatGPT.')} <a href="#cost-faq">{t('Details', 'Chi tiết')}</a></p></div></section>
 </main>
-<footer><a class="brand" href="#top"><span class="o">◆ OIA</span></a><div class="footlinks"><a href={`${base}templates/`}>{t('Templates', 'Thư viện (EN)')}</a><a href={`${base}blog/`}>{t('Blog', 'Blog (EN)')}</a><a href={`${base}prompts/`}>{t('Prompt library', 'Gợi ý mô tả (EN)')}</a><a href={`${base}install/`}>{t('Install help', 'Cài đặt (EN)')}</a><a href="https://github.com/cuongducle/oia/issues">{t('Support', 'Hỗ trợ')}</a><a href="#oss">{t('Open source', 'Mã nguồn mở')}</a></div><span class="meta mono">MIT · oia.solutions</span></footer>
+<footer><a class="brand" href="#top"><span class="o">◆ OIA</span></a><div class="footlinks"><a href={`${content}templates/`}>{t('Templates', 'Thư viện')}</a><a href={`${content}blog/`}>Blog</a><a href={`${content}prompts/`}>{t('Prompt library', 'Gợi ý mô tả')}</a><a href={`${content}install/`}>{t('Install help', 'Hướng dẫn cài')}</a><a href="https://github.com/cuongducle/oia/issues">{t('Support', 'Hỗ trợ')}</a><a href="#oss">{t('Open source', 'Mã nguồn mở')}</a></div><span class="meta mono">MIT · oia.solutions</span></footer>
 <script src={`${base}faq-schema.js`} is:inline type="module"></script><script src={`${base}main.js`} is:inline defer></script>
 </body>
 </html>

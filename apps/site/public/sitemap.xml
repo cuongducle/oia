@@ -50,6 +50,30 @@
   <url><loc>https://oia.solutions/blog/livestream-overlay-safe-zones/</loc></url>
   <url><loc>https://oia.solutions/blog/tet-sale-banner-checklist/</loc></url>
 
+  <url><loc>https://oia.solutions/vi/templates/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://oia.solutions/vi/prompts/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://oia.solutions/vi/install/</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://oia.solutions/vi/use-cases/flash-sale-banners/</loc></url>
+  <url><loc>https://oia.solutions/vi/use-cases/livestream-overlays/</loc></url>
+  <url><loc>https://oia.solutions/vi/use-cases/presentations/</loc></url>
+  <url><loc>https://oia.solutions/vi/blog/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://oia.solutions/vi/blog/change-sale-price-without-redesigning/</loc></url>
+  <url><loc>https://oia.solutions/vi/blog/livestream-overlay-safe-zones/</loc></url>
+  <url><loc>https://oia.solutions/vi/blog/tet-sale-banner-checklist/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/flash-sale/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/menu/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/social-post/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/new-product/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/poster/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/deck/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/livestream/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/overlay/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/styles/editorial/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/styles/swiss/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/cafe-restaurant/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/product-launch/</loc></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/tet-sale/</loc></url>
+
   <url><loc>https://oia.solutions/templates/flash-sale/</loc></url>
   <url><loc>https://oia.solutions/templates/menu/</loc></url>
   <url><loc>https://oia.solutions/templates/social-post/</loc></url>

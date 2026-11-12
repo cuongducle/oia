@@ -1,0 +1,9 @@
+---
+import BlogIndexPage from '../../../components/pages/BlogIndexPage.astro'
+import { getCollection } from 'astro:content'
+
+const posts = (await getCollection('blog-vi'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .map(({ id, data }) => ({ id, ...data }))
+---
+<BlogIndexPage locale="vi" base="../../" posts={posts} />

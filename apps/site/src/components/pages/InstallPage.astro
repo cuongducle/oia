@@ -1,0 +1,86 @@
+---
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+
+interface Props { locale?: 'en' | 'vi'; base: string }
+const { locale = 'en', base } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const vbase = vi ? (base.replace('../', '') || './') : base
+---
+<Page
+  title={t('Install Oia: macOS &amp; Windows, step by step', 'Cài Oia: macOS và Windows, từng bước')}
+  description={t(
+    'How to install Oia on macOS and Windows: download the right build, pass Gatekeeper / SmartScreen on the unsigned build, and sign in with ChatGPT to start generating.',
+    'Cài Oia trên macOS và Windows: tải đúng bản, vượt Gatekeeper / SmartScreen của bản chưa ký, đăng nhập ChatGPT để bắt đầu tạo ảnh.')}
+  ogTitle={t('Install Oia: macOS &amp; Windows', 'Cài Oia: macOS và Windows')}
+  ogDescription={t('Download the right build, pass Gatekeeper / SmartScreen, sign in with ChatGPT.', 'Tải đúng bản, vượt cảnh báo Gatekeeper / SmartScreen, đăng nhập ChatGPT.')}
+  canonical={`https://oia.solutions/${vi ? 'vi/' : ''}install/`}
+  base={base} locale={locale} route="install/"
+>
+<header class="pageHero">
+  <p class="kicker">{t('Install help', 'Hướng dẫn cài')}</p>
+  <h1>{t('Two minutes, no account.', 'Hai phút, không cần tài khoản.')}</h1>
+  <p class="lede">{t('Plain installers for macOS and Windows. Unsigned (no signing budget yet): expect one extra click on first open.', 'Bản cài thông thường cho macOS và Windows. Chưa ký số (chưa có ngân sách): lần mở đầu cần thêm một cú bấm.')}</p>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" locale={locale} />
+</header>
+
+<main class="pageMain">
+  <h2 class="catH">{t('Which build do I need?', 'Chọn bản nào?')}</h2>
+  <div class="instGrid">
+    <div class="instCard">
+      <h3>macOS · Apple Silicon</h3>
+      <p>{t('M1 to M4, macOS 13+. Open the .dmg, drag <strong>Oia</strong> to Applications.', 'M1 đến M4, macOS 13 trở lên. Mở file .dmg, kéo <strong>Oia</strong> vào Applications.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>Windows · 64-bit</h3>
+      <p>{t('Windows 10/11, per-user, no admin. Projects survive uninstall and upgrade.', 'Windows 10/11, cài cho từng user, không cần admin. Dự án sống sót qua gỡ cài và nâng cấp.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>macOS · Intel</h3>
+      <p>{t('No packaged build yet. <a href="https://github.com/cuongducle/oia#build-from-source">Build from source</a>.', 'Chưa có bản đóng gói. <a href="https://github.com/cuongducle/oia#build-from-source">Tự build từ mã nguồn</a>.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>iPhone / iPad / Android</h3>
+      <p>{t('Desktop only. The website works on anything.', 'Chỉ có bản desktop. Website xem được trên mọi thiết bị.')}</p>
+    </div>
+  </div>
+
+  <h2 class="catH">{t('First open: the security prompts', 'Lần mở đầu: cảnh báo bảo mật')}</h2>
+  <div class="instGrid">
+    <div class="instCard">
+      <h3>{t('macOS: “can’t be opened”', 'macOS: “không mở được”')}</h3>
+      <p>{t('<strong>Right-click Oia → Open → Open.</strong> Or System Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.', '<strong>Bấm chuột phải vào Oia → Open → Open.</strong> Hoặc System Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>{t('macOS: “is damaged”', 'macOS: “file bị hỏng”')}</h3>
+      <p>{t('Quarantine flag, not damage. In Terminal:', 'Cờ cách ly của trình duyệt, không phải hỏng thật. Mở Terminal:')}</p>
+      <pre>xattr -d com.apple.quarantine /Applications/Oia.app</pre>
+    </div>
+    <div class="instCard">
+      <h3>{t('Windows: “protected your PC”', 'Windows: “protected your PC”')}</h3>
+      <p>{t('<strong>More info → Run anyway.</strong> No admin needed.', '<strong>More info → Run anyway.</strong> Không cần admin.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>{t('Verify the download', 'Kiểm tra file tải về')}</h3>
+      <p>{t('Each release ships <code>checksums-*.txt</code>: compare with <code>shasum -a 256</code>.', 'Mỗi bản phát hành kèm <code>checksums-*.txt</code>: đối chiếu bằng <code>shasum -a 256</code>.')}</p>
+    </div>
+  </div>
+
+  <h2 class="catH">{t('First run', 'Lần chạy đầu')}</h2>
+  <div class="instGrid">
+    <div class="instCard">
+      <h3>{t('1 · Zero setup', '1 · Không cần thiết lập')}</h3>
+      <p>{t('Opens with a sample project and the mock provider. Edit without login.', 'Mở sẵn dự án mẫu với provider giả lập. Chỉnh sửa ngay, không cần đăng nhập.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>{t('2 · Sign in to generate', '2 · Đăng nhập để tạo ảnh')}</h3>
+      <p>{t('In <strong>Runtime</strong>, sign in with ChatGPT. No API key needed.', 'Vào <strong>Runtime</strong>, đăng nhập ChatGPT. Không cần khóa API.')}</p>
+    </div>
+    <div class="instCard">
+      <h3>{t('3 · No auto-update yet', '3 · Chưa có tự cập nhật')}</h3>
+      <p>{t('New versions from the releases page. Projects survive upgrades.', 'Bản mới lấy từ trang releases. Dự án giữ nguyên qua các bản nâng cấp.')}</p>
+    </div>
+  </div>
+</main>
+</Page>

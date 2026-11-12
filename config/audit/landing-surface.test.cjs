@@ -18,34 +18,58 @@ function builtPages() {
   return pages;
 }
 
-test('every built page shares one top bar; only the landing pair carries the language switch', () => {
+test('every built page shares one top bar with a working language pair', () => {
   const pages = builtPages().filter(path => path !== '/404.html');
-  assert.ok(pages.length >= 25, `expected the built site to keep growing, saw ${pages.length} pages`);
-  const withSwitch = [];
+  assert.ok(pages.length >= 45, `expected the bilingual site to keep growing, saw ${pages.length} pages`);
   for (const path of pages) {
-    const file = path.endsWith('/') ? `${path}index.html` : path;
-    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist${file}`, `file://${__filename}`)), 'utf8');
+    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist${path.endsWith('/') ? `${path}index.html` : path}`, `file://${__filename}`)), 'utf8');
     assert.match(html, /<nav[^>]*class="[^"]*siteNav/, `${path}: no shared nav`);
-    for (const needle of ['templates/', 'blog/', '#product', '#faq', 'href="#download"']) {
-      assert.ok(html.includes(needle), `${path}: nav/link drift, missing ${needle}`);
+    const vi = path.startsWith('/vi/');
+    const expect = {
+      examples: vi ? 'Xem mẫu' : 'Examples',
+      templates: vi ? 'Thư viện' : 'Templates',
+      faq: vi ? 'Hỏi đáp' : 'FAQ',
+      cta: vi ? 'Tải ứng dụng' : 'Download',
+    };
+    for (const needle of [expect.examples, expect.templates, 'Blog', expect.faq]) {
+      assert.ok(html.includes(`>${needle}</a>`), `${path}: nav label drift, missing ${needle}`);
     }
-    const download = html.match(/<a class="btn btn-accent" href="#download">([^<]+)<\/a>/);
-    assert.ok(['Download', 'Tải ứng dụng'].includes(download?.[1]), `${path}: unexpected nav CTA ${download?.[1]}`);
-    if (html.includes('language-switch')) withSwitch.push(path);
+    assert.ok(html.includes(`href="#download">${expect.cta}</a>`), `${path}: nav CTA drift`);
+    const switchLinks = [...html.matchAll(/<a href="([^"]*)" lang="(en|vi)"/g)];
+    assert.equal(switchLinks.length, 2, `${path}: language pair incomplete`);
+    for (const [, href] of switchLinks) {
+      const resolved = new URL(href, `http://site${path}`).pathname;
+      if (resolved !== path) assert.ok(builtPages().includes(resolved), `${path}: switch target ${href} -> ${resolved} not built`);
+    }
   }
-  assert.deepEqual(withSwitch.sort(), ['/', '/vi/'], 'language switch belongs to the landing pair only');
+});
+
+test('the VI tree mirrors the EN tree page for page', () => {
+  const pages = builtPages().filter(path => path !== '/404.html' && path !== '/' && path !== '/vi/');
+  const en = pages.filter(path => !path.startsWith('/vi/')).sort();
+  const vi = pages.filter(path => path.startsWith('/vi/')).map(path => path.replace('/vi', '')).sort();
+  assert.deepEqual(vi, en, 'every content page must exist in both trees');
+  for (const path of pages) {
+    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist${path.endsWith('/') ? `${path}index.html` : path}`, `file://${__filename}`)), 'utf8');
+    assert.ok(html.includes('hreflang="en"'), `${path}: missing EN hreflang`);
+    assert.ok(html.includes('hreflang="vi"'), `${path}: missing VI hreflang`);
+    assert.ok(html.includes('hreflang="x-default"'), `${path}: missing x-default`);
+  }
 });
 
 test('blog posts build with article metadata and land in the sitemap', () => {
   const posts = ['change-sale-price-without-redesigning', 'livestream-overlay-safe-zones', 'tet-sale-banner-checklist'];
   const sitemap = readFileSync(fileURLToPath(new URL('../../apps/site/dist/sitemap.xml', `file://${__filename}`)), 'utf8');
   assert.ok(sitemap.includes('https://oia.solutions/blog/'));
-  for (const slug of posts) {
-    const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist/blog/${slug}/index.html`, `file://${__filename}`)), 'utf8');
-    assert.ok(html.includes(`rel="canonical" href="https://oia.solutions/blog/${slug}/"`));
-    assert.ok(html.includes('"@type":"BlogPosting"'));
-    assert.ok(html.includes('data-dl="macArm64"') && html.includes('main.js'));
-    assert.ok(sitemap.includes(`https://oia.solutions/blog/${slug}/`));
+  for (const tree of ['blog', 'vi/blog']) {
+    for (const slug of posts) {
+      const html = readFileSync(fileURLToPath(new URL(`../../apps/site/dist/${tree}/${slug}/index.html`, `file://${__filename}`)), 'utf8');
+      const prefix = tree === 'blog' ? '' : 'vi/';
+      assert.ok(html.includes(`rel="canonical" href="https://oia.solutions/${prefix}blog/${slug}/"`));
+      assert.ok(html.includes('"@type":"BlogPosting"'));
+      assert.ok(html.includes('data-dl="macArm64"') && html.includes('main.js'));
+      assert.ok(sitemap.includes(`https://oia.solutions/${prefix}blog/${slug}/`));
+    }
   }
 });
 

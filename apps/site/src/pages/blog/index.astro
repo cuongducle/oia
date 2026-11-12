@@ -1,39 +1,9 @@
 ---
-import Page from '../../layouts/Page.astro'
-import DownloadButtons from '../../components/DownloadButtons.astro'
+import BlogIndexPage from '../../components/pages/BlogIndexPage.astro'
 import { getCollection } from 'astro:content'
 
-const posts = (await getCollection('blog')).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
-const dateFormat = (date: Date) => date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+const posts = (await getCollection('blog'))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .map(({ id, data }) => ({ id, ...data }))
 ---
-<Page
-  title="Oia blog: practical banner notes for marketplace sellers"
-  description="Short, honest notes for Shopee, Lazada and TikTok Shop sellers: repricing banners without redesigns, livestream overlay safe zones, seasonal checklists."
-  ogTitle="Oia blog"
-  ogDescription="Practical banner notes for marketplace sellers."
-  canonical="https://oia.solutions/blog/"
-  base="../"
->
-<header class="pageHero">
-  <p class="kicker">Blog</p>
-  <h1>Notes for sellers<br>who ship their own banners.</h1>
-  <p class="lede">Short, honest articles about the work you actually do: repricing a banner at midnight, keeping an offer visible on a live stream, getting a seasonal campaign out the door.</p>
-</header>
-<main class="pageMain">
-  <div class="blogList">
-    {posts.map((post) => (
-      <a class="blogCard" href={`${post.id}/`}>
-        <span class="mono blogDate">{dateFormat(post.data.pubDate)}</span>
-        <h2>{post.data.title}</h2>
-        <p>{post.data.description}</p>
-        <span class="blogRead">Read →</span>
-      </a>
-    ))}
-  </div>
-  <div class="postCta" id="download">
-    <h2>Make your next banner in Oia</h2>
-    <p>Free, open source, no account. AI generation uses your own ChatGPT plan.</p>
-    <DownloadButtons rowClass="ctaRow" installHref="../install/" />
-  </div>
-</main>
-</Page>
+<BlogIndexPage locale="en" base="../" posts={posts} />

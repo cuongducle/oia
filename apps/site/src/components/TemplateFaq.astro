@@ -1,9 +1,19 @@
 ---
 // Shared FAQ block for the template pages; a single source, not per-page copies.
+interface Props { locale?: 'en' | 'vi' }
+const { locale = 'en' } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const items = [
+  [t('Does opening a template spend image quota?', 'Mở mẫu có tốn lượt tạo ảnh không?'),
+   t('No. The artwork ships with Oia. Opening a template, changing native text, arranging layers and exporting use no AI quota. Requesting new AI artwork uses your provider quota.', 'Không. Ảnh mẫu đi kèm ứng dụng. Mở mẫu, sửa lớp chữ, xếp lớp và xuất file đều không dùng lượt AI. Chỉ yêu cầu tạo ảnh AI mới mới dùng hạn mức nhà cung cấp.')],
+  [t('Are these real previews?', 'Đây có phải ảnh xem trước thật không?'),
+   t('Yes. Each preview is rendered from the bundled scene using the same Fabric canvas engine as the desktop app. The gallery shows complete compositions, not cropped stock photos. Photographic backgrounds are AI-generated; copy remains native text.', 'Có. Mỗi ảnh được xuất từ cảnh thật trong ứng dụng bằng đúng engine canvas của bản desktop. Thư viện hiện composition trọn vẹn, không phải ảnh stock cắt ghép. Nền ảnh do AI tạo; chữ vẫn là lớp text thật.')],
+  [t('Can I save my own designs as templates?', 'Lưu thiết kế của tôi thành mẫu được không?'),
+   t('Yes. Use Share ▸ Publish as template in the editor to keep a reusable scene in your own library.', 'Được. Dùng Share ▸ Publish as template trong editor để lưu cảnh dùng lại trong thư viện riêng của bạn.')],
+]
 ---
 <section class="faq" style="margin-top:48px">
-  <h2>Good to know</h2>
-  <details><summary>Does opening a template spend image quota?</summary><p>No. The artwork ships with Oia. Opening a template, changing native text, arranging layers and exporting use no AI quota. Requesting new AI artwork uses your provider quota.</p></details>
-  <details><summary>Are these real previews?</summary><p>Yes. Each preview is rendered from the bundled scene using the same Fabric canvas engine as the desktop app. The gallery shows complete compositions, not cropped stock photos. Photographic backgrounds are AI-generated; copy remains native text.</p></details>
-  <details><summary>Can I save my own designs as templates?</summary><p>Yes. Use Share ▸ Publish as template in the editor to keep a reusable scene in your own library.</p></details>
+  <h2>{t('Good to know', 'Cần biết thêm')}</h2>
+  {items.map(([question, answer]) => <details><summary>{question}</summary><p>{answer}</p></details>)}
 </section>

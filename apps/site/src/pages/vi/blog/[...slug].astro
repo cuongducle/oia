@@ -1,0 +1,14 @@
+---
+import BlogPostPage from '../../../components/pages/BlogPostPage.astro'
+import { getCollection, render } from 'astro:content'
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog-vi')
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }))
+}
+
+const { post } = Astro.props
+const { Content } = await render(post)
+const { id, data } = post
+---
+<BlogPostPage locale="vi" base="../../../" post={{ id, ...data }} Content={Content} />

@@ -1,0 +1,58 @@
+---
+import Page from '../../layouts/Page.astro'
+import TemplateCard from '../TemplateCard.astro'
+import TemplateFaq from '../TemplateFaq.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+import { byCategory } from '../../data/catalog'
+import { CATEGORIES, STYLES, PACKS } from '../../data/taxonomy'
+import { viLabel } from '../../data/locale-labels'
+
+interface Props { locale?: 'en' | 'vi'; base: string }
+const { locale = 'en', base } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const vbase = vi ? (base.replace('../', '') || './') : base
+const count = (slug: string) => byCategory(slug).length
+const label = (slug: string, en: string) => vi ? viLabel(slug) : en
+---
+<Page
+  title={t('Free editable design templates', '35 mẫu thiết kế sửa chữ miễn phí')}
+  description={t(
+    'Start from 35 bundled scenes: sales, product launches, menus, social posts, posters, decks and transparent live graphics. Opening a template uses no AI quota.',
+    '35 cảnh thật đi kèm: sale, ra mắt sản phẩm, thực đơn, bài mạng xã hội, poster, thuyết trình và khung livestream trong suốt. Mở mẫu không tốn lượt AI.')}
+  ogTitle={t('Free editable design templates', '35 mẫu thiết kế sửa chữ miễn phí')}
+  ogDescription={t('Studio posters, livestream overlay presets and decks, every template is a real editable scene.', 'Mỗi mẫu là một cảnh thiết kế thật, sửa chữ và xếp lớp được.')}
+  canonical={`https://oia.solutions/${vi ? 'vi/' : ''}templates/`}
+  base={base} locale={locale} route="templates/"
+>
+<header class="pageHero">
+  <p class="kicker">{t('The bundled library · 35 templates', 'Thư viện đi kèm · 35 mẫu')}</p>
+  <h1>{t('Start with real artwork.<br>Make the words yours.', 'Ảnh thật có sẵn.<br>Chữ sửa theo ý bạn.')}</h1>
+  <p class="lede">{t('Real scenes, editable text. Opening one uses no AI quota.', 'Cảnh thật, chữ sửa được. Mở mẫu không tốn lượt AI.')}</p>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref={`${vbase}install/`} locale={locale} ghost={{ href: `${vbase}templates/`, label: t('All 35 templates', 'Xem đủ 35 mẫu') }} />
+</header>
+
+<main class="pageMain">
+  <div class="catNav" role="group" aria-label={t('Template categories', 'Nhóm mẫu')}>
+    {CATEGORIES.map(([slug, en]) => <a href={`${slug}/`}>{label(slug, en)} · {count(slug)}</a>)}
+  </div>
+  <div class="catNav" role="group" aria-label={t('Styles and packs', 'Phong cách và bộ mẫu')}>
+    {STYLES.map(([slug, en]) => <a href={`styles/${slug}/`}>{label(slug, en)}</a>)}
+    {PACKS.map(([slug, en]) => <a href={`packs/${slug}/`}>{label(slug, en)}</a>)}
+  </div>
+
+  {CATEGORIES.map(([slug, en]) => (
+    <>
+      <h2 class="catH" id={slug}><a href={`${slug}/`}>{label(slug, en)}</a> <span class="count">{count(slug)}</span></h2>
+      {slug === 'livestream' && (
+        <p class="catNote">{t('Transparent compositing graphics. Guides stay in the editor; the countdown frame is static.', 'Ảnh ghép trong suốt. Đường hướng dẫn chỉ nằm trong editor; khung đếm ngược là hình tĩnh.')}</p>
+      )}
+      <div class="tplGrid">
+        {byCategory(slug).map((item) => <TemplateCard item={item} base={base} />)}
+      </div>
+    </>
+  ))}
+
+  <TemplateFaq locale={locale} />
+</main>
+</Page>

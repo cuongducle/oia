@@ -1,27 +1,35 @@
 ---
-// One top bar for every page: landing passes anchor links, content pages
-// route through their base. Landing adds the EN/VI pair switch.
-interface Props { base?: string; landing?: boolean; locale?: 'en' | 'vi' }
-const { base = '', landing = false, locale = 'en' } = Astro.props
+// One top bar for every page. Callers pass resolved relative hrefs so the
+// landing (anchor links) and content pages (routed links, EN or VI tree)
+// share identical structure; landing keeps its in-page anchors.
+interface Props {
+  locale?: 'en' | 'vi'
+  landing?: boolean
+  home: string
+  templates: string
+  blog: string
+  examples: string
+  faq: string
+  alt: string
+}
+const { locale = 'en', landing = false, home, templates, blog, examples, faq, alt } = Astro.props
 const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
-const anchor = (fragment: string) => (landing ? `#${fragment}` : `${base}#${fragment}`)
+const current = landing ? './' : './'
 ---
 <nav class={landing ? 'siteNav' : 'siteNav pageNav'} aria-label={t('Main', 'Điều hướng chính')}>
-  <a class="brand" href={landing ? '#top' : base}><span class="o">◆ OIA</span></a>
+  <a class="brand" href={landing ? '#top' : home}><span class="o">◆ OIA</span></a>
   <div class="navlinks">
-    <a href={anchor('product')}>{t('Examples', 'Xem mẫu')}</a>
-    <a href={`${base}templates/`}>{t('Templates', 'Thư viện')}</a>
-    <a href={`${base}blog/`}>Blog</a>
-    <a href={anchor('faq')}>{t('FAQ', 'Hỏi đáp')}</a>
+    <a href={examples}>{t('Examples', 'Xem mẫu')}</a>
+    <a href={templates}>{t('Templates', 'Thư viện')}</a>
+    <a href={blog}>Blog</a>
+    <a href={faq}>{t('FAQ', 'Hỏi đáp')}</a>
   </div>
   <div class="navcta">
-    {landing && (
-      <div class="language-switch" role="group" aria-label={t('Language', 'Ngôn ngữ')}>
-        <a href={vi ? '../' : './'} lang="en" hreflang="en" aria-current={!vi ? 'page' : undefined}>EN</a>
-        <a href={vi ? './' : 'vi/'} lang="vi" hreflang="vi" aria-current={vi ? 'page' : undefined}>VI</a>
-      </div>
-    )}
+    <div class="language-switch" role="group" aria-label={t('Language', 'Ngôn ngữ')}>
+      <a href={vi ? alt : current} lang="en" hreflang="en" aria-current={!vi ? 'page' : undefined}>EN</a>
+      <a href={vi ? current : alt} lang="vi" hreflang="vi" aria-current={vi ? 'page' : undefined}>VI</a>
+    </div>
     <a class="btn btn-accent" href="#download">{t('Download', 'Tải ứng dụng')}</a>
   </div>
 </nav>

@@ -1,64 +1,21 @@
 ---
-import { byCategory, byStyle, byPack, type Entry } from '../../data/catalog'
+import TemplateCategoryPage from '../../components/pages/TemplateCategoryPage.astro'
 import { CATEGORIES, STYLES, PACKS } from '../../data/taxonomy'
-import Page from '../../layouts/Page.astro'
-import TemplateCard from '../../components/TemplateCard.astro'
-import TemplateFaq from '../../components/TemplateFaq.astro'
-import DownloadButtons from '../../components/DownloadButtons.astro'
-
-type Kind = 'category' | 'style' | 'pack'
-interface Route { kind: Kind; slug: string; label: string; path: string }
-
-function pageItems(route: Route): Entry[] {
-  if (route.kind === 'category') return byCategory(route.slug)
-  if (route.kind === 'style') return byStyle(route.slug)
-  return byPack(route.slug)
-}
 
 export function getStaticPaths() {
-  const routes: { params: { slug: string }; props: { route: Route } }[] = []
+  const routes = []
   for (const [slug, label] of CATEGORIES) {
-    routes.push({ params: { slug }, props: { route: { kind: 'category', slug, label, path: `${slug}/` } } })
+    routes.push({ params: { slug }, props: { kind: 'category', slug, label, path: `${slug}/`, base: '../../' } })
   }
   for (const [slug, label] of STYLES) {
-    routes.push({ params: { slug: `styles/${slug}` }, props: { route: { kind: 'style', slug, label, path: `styles/${slug}/` } } })
+    routes.push({ params: { slug: `styles/${slug}` }, props: { kind: 'style', slug, label, path: `styles/${slug}/`, base: '../../../' } })
   }
   for (const [slug, label] of PACKS) {
-    routes.push({ params: { slug: `packs/${slug}` }, props: { route: { kind: 'pack', slug, label, path: `packs/${slug}/` } } })
+    routes.push({ params: { slug: `packs/${slug}` }, props: { kind: 'pack', slug, label, path: `packs/${slug}/`, base: '../../../' } })
   }
   return routes
 }
 
-const { route } = Astro.props
-const list = pageItems(route)
-const base = route.kind === 'category' ? '../../' : '../../../'
-const title = route.kind === 'category'
-  ? `${route.label} templates`
-  : `${route.label} ${route.kind === 'style' ? 'style templates' : 'template pack'}`
-const description = route.kind === 'category'
-  ? `${list.length} editable ${route.label.toLowerCase()} templates included in Oia v0.6.1. Real scenes, native text layers, no image quota needed to open or edit.`
-  : `${list.length} real editable scenes from the ${route.label} collection, bundled with Oia v0.6.1. Choose a composition, change the copy, and export.`
+const { kind, slug, label, path, base } = Astro.props
 ---
-<Page
-  title={title}
-  description={description}
-  ogTitle={`${title} | Oia`}
-  ogDescription={description}
-  canonical={`https://oia.solutions/templates/${route.path}`}
-  base={base}
->
-<header class="pageHero">
-  <p class="kicker">The bundled library · v0.6.1</p>
-  <h1>{title}</h1>
-  <p class="lede">{list.length} editable scenes. Real artwork, native text, no AI quota to open or edit.</p>
-  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref={`${base}install/`} ghost={{ href: `${base}templates/`, label: 'All 35 templates' }} />
-</header>
-
-<main class="pageMain">
-  <div class="tplGrid">
-    {list.map((item) => <TemplateCard item={item} base={base} />)}
-  </div>
-
-  <TemplateFaq />
-</main>
-</Page>
+<TemplateCategoryPage locale="en" base={base} kind={kind} slug={slug} label={label} path={path} />

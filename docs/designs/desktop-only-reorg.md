@@ -1340,3 +1340,40 @@ Bản này ghi đè cách trình bày ở mục trên:
   43188957659 / 43188957649), worker deploy d90ce109. Đối chiếu live: số từ
   hiển thị khớp dist (install 218, livestream 152, presentations 163,
   flash-sale 163), ảnh livestream-example và factRow có mặt trên bản live.
+
+## Song ngữ toàn site: cây /vi/ đầy đủ (2026-11-12, owner "Sửa cả tiếng việt cả tiếng anh r chứ")
+
+- Owner duyệt hướng show-don't-tell nhưng yêu cầu làm cả hai ngôn ngữ: trước
+  đó chỉ có landing VI, các trang con vẫn EN và landing VI phải gắn nhãn (EN).
+- Kiến trúc: mọi trang con chuyển thành component dùng chung trong
+  components/pages (locale + base props), file route EN và VI cùng mount;
+  Landing.astro tách base (asset theo gốc site) và content (theo cây /vi/).
+  Trang VI tính vbase (path về /vi/) cho link anh em, base cho asset/style.
+  SiteNav nhận href đã giải, xuất hiện ở mọi trang kèm cặp EN/VI trỏ đúng
+  trang tương ứng; Page.astro nhận locale/route, phát lang, canonical, cặp
+  hreflang en/vi/x-default và og:locale.
+- Phạm vi dịch: templates index + 13 trang mục (nhãn nhóm/pack VI qua
+  locale-labels.ts, tên mẫu giữ nguyên vì là tên sản phẩm), prompts (phần
+  bao quanh dịch; thân prompt giữ tiếng Anh kèm ghi chú vì nhãn tested đã
+  kiểm chứng với nguyên văn đó), install, 3 use-case, blog (collection
+  blog-vi riêng, 3 bài dịch đầy đủ cùng slug). Sitemap thêm 23 URL VI;
+  tổng 49 trang.
+- Gate cập nhật: landing-surface giờ yêu cầu mọi trang có nav chung đúng
+  nhãn theo ngôn ngữ + cặp switch giải tới trang thật (URL resolve), và test
+  mới "cây VI đối xứng cây EN" (mọi trang nội dung phải tồn tại ở cả hai
+  cây, mọi trang có đủ hreflang). Sửa lỗi thật khi dựng: PromptsPage còn
+  thẻ Page cũ lồng nhau sau phẫu thuật chuỗi; BlogPostPage thiếu </main>
+  (lỗi cũ cả bản EN, giờ cả hai đều có main) và thiếu is:inline cho script
+  JSON-LD trong component; VI parity test bắt "/" dư do map landing.
+- Kiểm chứng: build 49 trang, typecheck, site-links (sitemap parity hai
+  chiều), media 296 tham chiếu, 10 test download/landing xanh. Kiểm Python
+  trên dist cho 11 trang VI đại diện: lang=vi, nav VI, CTA "Tải ứng dụng",
+  0 ảnh thiếu, canonical/hreflang đúng, BlogPosting có mặt cả hai ngôn ngữ.
+  Số từ main VI: use-case 178-215, install 216, blog list 204 (VI dài hơn EN
+  ~15-20% là tự nhiên). Ảnh chụp Chrome thu 2 file nhưng không mở xem được
+  bằng mắt trong phiên; phiên bsk hôm sau kẹt observation liên tục nên QA
+  DOM chạy bằng Python deterministic thay evaluate; gate switch đã kiểm đích
+  đến theo URL resolve thật.
+- Còn mở: owner chưa tự soi mắt bản VI; nền tảng semantic (deck/overlay)
+  giữ thuật ngữ quốc tế; nhãn "Copy prompt" trên trang VI chưa dịch (script
+  reset theo nguyên văn); chưa deploy lúc ghi mục này.

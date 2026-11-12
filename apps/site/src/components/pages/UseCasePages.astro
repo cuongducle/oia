@@ -1,0 +1,124 @@
+---
+// One component, three use cases: each page is short enough that the
+// strings live in a keyed map instead of three near-identical files.
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+
+type UseCase = 'flash-sale' | 'livestream' | 'presentations'
+interface Props { locale?: 'en' | 'vi'; base: string; case: UseCase }
+const { locale = 'en', base, case: useCase } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const vbase = vi ? (base.replace('../', '') || './') : base
+const meta = {
+  'flash-sale': {
+    route: 'use-cases/flash-sale-banners/',
+    title: t('Flash-Sale Banner Maker for Shopee &amp; TikTok Shop: AI-generated, editable | Oia', 'Tạo banner flash sale cho Shopee và TikTok Shop: AI tạo, sửa được | Oia'),
+    description: t('Generate flash-sale banners for Shopee, Lazada and TikTok Shop with real AI typography. Change the price with one prompt, the style stays. Free, open source, bring your own provider.', 'Tạo banner flash sale cho Shopee, Lazada, TikTok Shop với typography AI thật. Đổi giá bằng một câu, phong cách giữ nguyên. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
+    ogTitle: t('Flash-Sale Banner Maker | Oia', 'Tạo banner flash sale | Oia'),
+    kicker: t('Use case, e-commerce', 'Tình huống, thương mại điện tử'),
+    h1: t('Flash-sale banners that look designed, and change in one prompt.', 'Banner flash sale trưng như designer làm, đổi chỉ bằng một câu.'),
+    lede: t('One sentence in. The copy renders into the artwork. When the price moves, a repaint keeps the style.', 'Một câu mô tả, chữ hiện ngay trong ảnh. Giá đổi, vẽ lại vẫn giữ phong cách.'),
+    image: { src: 'assets/mori-comparison.webp', alt: t('MORI campaign before and after a reference-image edit: 20% OFF becomes 30% OFF, retaining the visual style', 'Banner MORI trước và sau khi sửa bằng tham chiếu: 20% OFF thành 30% OFF, giữ nguyên phong cách'), width: 1600, height: 860, caption: t('real generations · same banner, one repaint', 'đầu ra thật · cùng một banner, một lượt vẽ lại') },
+    stepsTitle: t('From idea to live banner', 'Từ ý tưởng đến banner đăng được'),
+    steps: [
+      ['01: DESCRIBE', t('One sentence, right size', 'Một câu, đúng kích thước'), t('“Milk-tea flash sale, 20% off today” + Shopee 1:1.', '“Banner trà sữa flash sale, hôm nay giảm 20%” + Shopee 1:1.')],
+      ['02: GENERATE', t('Typography baked in', 'Chữ vẽ trong ảnh'), t('≈ 1 image, on your plan.', '≈ 1 ảnh, trên gói của bạn.')],
+      ['03: REPRICE', t('Ask, preview, apply', 'Yêu cầu, xem trước, áp dụng'), t('Select the banner, type the new number.', 'Chọn banner, gõ con số mới.')],
+      ['04: EXPORT', t('Marketplace-ready', 'Sẵn sàng đăng sàn'), t('PNG · JPG · PDF · PPTX.', 'PNG · JPG · PDF · PPTX.')],
+    ],
+    factsTitle: t('Built for marketplaces', 'Tính cho sàn thương mại'),
+    facts: [t('Shopee 1024 · Lazada 800 · TikTok Shop 1080', 'Shopee 1024 · Lazada 800 · TikTok Shop 1080'), t('brand kit rides along', 'brand kit đi theo từng lượt'), t('attach your product photo', 'gắn ảnh sản phẩm của bạn'), t('≈ 1 image, shown first', '≈ 1 ảnh, báo trước khi chạy')],
+    faq: [
+      [t('How do I change the price on an AI banner?', 'Đổi giá trên banner AI như thế nào?'), t('Select the banner layer and ask: <em>change \'20% OFF TODAY\' to \'30% OFF TODAY\', keep everything else the same</em>. Oia regenerates with the new number in the same style, previews it, and replaces the layer only when you apply.', 'Chọn layer banner rồi yêu cầu: <em>đổi \'GIẢM 20%\' thành \'GIẢM 30%\', giữ nguyên mọi thứ khác</em>. Oia tạo lại với số mới theo đúng phong cách, xem trước, chỉ thay layer khi bạn áp dụng.')],
+      [t('What sizes are supported?', 'Có những kích thước nào?'), t('Shopee 1:1 (1024), Lazada 1:1 (800), TikTok Shop 1:1 (1080), plus posters, 9:16 story sizes, presentations and A4.', 'Shopee 1:1 (1024), Lazada 1:1 (800), TikTok Shop 1:1 (1080), kèm poster, tin ngắn 9:16, bài thuyết trình và A4.')],
+      [t('Does it cost anything?', 'Có tốn phí không?'), t('The app is free and open source (MIT). Generations use your own provider, a ChatGPT plan via the bundled Codex CLI. Every action shows its cost before you run it.', 'Ứng dụng miễn phí, mã nguồn mở (MIT). Tạo ảnh dùng provider của bạn, gói ChatGPT qua Codex CLI đi kèm. Mọi thao tác hiện mức dùng trước khi chạy.')],
+    ],
+  },
+  livestream: {
+    route: 'use-cases/livestream-overlays/',
+    title: t('Livestream Overlay Maker: TikTok &amp; Shopee Live overlays with safe zones | Oia', 'Tạo khung livestream TikTok và Shopee Live kèm vùng an toàn | Oia'),
+    description: t('Design 1080×1920 livestream overlays for TikTok and Shopee Live: price cards, freeship badges, countdown frames, transparent PNG, safe-zone guides built in. Free &amp; open source.', 'Thiết kế khung livestream 1080×1920 cho TikTok và Shopee Live: thẻ giá, nhãn freeship, khung đếm ngược, PNG trong suốt, vùng an toàn có sẵn. Miễn phí, mã nguồn mở.'),
+    ogTitle: t('Livestream Overlay Maker | Oia', 'Tạo khung livestream | Oia'),
+    kicker: t('Use case, live commerce', 'Tình huống, bán qua livestream'),
+    h1: t('Overlays that dodge the UI.<br>Prices that change mid-stream.', 'Khung né được giao diện sàn.<br>Giá đổi ngay giữa buổi live.'),
+    lede: t('Transparent 1080×1920 overlays with safe-zone guides built into the editor.', 'Khung trong suốt 1080×1920, vùng an toàn có sẵn trong editor.'),
+    image: { src: 'assets/livestream-example.webp', alt: t('Illustrated vertical livestream layout: a real transparent sale-price preset composited over a product image', 'Bố cục livestream minh họa: mẫu thẻ giá trong suốt thật ghép trên ảnh sản phẩm'), width: 900, height: 1120, caption: t('illustration · real overlay preset over an AI product image', 'minh họa · mẫu overlay thật ghép trên ảnh sản phẩm AI') },
+    stepsTitle: t('The overlay loop', 'Vòng làm khung overlay'),
+    steps: [
+      ['01: PICK', t('Overlay preset', 'Chọn mẫu'), t('Price, freeship or countdown, 1080×1920 transparent.', 'Giá, freeship hoặc đếm ngược, 1080×1920 trong suốt.')],
+      ['02: GUIDE', t('Safe zones on', 'Bật vùng an toàn'), t('Keep your card out of the hatched bands.', 'Đặt thẻ tránh các dải gạch chéo.')],
+      ['03: REPRICE', t('One prompt, same style', 'Một câu, giữ phong cách'), t('Price drop mid-stream: ask, preview, apply.', 'Giá giảm giữa buổi live: yêu cầu, xem trước, áp dụng.')],
+      ['04: EXPORT', t('Transparent PNG', 'PNG trong suốt'), t('Guides never reach the exported bytes.', 'Đường hướng dẫn không bao giờ lọt vào file xuất.')],
+    ],
+    factsTitle: t('Why it works', 'Vì sao dùng được'),
+    facts: [t('community-measured zones, not an official spec', 'vùng an toàn do cộng đồng đo, không phải thông số chính thức'), t('template prices are native text: edit free', 'giá trong mẫu là lớp chữ: sửa miễn phí'), t('wrong ratio refused, honestly', 'sai tỷ lệ sẽ từ chối thẳng thắn'), t('live covers 500×500 · 1080×1920', 'ảnh bìa live 500×500 · 1080×1920'), t('countdown frames are static', 'khung đếm ngược là hình tĩnh')],
+    faq: [
+      [t('What size is a TikTok livestream overlay?', 'Khung livestream TikTok cỡ bao nhiêu?'), t('1080×1920 (9:16). Oia ships the preset with a transparent background and community-measured safe-zone guides so your card never hides behind TikTok\'s buttons and comments.', '1080×1920 (9:16). Oia có sẵn preset nền trong suốt và vùng an toàn do cộng đồng đo để thẻ giá không bị nút và bình luận của TikTok che.')],
+      [t('Do the overlays export with transparency?', 'Xuất khung có giữ nền trong suốt không?'), t('Yes, PNG with alpha at 1080×1920, straight into OBS. The guides stay in the editor and never reach the exported bytes.', 'Có, PNG alpha 1080×1920, đưa thẳng vào OBS. Đường hướng dẫn chỉ nằm trong editor, không bao giờ vào file xuất.')],
+    ],
+  },
+  presentations: {
+    route: 'use-cases/presentations/',
+    title: t('AI Presentation Generator: outline first, then paint | Oia', 'Tạo bài thuyết trình bằng AI: duyệt dàn ý trước, rồi mới vẽ | Oia'),
+    description: t('Generate multi-page presentations with AI: review the page outline before a single image is spent, export to PDF or PPTX. Free, open source, bring your own provider.', 'Tạo bài thuyết trình nhiều trang bằng AI: duyệt dàn ý trước khi tốn một ảnh nào, xuất PDF hoặc PPTX. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
+    ogTitle: t('AI Presentation Generator: outline first | Oia', 'Tạo slide bằng AI: dàn ý trước | Oia'),
+    kicker: t('Use case, decks', 'Tình huống, slide'),
+    h1: t('Decks that plan themselves, and wait for your yes.', 'Slide tự lên khung, và chờ bạn gật đầu.'),
+    lede: t('Multi-page decks stop at an outline first: rewrite it before a single image is spent.', 'Bộ slide nhiều trang dừng ở dàn ý trước: sửa thoải mái trước khi tốn một ảnh nào.'),
+    image: { src: 'assets/templates/studio-ed-deck.webp', alt: t('A bundled 16:9 presentation template page with editorial layout', 'Một trang mẫu thuyết trình 16:9 đi kèm ứng dụng, bố cục editorial'), width: 1600, height: 900, caption: t('bundled deck template · real scene render', 'mẫu slide đi kèm · ảnh xuất từ cảnh thật') },
+    stepsTitle: t('The outline gate', 'Chốt dàn ý trước'),
+    steps: [
+      ['01: ASK', t('One prompt, N pages', 'Một câu, N trang'), t('“An 8-page launch deck”, pages 3-9 in the composer.', '“Slide ra mắt 8 trang”, đặt 3-9 trang trong composer.')],
+      ['02: REVIEW', t('Outline first, zero images', 'Dàn ý trước, chưa tốn ảnh'), t('Rewrite titles and summaries, free.', 'Sửa tiêu đề và tóm tắt thoải mái, miễn phí.')],
+      ['03: PAINT', t('One style across pages', 'Một phong cách mọi trang'), t('Same plan and brand kit on every page.', 'Cùng kế hoạch và brand kit trên mọi trang.')],
+      ['04: EXPORT', t('PDF &amp; PPTX', 'PDF và PPTX'), t('Each page on a slide; edit on the canvas first.', 'Mỗi trang một slide; chỉnh trên canvas trước.')],
+    ],
+    factsTitle: t('Why it\'s different', 'Điểm khác biệt'),
+    facts: [t('outline is the contract: page count locked first', 'dàn ý là cam kết: số trang chốt trước'), t('every page a real, editable canvas', 'mỗi trang là canvas thật, sửa được'), t('brand kit on every page', 'brand kit trên mọi trang'), t('≈ N images shown up front', '≈ N ảnh, báo trước khi chạy')],
+    faq: [
+      [t('Can I review the deck before images are generated?', 'Được duyệt slide trước khi tạo ảnh không?'), t('Yes, multi-page requests stop at an outline card first: page titles and summaries you can rewrite before anything is painted. Outline edits cost zero images.', 'Được, yêu cầu nhiều trang dừng ở thẻ dàn ý: tiêu đề và tóm tắt mỗi trang sửa được trước khi vẽ. Sửa dàn ý không tốn ảnh.')],
+      [t('Can I export to PowerPoint?', 'Xuất được sang PowerPoint không?'), t('Yes, PPTX places each rendered page on a slide, and PDF preserves mixed page sizes. Canvas text layers are not converted into native PowerPoint text boxes.', 'Được, PPTX đặt mỗi trang đã render lên một slide; PDF giữ đúng kích thước trang. Lớp chữ trên canvas không chuyển thành text box gốc của PowerPoint.')],
+    ],
+  },
+}[useCase]
+---
+<Page
+  title={meta.title}
+  description={meta.description}
+  ogTitle={meta.ogTitle}
+  ogDescription={meta.description}
+  canonical={`https://oia.solutions/${vi ? 'vi/' : ''}${meta.route}`}
+  base={base} locale={locale} route={meta.route}
+>
+<header class="pageHero">
+  <p class="kicker">{meta.kicker}</p>
+  <h1>{meta.h1}</h1>
+  <p class="lede">{meta.lede}</p>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref={`${vbase}install/`} locale={locale} ghost={{ href: `${vbase}prompts/`, label: t('Copy the prompts', 'Sao chép prompt') }} />
+</header>
+
+<main class="pageMain">
+  <div class="frame">
+    <img loading="lazy" src={`${base}${meta.image.src}`} alt={meta.image.alt} width={meta.image.width} height={meta.image.height}>
+    <span class="frameCaption mono">{meta.image.caption}</span>
+  </div>
+  <div class="ucGrid">
+    <div>
+      <h2 class="catH" style="margin-top:8px">{meta.stepsTitle}</h2>
+      <div class="stepsList">
+        {meta.steps.map(([n, h, p]) => <div><span class="n">{n}</span><h3>{h}</h3><p>{p}</p></div>)}
+      </div>
+    </div>
+    <div>
+      <h2 class="catH" style="margin-top:8px">{meta.factsTitle}</h2>
+      <div class="factRow" role="group" aria-label={meta.factsTitle}>
+        {meta.facts.map(fact => <span>{fact}</span>)}
+      </div>
+      <div class="faq" style="margin-top:26px">
+        {meta.faq.map(([q, a]) => <details><summary>{q}</summary><p set:html={a} /></details>)}
+      </div>
+    </div>
+  </div>
+</main>
+</Page>

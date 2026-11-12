@@ -1,0 +1,44 @@
+---
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+
+interface Props { locale?: 'en' | 'vi'; base: string; posts: { id: string; title: string; description: string; pubDate: Date }[] }
+const { locale = 'en', base, posts } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const vbase = vi ? (base.replace('../', '') || './') : base
+const dateFormat = (date: Date) => date.toLocaleDateString(vi ? 'vi-VN' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+---
+<Page
+  title={t('Oia blog: practical banner notes for marketplace sellers', 'Blog Oia: ghi chú thực tế về banner cho người bán trên sàn')}
+  description={t(
+    'Short, honest notes for Shopee, Lazada and TikTok Shop sellers: repricing banners without redesigns, livestream overlay safe zones, seasonal checklists.',
+    'Ghi chú ngắn, trung thực cho người bán Shopee, Lazada, TikTok Shop: đổi giá không cần làm lại banner, vùng an toàn khung livestream, checklist mùa vụ.')}
+  ogTitle={t('Oia blog', 'Blog Oia')}
+  ogDescription={t('Practical banner notes for marketplace sellers.', 'Ghi chú thực tế về banner cho người bán trên sàn.')}
+  canonical={`https://oia.solutions/${vi ? 'vi/' : ''}blog/`}
+  base={base} locale={locale} route="blog/"
+>
+<header class="pageHero">
+  <p class="kicker">Blog</p>
+  <h1>{t('Notes for sellers<br>who ship their own banners.', 'Ghi chú cho người bán<br>tự đưa banner ra thị trường.')}</h1>
+  <p class="lede">{t('Short, honest articles about the work you actually do: repricing a banner at midnight, keeping an offer visible on a live stream, getting a seasonal campaign out the door.', 'Các bài ngắn, trung thực về việc bạn thật sự làm: đổi giá banner lúc nửa đêm, giữ ưu đãi nhìn thấy được trên live, đưa chiến dịch mùa vụ ra kịp.')}</p>
+</header>
+<main class="pageMain">
+  <div class="blogList">
+    {posts.map((post) => (
+      <a class="blogCard" href={`${post.id}/`}>
+        <span class="mono blogDate">{dateFormat(post.pubDate)}</span>
+        <h2>{post.title}</h2>
+        <p>{post.description}</p>
+        <span class="blogRead">{t('Read →', 'Đọc tiếp →')}</span>
+      </a>
+    ))}
+  </div>
+  <div class="postCta" id="download">
+    <h2>{t('Make your next banner in Oia', 'Làm banner tiếp theo bằng Oia')}</h2>
+    <p>{t('Free, open source, no account. AI generation uses your own ChatGPT plan.', 'Miễn phí, mã nguồn mở, không cần tài khoản. Tạo ảnh AI dùng hạn mức ChatGPT của bạn.')}</p>
+    <DownloadButtons rowClass="ctaRow" installHref={`${vbase}install/`} locale={locale} />
+  </div>
+</main>
+</Page>

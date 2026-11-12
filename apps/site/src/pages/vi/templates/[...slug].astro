@@ -1,0 +1,21 @@
+---
+import TemplateCategoryPage from '../../../components/pages/TemplateCategoryPage.astro'
+import { CATEGORIES, STYLES, PACKS } from '../../../data/taxonomy'
+
+export function getStaticPaths() {
+  const routes = []
+  for (const [slug, label] of CATEGORIES) {
+    routes.push({ params: { slug }, props: { kind: 'category', slug, label, path: `${slug}/`, base: '../../../' } })
+  }
+  for (const [slug, label] of STYLES) {
+    routes.push({ params: { slug: `styles/${slug}` }, props: { kind: 'style', slug, label, path: `styles/${slug}/`, base: '../../../../' } })
+  }
+  for (const [slug, label] of PACKS) {
+    routes.push({ params: { slug: `packs/${slug}` }, props: { kind: 'pack', slug, label, path: `packs/${slug}/`, base: '../../../../' } })
+  }
+  return routes
+}
+
+const { kind, slug, label, path, base } = Astro.props
+---
+<TemplateCategoryPage locale="vi" base={base} kind={kind} slug={slug} label={label} path={path} />

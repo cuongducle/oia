@@ -1,8 +1,9 @@
 # Oia landing site (Astro)
 
-Static marketing site for marketplace sellers. English is the default; the
-Vietnamese landing is at `vi/`, with an explicit EN/VI switch (no locale
-redirect). Desktop UI stays English per D8/D19 in
+Static marketing site for marketplace sellers, bilingual: English is the
+default and every content page has a Vietnamese mirror under `vi/` (same
+slugs, shared components, reciprocal hreflang, EN/VI switch on every page).
+Desktop UI stays English per D8/D19 in
 `../../docs/designs/desktop-only-reorg.md`. Astro 7, static output, no client
 framework, no CDN, self-hosted fonts.
 
@@ -18,9 +19,13 @@ framework, no CDN, self-hosted fonts.
   parallel runtime fallback that `config/audit/marketing-assets.py` forces to
   match, so a release bump cannot update one and miss the other.
 - `src/layouts/Page.astro` — content-page shell (sticky nav + footer + main.js).
-  `src/components/Landing.astro` shares the image-led landing shell and copy
-  between `src/pages/index.astro` and `src/pages/vi/index.astro`. Relative bases,
-  canonical and reciprocal hreflang tags are explicit. Content pages remain English.
+  `src/components/Landing.astro` shares the landing shell between
+  `src/pages/index.astro` and `src/pages/vi/index.astro`; other pages follow the
+  same pattern through `src/components/pages/*` (one component, `locale` + `base`
+  props, mounted by an EN and a VI route file). VI pages resolve assets against
+  the site root (`base`) and sibling pages against `/vi/` (`vbase`, one level
+  shallower); `config/audit/landing-surface.test.cjs` fails the build when the
+  two trees drift apart.
 - `public/` ships verbatim: `main.js`, `styles.css`, `pages.css`, fonts,
   assets, sitemap, robots, `feature-review/`. Nothing in `public/` is
   processed, hashed or bundled.
@@ -112,19 +117,21 @@ Use `--font` with a local TrueType file on machines without Arial/DejaVu Sans.
 
 ## Blog
 
-`src/content/blog/*.md` (title, description, pubDate) feeds `/blog/` through
-`src/content.config.ts`. Adding a post: drop the Markdown file in, then add
-its URL to `public/sitemap.xml` — `site-links.py` fails the build if the two
-drift. Post images use plain `<img>` tags into `public/assets/` (Markdown
-image syntax routes through Astro's optimizer and cannot reach `public/`).
-Posts are English (D8/D19); Vietnamese posts are future debt.
+`src/content/blog/*.md` (English) and `src/content/blog-vi/*.md` (Vietnamese
+mirror, same slugs) feed `/blog/` and `/vi/blog/` through
+`src/content.config.ts`. Adding a post: drop the Markdown file into both
+trees, then add both URLs to `public/sitemap.xml`; `site-links.py` fails the
+build when they drift. Post images use plain `<img>` tags into
+`public/assets/` (Markdown image syntax routes through Astro's optimizer and
+cannot reach `public/`). Prompt texts stay English on the VI prompts page:
+the tested marks were verified with that wording, and the page says so.
 
 ## Known debt (deliberate)
 
 - `src/components/Landing.astro` keeps the two locales in one verified block;
   section components are a future cleanup, not a regression to fix urgently.
-- Content pages pass their own nav/footer link arrays: the old site had
-  context-specific navs and the port preserved them.
+- Navs are unified through `SiteNav.astro`; the old per-page link arrays are
+  gone (record kept in the reorg ledger, 2026-11-12).
 - `feature-review/` moved out of `public/` to
   `docs/verification/feature-review-page/`; it no longer ships to production.
 

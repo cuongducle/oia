@@ -1,0 +1,57 @@
+---
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+
+interface Props {
+  locale?: 'en' | 'vi'
+  base: string
+  post: { id: string; title: string; description: string; pubDate: Date }
+  Content: unknown
+}
+const { locale = 'en', base, post, Content } = Astro.props
+const vi = locale === 'vi'
+const t = (en: string, vn: string) => vi ? vn : en
+const vbase = vi ? (base.replace('../', '') || './') : base
+const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}blog/${post.id}/`
+const dateFormat = post.pubDate.toLocaleDateString(vi ? 'vi-VN' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.title,
+  description: post.description,
+  datePublished: post.pubDate.toISOString(),
+  inLanguage: vi ? 'vi' : 'en',
+  author: { '@type': 'Organization', name: 'Oia', url: 'https://oia.solutions/' },
+  publisher: { '@type': 'Organization', name: 'Oia', url: 'https://oia.solutions/' },
+  mainEntityOfPage: canonical,
+  image: 'https://oia.solutions/assets/og-hero.png',
+}
+---
+<Page
+  title={`${post.title} | Oia`}
+  description={post.description}
+  ogTitle={post.title}
+  ogDescription={post.description}
+  canonical={canonical}
+  base={base} locale={locale} route={`blog/${post.id}/`}
+>
+<main>
+<article class="post">
+  <header class="pageHero">
+    <p class="kicker">Blog · <time datetime={post.pubDate.toISOString()}>{dateFormat}</time></p>
+    <h1>{post.title}</h1>
+    <p class="lede">{post.description}</p>
+  </header>
+  <div class="pageMain postBody">
+    <Content />
+    <div class="postCta">
+      <h2>{t('Try it in Oia', 'Dùng thử trong Oia')}</h2>
+      <p>{t('Free, open source, no account. AI generation uses your own ChatGPT plan.', 'Miễn phí, mã nguồn mở, không cần tài khoản. Tạo ảnh AI dùng hạn mức ChatGPT của bạn.')}</p>
+      <DownloadButtons rowClass="ctaRow" anchorId="download" installHref={`${vbase}install/`} locale={locale} />
+    </div>
+    <p class="postBack"><a href="../">{t('← All posts', '← Tất cả bài viết')}</a></p>
+  </div>
+</article>
+</main>
+</Page>
+<script slot="head" is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
