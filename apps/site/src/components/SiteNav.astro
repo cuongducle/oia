@@ -15,7 +15,7 @@ interface Props {
 const { locale = 'en', landing = false, home, templates, blog, examples, faq, alt } = Astro.props
 const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
-const current = landing ? './' : './'
+const current = './'
 ---
 <nav class={landing ? 'siteNav' : 'siteNav pageNav'} aria-label={t('Main', 'Điều hướng chính')}>
   <a class="brand" href={landing ? '#top' : home}><span class="o">◆ OIA</span></a>

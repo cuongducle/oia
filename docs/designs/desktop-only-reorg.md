@@ -1382,3 +1382,26 @@ Bản này ghi đè cách trình bày ở mục trên:
   Pages xanh, worker deploy 19b82b83. Live: 7 trang VI mẫu trả 200;
   /vi/templates/ có lang=vi, canonical VI, cặp hreflang en/vi/x-default đúng
   đích; sitemap chứa 24 URL VI. Không đổi desktop runtime, không tốn lượt AI.
+
+## Dọn code chết sau các vòng làm lại (2026-11-12, owner "xoá code thừa đi nữa")
+
+- Rà bằng đối chiếu hai chiều: mọi class trong 3 file CSS được kiểm usage
+  ngược vào markup/JS/markdown; mọi khối xoá đều được rg xác nhận 0 tham
+  chiếu trước khi xoá. styles.css 251 → 186 dòng: bỏ 12 nhóm selector của
+  landing cũ (chip prompt giả lập, editorial showcase, workflow steps, why
+  band, oss grid, section-heading, template-categories, github nav, trust
+  line, live-specs, feature-link, span màu .p/.c trong term, bring-log/note,
+  art-tag/rhint) kèm các dòng mobile dính theo.
+- main.js bỏ hẳn observer .reveal và cờ reduced (không trang nào còn dùng
+  reveal); giữ nguyên resolver tải bản + đổi ảnh 20/30 + mở details theo
+  hash. SiteNav bỏ ternary hai nhánh giống nhau; TemplateCategoryPage bỏ
+  ternary rỗng trong chuỗi mô tả VI.
+- Xoá asset livestream-safe-zones.webp khỏi public/assets (0 trang tham
+  chiếu; pipeline sinh nguồn vẫn còn docs/screenshots/build-feature-assets.py
+  và provenance docs/verification/feature-assets.json, không bị đụng).
+- Không đổi hành vi hiển thị: các lớp xoá đều không có markup dùng. Gates:
+  build 49 trang, typecheck, site-links, media 296 tham chiếu (đếm tham
+  chiếu nên asset thừa xoá đi không đổi số), 10 test download/landing xanh
+  (test vm-chạy main.js nên cú pháp JS được xác minh). Chưa soi mắt lại
+  từng trang sau dọn; nếu có lớp nào bị xoá nhầm sẽ lộ ngay ở lần xem
+  kế tiếp của owner.

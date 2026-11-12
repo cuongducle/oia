@@ -1,7 +1,5 @@
 /* Oia landing, vanilla JS. Content pages reuse the guarded download resolver. */
 (() => {
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
   /* Version-named release assets require resolution. Keep the fallback in sync. */
   const REPO = 'cuongducle/oia';
   const RELEASES = `https://github.com/${REPO}/releases`;
@@ -76,15 +74,4 @@
   openLinkedDetails();
   window.addEventListener('hashchange', openLinkedDetails);
 
-  const reveals = document.querySelectorAll('.reveal');
-  if (reveals.length && 'IntersectionObserver' in window && !reduced) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
-      });
-    }, { rootMargin: '0px 0px -8% 0px' });
-    reveals.forEach((el) => io.observe(el));
-  } else {
-    reveals.forEach((el) => el.classList.add('in'));
-  }
 })();
