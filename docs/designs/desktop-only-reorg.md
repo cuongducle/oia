@@ -1293,3 +1293,17 @@ Bản này ghi đè cách trình bày ở mục trên:
   số đo DOM thật, không phải kiểm thị giác bằng mắt.
 - Còn mở: bài viết tiếng Việt (nợ ghi README), RSS, và owner chưa tự xem mắt bản mới.
   Chưa deploy lúc ghi mục này; phát hành và nghiệm live ghi ở mục sau.
+
+### Phát hành vòng nav + blog
+
+- Commit `0c1311c` (nav + blog) và `385e432` (vá CI) đẩy main. Lần CI ĐẦU
+  ĐỎ đúng lỗi thật: job unit-windows chạy turbo typecheck trên checkout
+  sạch, `content.config.ts` import `astro:content` mà thư mục `.astro`
+  (gitignored) chưa được sinh → TS2307. Vá: script `pretypecheck: astro
+  sync` trong apps/site; nghiệm cục bộ bằng xóa `.astro` rồi typecheck
+  nguội. CI chạy lại XANH (run 43187019641), workflow Pages xanh.
+- Cloudflare worker deploy version 51925df1. Đối chiếu live bằng curl: đủ
+  loại trang (/, /vi/, /templates/, /blog/, bài viết, /prompts/) đều mang
+  `siteNav` + `href="#download"`; `language-switch` chỉ ở cặp landing;
+  bài viết có canonical + JSON-LD BlogPosting; sitemap chứa 4 URL blog.
+- Không đổi desktop runtime; không lượt AI trả phí trong vòng này.
