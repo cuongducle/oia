@@ -65,7 +65,7 @@
       <a class="btn btn-accent" data-dl href="https://github.com/cuongducle/oia/releases">Download</a>
       <a class="btn btn-ghost" href="https://github.com/cuongducle/oia" rel="noopener">View on GitHub</a>
     </div>
-    <p class="cta-note"><span data-dl-ver>v0.6.0 · ~410 MB · macOS 13+ (Apple Silicon) / Windows 10+</span> · <a href="install/">install help</a> · <a href="https://github.com/cuongducle/oia/releases">all releases</a></p>
+    <p class="cta-note"><span data-dl-ver>v0.6.1 · macOS 13+ (Apple Silicon) / Windows 10+</span> · <a href="install/">install help</a> · <a href="https://github.com/cuongducle/oia/releases">all releases</a></p>
   </div>
 
   <div class="studio" aria-label="One sentence in, one finished banner out, then a repaint changes the price">
@@ -111,7 +111,7 @@
   <div class="wrap">
     <div class="section-heading reveal">
       <div><p class="kicker">The actual studio</p><h2>Good artwork is<br>just the beginning.</h2></div>
-      <p class="sub">Bring the result into a real canvas. Add your own text, arrange layers, preview AI edits, and export. Baked-in lettering? Use <strong>Make text editable</strong> to rebuild it as layers (about 1 image + 1 read).</p>
+      <p class="sub">Bring the result into a real canvas. Add your own text, arrange layers, preview AI edits, and export. Baked-in lettering? Use <strong>Make text editable</strong> to rebuild it as layers (up to 1 image + 6 reads on dense artwork).</p>
     </div>
     <figure class="product-shot reveal">
       <a href="assets/studio.webp" aria-label="View full-size Oia editor screenshot"><img loading="lazy" src="assets/studio.webp" alt="Real Oia desktop editor with the MORI campaign, image and editable shipping-note layers, and the editing controls" width="2880" height="1666"></a>
@@ -123,15 +123,14 @@
 <section id="editable-text">
   <div class="wrap">
     <div class="section-heading reveal">
-      <div><p class="kicker">Make text editable</p><h2>Baked-in text.<br>Room for a new offer.</h2></div>
-      <p class="sub">Rebuild lettering as native text layers over a cleaned background, then retype the day or price. Recovered single-line boxes grow as you type, keeping the font size.</p>
+      <div><p class="kicker">Real artwork. Editable prices.</p><h2>New price.<br>Same morning ritual.</h2></div>
+      <p class="sub">Start with a bundled template and change the offer as native text. The photography stays exactly as it is. No repaint, no OCR, no AI quota.</p>
     </div>
     <div class="editable-proof reveal">
-      <figure><img loading="lazy" src="assets/editable-text-before.webp" alt="Original Vietnamese coffee poster, with Saturday greeting and a price of 29,000 dong baked into the image" width="1000" height="1250"><figcaption>01 / the original flat image</figcaption></figure>
-      <figure><img loading="lazy" src="assets/editable-text-rebuilt.webp" alt="The coffee poster rebuilt by Oia as editable text layers over a cleaned background" width="1000" height="1250"><figcaption>02 / rebuilt as text layers</figcaption></figure>
-      <figure><img loading="lazy" src="assets/editable-text-edited.webp" alt="The rebuilt poster after typing a Sunday greeting and changing the price to 39,000 dong" width="1000" height="1250"><figcaption>03 / retype the day and price</figcaption></figure>
+      <figure><a href="assets/templates/studio-ed-menu.webp" aria-label="View original café menu template"><img loading="lazy" src="assets/templates/studio-ed-menu.webp" alt="Bundled Morning Rituals café menu with pastry photography and a Cardamom knot price of 42,000 dong" width="1080" height="1350"></a><figcaption>01 / the bundled café menu · 42.000₫</figcaption></figure>
+      <figure><a href="assets/templates/menu-price-edited.webp" aria-label="View café menu after the native price edit"><img loading="lazy" src="assets/templates/menu-price-edited.webp" alt="The same café menu with only the Cardamom knot price changed to 46,000 dong" width="1080" height="1350"></a><figcaption>02 / one native text edit · 46.000₫</figcaption></figure>
     </div>
-    <p class="proof-note">Actual task OCR and background output, rerendered through the current editor. Preparation used 1 read + 1 image; the text edits used no additional generation. Fonts are approximate, OCR can make mistakes, and complex backgrounds may change inside the erased regions.</p>
+    <p class="proof-note">Both previews are rendered from the real bundled scene. Only the price text changed; the background artwork is unchanged. This demonstrates template editing, not text extraction from a flat image.</p>
   </div>
 </section>
 
@@ -144,11 +143,14 @@
       <p class="bring-note">The guides stay in the editor, not in the exported artwork. TikTok zones are community-measured, not an official platform specification.</p>
       <a class="btn btn-ghost feature-link" href="use-cases/livestream-overlays/">See the livestream workflow →</a>
     </div>
-    <figure class="live-proof reveal"><img loading="lazy" src="assets/livestream-safe-zones.webp" alt="Crop of the real Oia Electron editor showing a transparent livestream canvas, sale card and TikTok safe-zone guides" width="715" height="1265"><figcaption>Real editor capture, cropped. The checkerboard shows transparent space; red guides are editor-only.</figcaption></figure>
+    <div class="live-specs reveal">
+      <div><span class="kicker">Portrait · 1080 × 1920</span><h3>Prices. Freeship. A static countdown frame.</h3><p>Three transparent presets for vertical streams. Change the copy, keep space for your video.</p></div>
+      <div><span class="kicker">Landscape · 1920 × 1080</span><h3>A name below. An offer in the corner.</h3><p>Two overlay templates for host introductions and shop offers. No opaque photographic background to remove.</p></div>
+    </div>
   </div>
 </section>
 
-<section id="templates">
+<section id="campaigns">
   <div class="wrap editorial-showcase">
     <figure class="editorial-art reveal">
       <img loading="lazy" src="assets/forma-editorial.webp" alt="FORMA skincare campaign: Less, but better, burgundy serif typography on blush pink with a sunlit serum bottle and jar" width="1122" height="1402">
@@ -161,10 +163,27 @@
       <p class="sample-note">These are generated campaign examples, not screenshots of bundled templates.</p>
       <div class="library-note">
         <h3>Prefer a head start?</h3>
-        <p>The studio also includes editable templates for sales, menus, product drops, posters and more. Opening one uses no image quota.</p>
+        <p>v0.6.1 includes 35 editable templates across eight categories. Real imagery, native text, and transparent live graphics. Opening one uses no image quota.</p>
         <a class="btn btn-ghost" href="templates/">Explore the template library →</a>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="templates">
+  <div class="wrap">
+    <div class="section-heading reveal">
+      <div><p class="kicker">35 templates · eight categories · v0.6.1</p><h2>Skip the blank page.<br>Keep your own words.</h2></div>
+      <p class="sub">Photographic backgrounds. Type you can edit. Start with a sale, menu or seasonal campaign, then make it yours without generating another image.</p>
+    </div>
+    <div class="template-gallery reveal">
+      <figure><a href="templates/flash-sale/"><img loading="lazy" src="assets/templates/studio-swiss-flashsale.webp" alt="Actual Clearance 50% Swiss template, with a blue price, black typography, an ivory background and sneaker photography" width="1080" height="1350"></a><figcaption>01 / Flash sale <span>Clearance 50% · Swiss</span></figcaption></figure>
+      <figure><a href="templates/menu/"><img loading="lazy" src="assets/templates/studio-ed-menu.webp" alt="Actual Morning Rituals editorial café template, with native menu text and coffee and pastry photography" width="1080" height="1350"></a><figcaption>02 / Menu <span>Morning Rituals · Editorial</span></figcaption></figure>
+      <figure><a href="templates/packs/tet-sale/"><img loading="lazy" src="assets/templates/studio-tet-swiss.webp" alt="Actual Tết sale 50% Swiss template, with a red silk gift-box photograph and editable Vietnamese offer text" width="1080" height="1350"></a><figcaption>03 / Seasonal campaign <span>Tết sale 50% · Swiss</span></figcaption></figure>
+    </div>
+    <div class="template-categories"><span>Flash sale</span><span>New product</span><span>Livestream</span><span>Menu</span><span>Social post</span><span>Presentation</span><span>Poster</span><span>Overlay</span></div>
+    <p class="proof-note">Actual bundled scenes, rendered with the desktop canvas engine. AI-generated imagery with editable text layers, not promotional mockups. Transparent overlays remain transparent in the app.</p>
+    <a class="btn btn-ghost feature-link" href="templates/">Browse all 35 templates →</a>
   </div>
 </section>
 
@@ -220,7 +239,7 @@
         <div>same visual direction, with details that may change</div>
         <div class="trust-line">preview first, apply only what you keep</div>
       </div>
-      <p class="bring-note">Need letters you can drag? <strong>“Make text editable”</strong> rebuilds the copy as layers, costs about 1 image + 1 read. Or flip <strong>“Editable text right away”</strong> before generating.</p>
+      <p class="bring-note">Need letters you can drag? <strong>“Make text editable”</strong> rebuilds the copy as layers, using up to 1 image + 6 reads on dense artwork. Or flip <strong>“Editable text right away”</strong> before generating.</p>
     </div>
     <figure class="repaint-proof reveal">
       <a href="assets/mori-comparison.webp" aria-label="View full-size before and after comparison"><img loading="lazy" src="assets/mori-comparison.webp" alt="MORI before and after a reference-image edit, 20% OFF on the left and 30% OFF on the right, with the same visual direction" width="1600" height="860"></a>
@@ -238,7 +257,7 @@
     <div class="faq reveal">
       <details><summary>Is Oia really free?</summary><p>Yes, MIT-licensed open source. No account, no credits, no subscription. Generations run on your own provider: sign in with ChatGPT through the bundled Codex CLI, with other provider adapters available to developers. There is no API-key setup form in the desktop UI. Your provider's quota and pricing still apply.</p></details>
       <details><summary>Can I edit the text in a generated image?</summary><p>By default the copy is rendered <em>into</em> the artwork for the best-looking typography. Change it by asking, “make it 30% off today”, and the repaint keeps the style. Need movable letters instead? Flip <em>Editable text right away</em> before generating, or run <em>Make text editable</em> on any design.</p></details>
-      <details><summary>Do I have to start from a blank canvas?</summary><p>No, a studio library ships inside the app: flash sales, menu boards, product drops, posters, social posts, livestream overlays and more. Every template is a real, editable scene, and starting from one costs zero images.</p></details>
+      <details><summary>Do I have to start from a blank canvas?</summary><p>No, 35 editable templates ship inside the app across eight categories: flash sale, new product, livestream, menu, social post, presentation, poster and overlay. Every template is a real, editable scene, and starting from one costs zero images.</p></details>
       <details><summary>What do Research and Auto refine do?</summary><p>Before designing, the planner can research current facts (dates, prices, trends) and shows every finding with its source. After painting, auto refine checks each image against your brief, spelling and language of the rendered text first, and re-generates when it finds a fixable defect. Both are bounded and priced before you run.</p></details>
       <details><summary>Mac or Windows?</summary><p>Both. macOS builds are Apple Silicon (M1 and newer), Windows builds are 64-bit (Windows 10/11). Your projects live on your machine.</p></details>
       <details><summary>Do I need an API key?</summary><p>No. The recommended path is zero-setup: open Runtime in the app, sign in with ChatGPT, and generate against your plan quota. Other provider adapters exist in the codebase; the desktop UI does not include an API-key setup form.</p></details>
@@ -278,7 +297,7 @@
       <a class="btn btn-accent" data-dl href="https://github.com/cuongducle/oia/releases">Download Oia</a>
       <a class="btn btn-ghost" href="https://github.com/cuongducle/oia" rel="noopener">View on GitHub</a>
     </div>
-    <p class="cta-note"><span data-dl-ver>v0.6.0 · ~410 MB · macOS 13+ (Apple Silicon) / Windows 10+</span> · <a href="install/">install help</a> · <a href="https://github.com/cuongducle/oia/releases">all releases</a></p>
+    <p class="cta-note"><span data-dl-ver>v0.6.1 · macOS 13+ (Apple Silicon) / Windows 10+</span> · <a href="install/">install help</a> · <a href="https://github.com/cuongducle/oia/releases">all releases</a></p>
   </div>
 </section>
 </main>

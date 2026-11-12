@@ -4,7 +4,7 @@
 
 # Oia
 
-**A free, open-source banner studio for marketplace sellers.** Type a sentence, attach your product photo, and get a finished Shopee / Lazada / TikTok Shop banner, then change the price or the text without paying for a whole new design. Runs on your machine (macOS + Windows), on your own AI provider.
+**A free, open-source banner studio for marketplace sellers.** Type a sentence, attach your product photo, and get a finished Shopee / Lazada / TikTok Shop banner, then refine the artwork or edit native text layers. Start from a bundled template to change prices without generating another image. Runs on your machine (macOS + Windows), on your own AI provider.
 
 <p>
   <a href="https://github.com/cuongducle/oia/releases"><img src="https://img.shields.io/github/v/release/cuongducle/oia?color=7c5cff&label=release" alt="latest release"></a>
@@ -18,12 +18,12 @@
 
 ## Download
 
-Ready-made installers live on the [releases page](https://github.com/cuongducle/oia/releases), no account, no signup.
+**Current release: [v0.6.1](https://github.com/cuongducle/oia/releases/tag/v0.6.1).** Ready-made installers and SHA-256 checksums are on the release page, no account, no signup.
 
 | Build | File | For |
 | :--- | :--- | :--- |
-| macOS | `Oia-<version>-arm64.dmg` (~315 MB) | Apple Silicon (M1-M4), macOS 13+ |
-| Windows | `Oia-<version>-win-x64.exe` (~280 MB) | Windows 10/11 64-bit, per-user install (no admin) |
+| macOS | [`Oia-0.6.1-arm64.dmg`](https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg) (~413 MiB) | Apple Silicon (M1 and newer), macOS 13+ |
+| Windows | [`Oia-0.6.1-win-x64.exe`](https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe) (~400 MiB) | Windows 10/11 64-bit, per-user install (no admin) |
 
 Intel Mac: no build yet; [build from source](#build-from-source) works today.
 
@@ -45,7 +45,7 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 
 - **Banners with real typography, from one sentence**: describe the sale like a caption; research and auto-refine agent loops check facts and the rendered copy before you ever export. Every loop is priced before you run it.
 - **A layer canvas, not a flat picture**: text, images, shapes and your uploads are separate objects. Move the headline without touching the photo; fix a price without regenerating. Outline edits and object edits cost zero images.
-- **A studio template library**: flash sales, menu boards, product drops, posters, social posts, livestream overlays and more, in two design systems (Swiss & Editorial). Starting from a template costs zero images; publish your own back into the library.
+- **35 bundled templates, eight categories**: flash sale, new product, livestream, menu, social post, presentation, poster and overlay. Includes Swiss and Editorial collections, plus café, product-launch and Tết packs. All 30 Studio compositions include real subject or background imagery; the five compositing graphics keep their transparent canvases. Opening a template and editing native text use no AI quota.
 - **Marketplace sizes built in**: Shopee / Lazada / TikTok Shop squares, TikTok 9:16, livestream overlays with safe zones, posters, decks, A4.
 - **Export anywhere**: PNG, JPG, PDF (mixed page sizes), PPTX, ZIP of page images.
 
@@ -62,6 +62,17 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
   <br><sub>Two actual image-channel outputs. STILL is fictional and the reference photo is AI-generated. Packaging details can change; this pair is not a full Oia research/auto-refine run.</sub>
 </p>
 
+### Real artwork, ready to make yours
+
+<p>
+  <a href="site/assets/templates/studio-swiss-flashsale.webp"><img src="site/assets/templates/studio-swiss-flashsale.webp" width="32%" alt="Actual bundled Clearance 50% Swiss template with sneaker photography and editable sale typography."></a>
+  <a href="site/assets/templates/studio-ed-menu.webp"><img src="site/assets/templates/studio-ed-menu.webp" width="32%" alt="Actual bundled Morning Rituals editorial café menu, with native menu text, a pastry and a flat white."></a>
+  <a href="site/assets/templates/studio-tet-swiss.webp"><img src="site/assets/templates/studio-tet-swiss.webp" width="32%" alt="Actual bundled Tết sale 50% Swiss template, with red silk, gift-box photography and editable Vietnamese offer text."></a>
+  <br><sub>Actual v0.6.1 scenes, rendered with the desktop canvas engine. AI-generated photography and native text layers, not promotional mockups. Click a preview for the full composition.</sub>
+</p>
+
+[Browse all 35 templates](https://oia.solutions/templates/) · [Café pack](https://oia.solutions/templates/packs/cafe-restaurant/) · [Product-launch pack](https://oia.solutions/templates/packs/product-launch/) · [Tết pack](https://oia.solutions/templates/packs/tet-sale/)
+
 ### How a banner happens
 
 1. **Describe it**: “matcha campaign, 20% off today”, pick a marketplace size. The full cost (`up to N images + N reads`) shows before you run.
@@ -71,20 +82,17 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 
 ### Text: baked by default, editable on demand
 
-Generations render the copy into the artwork for the best-looking typography. Two paths keep text editable: flip **“Editable text right away”** before generating (clean-plate artwork + native text layers), or select a baked design and click **“Make text editable”** (up to 1 image + 1 read). Once rebuilt, retyping text uses no image quota. Recovered single-line boxes grow while typing without changing font size; explicit line breaks still work.
+Generations render the copy into the artwork for the best-looking typography. Two paths keep text editable: flip **“Editable text right away”** before generating (clean-plate artwork + native text layers), or select a baked design and click **“Make text editable”** (up to 1 image + up to 6 reads on dense artwork; font matching runs locally). Once rebuilt, retyping text uses no image quota. Recovered single-line boxes grow while typing without changing font size; explicit line breaks still work.
 
 <p>
-  <a href="site/assets/editable-text-sample.webp"><img src="site/assets/editable-text-sample.webp" width="100%" alt="Actual Oia reconstruction: original Vietnamese coffee poster, rebuilt text layers, then a retyped Sunday greeting and price of 39,000 dong."></a>
-  <br><sub>Saved task OCR and background output, rerendered through the current product editor. The test driver only types and exports, it does not resize text boxes. Fonts are approximate, OCR needs checking, and complex backgrounds can change within erased regions. Click to inspect full size.</sub>
+  <a href="site/assets/templates/studio-ed-menu.webp"><img src="site/assets/templates/studio-ed-menu.webp" width="49%" alt="Original Morning Rituals template with the Cardamom knot price set to 42,000 dong."></a>
+  <a href="site/assets/templates/menu-price-edited.webp"><img src="site/assets/templates/menu-price-edited.webp" width="49%" alt="The same template after a native text edit changes only the Cardamom knot price to 46,000 dong."></a>
+  <br><sub><b>Template editing, no generation.</b> Only the price changed from 42.000₫ to 46.000₫; the background artwork is unchanged. These are real scene renders, not a demonstration of extracting text from a flat image. Text reconstruction is a separate paid operation; fonts are approximate, OCR needs checking, and erased regions can change.</sub>
 </p>
 
 ### Livestream offers, with room for the controls
 
-<p>
-  <img src="site/assets/livestream-safe-zones.webp" width="300" alt="Actual Oia editor crop: a transparent livestream artboard, sale card and TikTok safe-zone guides.">
-</p>
-
-Design on a transparent 1080 × 1920 canvas. Safe-zone guides stay in the editor, not the exported artwork. TikTok zones are community-measured, not an official platform specification. [Livestream workflow](https://oia.solutions/use-cases/livestream-overlays/).
+Three portrait presets (1080 × 1920) cover flash-sale prices, freeship and a **static** countdown frame. Two landscape overlays (1920 × 1080) add a host introduction or a shop offer. All five keep their transparent canvases for compositing over your own video. Safe-zone guides stay in the editor, not the exported artwork. TikTok zones are community-measured, not an official platform specification. [Livestream workflow](https://oia.solutions/use-cases/livestream-overlays/).
 
 ---
 
@@ -168,7 +176,7 @@ MIT license, explore the code, adapt the studio, and contribute through [issues]
 Known boundaries, so nothing surprises you:
 
 - **Artwork is raster**: object edits don't repaint pixels inside an image; reference-image support varies by provider.
-- **Some tools are unfinished**: background removal needs `rembg`; PPT Translator is a placeholder. Local SAM 3 layer splitting is a preview: the real-model desktop end-to-end gate is still open, so no marketing result is shown for it yet.
+- **Local tool prerequisites**: background removal needs `rembg`. Local SAM 3 layer splitting is a preview: the real-model desktop end-to-end gate is still open, so no marketing result is shown for it yet.
 - **Model licenses are separate from the MIT code license**: the bundled Lens font recognizer has a non-commercial restriction. Commercial use of that component requires the author's permission or removing/replacing it. Check model notices before commercial distribution.
 - **Storage is local**: projects live in the app's data directory with atomic writes; there is no cloud sync (by design).
 - **macOS builds are Apple Silicon only** for now.

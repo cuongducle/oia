@@ -30,6 +30,10 @@ app.whenReady().then(async () => {
       results.push(result);
       console.log(id, JSON.stringify({ overflow: result.overflow, collisions: result.collisions }));
     }
+    const { png: menuPng, ...menuProof } = await win.webContents.executeJavaScript('window.renderTemplate("studio-ed-menu", { "42.000₫": "46.000₫" })');
+    if (menuProof.overflow.length || menuProof.collisions.length) throw new Error("Edited menu preview fails geometry checks");
+    await writeFile(path.join(output, "menu-price-edited.png"), Buffer.from(menuPng.split(",")[1], "base64"));
+    await writeFile(path.join(output, "menu-price-proof.json"), JSON.stringify(menuProof, null, 2));
     await writeFile(path.join(output, "report.json"), JSON.stringify(results, null, 2));
     const failed = results.filter((r) => r.overflow.length || r.collisions.length);
     console.log(`Template QA: ${results.length} rendered, ${failed.length} geometry failures. ${output}`);

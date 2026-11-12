@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Check local marketing media references, including social cards and nested pages."""
 import argparse
+import hashlib
+import json
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -47,6 +49,21 @@ def check(root):
             count += 1
             if not target.is_file():
                 missing.append(f'{page.relative_to(root)}: {url}')
+    catalog_path = site / 'templates/catalog.json'
+    if catalog_path.exists():
+        provenance_path = root / 'docs/verification/template-marketing-assets.json'
+        if not provenance_path.exists():
+            missing.append('Missing template-preview provenance manifest')
+        else:
+            provenance = json.loads(provenance_path.read_text())
+            expected = {row['id']: f"site/assets/{row['image']}" for row in json.loads(catalog_path.read_text()) if row.get('image')}
+            actual = {row['templateId']: row['asset'] for row in provenance['previews']}
+            if expected != actual:
+                missing.append('Template catalog and preview provenance do not match')
+            for row in [*provenance['previews'], provenance['nativeEdit']]:
+                asset = root / row['asset']
+                if not asset.is_file() or hashlib.sha256(asset.read_bytes()).hexdigest() != row['previewSha256']:
+                    missing.append(f"Template preview missing or changed without re-export: {row['asset']}")
     return count, missing
 
 
@@ -72,6 +89,23 @@ class MediaReferencesTest(unittest.TestCase):
             self.assertEqual(check(root), (2, []))
             (assets / 'a b.webp').unlink()
             self.assertEqual(len(check(root)[1]), 2)
+
+    def test_template_preview_substitution_or_missing_provenance_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'site/templates').mkdir(parents=True)
+            asset = root / 'site/assets/template.webp'
+            asset.parent.mkdir()
+            asset.write_bytes(b'verified renderer output')
+            (root / 'site/templates/catalog.json').write_text(json.dumps([{'id': 'real-template', 'image': 'template.webp'}]))
+            self.assertEqual(len(check(root)[1]), 1)
+            manifest = root / 'docs/verification/template-marketing-assets.json'
+            manifest.parent.mkdir(parents=True)
+            row = {'templateId': 'real-template', 'asset': 'site/assets/template.webp', 'previewSha256': hashlib.sha256(asset.read_bytes()).hexdigest()}
+            manifest.write_text(json.dumps({'previews': [row], 'nativeEdit': row}))
+            self.assertEqual(check(root), (0, []))
+            asset.write_bytes(b'unrelated replacement picture')
+            self.assertTrue(check(root)[1])
 
     def test_remote_media_is_not_treated_as_local(self):
         with tempfile.TemporaryDirectory() as directory:

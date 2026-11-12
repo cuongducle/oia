@@ -8,9 +8,14 @@ Static site for marketplace sellers, English surface per D8/D19 in
 - The existing dark/violet shell stays. Artwork has its own brand palette.
 - Reused generated outputs: MORI matcha, its offer repaint, FORMA skincare,
   plus the fictional STILL product/reference pair from the reviewed feature pack.
-- Make text editable has three individual posters: original, reconstructed,
-  and retyped through product editor code. On mobile they stack at full width.
-- Livestream uses a genuine editor crop, not a fabricated UI or exported guide.
+- The v0.6.1 template gallery uses real desktop/Fabric scene renders. All 30
+  Studio previews show complete artwork, never background-only mockups.
+- The price-edit pair changes one native menu price from 42.000₫ to 46.000₫.
+  Source pixels outside that price region are identical before WebP compression.
+  It proves template editing, not OCR reconstruction of a flat image.
+- The older brown text-only OCR demonstration and checkerboard livestream crop
+  are retired from landing/README. Livestream is explained with text, without
+  pretending a transparent overlay is photographic artwork.
 - Content does not wait for a reveal animation to become visible, including
   background tabs. Fixed-header anchors have a scroll margin.
 - One genuine Electron screenshot shows the imported MORI artwork and a
@@ -20,8 +25,10 @@ Static site for marketplace sellers, English surface per D8/D19 in
   No automatic typing, auto-swapping, or fake generation progress.
 - Before/after uses a readable side-by-side image. A split down the middle hid
   both offer badges on the same side of the composition, so the slider was removed.
-- No old video, background plates, or template contact sheets. Template pages are
-  explicitly text indexes; the app's actual templates and assets are untouched.
+- No old video, background-only plates or tiny contact sheets. Category, style
+  and pack pages use real previews from one exported desktop catalog: 35 scenes
+  across eight categories. Transparent livestream/overlay entries remain text
+  listings, not misleading photo composites.
 - Mobile images keep their complete composition. The studio and comparison link
   to full-size images, rather than cropping away controls to enlarge the artwork.
 
@@ -36,9 +43,11 @@ Static site for marketplace sellers, English surface per D8/D19 in
 | `mori-comparison.webp` | Side-by-side proof derived from the MORI pair |
 | `og-hero.png` | 1200×630 social card |
 | `still-product.webp`, `still-campaign.webp` | Product reference and corresponding image-channel campaign outputs |
-| `editable-text-before.webp`, `editable-text-rebuilt.webp`, `editable-text-edited.webp` | Individual product reconstruction/edit outputs, used responsively |
-| `editable-text-sample.webp` | Three-panel comparison for README and research report |
-| `livestream-safe-zones.webp` | Crop of an actual editor artboard with community-measured guides |
+| `templates/studio-*.webp` | 30 complete desktop scene previews, with AI-generated background imagery and native text |
+| `templates/menu-price-edited.webp` | Same menu scene, one native price edit; no provider call |
+
+Older `editable-text-*.webp` and `livestream-safe-zones.webp` files remain only
+as historical verification inputs, not images on the current landing or README.
 
 README uses `../docs/screenshots/overview.png`, the same composition as the
 social card. The fictional brands are campaign examples, not bundled
@@ -50,7 +59,7 @@ Exact prompts, output hashes, and generation thread identifiers:
 Visual review rounds and scope:
 `../docs/verification/marketing-assets.md`.
 
-Rebuild the three derived composites, without network or quota:
+Rebuild the historical campaign composites, without network or quota:
 
 ```bash
 python3 docs/screenshots/build-marketing.py
@@ -69,14 +78,23 @@ Requires Pillow with FreeType WOFF2 support. Fonts come from the self-hosted
 ## Checks and local preview
 
 ```bash
+# Refresh actual scene previews when the desktop bundle changes:
+pnpm --filter @oia/desktop template-qa
+python3 site/templates/export-previews.py
+python3 site/templates/build.py
+
+# Static release gates:
 python3 config/audit/marketing-assets.py --self-test
 python3 config/audit/marketing-assets.py
-python3 site/templates/build.py
+node --test config/audit/marketing-downloads.test.cjs
 python3 -m http.server 8765 --directory site
 ```
 
 The media-reference check also runs before GitHub Pages deployment. It includes
-nested template pages, local social-image URLs, and README images. Use a fresh
+nested template pages, local social-image URLs, README images and SHA-256 hashes
+of all 31 template/edit previews. Provenance is in
+`../docs/verification/template-marketing-assets.json`. The exporter verifies the
+native price edit changes no source pixels outside the price bounds. Use a fresh
 local origin for visual QA when a browser has cached previous site versions.
 
 ## Shared contracts
@@ -89,8 +107,10 @@ local origin for visual QA when a browser has cached previous site versions.
   download resolver, GitHub API with a bounded timeout and one fallback version.
   Release assets still have versioned names, unversioned URLs remain D19 debt.
 - `faq-schema.js` derives JSON-LD from the visible FAQ, no duplicate copy.
-- `templates/build.py` generates category/style/pack text indexes. Deep pages
-  use one extra parent traversal for site resources and links.
+- `templates/catalog.json` is exported from the shared desktop template catalog,
+  not manually maintained. `templates/build.py` generates the hub, eight category
+  pages, two style pages and three pack pages from that snapshot. Deep pages use
+  one extra parent traversal for site resources and links.
 - `/install/`, `/templates/`, `/prompts/`, and `/use-cases/` remain static pages.
 
 ## Deploy

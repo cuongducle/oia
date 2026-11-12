@@ -28,7 +28,9 @@ body.page{font-size:15.5px}
 .tplGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:20px}
 @media(max-width:860px){.tplGrid{grid-template-columns:repeat(2,1fr)}}
 .tplCard{border:1px solid var(--hairline);border-radius:10px;overflow:hidden;background:rgba(21,19,50,.35)}
-.tplCard img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.tplCard img{display:block;width:100%;height:auto}
+.tplCard a{display:block}
+.catH .count{font-family:'JetBrains Mono';font-size:14px;color:var(--muted);margin-left:10px}
 .tplCard .body{padding:12px 14px}
 .tplCard h3{font-size:14.5px}
 .tplCard p{color:var(--muted);font-size:12.5px;margin-top:4px}

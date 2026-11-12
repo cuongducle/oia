@@ -1,0 +1,347 @@
+[
+  {
+    "id": "studio-matcha",
+    "name": "Matcha every day · Poster",
+    "category": "poster",
+    "style": null,
+    "pack": null,
+    "width": 900,
+    "height": 1200,
+    "image": "templates/studio-matcha.webp"
+  },
+  {
+    "id": "studio-festival",
+    "name": "City rhythms · Poster",
+    "category": "poster",
+    "style": null,
+    "pack": null,
+    "width": 900,
+    "height": 1200,
+    "image": "templates/studio-festival.webp"
+  },
+  {
+    "id": "studio-botanical",
+    "name": "A touch of nature",
+    "category": "social-post",
+    "style": null,
+    "pack": null,
+    "width": 900,
+    "height": 1200,
+    "image": "templates/studio-botanical.webp"
+  },
+  {
+    "id": "studio-perspective",
+    "name": "A clearer perspective · Presentation",
+    "category": "deck",
+    "style": null,
+    "pack": null,
+    "width": 1600,
+    "height": 900,
+    "image": "templates/studio-perspective.webp"
+  },
+  {
+    "id": "studio-flashsale",
+    "name": "Weekend flash sale",
+    "category": "flash-sale",
+    "style": null,
+    "pack": null,
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-flashsale.webp"
+  },
+  {
+    "id": "studio-menuboard",
+    "name": "Bakery menu board",
+    "category": "menu",
+    "style": null,
+    "pack": "cafe-restaurant",
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-menuboard.webp"
+  },
+  {
+    "id": "studio-serum",
+    "name": "Serum launch post",
+    "category": "social-post",
+    "style": null,
+    "pack": "product-launch",
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-serum.webp"
+  },
+  {
+    "id": "studio-sneaker",
+    "name": "Product drop",
+    "category": "new-product",
+    "style": null,
+    "pack": "product-launch",
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-sneaker.webp"
+  },
+  {
+    "id": "studio-holiday",
+    "name": "Year-end blowout",
+    "category": "flash-sale",
+    "style": null,
+    "pack": null,
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-holiday.webp"
+  },
+  {
+    "id": "studio-swiss-flashsale",
+    "name": "Clearance 50% · Swiss",
+    "category": "flash-sale",
+    "style": "swiss",
+    "pack": null,
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-swiss-flashsale.webp"
+  },
+  {
+    "id": "studio-swiss-spec",
+    "name": "Product spec sheet · Swiss",
+    "category": "new-product",
+    "style": "swiss",
+    "pack": "product-launch",
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-swiss-spec.webp"
+  },
+  {
+    "id": "studio-swiss-statement",
+    "name": "Post consistently · Swiss",
+    "category": "social-post",
+    "style": "swiss",
+    "pack": null,
+    "width": 1600,
+    "height": 900,
+    "image": "templates/studio-swiss-statement.webp"
+  },
+  {
+    "id": "studio-ed-menu",
+    "name": "Café menu · Editorial",
+    "category": "menu",
+    "style": "editorial",
+    "pack": "cafe-restaurant",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-menu.webp"
+  },
+  {
+    "id": "studio-ed-feature",
+    "name": "Field notes · Editorial",
+    "category": "social-post",
+    "style": "editorial",
+    "pack": null,
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-ed-feature.webp"
+  },
+  {
+    "id": "studio-ed-holiday",
+    "name": "Gilded nights · Editorial",
+    "category": "poster",
+    "style": "editorial",
+    "pack": null,
+    "width": 1024,
+    "height": 1536,
+    "image": "templates/studio-ed-holiday.webp"
+  },
+  {
+    "id": "studio-ed-menu3",
+    "name": "Weekend brunch · Editorial",
+    "category": "menu",
+    "style": "editorial",
+    "pack": "cafe-restaurant",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-menu3.webp"
+  },
+  {
+    "id": "studio-ed-product2",
+    "name": "First light serum · Editorial",
+    "category": "new-product",
+    "style": "editorial",
+    "pack": "product-launch",
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-ed-product2.webp"
+  },
+  {
+    "id": "studio-ed-holiday2",
+    "name": "Candlelit gift · Editorial dark",
+    "category": "poster",
+    "style": "editorial",
+    "pack": "cafe-restaurant",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-holiday2.webp"
+  },
+  {
+    "id": "studio-ed-poster2",
+    "name": "Thrown by hand · Editorial",
+    "category": "poster",
+    "style": "editorial",
+    "pack": null,
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-poster2.webp"
+  },
+  {
+    "id": "studio-ed-street",
+    "name": "Morning phở · Editorial",
+    "category": "poster",
+    "style": "editorial",
+    "pack": "cafe-restaurant",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-street.webp"
+  },
+  {
+    "id": "studio-ed-fashion",
+    "name": "The linen edit · Editorial",
+    "category": "social-post",
+    "style": "editorial",
+    "pack": null,
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-ed-fashion.webp"
+  },
+  {
+    "id": "studio-swiss-sneaker",
+    "name": "Veloce Two · Swiss",
+    "category": "new-product",
+    "style": "swiss",
+    "pack": "product-launch",
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-swiss-sneaker.webp"
+  },
+  {
+    "id": "studio-swiss-bottle",
+    "name": "Everyday bottle · Swiss",
+    "category": "new-product",
+    "style": "swiss",
+    "pack": "product-launch",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-swiss-bottle.webp"
+  },
+  {
+    "id": "studio-ed-deck",
+    "name": "The quiet season · Editorial",
+    "category": "deck",
+    "style": "editorial",
+    "pack": null,
+    "width": 1600,
+    "height": 900,
+    "image": "templates/studio-ed-deck.webp"
+  },
+  {
+    "id": "studio-tet-flashsale",
+    "name": "Tết sale 40% · Editorial",
+    "category": "flash-sale",
+    "style": "editorial",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-tet-flashsale.webp"
+  },
+  {
+    "id": "studio-tet-gift",
+    "name": "Giỏ quà Tết · Editorial dark",
+    "category": "poster",
+    "style": "editorial",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-tet-gift.webp"
+  },
+  {
+    "id": "studio-tet-menu",
+    "name": "Bếp xuân · Editorial",
+    "category": "menu",
+    "style": "editorial",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-tet-menu.webp"
+  },
+  {
+    "id": "studio-tet-greeting",
+    "name": "Chúc xuân · Editorial",
+    "category": "social-post",
+    "style": "editorial",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-tet-greeting.webp"
+  },
+  {
+    "id": "studio-tet-swiss",
+    "name": "Tết sale 50% · Swiss đỏ",
+    "category": "flash-sale",
+    "style": "swiss",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1350,
+    "image": "templates/studio-tet-swiss.webp"
+  },
+  {
+    "id": "studio-tet-voucher",
+    "name": "Lì xì voucher · Swiss vàng",
+    "category": "social-post",
+    "style": "swiss",
+    "pack": "tet-sale",
+    "width": 1080,
+    "height": 1080,
+    "image": "templates/studio-tet-voucher.webp"
+  },
+  {
+    "id": "live-flash-sale",
+    "name": "Flash sale price",
+    "category": "livestream",
+    "style": null,
+    "pack": null,
+    "width": 1080,
+    "height": 1920
+  },
+  {
+    "id": "live-freeship",
+    "name": "Freeship badge",
+    "category": "livestream",
+    "style": null,
+    "pack": null,
+    "width": 1080,
+    "height": 1920
+  },
+  {
+    "id": "live-countdown",
+    "name": "Countdown frame · Static",
+    "category": "livestream",
+    "style": null,
+    "pack": null,
+    "width": 1080,
+    "height": 1920
+  },
+  {
+    "id": "studio-overlay-host",
+    "name": "Host introduction · Lower third",
+    "category": "overlay",
+    "style": null,
+    "pack": null,
+    "width": 1920,
+    "height": 1080
+  },
+  {
+    "id": "studio-overlay-offer",
+    "name": "Shop offer · Corner banner",
+    "category": "overlay",
+    "style": null,
+    "pack": null,
+    "width": 1920,
+    "height": 1080
+  }
+]

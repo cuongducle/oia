@@ -3,7 +3,7 @@ name: Landing site → GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", "README.md", "docs/screenshots/**", "config/audit/marketing-assets.py", ".github/workflows/landing-pages.yml"]
+    paths: ["site/**", "README.md", "docs/screenshots/**", "config/audit/marketing-*", "docs/verification/template-marketing-assets.json", ".github/workflows/landing-pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +23,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Check download fallback paths
+        run: node --test config/audit/marketing-downloads.test.cjs
       - name: Check marketing media references
         run: |
           python3 config/audit/marketing-assets.py --self-test

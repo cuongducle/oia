@@ -6,11 +6,11 @@
   const REPO = 'cuongducle/oia';
   const RELEASES = `https://github.com/${REPO}/releases`;
   const FALLBACK = {
-    tag: 'v0.6.0',
-    macArm64: { name: 'Oia-0.6.0-arm64.dmg', size: 428182436, label: 'macOS (Apple Silicon)' },
-    win: { name: 'Oia-0.6.0-win-x64.exe', size: 413867838, label: 'Windows 64-bit' },
+    tag: 'v0.6.1',
+    macArm64: { name: 'Oia-0.6.1-arm64.dmg', size: 433574780, label: 'macOS (Apple Silicon)' },
+    win: { name: 'Oia-0.6.1-win-x64.exe', size: 419234278, label: 'Windows 64-bit' },
   };
-  const mb = (b) => (b ? `${Math.round(b / 1048576)} MB` : '');
+  const mb = (b) => (b ? `${Math.round(b / 1048576)} MiB` : '');
   const isIPadOS = () =>
     /iPad/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -45,13 +45,14 @@
     const rel = (await latestAssets()) || { tag: FALLBACK.tag, macArm64: null, win: null };
     const fb = (k) => ({
       ...FALLBACK[k],
-      url: `${RELEASES}/download/${rel.tag || FALLBACK.tag}/${FALLBACK[k].name}`,
+      url: `${RELEASES}/download/${FALLBACK.tag}/${FALLBACK[k].name}`,
     });
     let target = null;
     let ver = (rel.tag || FALLBACK.tag).replace(/^v/, '');
     let note = '';
     if (isWin()) {
       target = rel.win || fb('win');
+      ver = (rel.win ? rel.tag : FALLBACK.tag).replace(/^v/, '');
       note = `${ver} · ${FALLBACK.win.label} · ${mb(target.size)}`;
     } else if (isMac()) {
       const a = await arch();
@@ -59,6 +60,7 @@
         note = `${ver} · no Intel-Mac build yet, see all releases`;
       } else {
         target = rel.macArm64 || fb('macArm64');
+        ver = (rel.macArm64 ? rel.tag : FALLBACK.tag).replace(/^v/, '');
         note = `${ver} · ${FALLBACK.macArm64.label} · ${mb(target.size)}`;
       }
     } else {
