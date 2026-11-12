@@ -47,3 +47,4 @@ __pycache__/
 apps/desktop/resources/segment/
 apps/desktop/resources/textdet/
 apps/desktop/segment-runner/target/
+.astro/

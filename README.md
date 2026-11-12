@@ -39,7 +39,7 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 ## What you get
 
 <p>
-  <a href="site/assets/studio.webp"><img src="site/assets/studio.webp" width="100%" alt="Real Oia desktop editor: MORI artwork on the canvas, a separate shipping-note text layer selected, the Layers panel and native text controls."></a>
+  <a href="apps/site/public/assets/studio.webp"><img src="apps/site/public/assets/studio.webp" width="100%" alt="Real Oia desktop editor: MORI artwork on the canvas, a separate shipping-note text layer selected, the Layers panel and native text controls."></a>
   <br><sub><b>A real canvas, not a mockup.</b> The campaign lettering is baked into the image. The selected shipping note is a separate, editable text layer. Click for the full-size screenshot.</sub>
 </p>
 
@@ -50,24 +50,24 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 - **Export anywhere**: PNG, JPG, PDF (mixed page sizes), PPTX, ZIP of page images.
 
 <p>
-  <img src="site/assets/mori-comparison.webp" width="100%" alt="MORI reference-image edit: the 20% OFF offer becomes 30% OFF, retaining the matcha campaign's composition, typography and lighting style.">
+  <img src="apps/site/public/assets/mori-comparison.webp" width="100%" alt="MORI reference-image edit: the 20% OFF offer becomes 30% OFF, retaining the matcha campaign's composition, typography and lighting style.">
   <br><sub><b>Change the offer. Keep the visual direction.</b> Two real image outputs, one reference-image edit apart (about 1 image). Fine image details can change; repaint is not a pixel lock. MORI and FORMA are fictional campaign examples, not bundled-template previews.</sub>
 </p>
 
 ### Your product photo, a campaign to build around
 
 <p>
-  <img src="site/assets/still-product.webp" width="49%" alt="Product reference: a fictional STILL coffee bag on a neutral background.">
-  <img src="site/assets/still-campaign.webp" width="49%" alt="A warm coffee campaign generated using the STILL product image as a reference.">
+  <img src="apps/site/public/assets/still-product.webp" width="49%" alt="Product reference: a fictional STILL coffee bag on a neutral background.">
+  <img src="apps/site/public/assets/still-campaign.webp" width="49%" alt="A warm coffee campaign generated using the STILL product image as a reference.">
   <br><sub>Two actual image-channel outputs. STILL is fictional and the reference photo is AI-generated. Packaging details can change; this pair is not a full Oia research/auto-refine run.</sub>
 </p>
 
 ### Real artwork, ready to make yours
 
 <p>
-  <a href="site/assets/templates/studio-swiss-flashsale.webp"><img src="site/assets/templates/studio-swiss-flashsale.webp" width="32%" alt="Actual bundled Clearance 50% Swiss template with sneaker photography and editable sale typography."></a>
-  <a href="site/assets/templates/studio-ed-menu.webp"><img src="site/assets/templates/studio-ed-menu.webp" width="32%" alt="Actual bundled Morning Rituals editorial café menu, with native menu text, a pastry and a flat white."></a>
-  <a href="site/assets/templates/studio-tet-swiss.webp"><img src="site/assets/templates/studio-tet-swiss.webp" width="32%" alt="Actual bundled Tết sale 50% Swiss template, with red silk, gift-box photography and editable Vietnamese offer text."></a>
+  <a href="apps/site/public/assets/templates/studio-swiss-flashsale.webp"><img src="apps/site/public/assets/templates/studio-swiss-flashsale.webp" width="32%" alt="Actual bundled Clearance 50% Swiss template with sneaker photography and editable sale typography."></a>
+  <a href="apps/site/public/assets/templates/studio-ed-menu.webp"><img src="apps/site/public/assets/templates/studio-ed-menu.webp" width="32%" alt="Actual bundled Morning Rituals editorial café menu, with native menu text, a pastry and a flat white."></a>
+  <a href="apps/site/public/assets/templates/studio-tet-swiss.webp"><img src="apps/site/public/assets/templates/studio-tet-swiss.webp" width="32%" alt="Actual bundled Tết sale 50% Swiss template, with red silk, gift-box photography and editable Vietnamese offer text."></a>
   <br><sub>Actual v0.6.1 scenes, rendered with the desktop canvas engine. AI-generated photography and native text layers, not promotional mockups. Click a preview for the full composition.</sub>
 </p>
 
@@ -85,8 +85,8 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
 Generations render the copy into the artwork for the best-looking typography. Two paths keep text editable: flip **“Editable text right away”** before generating (clean-plate artwork + native text layers), or select a baked design and click **“Make text editable”** (up to 1 image + up to 6 reads on dense artwork; font matching runs locally). Once rebuilt, retyping text uses no image quota. Recovered single-line boxes grow while typing without changing font size; explicit line breaks still work.
 
 <p>
-  <a href="site/assets/templates/studio-ed-menu.webp"><img src="site/assets/templates/studio-ed-menu.webp" width="49%" alt="Original Morning Rituals template with the Cardamom knot price set to 42,000 dong."></a>
-  <a href="site/assets/templates/menu-price-edited.webp"><img src="site/assets/templates/menu-price-edited.webp" width="49%" alt="The same template after a native text edit changes only the Cardamom knot price to 46,000 dong."></a>
+  <a href="apps/site/public/assets/templates/studio-ed-menu.webp"><img src="apps/site/public/assets/templates/studio-ed-menu.webp" width="49%" alt="Original Morning Rituals template with the Cardamom knot price set to 42,000 dong."></a>
+  <a href="apps/site/public/assets/templates/menu-price-edited.webp"><img src="apps/site/public/assets/templates/menu-price-edited.webp" width="49%" alt="The same template after a native text edit changes only the Cardamom knot price to 46,000 dong."></a>
   <br><sub><b>Template editing, no generation.</b> Only the price changed from 42.000₫ to 46.000₫; the background artwork is unchanged. These are real scene renders, not a demonstration of extracting text from a flat image. Text reconstruction is a separate paid operation; fonts are approximate, OCR needs checking, and erased regions can change.</sub>
 </p>
 

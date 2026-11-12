@@ -1095,3 +1095,45 @@ không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm b
   3 test download, diff check. Chrome thật desktop + mobile 390: hai nút
   xếp đúng, không tràn ngang; prompts/templates href trực tiếp, `main.js`
   tải. Chưa kiểm Windows máy thật; không đổi tag v0.6.1.
+
+## Landing chuyển sang Astro (2026-11-12, owner "astro đi" sau khi duyệt review)
+
+- `site/` thay bằng `apps/site`: Astro 7.4.11 pin chính xác, output static
+  thuần, không adapter, không client framework. public/ (main.js, styles.css,
+  pages.css, fonts, assets, sitemap, robots, feature-review) ship nguyên bản,
+  không hash không bundle. Giữ nguyên mọi hành vi vừa sửa: hai nút tải trực
+  tiếp + resolver latest theo nền tảng (main.js verbatim, test cũ giữ nguyên
+  chỉ đổi đường dẫn), catNav là `div role=group`, navbar z-index 200, link
+  tương đối để bản github.io subpath không vỡ.
+- 13 trang templates cũ sinh bằng build.py giờ là 1 dynamic route
+  `templates/[...slug].astro` từ `src/data/catalog.json` (bản ghi catalog giữ
+  nguyên nội dung, di chuyển vị trí) + taxonomy dùng chung `src/data/taxonomy.ts`.
+  Nav/footer lặp tay 21 file thay bằng layout `Page.astro`; landing giữ shell
+  riêng trong `index.astro`. JSON-LD và khối code có brace chuyển sang
+  frontmatter + `set:html`.
+- peer vite xung đột: electron-vite 4 đòi vite ^5-7, Astro 7 kéo vite 8.
+  Fix bằng khai báo tường minh `vite ^7` trong devDependencies của
+  @oia/desktop để hai app cô lập toolchain (desktop 7.3.7, site theo Astro).
+- Tooling theo cấu trúc mới: marketing-assets.py quét `apps/site/dist` SAU
+  build (workflow Pages thêm bước build; self-test fixture theo bố cục
+  dist/public mới, 5 test), provenance manifest đổi đường dẫn asset sang
+  `apps/site/public/assets/...`, export-previews.py dọn sang
+  `apps/site/scripts/` (ghi catalog + ảnh + provenance đúng vị trí mới),
+  builder ảnh docs/screenshots và README đổi đường dẫn, wrangler.toml trỏ
+  `./apps/site/dist`, workflow Pages paths theo apps/site/** và có bước
+  `pnpm --filter @oia/site build` trước audit + deploy.
+- Quy ước agent ghi thành `apps/site/AGENTS.md` (link tương đối, DownloadButtons
+  component, brace=set:html, catNav không dùng nav, pin Astro, audit bắt buộc
+  sau build); `apps/site/README.md` mô tả đầy đủ contract + kế hoạch blog
+  (content collections, chỉ tài liệu hóa, chưa dựng code).
+- Bằng chứng ngang hàng: screenshot landing trên bản Astro **byte-identical**
+  với bản HTML tay (1432161 byte, cùng viewport) = pixel-perfect. Link-check
+  nội bộ 21 trang 0 gãy; DOM check mọi trang: 2 nút data-dl + main.js, hub 35
+  thẻ/30 ảnh, swiss 7, tet 6, flash-sale 5, không tràn ngang, console sạch.
+  Z.AI Vision duyệt hub PASS (nút navbar chữ trắng rõ, hai nút tải đọc rõ,
+  chip đủ 8 nhóm đếng đúng 35). Script copy prompt có mặt trong dist nhưng
+  clipboard cần cử chỉ thật nên không mô phỏng trong tab nền; ghi nhận là
+  giới hạn kiểm, không phải lỗi.
+- Gates: pnpm build/test/typecheck toàn repo (turbo gồm @oia/site), media
+  audit 5 self-test + 149 tham chiếu, 3 test download. Chưa deploy lúc ghi
+  dòng này; kết quả deploy và đối chiếu live ghi ở evidence riêng.

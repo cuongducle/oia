@@ -1,0 +1,52 @@
+---
+interface NavLink { href: string; label: string }
+interface Props {
+  title: string
+  description: string
+  ogTitle: string
+  ogDescription: string
+  canonical: string
+  base?: string
+  links?: NavLink[]
+  footerLinks?: NavLink[]
+}
+const { title, description, ogTitle, ogDescription, canonical, base = '../', links = [], footerLinks = [] } = Astro.props
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content={description}>
+<meta name="theme-color" content="#0e0d1f">
+<link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content={ogTitle}>
+<meta property="og:description" content={ogDescription}>
+<meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
+<meta property="og:url" content={canonical}>
+<link rel="canonical" href={canonical}>
+<link rel="stylesheet" href={`${base}fonts/fonts.css`}>
+<link rel="stylesheet" href={`${base}styles.css`}>
+<link rel="stylesheet" href={`${base}pages.css`}>
+</head>
+<body class="page">
+<nav class="pageNav" aria-label="Main">
+  <a class="brand" href={`${base}`}><span class="o">◆ OIA</span></a>
+  <div class="links">
+    {links.map((l) => <a href={l.href}>{l.label}</a>)}
+  </div>
+  <a class="btn btn-accent" href="#download">Download</a>
+</nav>
+<slot />
+<footer class="pageFooter">
+  <a class="brand" href={`${base}`}><span class="o">◆ OIA</span></a>
+  <div class="links">
+    {footerLinks.map((l) => <a href={l.href}>{l.label}</a>)}
+  </div>
+  <span class="meta">MIT · Oia, free &amp; open source</span>
+</footer>
+<script src={`${base}main.js`} defer></script>
+</body>
+</html>

@@ -122,6 +122,7 @@ apps/desktop/src/utility   ServiceContext: runChat, task store, stores, files, l
 apps/desktop/src/preload   contextBridge (sandboxed, .cjs)
 apps/desktop/src/renderer  React UI (views, lib), English
 apps/desktop/src/shared    IPC schemas/channels + main↔utility wire protocol
+apps/site            Astro 7 marketing site (oia.solutions), own AGENTS.md
 
 packages: schema → protocol/providers/agent/canvas → tasks → services → shells
 ```

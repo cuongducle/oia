@@ -1,0 +1,32 @@
+---
+interface Entry {
+  id: string
+  name: string
+  category: string
+  style: string | null
+  pack: string | null
+  width: number
+  height: number
+  image?: string
+}
+interface Props { item: Entry; base: string }
+const { item, base } = Astro.props
+
+const note = item.image
+  ? 'Native text layers · real image artwork'
+  : 'Transparent canvas · editable text and shapes'
+const shown = item.id === 'live-countdown'
+  ? 'Static frame, not an animated timer · transparent export'
+  : note
+---
+<article class="tplCard">
+  {item.image && (
+    <a href={`${base}assets/${item.image}`} aria-label={`View full-size ${item.name}`}>
+      <img loading="lazy" src={`${base}assets/${item.image}`} width={item.width} height={item.height} alt={`Actual Oia template: ${item.name}`} />
+    </a>
+  )}
+  <div class="body">
+    <h3>{item.name}</h3>
+    <p>{item.width} × {item.height} · {shown}</p>
+  </div>
+</article>

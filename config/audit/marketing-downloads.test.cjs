@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { runInNewContext } = require('node:vm');
 
-const source = readFileSync(new URL('../../site/main.js', `file://${__filename}`), 'utf8');
+const source = readFileSync(new URL('../../apps/site/public/main.js', `file://${__filename}`), 'utf8');
 
 async function resolveDownloads(release) {
   const links = [

@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
-ASSETS = ROOT / 'site/assets'
+ASSETS = ROOT / 'apps/site/public/assets'
 FONT = ROOT / 'site/fonts/archivo-latin-var.woff2'
 BG = '#0e0d1f'
 PAPER = '#f4f1e8'

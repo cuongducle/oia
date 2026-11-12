@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'site/assets'
+OUT = ROOT / 'apps/site/public/assets'
 REVIEW = ROOT / 'site/feature-review'
 PRIVATE = ROOT / 'docs/private/surgepix-feature-audit-2026-11-09/landing-sample'
 parser = argparse.ArgumentParser(description=__doc__)

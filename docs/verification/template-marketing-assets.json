@@ -6,181 +6,181 @@
   "previews": [
     {
       "templateId": "studio-matcha",
-      "asset": "site/assets/templates/studio-matcha.webp",
+      "asset": "apps/site/public/assets/templates/studio-matcha.webp",
       "sourceSha256": "00b8bad4ccff05aec0e9e17786dd231a0dc30def5a5a34015ef160d32ce752f5",
       "previewSha256": "690443f3946d7b245940b0978f0f71af226cfcb6197e526d7c64b80528dc5196"
     },
     {
       "templateId": "studio-festival",
-      "asset": "site/assets/templates/studio-festival.webp",
+      "asset": "apps/site/public/assets/templates/studio-festival.webp",
       "sourceSha256": "80d986111ab861a5be1b530ad3c2a83fdd86878fc2007346876b505cf2c820c7",
       "previewSha256": "74c343d44d001e95dbd667e46b85fdd410308deb930d0cd4856e62601538a623"
     },
     {
       "templateId": "studio-botanical",
-      "asset": "site/assets/templates/studio-botanical.webp",
+      "asset": "apps/site/public/assets/templates/studio-botanical.webp",
       "sourceSha256": "50f52e375785d36301313772acbcc461a7cfefe876e1213608a34bad7490e904",
       "previewSha256": "bdc9a1ea85f3f5b51b8cdd0979c0cd43e98b826efc3bc4a3635da6ceeabfa045"
     },
     {
       "templateId": "studio-perspective",
-      "asset": "site/assets/templates/studio-perspective.webp",
+      "asset": "apps/site/public/assets/templates/studio-perspective.webp",
       "sourceSha256": "83be3d1b0d7bd79401cc893f4939a71c0303db27a9e1d2237a55dac94a6e46ac",
       "previewSha256": "2c531065c1e823facfbc77244af438bac6004be4dc00b387bcce43cb4611e571"
     },
     {
       "templateId": "studio-flashsale",
-      "asset": "site/assets/templates/studio-flashsale.webp",
+      "asset": "apps/site/public/assets/templates/studio-flashsale.webp",
       "sourceSha256": "5839dbf889510b6af630c2ef33614900a2ea93eecbb84a61318a8ef3d3149fe9",
       "previewSha256": "3eb700f37d3c99529dfac24ebd231a3843637cb8aa6c686ea450f00e20707bc4"
     },
     {
       "templateId": "studio-menuboard",
-      "asset": "site/assets/templates/studio-menuboard.webp",
+      "asset": "apps/site/public/assets/templates/studio-menuboard.webp",
       "sourceSha256": "38be9b675600206b8d44731c083dbe5e1b5195f4611db8119e70d4834de902ea",
       "previewSha256": "847b9895960c99b7c71444b19ba0c3beb963f77f2471bca99efc91b0134ccf9e"
     },
     {
       "templateId": "studio-serum",
-      "asset": "site/assets/templates/studio-serum.webp",
+      "asset": "apps/site/public/assets/templates/studio-serum.webp",
       "sourceSha256": "908054b88757fb2a9862d467fe85fef9e97d88b24fe2f3baaee783bcf0575173",
       "previewSha256": "5e2f5f3b790cd69602469f7cd2208ac28614f0f0e0f0bfe02dc3c3c6b159f101"
     },
     {
       "templateId": "studio-sneaker",
-      "asset": "site/assets/templates/studio-sneaker.webp",
+      "asset": "apps/site/public/assets/templates/studio-sneaker.webp",
       "sourceSha256": "6fd922425a8698381918c9de903ba9d317d7ffc4dcb89c79c752a5a1a024d389",
       "previewSha256": "b312a84327026a16dc25935e1bfab0428e6cbfdcdc193a5bee4e05f550c69d3f"
     },
     {
       "templateId": "studio-holiday",
-      "asset": "site/assets/templates/studio-holiday.webp",
+      "asset": "apps/site/public/assets/templates/studio-holiday.webp",
       "sourceSha256": "7dbd807e67de0fb002de9cadd6fe6075a814616a7849eb8df01726b05334089e",
       "previewSha256": "2a7452394d2663c1fd38df4c15d486cad9afaeb8d6f107b769e718fcb4886079"
     },
     {
       "templateId": "studio-swiss-flashsale",
-      "asset": "site/assets/templates/studio-swiss-flashsale.webp",
+      "asset": "apps/site/public/assets/templates/studio-swiss-flashsale.webp",
       "sourceSha256": "e44447b5043a27de4176565c9609a93326ce133cf04a5d43c0cc4835f3ee1edb",
       "previewSha256": "107d11b0caccc3f63cbc333dbfc91cf6e6aa7d9b7220d58ff402735c3a6d6b87"
     },
     {
       "templateId": "studio-swiss-spec",
-      "asset": "site/assets/templates/studio-swiss-spec.webp",
+      "asset": "apps/site/public/assets/templates/studio-swiss-spec.webp",
       "sourceSha256": "f14362469a445de6abeaee2ffb94db10eb53419bdcae9f99f874671df58cff6a",
       "previewSha256": "fe2fa541c485eecc81bd405e4bb3946474e4a1d3bf584f857ce9fc0cac72e76a"
     },
     {
       "templateId": "studio-swiss-statement",
-      "asset": "site/assets/templates/studio-swiss-statement.webp",
+      "asset": "apps/site/public/assets/templates/studio-swiss-statement.webp",
       "sourceSha256": "ddeaae220d00439b94dee5e58838d52b5e9b46df9bfeee48caa23347e74838fa",
       "previewSha256": "e5b549bb78eab2cf23cf50d18cdb0ba061747aac8d66f78b0e12818da5329d28"
     },
     {
       "templateId": "studio-ed-menu",
-      "asset": "site/assets/templates/studio-ed-menu.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-menu.webp",
       "sourceSha256": "ab8dc9c76611dd6bf500e606ef1e911fa87557418f28c5c07d84c4b5b952ceaf",
       "previewSha256": "53607b897ab01f1276bc6f2a3733f9871279afdd818216342463ee6edc258278"
     },
     {
       "templateId": "studio-ed-feature",
-      "asset": "site/assets/templates/studio-ed-feature.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-feature.webp",
       "sourceSha256": "0a0702f38a55608a8787896f17e63b29bb74de1e2b6f7958978a4f1ab6844252",
       "previewSha256": "7a6cdfed835187d5babfe1512e42de77f048fea52d3cb8ada73edde3d80834e5"
     },
     {
       "templateId": "studio-ed-holiday",
-      "asset": "site/assets/templates/studio-ed-holiday.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-holiday.webp",
       "sourceSha256": "5900edd12701f1fe9751f1c6c6628f93e7e23d09c853c48a17e144ab623fe0de",
       "previewSha256": "8634dd31a5c30f529826343d08ce3e22178953cd233d62ce7986b4930db529d6"
     },
     {
       "templateId": "studio-ed-menu3",
-      "asset": "site/assets/templates/studio-ed-menu3.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-menu3.webp",
       "sourceSha256": "be163f4eadc08bb44a58fb8b45e437d1e8e6df874e2d2ebccae0cca98b731392",
       "previewSha256": "bde46021546ced60fdb8fdc95eeae40058ac0448e1ef11e01c8dd243601649f0"
     },
     {
       "templateId": "studio-ed-product2",
-      "asset": "site/assets/templates/studio-ed-product2.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-product2.webp",
       "sourceSha256": "5f988176a4be5ab59d1947fda5ff6eead77038b26480c957336ab881827b6153",
       "previewSha256": "7d733df1c49fa070d09e689cf53cd67fbc87931a455ff5c20a8d53c6e898f4af"
     },
     {
       "templateId": "studio-ed-holiday2",
-      "asset": "site/assets/templates/studio-ed-holiday2.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-holiday2.webp",
       "sourceSha256": "e17a239159848ce6fd83401fc2cc60ea9ab934fc9474631cc23a35651b04a3ed",
       "previewSha256": "144e6ec707dddbe72a441195f80eb1ab73a2156ca0a69227bacb49463a0999fd"
     },
     {
       "templateId": "studio-ed-poster2",
-      "asset": "site/assets/templates/studio-ed-poster2.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-poster2.webp",
       "sourceSha256": "7e276cccfce779591e3d36a71a220e063eef1f21abf87246254964e20ef3336a",
       "previewSha256": "59cdfb06988c9b98be8a3d8cc4f599b8aebf23fce6625e9d3d98004dca804384"
     },
     {
       "templateId": "studio-ed-street",
-      "asset": "site/assets/templates/studio-ed-street.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-street.webp",
       "sourceSha256": "501df54d3953cef731aa54e2bd03d00bf54774c7fa45d33e6cefb8011bacf05f",
       "previewSha256": "cc52fc5f4e0dea7d6c7c904715613a436524f907ab5a9e9c94b33a737d05eb93"
     },
     {
       "templateId": "studio-ed-fashion",
-      "asset": "site/assets/templates/studio-ed-fashion.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-fashion.webp",
       "sourceSha256": "e7e3c65983799981bf84159835b1d6bf15c75e9f3ff0fcecde40f61d02f91cff",
       "previewSha256": "e509c86557f79c940a4978dc50e4f9cb4053fcaa18e27b4c38fc6991f73a0944"
     },
     {
       "templateId": "studio-swiss-sneaker",
-      "asset": "site/assets/templates/studio-swiss-sneaker.webp",
+      "asset": "apps/site/public/assets/templates/studio-swiss-sneaker.webp",
       "sourceSha256": "8389ceca8af390a19ba08f21ab815b8ee32fe3c64b724a0999d1414c52de5ede",
       "previewSha256": "343db0bf31bb725cacee489c4358f6ff937ee2411d7915307a01a84efb07adf1"
     },
     {
       "templateId": "studio-swiss-bottle",
-      "asset": "site/assets/templates/studio-swiss-bottle.webp",
+      "asset": "apps/site/public/assets/templates/studio-swiss-bottle.webp",
       "sourceSha256": "6f8215a7851810d825973d8f38512ed663b9b870ef8fb45266c0242994d60746",
       "previewSha256": "f17d402b741a5b5713d0868cae168eb62bc7851b0691614ec2728ab509a3b4af"
     },
     {
       "templateId": "studio-ed-deck",
-      "asset": "site/assets/templates/studio-ed-deck.webp",
+      "asset": "apps/site/public/assets/templates/studio-ed-deck.webp",
       "sourceSha256": "cf1ce534344b7361cc2d97253e5ce17a483fce2b942695c5790d6b1ff25d0a83",
       "previewSha256": "66c73ca347412bd82ccd8dbb5ca3f49367d75415e2085b62d7bd05612f78488c"
     },
     {
       "templateId": "studio-tet-flashsale",
-      "asset": "site/assets/templates/studio-tet-flashsale.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-flashsale.webp",
       "sourceSha256": "caaf30bf037ac203e10f7c94d4f5f7698bfd8b478c7d19892da60569e16653b6",
       "previewSha256": "42f62c113d38b956a6092571b924ff08565954694016577a44f25fabd06921b3"
     },
     {
       "templateId": "studio-tet-gift",
-      "asset": "site/assets/templates/studio-tet-gift.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-gift.webp",
       "sourceSha256": "6ebded5237d27938187cd19de7ab0cc37aaac23bad1c4ec895d74bf7d1478d16",
       "previewSha256": "c39ac79474028f8155e7cdd481aeb63d1fb9cf5f003d4e9aa70639dcabbbb6c4"
     },
     {
       "templateId": "studio-tet-menu",
-      "asset": "site/assets/templates/studio-tet-menu.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-menu.webp",
       "sourceSha256": "e528c26c0f8d93c326d55a0676018c53cf1f8a81dcf27424dfe4863d03171965",
       "previewSha256": "1d39e8990a80eff6c6839c54cb2b114722b4d1faa023bea82d98fc36d6c115de"
     },
     {
       "templateId": "studio-tet-greeting",
-      "asset": "site/assets/templates/studio-tet-greeting.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-greeting.webp",
       "sourceSha256": "21587a46122b09f8480e6113710be01d8dc91588e03b5548f20132b7c1f526cf",
       "previewSha256": "f60664f82dca1615f3f0145398b1f188cf45d158cd3f58b106205e390bbd8758"
     },
     {
       "templateId": "studio-tet-swiss",
-      "asset": "site/assets/templates/studio-tet-swiss.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-swiss.webp",
       "sourceSha256": "ff41345213fa82cb38d29e45bc1c23e675694ffe4224ebd4984a33752a782336",
       "previewSha256": "6581b856fb8ec2092a2ad9fcb71edb72f5b4047828dc63acdc06f11a0c1195d6"
     },
     {
       "templateId": "studio-tet-voucher",
-      "asset": "site/assets/templates/studio-tet-voucher.webp",
+      "asset": "apps/site/public/assets/templates/studio-tet-voucher.webp",
       "sourceSha256": "f76899413259996545c0854803d4bc8200f9751c1287e4ac9a46ac3edf6ef444",
       "previewSha256": "45e5c5fb4520159d01f62c1a8c198417a0bff7b502d99edf4e28d44d23c2c676"
     }
@@ -190,7 +190,7 @@
     "replacement": {
       "42.000₫": "46.000₫"
     },
-    "asset": "site/assets/templates/menu-price-edited.webp",
+    "asset": "apps/site/public/assets/templates/menu-price-edited.webp",
     "sourceSha256": "cc0ac2a66adddb7cd1a643392945fd92990d20b11916f6681fef4c05ee3ed64a",
     "previewSha256": "3150abde3cb98a006955e95ed789bf4756518df4204612233864152bce0fb8f5",
     "changedPixelBoundsBeforeCompression": [
