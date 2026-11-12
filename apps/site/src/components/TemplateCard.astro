@@ -1,14 +1,6 @@
 ---
-interface Entry {
-  id: string
-  name: string
-  category: string
-  style: string | null
-  pack: string | null
-  width: number
-  height: number
-  image?: string
-}
+import type { Entry } from '../data/catalog'
+
 interface Props { item: Entry; base: string }
 const { item, base } = Astro.props
 

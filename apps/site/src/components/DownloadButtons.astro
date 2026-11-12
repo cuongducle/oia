@@ -1,26 +1,35 @@
 ---
 // The dual direct-download buttons plus their per-platform metadata lines.
-// main.js (public/main.js) resolves each link to the GitHub latest release,
-// keeping tag and filename paired per platform; the static hrefs are the
-// pinned fallback when JS or the API is unavailable.
-const MAC = 'https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg'
-const WIN = 'https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe'
+// Version facts live ONLY in src/data/releases.json; public/main.js carries a
+// parallel runtime FALLBACK that config/audit/marketing-assets.py forces to
+// match this file, so a release bump cannot update one and miss the other.
+import release from '../data/releases.json'
+
+const RELEASES = 'https://github.com/cuongducle/oia/releases'
+const mib = (bytes: number) => `${Math.round(bytes / 1048576)} MiB`
+const macHref = `${RELEASES}/download/${release.tag}/${release.mac.name}`
+const winHref = `${RELEASES}/download/${release.tag}/${release.win.name}`
+const macNote = `${release.mac.label} · ${mib(release.mac.size)} · ${release.tag}`
+const winNote = `${release.win.label} · ${mib(release.win.size)} · ${release.tag}`
 
 interface Ghost { href: string; label: string }
 interface Props {
   rowClass?: string
+  anchorId?: string
   installHref?: string
+  noteLinks?: boolean
   ghost?: Ghost
 }
-const { rowClass = 'ctas', installHref = 'install/', ghost } = Astro.props
+const { rowClass = 'ctas', anchorId, installHref, noteLinks = true, ghost } = Astro.props
 ---
-<div class={`${rowClass} download-options`} id="download">
-  <a class="btn btn-accent" data-dl="macArm64" href={MAC}>Download for macOS</a>
-  <a class="btn btn-accent" data-dl="win" href={WIN}>Download for Windows</a>
+<div class={`${rowClass} download-options`} id={anchorId}>
+  <a class="btn btn-accent" data-dl="macArm64" href={macHref}>Download for macOS</a>
+  <a class="btn btn-accent" data-dl="win" href={winHref}>Download for Windows</a>
   {ghost && <a class="btn btn-ghost" href={ghost.href}>{ghost.label}</a>}
 </div>
 <p class="cta-note">
-  <span class="download-meta" data-dl-ver="macArm64">macOS (Apple Silicon) · 413 MiB · v0.6.1</span>
-  <span class="download-meta" data-dl-ver="win">Windows 64-bit · 400 MiB · v0.6.1</span>
-  <a href={installHref}>install help</a> · <a href="https://github.com/cuongducle/oia/releases">all releases</a>
+  <span class="download-meta" data-dl-ver="macArm64">{macNote}</span>
+  <span class="download-meta" data-dl-ver="win">{winNote}</span>
+  {noteLinks && <a href={installHref}>install help</a>}
+  {noteLinks && <> · <a href={RELEASES}>all releases</a></>}
 </p>

@@ -1,14 +1,11 @@
 ---
-import catalog from '../../data/catalog.json'
+import { byCategory } from '../../data/catalog'
 import { CATEGORIES, STYLES, PACKS } from '../../data/taxonomy'
 import Page from '../../layouts/Page.astro'
 import TemplateCard from '../../components/TemplateCard.astro'
+import TemplateFaq from '../../components/TemplateFaq.astro'
 import DownloadButtons from '../../components/DownloadButtons.astro'
 
-interface Entry { id: string; name: string; category: string; style: string | null; pack: string | null; width: number; height: number; image?: string }
-const items = catalog as Entry[]
-
-const byCategory = (slug: string) => items.filter((t) => t.category === slug)
 const count = (slug: string) => byCategory(slug).length
 
 const links = [
@@ -39,7 +36,7 @@ const footerLinks = [
   <p class="kicker">The bundled library · v0.6.1</p>
   <h1>Start with real artwork.<br>Make the words yours.</h1>
   <p class="lede">Start from 35 bundled scenes: sales, product launches, menus, social posts, posters, decks and transparent live graphics. Opening a template uses no AI quota.</p>
-  <DownloadButtons rowClass="ctaRow" installHref="../install/" ghost={{ href: '../templates/', label: 'All 35 templates' }} />
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../install/" ghost={{ href: '../templates/', label: 'All 35 templates' }} />
 </header>
 
 <main class="pageMain">
@@ -64,11 +61,6 @@ const footerLinks = [
     </>
   ))}
 
-  <section class="faq" style="margin-top:48px">
-    <h2>From template to your next campaign</h2>
-    <details><summary>Does opening a template spend image quota?</summary><p>No. The artwork ships with Oia. Opening a template, changing native text, arranging layers and exporting use no AI quota. Requesting new AI artwork uses your provider quota.</p></details>
-    <details><summary>Are these real previews?</summary><p>Yes. Each preview is rendered from the bundled scene using the same Fabric canvas engine as the desktop app. The gallery shows complete compositions, not cropped stock photos. Photographic backgrounds are AI-generated; copy remains native text.</p></details>
-    <details><summary>Can I save my own designs as templates?</summary><p>Yes. Use Share ▸ Publish as template in the editor to keep a reusable scene in your own library.</p></details>
-  </section>
+  <TemplateFaq />
 </main>
 </Page>

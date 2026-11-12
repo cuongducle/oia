@@ -1,4 +1,5 @@
 ---
+import DownloadButtons from '../components/DownloadButtons.astro'
 import Page from '../layouts/Page.astro';
 ---
 
@@ -16,12 +17,7 @@ import Page from '../layouts/Page.astro';
   <p class="kicker">Install help</p>
   <h1>Two minutes, no account.</h1>
   <p class="lede">Oia ships as a plain installer for macOS and Windows. The builds are unsigned (no signing budget yet), so the first open needs one extra click, here is exactly what you will see.</p>
-  <div class="ctaRow download-options" id="download">
-    <a class="btn btn-accent" data-dl="macArm64" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg">Download for macOS</a>
-    <a class="btn btn-accent" data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download for Windows</a>
-    <a class="btn btn-ghost" href="https://github.com/cuongducle/oia/releases">All releases</a>
-  </div>
-  <p class="cta-note"><span class="download-meta" data-dl-ver="macArm64">macOS (Apple Silicon) · 413 MiB · v0.6.1</span><span class="download-meta" data-dl-ver="win">Windows 64-bit · 400 MiB · v0.6.1</span></p>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" />
 </header>
 
 <main class="pageMain">

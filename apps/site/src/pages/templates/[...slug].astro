@@ -1,27 +1,31 @@
 ---
-import catalog from '../../data/catalog.json'
+import { byCategory, byStyle, byPack, type Entry } from '../../data/catalog'
+import { CATEGORIES, STYLES, PACKS } from '../../data/taxonomy'
 import Page from '../../layouts/Page.astro'
 import TemplateCard from '../../components/TemplateCard.astro'
+import TemplateFaq from '../../components/TemplateFaq.astro'
 import DownloadButtons from '../../components/DownloadButtons.astro'
-import { CATEGORIES, STYLES, PACKS } from '../../data/taxonomy'
-
-interface Entry { id: string; name: string; category: string; style: string | null; pack: string | null; width: number; height: number; image?: string }
-const items = catalog as Entry[]
 
 type Kind = 'category' | 'style' | 'pack'
-interface Route { kind: Kind; slug: string; label: string }
+interface Route { kind: Kind; slug: string; label: string; path: string }
 
 function pageItems(route: Route): Entry[] {
-  if (route.kind === 'category') return items.filter((t) => t.category === route.slug)
-  if (route.kind === 'style') return items.filter((t) => t.style === route.slug)
-  return items.filter((t) => t.pack === route.slug)
+  if (route.kind === 'category') return byCategory(route.slug)
+  if (route.kind === 'style') return byStyle(route.slug)
+  return byPack(route.slug)
 }
 
 export function getStaticPaths() {
   const routes: { params: { slug: string }; props: { route: Route } }[] = []
-  for (const [slug, label] of CATEGORIES) routes.push({ params: { slug }, props: { route: { kind: 'category', slug, label } } })
-  for (const [slug, label] of STYLES) routes.push({ params: { slug: `styles/${slug}` }, props: { route: { kind: 'style', slug, label } } })
-  for (const [slug, label] of PACKS) routes.push({ params: { slug: `packs/${slug}` }, props: { route: { kind: 'pack', slug, label } } })
+  for (const [slug, label] of CATEGORIES) {
+    routes.push({ params: { slug }, props: { route: { kind: 'category', slug, label, path: `${slug}/` } } })
+  }
+  for (const [slug, label] of STYLES) {
+    routes.push({ params: { slug: `styles/${slug}` }, props: { route: { kind: 'style', slug, label, path: `styles/${slug}/` } } })
+  }
+  for (const [slug, label] of PACKS) {
+    routes.push({ params: { slug: `packs/${slug}` }, props: { route: { kind: 'pack', slug, label, path: `packs/${slug}/` } } })
+  }
   return routes
 }
 
@@ -53,7 +57,7 @@ const footerLinks = [
   description={description}
   ogTitle={`${title} | Oia`}
   ogDescription={description}
-  canonical={`https://oia.solutions/templates/${route.kind === 'category' ? `${route.slug}/` : `${route.kind}s/${route.slug}/`}`}
+  canonical={`https://oia.solutions/templates/${route.path}`}
   base={base}
   links={links}
   footerLinks={footerLinks}
@@ -62,7 +66,7 @@ const footerLinks = [
   <p class="kicker">The bundled library · v0.6.1</p>
   <h1>{title}</h1>
   <p class="lede">{description}</p>
-  <DownloadButtons rowClass="ctaRow" installHref={`${base}install/`} ghost={{ href: `${base}templates/`, label: 'All 35 templates' }} />
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref={`${base}install/`} ghost={{ href: `${base}templates/`, label: 'All 35 templates' }} />
 </header>
 
 <main class="pageMain">
@@ -70,11 +74,6 @@ const footerLinks = [
     {list.map((item) => <TemplateCard item={item} base={base} />)}
   </div>
 
-  <section class="faq" style="margin-top:48px">
-    <h2>From template to your next campaign</h2>
-    <details><summary>Does opening a template spend image quota?</summary><p>No. The artwork ships with Oia. Opening a template, changing native text, arranging layers and exporting use no AI quota. Requesting new AI artwork uses your provider quota.</p></details>
-    <details><summary>Are these real previews?</summary><p>Yes. Each preview is rendered from the bundled scene using the same Fabric canvas engine as the desktop app. The gallery shows complete compositions, not cropped stock photos. Photographic backgrounds are AI-generated; copy remains native text.</p></details>
-    <details><summary>Can I save my own designs as templates?</summary><p>Yes. Use Share ▸ Publish as template in the editor to keep a reusable scene in your own library.</p></details>
-  </section>
+  <TemplateFaq />
 </main>
 </Page>

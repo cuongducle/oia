@@ -29,12 +29,17 @@ class MediaParser(HTMLParser):
             self.urls.extend(item.strip().split()[0] for item in attrs['srcset'].split(','))
 
 
-def check(root):
+def check(root, min_pages=20):
     # Built output is what ships; the audit runs after `pnpm --filter @oia/site build`.
     dist = root / 'apps/site/dist'
     missing = []
     count = 0
-    for page in [*sorted(dist.rglob('*.html')), root / 'README.md']:
+    if not dist.is_dir():
+        return 0, ['apps/site/dist is missing: build the site before auditing (pnpm --filter @oia/site build)']
+    built = [p for p in sorted(dist.rglob('*.html')) if p.name != '404.html']
+    if len(built) < min_pages:  # ratchet: shipping fewer pages is a deliberate change
+        missing.append(f'expected at least {min_pages} built pages, found {len(built)}')
+    for page in [*built, root / 'README.md']:
         if not page.exists():
             continue
         text = page.read_text(encoding='utf-8')
@@ -68,6 +73,34 @@ def check(root):
                 asset = root / row['asset']
                 if not asset.is_file() or hashlib.sha256(asset.read_bytes()).hexdigest() != row['previewSha256']:
                     missing.append(f"Template preview missing or changed without re-export: {row['asset']}")
+    # One source of release truth: releases.json must match the runtime
+    # resolver fallback in public/main.js exactly, or a bump half-applied.
+    releases_path = root / 'apps/site/src/data/releases.json'
+    mainjs_path = root / 'apps/site/public/main.js'
+    if releases_path.is_file() and mainjs_path.is_file():
+        import re as _re
+        release = json.loads(releases_path.read_text())
+        mainjs = mainjs_path.read_text()
+        def _grab(pattern):
+            m = _re.search(pattern, mainjs)
+            return m.group(1) if m else None
+        expected = {
+            'tag': release['tag'],
+            'mac name': release['mac']['name'],
+            'win name': release['win']['name'],
+            'mac size': str(release['mac']['size']),
+            'win size': str(release['win']['size']),
+        }
+        actual = {
+            'tag': _grab(r"tag: '(v[\d.]+)'"),
+            'mac name': _grab(r"macArm64: \{ name: '([^']+)'"),
+            'win name': _grab(r"win: \{ name: '([^']+)'"),
+            'mac size': _grab(r"size: (\d+), label: 'macOS"),
+            'win size': _grab(r"size: (\d+), label: 'Windows"),
+        }
+        for key in expected:
+            if expected[key] != actual[key]:
+                missing.append(f'release fallback drift: {key} is {actual[key]!r} in public/main.js but {expected[key]!r} in releases.json')
     return count, missing
 
 
@@ -78,7 +111,7 @@ class MediaReferencesTest(unittest.TestCase):
             nested = root / 'apps/site/dist/templates/packs/cafe'
             nested.mkdir(parents=True)
             (nested / 'index.html').write_text('<img src="../../../assets/deleted.webp"><meta property="og:image" content="https://oia.solutions/assets/deleted.png">')
-            count, missing = check(root)
+            count, missing = check(root, min_pages=0)
             self.assertEqual(count, 2)
             self.assertEqual(len(missing), 2)
 
@@ -94,10 +127,10 @@ class MediaReferencesTest(unittest.TestCase):
             (built / 'a b.webp').write_bytes(b'image')
             (root / 'apps/site/dist/index.html').write_text('<img src="assets/a%20b.webp?version=2">')
             (root / 'README.md').write_text('<img src="apps/site/public/assets/a b.webp">')
-            self.assertEqual(check(root), (2, []))
+            self.assertEqual(check(root, min_pages=0), (2, []))
             (assets / 'a b.webp').unlink()
             (built / 'a b.webp').unlink()
-            self.assertEqual(len(check(root)[1]), 2)
+            self.assertEqual(len(check(root, min_pages=0)[1]), 2)
 
     def test_template_preview_substitution_or_missing_provenance_fails(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -106,15 +139,16 @@ class MediaReferencesTest(unittest.TestCase):
             asset.parent.mkdir(parents=True)
             asset.write_bytes(b'verified renderer output')
             (root / 'apps/site/src/data').mkdir(parents=True)
+            (root / 'apps/site/dist').mkdir(parents=True)
             (root / 'apps/site/src/data/catalog.json').write_text(json.dumps([{'id': 'real-template', 'image': 'template.webp'}]))
-            self.assertEqual(len(check(root)[1]), 1)
+            self.assertEqual(len(check(root, min_pages=0)[1]), 1)
             manifest = root / 'docs/verification/template-marketing-assets.json'
             manifest.parent.mkdir(parents=True)
             row = {'templateId': 'real-template', 'asset': 'apps/site/public/assets/template.webp', 'previewSha256': hashlib.sha256(asset.read_bytes()).hexdigest()}
             manifest.write_text(json.dumps({'previews': [row], 'nativeEdit': row}))
-            self.assertEqual(check(root), (0, []))
+            self.assertEqual(check(root, min_pages=0), (0, []))
             asset.write_bytes(b'unrelated replacement picture')
-            self.assertTrue(check(root)[1])
+            self.assertTrue(check(root, min_pages=0)[1])
 
     def test_download_buttons_without_resolver_fail(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -122,16 +156,27 @@ class MediaReferencesTest(unittest.TestCase):
             page = root / 'apps/site/dist'
             page.mkdir(parents=True)
             (page / 'index.html').write_text('<a data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download</a>')
-            self.assertEqual(len(check(root)[1]), 1)
+            self.assertEqual(len(check(root, min_pages=0)[1]), 1)
             (page / 'index.html').write_text('<a data-dl="win" href="x">d</a><script src="main.js" defer></script>')
-            self.assertEqual(check(root)[1], [])
+            self.assertEqual(check(root, min_pages=0)[1], [])
+
+    def test_missing_or_thin_build_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # no dist at all: must fail with an explicit instruction, not pass
+            self.assertEqual(check(root, min_pages=0), (0, ['apps/site/dist is missing: build the site before auditing (pnpm --filter @oia/site build)']))
+            # dist with too few pages: must fail instead of quietly scanning less
+            page = root / 'apps/site/dist'
+            page.mkdir(parents=True)
+            (page / 'index.html').write_text('<p>ok</p>')
+            self.assertTrue(any('built pages' in m for m in check(root, min_pages=2)[1]))
 
     def test_remote_media_is_not_treated_as_local(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / 'apps/site/dist').mkdir(parents=True)
             (root / 'README.md').write_text('<img src="https://img.shields.io/example"><img src="data:image/png;base64,AAAA">')
-            self.assertEqual(check(root), (0, []))
+            self.assertEqual(check(root, min_pages=0), (0, []))
 
 
 if __name__ == '__main__':

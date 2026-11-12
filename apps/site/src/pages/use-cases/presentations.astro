@@ -1,4 +1,5 @@
 ---
+import DownloadButtons from '../../components/DownloadButtons.astro'
 import Page from '../../layouts/Page.astro';
 ---
 
@@ -16,11 +17,7 @@ import Page from '../../layouts/Page.astro';
   <p class="kicker">Use case, decks</p>
   <h1>Decks that plan themselves, and wait for your yes.</h1>
   <p class="lede">Ask for a pitch deck and Oia stops at the outline first: page titles and summaries you can rewrite before a single image is spent. Then every page is painted in one consistent style, editable on a real canvas, exportable to PDF and PPTX.</p>
-  <div class="ctaRow download-options" id="download">
-    <a class="btn btn-accent" data-dl="macArm64" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg">Download for macOS</a>
-    <a class="btn btn-accent" data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download for Windows</a>
-    <a class="btn btn-ghost" href="../../prompts/">Copy the prompts</a>
-  </div>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../../install/" ghost={{ href: '../../prompts/', label: 'Copy the prompts' }} />
 </header>
 
 <main class="pageMain">

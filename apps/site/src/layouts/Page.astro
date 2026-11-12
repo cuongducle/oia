@@ -1,10 +1,12 @@
 ---
+import BaseHead from '../components/BaseHead.astro'
+
 interface NavLink { href: string; label: string }
 interface Props {
   title: string
   description: string
-  ogTitle: string
-  ogDescription: string
+  ogTitle?: string
+  ogDescription?: string
   canonical: string
   base?: string
   links?: NavLink[]
@@ -15,21 +17,10 @@ const { title, description, ogTitle, ogDescription, canonical, base = '../', lin
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title}</title>
-<meta name="description" content={description}>
-<meta name="theme-color" content="#0e0d1f">
-<link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml">
-<meta property="og:type" content="website">
-<meta property="og:title" content={ogTitle}>
-<meta property="og:description" content={ogDescription}>
-<meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
-<meta property="og:url" content={canonical}>
-<link rel="canonical" href={canonical}>
-<link rel="stylesheet" href={`${base}fonts/fonts.css`}>
-<link rel="stylesheet" href={`${base}styles.css`}>
-<link rel="stylesheet" href={`${base}pages.css`}>
+<BaseHead title={title} description={description} canonical={canonical} base={base} ogTitle={ogTitle} ogDescription={ogDescription}>
+  <link rel="stylesheet" href={`${base}pages.css`}>
+  <slot name="head" />
+</BaseHead>
 </head>
 <body class="page">
 <nav class="pageNav" aria-label="Main">

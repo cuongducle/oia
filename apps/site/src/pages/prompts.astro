@@ -1,4 +1,5 @@
 ---
+import DownloadButtons from '../components/DownloadButtons.astro'
 import Page from '../layouts/Page.astro';
 ---
 
@@ -16,11 +17,7 @@ import Page from '../layouts/Page.astro';
   <p class="kicker">Prompt library</p>
   <h1>Prompts that print sellable designs.</h1>
   <p class="lede">Curated for marketplace sellers, livestreamers and small brands. Copy a prompt, paste it into Oia, pick a size, the copy is rendered into the artwork with real typography. Only prompts marked <em>tested</em> have been run against a live model; the rest are curated starting points.</p>
-  <div class="ctaRow download-options" id="download">
-    <a class="btn btn-accent" data-dl="macArm64" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg">Download for macOS</a>
-    <a class="btn btn-accent" data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download for Windows</a>
-    <a class="btn btn-ghost" href="../templates/">Browse templates</a>
-  </div>
+  <DownloadButtons rowClass="ctaRow" anchorId="download" installHref="../install/" ghost={{ href: '../templates/', label: 'Browse templates' }} />
 </header>
 
 <main class="pageMain">

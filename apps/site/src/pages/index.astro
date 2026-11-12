@@ -1,10 +1,15 @@
 ---
 import DownloadButtons from '../components/DownloadButtons.astro'
+import BaseHead from '../components/BaseHead.astro'
 
-const termCode = `<span class="p">$</span> curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\
-    -H "Authorization: Bearer $OIA_API_KEY" \\
-    -d '{"prompt":"matcha flash sale, 20% off today"}'
-<span class="c">{"code":0,"data":{"taskId":"t_9f2c"}}</span>  <span class="c"># the real local agent API, see the README</span>`
+// Plain string parts, not a template literal: a future `${` inside the shell
+// sample must never silently interpolate.
+const termCode = [
+  '<span class="p">$</span> curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\',
+  '    -H "Authorization: Bearer $OIA_API_KEY" \\',
+  '    -d \'{"prompt":"matcha flash sale, 20% off today"}\'',
+  '<span class="c">{"code":0,"data":{"taskId":"t_9f2c"}}</span>  <span class="c"># the real local agent API, see the README</span>',
+].join('\n')
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -24,28 +29,23 @@ const schema = {
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oia: free banner studio for Shopee, Lazada &amp; TikTok Shop sellers</title>
-<meta name="description" content="Oia is a free, open-source desktop app (macOS + Windows): type a sentence, attach your product photo, and get a finished sale banner for Shopee, Lazada or TikTok Shop, then change the price or text without paying for a whole new design.">
-<meta name="theme-color" content="#0e0d1f">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Oia: the banner studio for marketplace sellers">
-<meta property="og:description" content="Free, open-source desktop app. One sentence + your product photo → a finished Shopee / Lazada / TikTok Shop banner you can keep editing.">
-<meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Oia, promo banners for marketplace sellers, generated then edited on a layer canvas">
-<meta property="og:url" content="https://oia.solutions/">
-<meta property="og:site_name" content="Oia">
-<meta name="twitter:image" content="https://oia.solutions/assets/og-hero.png">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://oia.solutions/">
-<link rel="stylesheet" href="fonts/fonts.css">
-<link rel="stylesheet" href="styles.css">
-<script is:inline>document.documentElement.classList.add('js')</script>
-<script type="application/ld+json" set:html={JSON.stringify(schema)} />
+<BaseHead
+  title="Oia: free banner studio for Shopee, Lazada &amp; TikTok Shop sellers"
+  description="Oia is a free, open-source desktop app (macOS + Windows): type a sentence, attach your product photo, and get a finished sale banner for Shopee, Lazada or TikTok Shop, then change the price or text without paying for a whole new design."
+  canonical="https://oia.solutions/"
+  base=""
+  ogTitle="Oia: the banner studio for marketplace sellers"
+  ogDescription="Free, open-source desktop app. One sentence + your product photo &rarr; a finished Shopee / Lazada / TikTok Shop banner you can keep editing."
+>
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Oia, promo banners for marketplace sellers, generated then edited on a layer canvas">
+  <meta property="og:site_name" content="Oia">
+  <meta name="twitter:image" content="https://oia.solutions/assets/og-hero.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script is:inline>document.documentElement.classList.add('js')</script>
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+</BaseHead>
 </head>
 <body id="top">
 <a class="skip" href="#main">Skip to content</a>

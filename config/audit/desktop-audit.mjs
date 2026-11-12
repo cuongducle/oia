@@ -13,6 +13,11 @@ import { spawnSync } from "node:child_process";
  *  Empty since T10 (zod 3 → 4 removed GHSA-mrhx-c7xc-m3w5), keep it that way. */
 const ACKNOWLEDGED = {};
 
+/** Workspace projects that are NOT part of the shipped installers. Their
+ *  dependency advisories are release-page concerns, not desktop blockers.
+ *  A finding that touches BOTH a shipped project and one of these still fails. */
+const NON_SHIPPED = new Set(["apps/site"]);
+
 // audit exits non-zero whenever ANY vuln exists (incl. frozen-only), the stdout
 // JSON is what we judge, not the exit code.
 const proc = spawnSync("pnpm", ["audit", "--prod", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
@@ -26,7 +31,7 @@ for (const a of Object.values(advisories)) {
   for (const finding of adv.findings ?? []) {
     for (const p of finding.paths ?? []) projects.add(p.split(">")[0]);
   }
-  const shipped = [...projects];
+  const shipped = [...projects].filter((p) => !NON_SHIPPED.has(p));
   if (shipped.length === 0) continue;
   if (ACKNOWLEDGED[adv.github_advisory_id]) {
     console.log(`acknowledged ${adv.github_advisory_id} (${adv.module_name}), ${ACKNOWLEDGED[adv.github_advisory_id]}`);
@@ -41,3 +46,13 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log("shipped-tree audit OK (acknowledged advisories listed above)");
+// visibility: advisories that only touch non-shipped projects, surfaced but not failing
+for (const a of Object.values(advisories)) {
+  if (a.severity !== "high" && a.severity !== "critical") continue;
+  const projects = new Set();
+  for (const finding of a.findings ?? []) {
+    for (const p of finding.paths ?? []) projects.add(p.split(">")[0]);
+  }
+  const nonShippedOnly = [...projects].length > 0 && [...projects].every((p) => NON_SHIPPED.has(p));
+  if (nonShippedOnly) console.log(`  (site-only, not shipped) ${a.module_name} ${a.github_advisory_id}`);
+}

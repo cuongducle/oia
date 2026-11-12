@@ -1,0 +1,28 @@
+---
+// Shared <head> for every page. Landing passes extra tags (og dimensions,
+// twitter card, JSON-LD, the js-class bootstrap) through the default slot.
+interface Props {
+  title: string
+  description: string
+  canonical: string
+  base: string
+  ogTitle?: string
+  ogDescription?: string
+}
+const { title, description, canonical, base, ogTitle = title, ogDescription = description } = Astro.props
+---
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content={description}>
+<meta name="theme-color" content="#0e0d1f">
+<link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content={ogTitle}>
+<meta property="og:description" content={ogDescription}>
+<meta property="og:image" content="https://oia.solutions/assets/og-hero.png">
+<meta property="og:url" content={canonical}>
+<link rel="canonical" href={canonical}>
+<link rel="stylesheet" href={`${base}fonts/fonts.css`}>
+<link rel="stylesheet" href={`${base}styles.css`}>
+<slot />

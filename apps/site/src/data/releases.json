@@ -1,0 +1,5 @@
+{
+  "tag": "v0.6.1",
+  "mac": { "name": "Oia-0.6.1-arm64.dmg", "size": 433574780, "label": "macOS (Apple Silicon)" },
+  "win": { "name": "Oia-0.6.1-win-x64.exe", "size": 419234278, "label": "Windows 64-bit" }
+}
