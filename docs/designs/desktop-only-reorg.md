@@ -956,3 +956,36 @@ runner child dùng chung (spawn lười). Kiểm chứng: cùng tensor cho logit
 chiều TRÙNG K BIT giữa đường in-process cũ và sidecar (max diff 0,0). Từ đây
 utility process không còn import onnxruntime-node; mọi ORT chạy trong tiến
 trình native riêng, crash model không bao giờ giết tầng services.
+
+## Rà soát template đóng kèm (2026-11-12, owner yêu cầu)
+
+Bản ghi chi tiết: [template-bundle-audit.md](template-bundle-audit.md).
+Kho chung có 35 mẫu, đủ 8 nhóm taxonomy: 30 Studio + 3 livestream trước đây
+chỉ hiện trong Editor + 2 Overlay mới. Home không còn gộp nhóm thành
+Poster/Social/Branding; Editor phân nhóm cùng taxonomy. Featured vẫn lọc
+được nhóm. Giữ id mẫu và không ghi đè tài liệu người dùng đã lưu.
+
+Sửa 14 mẫu Studio về tương phản, khoảng cách, copy hoặc bố cục; hai bìa
+thuyết trình chuyển sang 16:9. Countdown frame ghi rõ Static vì chỉ là đồ
+họa chữ, không có bộ đếm chạy. Nền tạo bằng mã có chủ đích không phải mock.
+Không sinh ảnh mới, không phát sinh quota; ảnh quà dùng lại asset có sẵn.
+
+Gates macOS: build/test/typecheck toàn repo, smoke, crash-smoke, shot xanh.
+Shot mới bấm đủ 8 nhóm trong app thật. Harness `template-qa` dựng 35 scene
+bằng Electron/Fabric, phông và ảnh thật: 0 chữ tràn trang, 0 cặp khung chữ
+chồng nhau sau sửa. Đã mở bảng ảnh và ảnh gốc các mẫu sửa chính. Bằng chứng
+ở `docs/private/real-runs/2026-11-12-template-bundle/`. Chưa chạy Windows
+máy thật; không tuyên bố kiểm chứng thị giác tự động hay một concept mới.
+
+**Vòng sửa theo phản hồi owner, cùng ngày:** owner bác việc giữ mẫu chỉ có
+nền màu/chữ. Đã chạy 8 lượt sinh ảnh thật qua `generate-poster` và context
+thật (8 thành công, 0 retry, 0 planner, 0 read). Thay 7 nền phẳng còn hoạt
+động và nền bìa perspective, bố trí lại chữ theo ảnh. Cả 30 Studio template
+nay có ảnh nền/chủ thể; Overlay/livestream vẫn trong suốt đúng công dụng.
+Asset mới có hậu tố `-ai-20261112`, giữ URL cũ để tài liệu đã lưu không tự
+đổi nền. Test buộc scene dùng ảnh mới và prompt khớp manifest thật. Đã mở
+ảnh nguồn, ảnh hoàn chỉnh và bảng trước/sau. Gates cuối: build/test/typecheck,
+smoke, crash-smoke, shot, template-qa xanh; 35 scene không tràn/chồng khung
+chữ, desktop 288 test qua và 1 manual test bỏ qua. Bằng chứng riêng:
+`docs/private/real-runs/2026-11-12-template-backgrounds-ai/`. Không tuyên bố
+owner đã duyệt thẩm mỹ, không có kiểm Windows máy thật.

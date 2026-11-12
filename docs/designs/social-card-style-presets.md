@@ -79,6 +79,21 @@ Thay vì `?style=` query (không index tốt bằng trang riêng), làm 2 trang 
 | Q3 | SC-1 + SC-2 làm ngay (0 quota, additive)? | Có thì gộp 1 PR |
 | Q4 | Duyệt hướng **SC-5 preset packs** (bundle template + style + prompt provenance, phân phối site SEO + creator tip)? Nếu có: seed 2 pack đầu tiên gộp chung quota với SC-3 | **ĐÃ DUYỆT HƯỚNG (owner 2026-11-06, sau phần giảng cơ chế trang SEO per-pack)**: pack theo ngách ICP, không generic; seed 2 pack gộp quota SC-3, làm sau khi SC-3 nghiệm thu 2 template đầu. Q1-Q3 vẫn chờ |
 
+## Thay nền tạo bằng mã bằng ảnh thật (2026-11-12)
+
+Owner bác cách chỉ sửa chữ/bố cục và giữ mẫu thiếu ảnh. Đã sinh **8 ảnh mới,
+0 lượt đọc ảnh, 0 lượt planner**, qua `generate-poster` và ServiceContext thật;
+8/8 thành công, không retry. Gồm 7 nền phẳng còn hoạt động (3 Swiss, menu,
+journal, Tết đỏ, voucher vàng) và bìa perspective quá trống. Không tính ảnh
+quà tái dùng ở vòng trước là ảnh sinh mới.
+
+Toàn bộ 30 Studio template nay có ảnh nền/chủ thể. Chữ vẫn là đối tượng
+chỉnh sửa native, chỉ Overlay/livestream giữ trong suốt. Ảnh mới có URL phiên
+bản, không thay file cũ được project đã lưu tham chiếu. Prompt thật, test,
+SHA-256 và bằng chứng xem ảnh: [template-bundle-audit.md](template-bundle-audit.md).
+Gates build/test/typecheck, smoke, crash-smoke, shot, template-qa đều xanh
+trên macOS; chưa kiểm máy Windows thật. Không cập nhật ảnh SEO của site.
+
 ## Whitelist font pairing (đã verify subset Vietnamese 2026-11-06)
 
 | Style | Cặp | Cấu thành |

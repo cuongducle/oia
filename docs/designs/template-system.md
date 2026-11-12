@@ -75,6 +75,15 @@ Mỗi category 1 template: flash-sale (price-banner), new-product, livestream ov
 | Q2 | T4 publish gate hard ngay hay soft-warning trước? | **SOFT ĐÃ LÀM (2026-11-03)**: publish trả warnings[] (category thiếu / không có text layer / artwork inline), Editor hiện "Published with notes". Hard sau 1 release. |
 | Q3 | T5 site per-category pages (SEO loop) ưu tiên bao sớm? | **ĐÃ LÀM (2026-11-04)**: sau khi 8/8 category có phủ. Hub + 6 trang category (flash-sale, menu, social-post, new-product, poster, deck); FAQ riêng mỗi trang (không spam trùng); generator committed. |
 
+## Hậu kiểm kho đóng kèm (2026-11-12)
+
+Xem [template-bundle-audit.md](template-bundle-audit.md): 35 mẫu, đủ 8 nhóm
+trong cả Home và Editor. Đính chính phạm vi câu “8/8 có phủ” phía trên:
+livestream trước đây chỉ hiện trong Editor, còn Overlay generic chưa có mẫu
+riêng trong kho Home. Nay dùng catalog chung, thêm 2 Overlay trong suốt;
+không gộp generic Overlay với preset vùng an toàn Livestream. Không thay đổi
+hợp đồng store/publish, không ghi đè project cũ.
+
 ## Wire notes (G7, goldfish)
 
 - `templates.create` giờ **400** với category id ngoài taxonomy (edge enforcement), thay đổi hành vi wire có chủ đích, ghi ở đây theo phép lịch sự D14
