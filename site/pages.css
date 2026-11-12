@@ -2,9 +2,12 @@
    Static, JS-light (copy button only), no CDN, fast and crawlable. */
 
 body.page{font-size:15.5px}
-.pageNav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
+.pageNav{position:sticky;top:0;/* 200: stay above reading extensions that pin page navs fixed at z50 over the header */z-index:200;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(20px,4vw,48px);background:rgba(14,13,31,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--hairline)}
 .pageNav .links{display:flex;gap:22px;flex-wrap:wrap}
 .pageNav a{font-size:13px;color:var(--muted)}
+/* .btn labels must keep their own colors: the rule above outspecifies .btn-accent otherwise. */
+.pageNav a.btn-accent{color:#fff}
+.pageNav a.btn-ghost{color:var(--paper)}
 .pageNav a:hover{color:var(--paper)}
 .pageHero{padding:clamp(48px,7vh,84px) clamp(20px,4vw,48px) 8px;max-width:880px}
 .pageHero .kicker{margin-bottom:14px}

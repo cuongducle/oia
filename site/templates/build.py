@@ -58,9 +58,9 @@ def shell(title, description, body, base, url, heading=None):
 </head><body class="page">
 <nav class="pageNav" aria-label="Main"><a class="brand" href="{base}"><span class="o">◆ OIA</span></a>
 <div class="links"><a href="{base}#workflow">How it works</a><a href="{base}templates/">Templates</a><a href="{base}prompts/">Prompt library</a><a href="https://github.com/cuongducle/oia">GitHub</a></div>
-<a class="btn btn-accent" href="https://github.com/cuongducle/oia/releases/tag/v0.6.1">Download v0.6.1</a></nav>
+<a class="btn btn-accent" href="#download">Download</a></nav>
 <header class="pageHero"><p class="kicker">The bundled library · v0.6.1</p><h1>{heading or escape(title)}</h1><p class="lede">{escape(description)}</p>
-<div class="ctaRow"><a class="btn btn-accent" href="https://github.com/cuongducle/oia/releases/latest">Download Oia, free &amp; open source</a><a class="btn btn-ghost" href="{base}templates/">All 35 templates</a></div></header>
+<div class="ctaRow download-options" id="download"><a class="btn btn-accent" data-dl="macArm64" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg">Download for macOS</a><a class="btn btn-accent" data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download for Windows</a><a class="btn btn-ghost" href="{base}templates/">All 35 templates</a></div></header>
 <main class="pageMain">{body}
 <section class="faq" style="margin-top:48px"><h2>From template to your next campaign</h2>
 <details><summary>Does opening a template spend image quota?</summary><p>No. The artwork ships with Oia. Opening a template, changing native text, arranging layers and exporting use no AI quota. Requesting new AI artwork uses your provider quota.</p></details>
@@ -68,6 +68,7 @@ def shell(title, description, body, base, url, heading=None):
 <details><summary>Can I save my own designs as templates?</summary><p>Yes. Use Share ▸ Publish as template in the editor to keep a reusable scene in your own library.</p></details>
 </section></main>
 <footer class="pageFooter"><a class="brand" href="{base}"><span class="o">◆ OIA</span></a><div class="links"><a href="{base}templates/">Templates</a><a href="{base}prompts/">Prompts</a><a href="{base}install/">Install help</a><a href="https://github.com/cuongducle/oia">GitHub</a></div><span class="meta">MIT · Oia, free &amp; open source</span></footer>
+<script src="{base}main.js" defer></script>
 </body></html>
 '''
 
@@ -78,10 +79,10 @@ def write(url, title, description, body, base, heading=None):
     (folder / 'index.html').write_text(shell(title, description, body, base, url, heading), encoding='utf-8')
 
 
-nav = '<nav class="catNav" aria-label="Template categories">' + ''.join(
-    f'<a href="{slug}/">{label} · {COUNTS[slug]}</a>' for slug, label in CATEGORIES.items()) + '</nav>'
-facets = '<nav class="catNav" aria-label="Styles and packs">' + ''.join(
-    f'<a href="{kind}/{slug}/">{label}</a>' for kind, entries in (('styles', STYLES), ('packs', PACKS)) for slug, label in entries.items()) + '</nav>'
+nav = '<div class="catNav" role="group" aria-label="Template categories">' + ''.join(
+    f'<a href="{slug}/">{label} · {COUNTS[slug]}</a>' for slug, label in CATEGORIES.items()) + '</div>'
+facets = '<div class="catNav" role="group" aria-label="Styles and packs">' + ''.join(
+    f'<a href="{kind}/{slug}/">{label}</a>' for kind, entries in (('styles', STYLES), ('packs', PACKS)) for slug, label in entries.items()) + '</div>'
 body = '<p class="catNote">35 real scenes across eight categories. Select any image for a full-size preview. Transparent livestream and overlay graphics are listed without photographic mockups.</p>' + nav + facets
 for slug, label in CATEGORIES.items():
     items = [t for t in TEMPLATES if t['category'] == slug]

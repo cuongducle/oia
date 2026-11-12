@@ -103,12 +103,18 @@ local origin for visual QA when a browser has cached previous site versions.
   content pages. Keep these stable. One `max-width:960px` block owns landing
   responsiveness.
 - `fonts/` is self-hosted, including Vietnamese subsets for content.
-- `main.js` null-guards landing-specific elements. Both macOS and Windows
-  download buttons are always visible on the landing and install pages; the
-  resolver updates each link independently from the GitHub latest release,
-  falling back per platform to the pinned v0.6.1 files. A platform missing
-  from a newer release keeps that button on the matching fallback tag, never a
-  mixed tag/filename URL. Bounded timeout, one fallback version.
+- `main.js` null-guards landing-specific elements. Every page (landing,
+  install, prompts, use-cases and the whole templates tree) shows both the
+  macOS and Windows download buttons as direct file links; the resolver
+  updates each link independently from the GitHub latest release, falling
+  back per platform to the pinned v0.6.1 files. A platform missing from a
+  newer release keeps that button on the matching fallback tag, never a
+  mixed tag/filename URL. The media audit fails any page that ships
+  `data-dl` buttons without loading `main.js`.
+- The category/facet chip rows are `div role="group"`, not `<nav>`: reading
+  extensions (Speechify/ReadAloud style) pin extra `<nav>` elements fixed
+  over the header, covering the nav download button. Headers keep z-index
+  200 for the same reason.
 - `faq-schema.js` derives JSON-LD from the visible FAQ, no duplicate copy.
 - `templates/catalog.json` is exported from the shared desktop template catalog,
   not manually maintained. `templates/build.py` generates the hub, eight category

@@ -26,15 +26,16 @@
     <a href="../use-cases/flash-sale-banners/">Use cases</a>
     <a href="https://github.com/cuongducle/oia" rel="noopener">GitHub</a>
   </div>
-  <a class="btn btn-accent" href="https://github.com/cuongducle/oia/releases">Download</a>
+  <a class="btn btn-accent" href="#download">Download</a>
 </nav>
 
 <header class="pageHero">
   <p class="kicker">Prompt library</p>
   <h1>Prompts that print sellable designs.</h1>
   <p class="lede">Curated for marketplace sellers, livestreamers and small brands. Copy a prompt, paste it into Oia, pick a size, the copy is rendered into the artwork with real typography. Only prompts marked <em>tested</em> have been run against a live model; the rest are curated starting points.</p>
-  <div class="ctaRow">
-    <a class="btn btn-accent" href="https://github.com/cuongducle/oia/releases">Download Oia, free &amp; open source</a>
+  <div class="ctaRow download-options" id="download">
+    <a class="btn btn-accent" data-dl="macArm64" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg">Download for macOS</a>
+    <a class="btn btn-accent" data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download for Windows</a>
     <a class="btn btn-ghost" href="../templates/">Browse templates</a>
   </div>
 </header>
@@ -200,5 +201,6 @@ document.querySelectorAll('.copyBtn').forEach(function(btn){
   });
 });
 </script>
+<script src="../main.js" defer></script>
 </body>
 </html>

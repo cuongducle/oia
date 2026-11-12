@@ -1065,3 +1065,33 @@ không nằm trong lượt phát hành này; resolver GitHub Latest vẫn tìm b
   ghi chú hai dòng, không tràn ngang; trang install tương tự, console sạch.
   Bản thân ảnh chụp không mở xem được trong phiên này, kết luận dựa số đo
   bounding box thật của Chrome, không phải kiểm thị giác bằng mắt.
+
+## Nút tải trực tiếp mọi trang + nút navbar bị che (2026-11-12, owner
+"user bình thường ko biết download release đâu" và "nút download bị che")
+
+- Bỏ nốt các nút dẫn sang trang GitHub releases (nav + hero của templates,
+  prompts, use-cases). Mọi trang giờ có hai nút bấm thẳng file
+  `Download for macOS` / `Download for Windows`; link tĩnh v0.6.1 chỉ là
+  fallback, các trang này đều tải `main.js` nên resolver tự lấy bản latest
+  theo từng nền tảng. Media audit thêm rule fail trang có `data-dl` mà không
+  tải `main.js` (kèm self-test), chống tụt về link tĩnh cũ.
+- Nút Download trên navbar trang con bị "che" gồm ba lớp lỗi chồng nhau:
+  (1) chữ xám nhạt gần vô hình vì `.pageNav a` (0,1,1) đè màu `.btn-accent`
+  (0,1,0), sửa bằng rule màu riêng; (2) extension đọc (kiểu Speechify/
+  ReadAloud) ghim các `<nav>` phụ thành `position:fixed` trên đầu trang,
+  nó còn copy theo z-index navbar (đặt 50 nó thành 50, đặt 200 nó thành
+  200), đè giữa nút; sửa bằng đổi hàng chip `catNav` từ `<nav>` sang
+  `div role="group"` và nâng z-index navbar lên 200. Không quy tội CSS
+  site: đã quét toàn bộ stylesheet + adoptedStyleSheets, không rule nào
+  đặt fixed cho catNav; đo trong Chrome thật có extension: trước click
+  bị chặn "pointer target covered" và elementFromPoint trả về catNav,
+  sau sửa click thành công, nút nguyên vẹn.
+- Kiểm chứng bằng Z.AI Vision theo yêu cầu owner (phiên agent không tự xem
+  được ảnh): trước sửa Vision đọc nút navbar là "viên thuốc tím không chữ,
+  cắt nửa dưới"; sau sửa đọc đúng chữ "Download" trắng, đủ bốn góc, không
+  bị che; hai nút hero đọc rõ nhãn trắng. Ảnh headless Chrome không tải
+  font nên chữ biến mất trong ảnh chụp nhanh, không dùng làm bằng chứng.
+- Gates: media audit 5 self-test + 149 tham chiếu (kèm rule resolver mới),
+  3 test download, diff check. Chrome thật desktop + mobile 390: hai nút
+  xếp đúng, không tràn ngang; prompts/templates href trực tiếp, `main.js`
+  tải. Chưa kiểm Windows máy thật; không đổi tag v0.6.1.

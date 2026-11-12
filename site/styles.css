@@ -27,7 +27,7 @@ html.js .reveal{opacity:1;transform:none}
 html.js .reveal.in{opacity:1;transform:none}
 
 /* ---------- NAV ---------- */
-nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,4vw,48px);height:64px;background:linear-gradient(180deg,rgba(14,13,31,.92),rgba(14,13,31,.55) 80%,transparent);backdrop-filter:blur(10px)}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,4vw,48px);height:64px;background:linear-gradient(180deg,rgba(14,13,31,.92),rgba(14,13,31,.55) 80%,transparent);backdrop-filter:blur(10px)}
 .brand .o{font-family:'Anton';font-size:22px;letter-spacing:.04em}
 .navlinks{display:flex;gap:28px}
 .navlinks a{font-size:13px;font-weight:500;letter-spacing:.04em;color:var(--muted);transition:color .15s}

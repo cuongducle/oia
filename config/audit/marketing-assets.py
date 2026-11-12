@@ -36,8 +36,11 @@ def check(root):
     for page in [*sorted(site.rglob('*.html')), root / 'README.md']:
         if not page.exists():
             continue
+        text = page.read_text(encoding='utf-8')
+        if 'data-dl=' in text and 'main.js' not in text:
+            missing.append(f'{page.relative_to(root)}: download buttons without the latest-release resolver (main.js)')
         parser = MediaParser()
-        parser.feed(page.read_text(encoding='utf-8'))
+        parser.feed(text)
         for url in parser.urls:
             parsed = urlsplit(url)
             if parsed.scheme and parsed.hostname != 'oia.solutions':
@@ -106,6 +109,15 @@ class MediaReferencesTest(unittest.TestCase):
             self.assertEqual(check(root), (0, []))
             asset.write_bytes(b'unrelated replacement picture')
             self.assertTrue(check(root)[1])
+
+    def test_download_buttons_without_resolver_fail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'site').mkdir()
+            (root / 'site/index.html').write_text('<a data-dl="win" href="https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe">Download</a>')
+            self.assertEqual(len(check(root)[1]), 1)
+            (root / 'site/index.html').write_text('<a data-dl="win" href="x">d</a><script src="main.js" defer></script>')
+            self.assertEqual(check(root)[1], [])
 
     def test_remote_media_is_not_treated_as_local(self):
         with tempfile.TemporaryDirectory() as directory:
