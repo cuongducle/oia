@@ -14,6 +14,7 @@
     "packaged-smoke": "node scripts/packaged-smoke.mjs",
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
     "shot:busy": "electron-vite build && cross-env OIA_DESKTOP_SHOT_BUSY=1 electron .",
+    "template-qa": "electron scripts/template-qa.cjs",
     "text-smoke": "node scripts/deconstruct-text-smoke.mjs",
     "prepare-lens": "node scripts/prepare-lens.mjs",
     "prepare-segment": "node scripts/prepare-segment.mjs",

@@ -12,6 +12,7 @@ import { shutdownSequence } from "./shutdownSequence.js";
 import { oiaFilesKey } from "./oiaProtocol.js";
 import { fixturePngB64, fixturePptxB64, brokenPptxB64 } from "./shotFixture.js";
 import { shotDeconstruct } from "./shots/deconstruct.js";
+import { shotTemplates } from "./shots/templates.js";
 
 import { TRAFFIC_LIGHTS } from "../shared/trafficLights.js";
 import { forbiddenSenderError, isOwnRendererSender } from "./ipcGuard.js";
@@ -842,6 +843,7 @@ async function shot(): Promise<void> {
     app.exit(3);
     return;
   }
+  await shotTemplates(win);
   await snap(win, "desktop-home.png");
 
   // ---- DA (designer-agent-loop): auto refine default ON, badge on the result,

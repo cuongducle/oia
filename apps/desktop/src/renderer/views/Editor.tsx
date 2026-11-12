@@ -8,8 +8,8 @@ import {
   type ExportFormat, type ExportScope, type ShapeKind, type TextPreset, type SizePresetName, type EditorPage, type LayerObject,
 } from "@oia/canvas";
 import { stripMarkers } from "@oia/protocol";
-import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
-import { LIVESTREAM_TEMPLATES } from "../lib/livestream-presets.js";
+import { BUNDLED_TEMPLATES } from "../../shared/bundled-templates.js";
+import { TEMPLATE_CATEGORIES } from "@oia/schema";
 import { guideFor, guideRects, readGuidePref, writeGuidePref, type GuidePlatform } from "../lib/live-guides.js";
 import { ASPECT_TOLERANCE, isNineSixteen } from "../lib/scene-dims.js";
 import { appendVariant, bindPromptForJob, bindTargetForJob, canReplaceVariant, variantKey, variantsFromSession, type VariantCard } from "../lib/variant-tray.js";
@@ -1490,17 +1490,15 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
             <>
               <h4>Templates</h4>
               <p className="hintP">Choose a template for the current page.</p>
-              <h5 className="tplGroup">Livestream</h5>
-              {LIVESTREAM_TEMPLATES.map((tpl) => (
-                <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
-                  {tpl.name}
-                </button>
-              ))}
-              <h5 className="tplGroup">Studio templates</h5>
-              {STUDIO_TEMPLATES.map((tpl) => (
-                <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
-                  {tpl.name}
-                </button>
+              {TEMPLATE_CATEGORIES.map((category) => (
+                <section key={category.id}>
+                  <h5 className="tplGroup">{category.label}</h5>
+                  {BUNDLED_TEMPLATES.filter((tpl) => tpl.category === category.id).map((tpl) => (
+                    <button key={tpl.id} className="presetBtn small" onClick={() => applyTemplate(tpl)}>
+                      {tpl.name}
+                    </button>
+                  ))}
+                </section>
               ))}
               <h5 className="tplGroup">Your library</h5>
               <button className="presetBtn small" onClick={loadTemplates}>Load your library</button>

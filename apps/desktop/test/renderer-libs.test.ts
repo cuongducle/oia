@@ -52,12 +52,24 @@ describe("studio-ui: canvas geometry", () => {
 
 describe("studio-ui: templates are real editable scenes", () => {
   it("filters by actual category rather than substring matching English labels", () => {
-    expect(templateCategory("Quarterly review deck")).toBe("presentation");
-    expect(templateCategory("Instagram carousel")).toBe("social");
-    expect(templateCategory("Matcha festival menu")).toBe("poster");
+    expect(templateCategory("Quarterly review deck")).toBe("deck");
+    expect(templateCategory("Instagram carousel")).toBe("social-post");
+    expect(templateCategory("Matcha festival menu")).toBe("menu");
     expect(templateCategory("Something else entirely")).toBe("other");
-    expect(filterTemplates([{ name: "Matcha menu" }, { name: "Slide deck" }] as never, "poster")).toHaveLength(1);
-    expect(filterTemplates([{ name: "a" }] as never, "all")).toHaveLength(1);
+    expect(filterTemplates([{ name: "Matcha menu" }, { name: "Slide deck" }], "menu")).toHaveLength(1);
+    expect(filterTemplates([{ name: "a" }], "all")).toHaveLength(1);
+    const mixed = [
+      { name: "Sale poster", category: "flash-sale" },
+      { name: "Sale poster", category: "poster" },
+      { name: "Menu poster", category: "menu" },
+      { name: "Overlay poster", category: "overlay" },
+      { name: "Mystery", category: "future-category" },
+    ];
+    expect(filterTemplates(mixed, "poster")).toEqual([mixed[1]]);
+    expect(filterTemplates(mixed, "flash-sale")).toEqual([mixed[0]]);
+    expect(filterTemplates(mixed, "menu")).toEqual([mixed[2]]);
+    expect(filterTemplates(mixed, "overlay")).toEqual([mixed[3]]);
+    expect(filterTemplates(mixed, "other")).toEqual([mixed[4]]);
   });
   it("imageSource admits http(s), data URLs and root-relative paths, and nothing executable", () => {
     expect(imageSource("https://x/y.png")).toBe("https://x/y.png");

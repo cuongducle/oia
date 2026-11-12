@@ -1,4 +1,4 @@
-import type { Template } from "@oia/schema";
+import { TEMPLATE_CATEGORIES, type Template, type TemplateCategoryId } from "@oia/schema";
 
 export function fitArtboard(width: number, height: number, availableWidth: number, availableHeight: number): number {
   const w = Math.max(1, width), h = Math.max(1, height);
@@ -9,18 +9,22 @@ export function sceneSize(scene: { objects: { type?: string | null; name?: strin
   const w = clip?.width, h = clip?.height;
   return { width: typeof w === "number" && Number.isFinite(w) && w > 0 ? w : 1360, height: typeof h === "number" && Number.isFinite(h) && h > 0 ? h : 2048 };
 }
-export type StudioCategory = "all" | "poster" | "social" | "presentation" | "other";
-/** TPL-T3: prefer the template's own taxonomy category; the name regex stays as
- *  the fallback for user-published templates without one (D14 read-side). */
-const FIELD_CATEGORY: Record<string, StudioCategory> = {
-  "flash-sale": "poster", "new-product": "social", "livestream": "other", "menu": "poster",
-  "social-post": "social", "deck": "presentation", "poster": "poster", "overlay": "other",
-};
+export type StudioCategory = "all" | TemplateCategoryId | "other";
+export const STUDIO_CATEGORIES: readonly { id: StudioCategory; label: string }[] = [
+  { id: "all", label: "All" }, ...TEMPLATE_CATEGORIES, { id: "other", label: "Uncategorized" },
+];
+/** Legacy library entries can lack taxonomy; explicit valid categories always win. */
 export function templateCategory(name: string, category?: string): StudioCategory {
-  if (category && FIELD_CATEGORY[category]) return FIELD_CATEGORY[category];
-  if (/presentation|review|deck|slide/i.test(name)) return "presentation";
-  if (/instagram|social|carousel/i.test(name)) return "social";
-  if (/poster|matcha|festival|menu/i.test(name)) return "poster";
+  const known = TEMPLATE_CATEGORIES.find((c) => c.id === category);
+  if (known) return known.id;
+  if (/presentation|review|deck|slide/i.test(name)) return "deck";
+  if (/livestream|live cover/i.test(name)) return "livestream";
+  if (/overlay|lower.third/i.test(name)) return "overlay";
+  if (/flash.?sale|clearance/i.test(name)) return "flash-sale";
+  if (/new product|product drop|launch/i.test(name)) return "new-product";
+  if (/menu|brunch/i.test(name)) return "menu";
+  if (/instagram|social|carousel/i.test(name)) return "social-post";
+  if (/poster|matcha|festival/i.test(name)) return "poster";
   return "other";
 }
 export function filterTemplates<T extends Pick<Template, "name" | "category">>(templates: readonly T[], category: StudioCategory): T[] {

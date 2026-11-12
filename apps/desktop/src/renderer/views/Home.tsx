@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrandKit, CanvasMsgMeta, Project, Template, SceneCanvas, SelfImproveResult } from "@oia/schema";
 import { AUTO_REFINE_MAX_ROUNDS_DEFAULT, STYLE_PRESETS, type StylePresetId } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
-import { STUDIO_TEMPLATES } from "../lib/studio-templates.js";
-import { filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
+import { BUNDLED_TEMPLATES } from "../../shared/bundled-templates.js";
+import { STUDIO_CATEGORIES, filterTemplates, templateCategory, type StudioCategory } from "../lib/studio-ui.js";
 import { ScenePreview } from "../components/ScenePreview.js";
 import { ResultCard } from "../components/ResultCard.js";
 import { CostHint } from "../components/RunSteps.js";
@@ -41,7 +41,7 @@ const AUTO_REFINE_SWITCH_LABEL = "Auto refine (check & improve)";
 const TRIAL_CHIP = "Trial mode · placeholder images";
 const STOP_LABEL = "Stop";
 
-const CATEGORY_LABELS: Record<StudioCategory, string> = { all: "All", poster: "Poster", social: "Social", presentation: "Presentation", other: "Branding" };
+const CATEGORY_LABELS = Object.fromEntries(STUDIO_CATEGORIES.map((c) => [c.id, c.label]));
 /** UI v1.1 R6: seller use cases replace the generic formats: each seeds a prompt
  *  starter and the ratio that job usually ships at (Deck also picks 3 pages). */
 const USE_CASES: { name: string; prompt: string; aspect: string; pages?: string }[] = [
@@ -393,7 +393,7 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
     }
   }
 
-  const all = [...STUDIO_TEMPLATES, ...community];
+  const all = [...BUNDLED_TEMPLATES, ...community];
   const visibleTemplates = filterTemplates(galleryTab === "featured" ? all.filter((t) => t.featured) : all, category);
 
   return (
@@ -659,19 +659,17 @@ export function Home({ resumeSession, onOpenProject, autoFocus = false, initialP
             <button className={`tabBtn ${galleryTab === "all" ? "active" : ""}`} aria-pressed={galleryTab === "all"} onClick={() => setGalleryTab("all")}>All templates</button>
           </div>
         </div>
-        {galleryTab === "all" && (
-          <div className="gallerySubTabs">
-            {(Object.keys(CATEGORY_LABELS) as StudioCategory[]).map((c) => (
-              <button key={c} aria-pressed={category === c} onClick={() => setCategory(c)}>{CATEGORY_LABELS[c]}</button>
+          <div className="gallerySubTabs" aria-label="Template categories">
+            {STUDIO_CATEGORIES.map((c) => (
+              <button key={c.id} aria-pressed={category === c.id} onClick={() => setCategory(c.id)}>{c.label}</button>
             ))}
           </div>
-        )}
         <div className="galleryGrid">
           {visibleTemplates.map((tpl) => (
-            <button key={tpl.id} className="galleryCard" onClick={() => openTemplate(tpl)} aria-label={`Open template ${tpl.name}`}>
+            <button key={tpl.id} className="galleryCard" onClick={() => openTemplate(tpl)} aria-label={`Open template ${tpl.name}`} title={tpl.name}>
               <div className="galleryThumb"><ScenePreview scene={tpl.scene} label={tpl.name} /></div>
               <div className="galleryMeta">
-                <strong>{tpl.name.split(" · ")[0]}</strong>
+                <strong>{tpl.name}</strong>
                 <span>{CATEGORY_LABELS[templateCategory(tpl.name, tpl.category)]} · {tpl.authorName}</span>
               </div>
             </button>
