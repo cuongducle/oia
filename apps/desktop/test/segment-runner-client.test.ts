@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { writeFileSync, mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SegmentRunner, resolveSegmentRuntime, f32ToB64, b64ToF32, type SegmentRuntime } from "../src/utility/segmentation/runner.js";
+import { SegmentRunner, resolveSegmentRuntime, runnerSpawnOptions, f32ToB64, b64ToF32, type SegmentRuntime } from "../src/utility/segmentation/runner.js";
 
 /**
  * The sidecar client's REAL error paths, through a real child process (a fake
@@ -115,5 +115,38 @@ if (globalThis.__n === 1) { ${PONG} } else { process.exit(9); }`);
     const { r } = client(`process.stdout.write("garbage not json\\n");`);
     await expect(r.request({ op: "ping" })).rejects.toThrow();
     expect(r.lastCrash).toContain("non-JSON");
+  });
+});
+
+describe("runnerSpawnOptions", () => {
+  // Regression: without windowsHide the console-subsystem runner opened a
+  // visible oia-segment-runner.exe console on Windows that stayed up forever.
+  it("hides the runner's console window and pins the ORT library path", () => {
+    const opts = runnerSpawnOptions({ runnerPath: "x", ortLibPath: "/ort/lib" });
+    expect(opts.windowsHide).toBe(true);
+    expect(opts.env?.ORT_DYLIB_PATH).toBe("/ort/lib");
+    expect(opts.stdio).toEqual(["pipe", "pipe", "inherit"]);
+  });
+});
+
+describe("SegmentRunner when the runner dies before reading", () => {
+  // Regression: a runner that exits at startup (missing DLL, crash) made the
+  // pending stdin write emit an unhandled 'write EOF'/EPIPE, an uncaughtException
+  // that kills the utility process. vitest fails the run on unhandled errors.
+  it("rejects the request and raises no unhandled stream error", async () => {
+    const r = new SegmentRunner({ runnerPath: process.execPath, args: ["-e", "process.exit(3)"], ortLibPath: "x" }, 5000);
+    runners.push(r);
+    const big = { op: "vision", models_dir: "x", key: "k", pixels: { dims: [1], data: "A".repeat(4_000_000) } } as const;
+    await expect(r.request(big)).rejects.toThrow(/exited|timed out/);
+    await new Promise((res) => setTimeout(res, 300)); // let a late stream error surface
+  });
+
+  it("an exit between requests respawns on the next call instead of waiting out the timeout", async () => {
+    const r = new SegmentRunner({ runnerPath: process.execPath, args: ["-e", "process.exit(0)"], ortLibPath: "x" }, 60_000);
+    runners.push(r);
+    await expect(r.request({ op: "ping" })).rejects.toThrow(/exited/);
+    const t0 = Date.now();
+    await expect(r.request({ op: "ping" })).rejects.toThrow(/exited/);
+    expect(Date.now() - t0).toBeLessThan(10_000);
   });
 });

@@ -12,7 +12,7 @@
  * Electron-free (node:child_process only) so vitest can drive a fake runner
  * through the real spawn/pipe machinery.
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -63,6 +63,20 @@ export function b64ToF32(b64: string): Float32Array {
   return out;
 }
 
+/**
+ * spawn() options for the runner. windowsHide is REQUIRED: the runner is a
+ * console-subsystem exe and the utility process has no console, so without it
+ * Windows opens a visible console window that stays up for the runner's whole
+ * (long-lived, cache-holding) life. Same rule as packages/providers cli/runtime.
+ */
+export function runnerSpawnOptions(runtime: SegmentRuntime): SpawnOptions {
+  return {
+    stdio: ["pipe", "pipe", "inherit"], // stderr = runner logs, forwarded
+    env: { ...process.env, ORT_DYLIB_PATH: runtime.ortLibPath },
+    windowsHide: true,
+  };
+}
+
 export class SegmentRunner {
   private child: ChildProcess | null = null;
   private gen = 0;
@@ -77,9 +91,16 @@ export class SegmentRunner {
   }
 
   private start(): ChildProcess {
-    const child = spawn(this.runtime.runnerPath, this.runtime.args ?? [], {
-      stdio: ["pipe", "pipe", "inherit"], // stderr = runner logs, forwarded
-      env: { ...process.env, ORT_DYLIB_PATH: this.runtime.ortLibPath },
+    const child = spawn(this.runtime.runnerPath, this.runtime.args ?? [], runnerSpawnOptions(this.runtime));
+    // A runner that dies before reading (missing DLL, startup crash) turns the
+    // pending stdin write into an async EPIPE/EOF 'error' event; unhandled, it is
+    // an uncaughtException that takes the whole utility process down. The
+    // request's own exit/timeout path reports the failure instead.
+    child.stdin?.on("error", () => {});
+    // An exit BETWEEN requests must clear the handle, or the next request would
+    // write into a dead pipe and wait out the full timeout instead of respawning.
+    child.once("exit", () => {
+      if (this.child === child) this.child = null;
     });
     this.gen += 1;
     this.crashMessage = null;
