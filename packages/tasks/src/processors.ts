@@ -97,7 +97,11 @@ export function makeRemoveBackground(ctx: ProcCtx) {
       const chunks: Buffer[] = [];
       p.stdout.on("data", (c) => chunks.push(c));
       p.stderr.on("data", (c) => process.stderr.write(c));
-    p.on("error", (e) => reject(new Error("rembg is not installed, run: pip install rembg (BR-RBG)")));
+      // rembg that dies before reading stdin (e.g. installed without its onnxruntime
+      // backend) makes the write fail asynchronously; unhandled, that EOF/EPIPE
+      // crashes the host process. The 'close' handler reports the exit code instead.
+      p.stdin.on("error", () => {});
+      p.on("error", () => reject(new Error('rembg is not installed, run: pip install "rembg[cpu,cli]" (BR-RBG)')));
       p.on("close", (code) => (code === 0 ? resolve(new Uint8Array(Buffer.concat(chunks))) : reject(new Error(`rembg exit ${code}`))));
       p.stdin.end(Buffer.from(src));
     });

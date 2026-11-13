@@ -152,3 +152,30 @@ describe("SubmitOptions.onSettled fires exactly once with the terminal status", 
     expect(settled).toEqual(["failed"]);
   });
 });
+
+describe("TaskStore terminal visibility vs onSettled", () => {
+  // Regression (Windows CI, loopback guard test): progress flipped to "succeeded"
+  // in memory BEFORE the terminal persist finished, and onSettled (which releases
+  // the shared metered slot) only ran after it. A poller that saw "succeeded" and
+  // resubmitted got a spurious 429. A slow durable write widens the window.
+  it.each([
+    ["succeeded", async () => ({ urls: ["/api/files/x.png"] })],
+    ["failed", async () => { throw new Error("boom"); }],
+  ] as const)("a %s record is never visible before onSettled has run", async (_label, handler) => {
+    const store = new TaskStore();
+    store.register("generate-poster", handler);
+    // Slow durable log (Windows atomic rename retries); Reflect.set swaps the private writer.
+    Reflect.set(store, "persist", () => new Promise<void>((r) => setTimeout(r, 150)));
+    let settled = false;
+    const t = await store.submit("generate-poster", { prompt: "x" }, { onSettled: () => { settled = true; } });
+    for (let i = 0; i < 200; i++) {
+      const s = store.get(t.taskId);
+      if (s.progress !== "processing") {
+        expect(settled).toBe(true);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    throw new Error("task never settled");
+  });
+});

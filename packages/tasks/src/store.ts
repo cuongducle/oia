@@ -169,6 +169,11 @@ export class TaskStore {
   private async runToCompletion(type: TaskType, params: Record<string, unknown>, status: TaskStatus): Promise<TaskStatus> {
     const ac = new AbortController();
     registerCancelable(status.jobId!, ac);
+    // Terminal fields are staged here and applied to the live record only AFTER the
+    // durable write: a poller that sees a terminal progress must find onSettled
+    // (which frees the shared metered slot) already run, or its resubmit gets a
+    // spurious 429 (the persist window is wide on Windows).
+    let terminal: Partial<TaskStatus> = { progress: "failed", msg: "task ended without an outcome" };
     try {
       const handler = this.handlers.get(type);
       if (!handler) throw new Error(`no handler registered for ${type}`);
@@ -179,25 +184,20 @@ export class TaskStore {
       };
       const result = await handler(params, { jobId: status.jobId!, signal: ac.signal, checkpoint: (result) => keepResult(result, true) });
       await keepResult(result);
-      if (ac.signal.aborted) {
-        // B7: the handler finished but was cancelled after completion, the quota was spent,
-        // so the result is kept (afterCompletion principle) and the outcome stays honest
-        status.progress = "failed";
-        status.errorClass = "cancelled";
-        status.msg = "cancelled after completion, result kept";
-      } else {
-        status.progress = "succeeded";
-      }
+      // B7: a handler that finished but was cancelled after completion spent the quota,
+      // so the result is kept (afterCompletion principle) and the outcome stays honest
+      terminal = ac.signal.aborted
+        ? { progress: "failed", errorClass: "cancelled", msg: "cancelled after completion, result kept" }
+        : { progress: "succeeded" };
     } catch (err) {
-      status.progress = "failed";
-      status.msg = err instanceof Error ? err.message : String(err);
-      const pe = ac.signal.aborted ? new ProviderError("cancelled", status.msg) : ProviderError.from(err);
-      status.errorClass = pe.errorClass;
-      status.provider = pe.provider ?? null;
-      status.attemptNumber = 1; // metered jobs run exactly once (G3), retries are new tasks (retryOf)
+      const msg = err instanceof Error ? err.message : String(err);
+      const pe = ac.signal.aborted ? new ProviderError("cancelled", msg) : ProviderError.from(err);
+      // metered jobs run exactly once (G3), retries are new tasks (retryOf)
+      terminal = { progress: "failed", msg, errorClass: pe.errorClass, provider: pe.provider ?? null, attemptNumber: 1 };
     } finally {
       releaseCancelable(status.jobId!);
-      await this.persist(status);
+      await this.persist({ ...status, ...terminal });
+      Object.assign(status, terminal);
     }
     return status;
   }
