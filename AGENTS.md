@@ -10,6 +10,12 @@ check its checklist before starting work, and update it (with gates run) after.
 
 The design ledger for older docs is [`docs/designs/SITEMAP.md`](docs/designs/SITEMAP.md).
 
+**Current work plan (2026-11-13):** [`docs/designs/execution-plan.md`](docs/designs/execution-plan.md) is the single
+execution source for the seller-workflow redo (work items W0-W4 + parallel track P).
+Read its "Nguyên tắc thực thi" before coding anything in that wave and start from W0.1 + W0.2.
+Rationale docs: seller-workflow-blueprint.md, product-data-entry-research.md,
+user-problems-backlog.md, china-ecommerce-workflows-research.md, seller-workflow-direction.md.
+
 ## Useful commands
 
 ```bash
@@ -49,6 +55,17 @@ never in CI, only when the owner asks.
    key via `Authorization` header only, 50 MB body cap.
 8. **English UI (D8, final).** Vietnamese stays content-level (Be Vietnam Pro
    renders seller copy). Do not add UI strings in other languages.
+
+## Product research: no recruitment dependency
+
+Owner decision (2026-11-13), recorded in the plan under “Nghiên cứu nhu cầu không phụ thuộc khảo sát trực tiếp”:
+
+- Never make surveys, interviews, recruiting sellers, or live user sessions a prerequisite for product decisions, implementation, or release. Do not block progress waiting for the owner to organize them. Such sessions are optional only when explicitly requested.
+- Treat the Chinese ecommerce market as a priority reference alongside Vietnamese and international sources (owner, 2026-11-13). Study merchant workflows, local tools and user discussions; distinguish vendor promotion from independent evidence, and verify what transfers to Vietnamese platforms instead of copying Chinese platform rules or assuming the same willingness to pay.
+- Research real people's existing work through forums, communities, reviews, support threads, issue trackers, tutorials and workflow demonstrations. Record source URLs, dates, context, workarounds and conflicting evidence; distinguish repeated independent reports from reposts or marketing.
+- Use Goldfish (`egm-review`) to role-play concrete user personas and reason through their jobs, constraints, repeated tasks, failure costs and unmet needs. Derive actionable product hypotheses, challenge them with other lenses, and check against available real-world sources.
+- Label simulated-user findings as hypotheses, never as real customer feedback or proof of demand, retention or willingness to pay. Missing interviews do not block a decision; document uncertainty and proceed with the best available evidence.
+- This supersedes the old D10 seller-session release gate, not technical gates, real-data feature runs, security, quota safeguards, or platform verification.
 
 ## First-class citizens
 

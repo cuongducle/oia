@@ -9,9 +9,11 @@ generated: { by: human:cuongducle, at: 2026-10-30T00:00:00Z }
 
 # Stage-0 seller sessions: moderation kit
 
+> **Owner update, 2026-11-13:** this kit is optional historical reference, not a prerequisite for decisions, implementation or release. The old seller-session gate is superseded by [the current research policy](../designs/desktop-only-reorg.md#nghiên-cứu-nhu-cầu-không-phụ-thuộc-khảo-sát-trực-tiếp). Use existing real-person sources and/or Goldfish persona role-play to identify workflow pain points; label simulation as hypotheses, not customer evidence. Run live sessions only if the owner explicitly requests them.
+
 * **Owner:** cuongducle
 * **Date prepared:** 2026-10-30
-* **Status:** ready, sessions not yet run
+* **Status:** optional reference; sessions not required
 * **Design of record:** [`banner-maker-loop-stage-0.md`](../designs/banner-maker-loop-stage-0.md) (Overview → "How Stage 0 is validated", CUJs 1-5 & 7, reference-fidelity criterion)
 * **What these sessions decide:** exit criteria met → roadmap step 2 (persistence hardening design input); not met → the blocker list becomes the next design's input.
 
