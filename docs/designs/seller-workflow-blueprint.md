@@ -54,6 +54,8 @@ Tại sao theo mô hình này: nguồn Trung Quốc 2026 cố định trường 
 
 ### 2.2 Bộ ảnh (Image set)
 
+> Cập nhật owner 13/11/2026: mục 2.1 và bảng role dưới đây được thay bằng mô hình Name + Description + Photos và Main sạch không chữ/giá. Chi tiết tại [execution-plan.md](execution-plan.md) mục W1.1 và W2.1.
+
 Một sản phẩm có một bộ ảnh đang sống. Mỗi ảnh trong bộ có VAI TRÒ:
 
 | Role | Nội dung | Nguồn gốc | Tốn AI? |
@@ -69,6 +71,8 @@ Một sản phẩm có một bộ ảnh đang sống. Mỗi ảnh trong bộ có
 Điểm cứng: **ảnh chi tiết không bao giờ do AI vẽ ra rồi gọi là ảnh thật.** Không có ảnh phù hợp thì bộ ảnh hiển thị "Detail: needs photo" và cho phép bỏ role đó (C9: hàng không giống hình là rủi ro bán hàng thật, không phải chuyện thẩm mỹ).
 
 ### 2.3 Chiến dịch (Campaign)
+
+> Cập nhật owner 13/11/2026: chiến dịch được mở rộng thành sale event cấp shop chứa nhiều sản phẩm; mỗi sản phẩm vẫn giữ snapshot riêng như mô tả dưới đây. Chi tiết quyết định tại [execution-plan.md](execution-plan.md) mục W3.1.
 
 Một bản chốt của bộ ảnh tại một thời điểm, có tên và ngày:
 

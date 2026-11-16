@@ -112,6 +112,8 @@ Rào trung thực bắt buộc:
 
 Ưu tiên: cao theo owner; triển khai sau S2 (cần hồ sơ + bảo vệ lớp sản phẩm), tái dùng gần hết đường sinh ảnh + manifest có sẵn.
 
+**Owner quyết 16/11/2026: ảnh nhà cung cấp/brand gửi là tài sản của shop.** Trường hợp thứ hai của cùng vấn đề: NHIỀU shop khác nhau nhập chung một nguồn (nhà cung cấp, brand, xưởng) nên dùng chung một bộ ảnh, kết quả tìm kiếm ra các ô giống hệt và khách chỉ còn so giá. Ảnh nguồn hàng gửi cho shop được tính là tài sản của shop: được nhập vào hồ sơ với nhãn nguồn `Supplier photo` (shop tự khai). Rào giữ nguyên: ảnh chụp/tải từ listing của shop KHÁC vẫn không nhận (đó là reference, mục 10); không adversarial; không gỡ logo/watermark của brand; packshot của brand mặc định giữ nguyên, chỉ dựng lại bố cục, nền, template và ảnh nội dung quanh nó. Cách chống trùng mặc định cho trường hợp này không phải biến thể mà là dựng lại bộ ảnh nội dung từ Product facts theo template riêng của shop (execution-plan W2.1).
+
 ## Vấn đề có thật nhưng Oia KHÔNG đua
 
 - Đồng bộ tồn kho/giá đa sàn theo thời gian thực: nguồn hướng dẫn bán hàng nêu đây là phần khó vận hành ([upscalerank](https://upscalerank.com/how-to-sell-on-lazada), hướng dẫn bên thứ ba), nhưng đó là bài toán ERP, không phải công cụ hình; Oia chỉ cần không làm người dùng nhầm dữ liệu giá (duyệt trường giá).

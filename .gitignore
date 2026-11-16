@@ -35,6 +35,9 @@ apps/desktop/resources/lens/
 apps/desktop/*.traineddata
 .idea/
 
+# claude.ai artifact runtime archive — kept local, not published (owner 16/11)
+docs/designs/seller-workflow-canvas/artifact/
+
 # A/B harness working output (evidence copies live in docs/research/assets)
 packages/agent/out/
 

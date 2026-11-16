@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sale</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;family=Instrument+Serif&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4b33b8;text-decoration:none}a:hover{color:#1d1c21}
+.muted{font-size:12px;color:#5f5e66}
+.lbl{font-size:12px;font-weight:600;color:#4a4950}
+.inp{font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;border:1px solid #e8e7e4;background:#fff;width:100%;box-sizing:border-box}
+.step{display:flex;flex-direction:column;gap:9px;padding:16px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(20,18,30,.06)}
+.n{width:22px;height:22px;border-radius:50%;background:#1d1c21;color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-right:8px}
+.im{aspect-ratio:1;border-radius:10px;position:relative;overflow:hidden}
+.ring{position:absolute;left:40%;top:36%;width:20%;height:48%;border-radius:5px 5px 7px 7px;background:linear-gradient(90deg,#9cc6ea,#d9ecfb 25%,#8fbde6)}
+.ring:before{content:"";position:absolute;left:25%;right:25%;top:-22%;height:24%;background:linear-gradient(90deg,#8d939c,#f4f6f8,#7b818a)}
+.ring:after{content:"";position:absolute;left:33%;right:33%;top:-44%;height:24%;border-radius:8px 8px 2px 2px;background:#fff}
+.band{position:absolute;left:0;right:0;top:0;padding:6px 8px;background:#be123c;color:#fff;font-size:11px;font-weight:800;display:flex;flex-direction:column;gap:1px;line-height:1.25}
+.seg{display:inline-flex;gap:3px;padding:3px;border-radius:9px;background:#e8e7e4}
+.seg button{font:inherit;font-size:13px;font-weight:600;padding:6px 14px;border-radius:7px;border:0;cursor:pointer;color:#1d1c21}
+.ck{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
+.ck input{width:18px;height:18px;accent-color:#6d4ce8;flex-shrink:0;margin-top:1px}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#f3f2ef;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1d1c21;overflow:hidden">
+  <header style="height:60px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 28px;border-bottom:1px solid #e8e7e4;background:#f6f5f3">
+    <a href="SLibrary.dc.html" style="font-size:14px;color:#4a4950">← Sales</a>
+    <span style="font-size:15px;font-weight:600">12.12 sale</span>
+    <span class="muted">Draft · saved</span>
+    <span style="flex-grow:1"></span>
+    <span style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:#eaf5ee;color:#2f6e4b">Frames only · no AI</span>
+  </header>
+  <div style="flex-grow:1;display:flex;gap:24px;padding:20px 28px;min-height:0">
+    <aside style="width:340px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+      <div class="step">
+        <span style="font-weight:600;font-size:14px"><span class="n">1</span>Products</span>
+        <span style="font-size:14px"><b>22 products</b> · collection Serum</span>
+        <a href="SLibrary.dc.html" style="font-size:13px">Change selection</a>
+      </div>
+      <div class="step">
+        <span style="font-weight:600;font-size:14px"><span class="n">2</span>Sale frame</span>
+        <label class="lbl" for="t">Frame text</label>
+        <input id="t" class="inp" value="{{text}}" onInput="{{setText}}">
+        <label class="lbl" for="dt">Runs</label>
+        <input id="dt" class="inp" value="10 Dec to 12 Dec">
+        <span class="lbl" style="margin-top:4px">Offer style</span>
+        <div class="seg" role="group" aria-label="Offer style"><button type="button" onClick="{{setThin}}" style="background:{{thinBg}}">Frame on image 2</button><button type="button" onClick="{{setFull}}" style="background:{{fullBg}}">Extra offer image</button></div>
+        <span class="muted">{{styleNote}}</span>
+        <label class="ck"><input type="checkbox" checked="{{onMain}}" onChange="{{toggleMain}}">Main image on Shopee only</label>
+        <sc-if value="{{onMain}}" hint-placeholder-val="{{ false }}"><span class="muted" style="color:#7c3a0b">Some sellers report lower ranking for text on Shopee main images. TikTok Shop main stays clean either way.</span></sc-if>
+        <span class="muted">Prices are not put on images. Change them in your seller center; the marketplace shows them.</span>
+      </div>
+      <div class="step" style="background:#f6f5f3;box-shadow:none">
+        <span style="font-size:13px"><b>13 Dec:</b> Oia reminds you and exports every image without the frame.</span>
+        <a href="SBulk.dc.html" style="font-size:13px">Preview the end-of-sale export</a>
+      </div>
+    </aside>
+    <section style="flex-grow:1;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="font-weight:600;font-size:14px"><span class="n">3</span>Check the images</span>
+        <div class="seg" role="group" aria-label="Before or during the sale">
+          <button type="button" onClick="{{showBefore}}" style="background:{{bBg}}">Now</button>
+          <button type="button" onClick="{{showAfter}}" style="background:{{aBg}}">During sale</button>
+        </div>
+        <span style="flex-grow:1"></span>
+        <span style="font-size:14px"><b>{{ready}} ready</b>{{warnLabel}}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px">
+        <sc-for list="{{tiles}}" as="t" hint-placeholder-count="12">
+          <a href="SMake.dc.html" style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#1d1c21">
+            <div class="im" style="background:{{t.bg}};box-shadow:{{t.ring}}">
+              <span class="ring" style="filter:hue-rotate({{t.bead}})"></span>
+              <sc-if value="{{t.framed}}" hint-placeholder-val="{{ true }}"><span class="band"><span>{{text}}</span><span>10-12/12</span></span></sc-if>
+              <sc-if value="{{t.full}}" hint-placeholder-val="{{ false }}"><span style="position:absolute;inset:0;background:#be123c;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;text-align:center;padding:8px;font-weight:800;font-size:12px;line-height:1.25"><span>{{text}}</span><span style="font-size:10px;font-weight:600">10-12/12 · Tặng mini toner</span></span></sc-if>
+            </div>
+            <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{t.name}}</span>
+            <span style="color:{{t.noteInk}}">{{t.note}}</span>
+          </a>
+        </sc-for>
+      </div>
+      <div style="flex-grow:1"></div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:14px">
+        <span class="muted">Shown: image 2 of each product. Offer text is yours to write. Every export is saved, so regular images can always come back.</span>
+        <a href="SBulk.dc.html" style="padding:13px 22px;border-radius:10px;background:#1d1c21;color:#fff;font-size:14px;font-weight:600">Export {{ready}} products</a>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { text: '12.12 · Mua 2 tặng 1', after: true, onMain: false, full: false }; }
+  renderVals() {
+    const s = this.state;
+    const P = [['LUMA Hydra Ampoule', '#eef4fb', '0deg'], ['Vitamin C 15%', '#fbf3e3', '170deg'], ['Niacinamide 10%', '#efedf7', '40deg'], ['Retinol 0.3%', '#f6efe6', '150deg'], ['Peptide', '#f6ecf1', '110deg'], ['B5 phục hồi', '#eaf4f1', '300deg'], ['Tràm trà', '#edf4e8', '260deg'], ['HA mini 10ml', '#eef4fb', '0deg'], ['Ceramide', '#f1f2f4', '200deg'], ['Hoa cúc', '#f5f6e6', '230deg'], ['Rau má', '#e9f3ea', '270deg'], ['Collagen', '#f8ecec', '120deg']];
+    const long = s.text.length > 30;
+    const tiles = P.map(([n, bg, bead], i) => {
+      const bad = s.after && (i === 9 || long);
+      return { name: n, bg, bead, framed: s.after && !s.full, full: s.after && s.full, ring: bad ? '0 0 0 2px #f5c58f' : 'none', note: !s.after ? 'regular' : i === 9 ? 'Frame covers the label, nudge it' : long ? 'Frame text too long' : 'Ready', noteInk: bad ? '#a5571c' : s.after ? '#2f6e4b' : '#5f5e66' };
+    });
+    const warn = tiles.filter((t) => t.ring !== 'none').length;
+    return {
+      text: s.text, setText: (e) => this.setState({ text: e.target.value }),
+      setThin: () => this.setState({ full: false }), setFull: () => this.setState({ full: true }),
+      thinBg: s.full ? 'transparent' : '#fff', fullBg: s.full ? '#fff' : 'transparent',
+      styleNote: s.full ? 'Adds one image at position 2 with the offer, gift and dates. It is removed when the sale ends.' : 'A band across the top of image 2. The photo stays visible.',
+      onMain: s.onMain, toggleMain: (e) => this.setState({ onMain: e.target.checked }),
+      showBefore: () => this.setState({ after: false }), showAfter: () => this.setState({ after: true }),
+      bBg: s.after ? 'transparent' : '#fff', aBg: s.after ? '#fff' : 'transparent',
+      tiles, ready: 22 - warn, warnLabel: warn ? ' · ' + warn + ' need a look' : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

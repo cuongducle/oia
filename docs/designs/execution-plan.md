@@ -57,6 +57,7 @@ Tất cả nghiệp vụ dưới đây rút từ các doc đã có, không phát
 | Pha 4 | W4.7 Role ảnh bìa video | W2.1 | Mới |
 | Pha 4 | W4.8 Wire image-translate thành tool thật | W1.x | Skill đã có |
 | Pha 4 | W4.9 Nhập gói NCC CSV + ZIP ảnh (cửa 4) | W4.1 | Mới |
+| Pha 4 | W4.10 Xuất file chỉnh sửa được (PPTX/SVG) cho Canva | W2.3, W3.2 | Owner duyệt 16/11 |
 | Song song | P.1 Verdict quyền Lens + thay/xin phép | Không | SG-16, chặn thu phí |
 | Song song | P.2 Ký số + notarization | Owner duyệt chi phí | SG-12 |
 | Song song | P.3 Auto-update | Sau P.2 | SG-13 |
@@ -93,6 +94,12 @@ Gate: mỗi fix kèm regression test hoặc shot; chạy lại kịch bản W0.2
 
 ### W1.1 Schema + store hồ sơ sản phẩm
 
+**Owner quyết 13/11/2026 (thay mô hình trường cấu trúc bên dưới): hồ sơ = Name + Description (văn bản tự do, dán từ listing) + Photos[] (thứ tự có nghĩa) + tags + lock notes.** Giá chỉ là một thông tin trong mô tả, không phải trường bắt buộc; không có category kit theo ngành. Lý do: một form cho mọi ngành hàng; người bán đã có sẵn mô tả listing; nghiên cứu nhanh cho thấy sàn hạn chế giá/chữ khuyến mãi trên ảnh chính (TikTok Shop, nguồn bên thứ ba, chưa đối chiếu Seller Center) và seller Việt chủ yếu đặt ưu đãi chứ không đặt giá lên khung. Quy tắc chống bịa thay cho guardrail theo ngành: mọi dòng chữ trên ảnh phải có trong mô tả hoặc do người dùng gõ, kiểm cục bộ 0 AI. Nếu ảnh có giá, Oia đọc giá bằng quy tắc cục bộ và so với mô tả để báo lệch.
+
+**Owner duyệt 16/11/2026 (sửa quyết định trên sau khi xem Shopee thật):** nguồn của quy tắc chống bịa là **Product facts**, không chỉ mô tả. Facts nạp từ mô tả, từ tài liệu brand/nhà cung cấp (PDF, ảnh) hoặc do người dùng gõ; mỗi fact giữ nguồn (tên thử nghiệm, ngày) để in chú thích nhỏ. Bằng chứng: listing 9 Wishes Hydra Ampule II (Official Store, 2k+ bán) có số liệu trên ảnh ("72 giờ, 145.16%", "451.76%", "8 tầng HA") mà mô tả không có, chúng đến từ tài liệu brand; quy tắc "chỉ mô tả" sẽ chặn đúng ảnh bán hàng tốt nhất.
+
+**Owner quyết 16/11/2026 (sau review thiết kế): BỎ quy tắc chống bịa.** Không còn kiểm "chữ trên ảnh phải có trong facts", không banner chặn xuất. Lý do từ review: so khớp chuỗi cục bộ chặn mọi câu diễn đạt lại (tiêu đề tốt đều là diễn đạt lại), còn kiểm diễn đạt lại cần AI, trái 0 AI; quy tắc thành phức tạp mà không đáng tin. Product facts vẫn giữ: là nguồn nội dung để Oia đề xuất chữ cho từng concept ảnh, mỗi fact giữ nguồn để in chú thích nhỏ khi cần; người dùng sửa chữ tự do và tự chịu trách nhiệm nội dung. Các đoạn trên nói tới quy tắc chống bịa coi như đã thay.
+
 `@oia/schema` thêm productProfile (tên, giá, offer, điểm bán, thuộc tính, ảnh refs, logo, lock notes), store trong `@oia/tasks`, additive optional theo D14. Project liên kết hồ sơ qua id; import/export đi atomic write.
 
 Gate: schema test + store test trên temp dir; migration hai chiều; không đụng wire hiện có.
@@ -118,6 +125,12 @@ Gate: test xuyên `@oia/services` với provider fake đổi src; cancel/giữ n
 ## Pha 2: bộ ảnh theo role
 
 ### W2.1 Role + layout binding
+
+**Owner quyết 13/11/2026 (thay bộ role cố định bên dưới):** bộ ảnh suy ra từ ảnh thật của người bán. Ảnh 1 = Main SẠCH (sản phẩm trên nền sạch, không chữ, không giá, không khung) để không vướng quy định ảnh chính của sàn; mỗi ảnh tiếp theo = ảnh thật + một dòng chọn từ mô tả; khung ưu đãi (sale frame) chỉ xuất hiện trong đợt sale, mặc định trên ảnh 2, đặt lên Main chỉ khi người dùng bật và chỉ cho Shopee. Layout chỉ cần ba khung: main sạch, photo-with-line, sale frame; mỗi layout khai báo cỡ chữ tối thiểu để tự co trước khi cảnh báo. Mockup: hàng "Simplified" trên canvas Oia Seller Workflow Redesign.
+
+**Owner duyệt 16/11/2026 (nới "Main sạch"):** Main có hai lựa chọn: sạch, hoặc **Shop frame** (khung cấp shop làm một lần: tên/logo + tối đa 3 badge lấy từ shop facts, chỉ ở mép ảnh, cảnh báo khi che quá 20%; TikTok Shop mặc định vẫn sạch). Ưu đãi có hai kiểu, đều có ngày hết và tự gỡ: dải khung trên ảnh 2, hoặc một ảnh ưu đãi riêng chèn ở vị trí 2. Giá vẫn không đặt lên ảnh. Bằng chứng (quét 16/11/2026, trang tìm kiếm Shopee "serum dưỡng da" và "vòng tay đá nữ" theo bán chạy, 24 ảnh Main): khoảng 5/24 sạch; phần lớn dùng một template cố định cho cả shop (vd TLEE Jewelry: header thương hiệu, cột cam kết S925/bảo hành/đổi trả, ô quà tặng); 1/24 có giá (Estée Lauder); một shop còn để khung "20.10" giữa tháng 11, khớp nhu cầu trạng thái "Sale frame ended". Mẫu nhỏ, nghiêng về shop lớn; là bằng chứng hướng, không phải đo lường.
+
+**Owner duyệt 16/11/2026 (trọng tâm W2):** khung ảnh là hàng phổ thông: Sapo ("Khung ảnh tiếp thị", áp hàng loạt tối đa 50 sản phẩm/chiến dịch, Shopee + TikTok Shop, [nguồn](https://www.sapo.vn/cap-nhat-tinh-nang/cong-cu-khung-anh-tiep-thi)), BigSeller (khung marketing cho ảnh bìa, [nguồn](https://www.bigseller.com/blog/articleDetails/cach-tao-khung-anh-shopee-lazada-tiktok-shop-chuan-dep-ban-chay.372.htm)), cộng tem chương trình Shopee tự gắn. Vì vậy Shop frame chỉ là tùy chọn nhỏ, mặc định Main sạch. Trọng tâm W2 là **ảnh nội dung dựng từ Product facts** (facts card, bảng size, so sánh, thành phần), chạy hàng loạt, giữ nguồn, cộng vòng đời (facts đổi thì sản phẩm về Draft, hết sale thì gỡ ảnh ưu đãi). Giả thuyết, chưa kiểm: shop nhỏ/vừa (local brand, OEM, đại lý nhiều mã) tự làm ảnh nội dung bằng Canva và đây là việc tốn công nhất; cần quét thêm shop dưới 1k lượt bán để xác nhận. Owner 16/11/2026: nhiều shop nhập chung nguồn nên dùng chung ảnh (backlog mục 11); W2.1 vì vậy cũng là cách chống trùng mặc định: ảnh có nhãn `Supplier photo` được giữ packshot, dựng lại bố cục/nền/template riêng của shop, và Oia báo khi ảnh xuất vẫn gần giống ảnh gốc của nhà cung cấp (so khối bố cục/màu, cục bộ, 0 AI).
 
 Mỗi role (main/point/detail/offer/lifestyle tùy chọn) là mục trong schema; layout khai báo slot gắn ID lớp ổn định (không tên hiển thị). Bộ layout khởi đầu: tối thiểu 3 bộ cho 2-3 ngành, làm thật bằng đường sinh ảnh có provenance như quy tắc template-bundle-audit (ảnh thật, không nền màu + chữ giả). Ngành chọn theo mục 13.3-13.4 blueprint (bằng chứng cộng đồng + ảnh sàn thật), owner chốt khi mở việc; mọi layout phải qua checklist tùy biến VN mục 13.2 (giá kiểu VN, phông đủ dấu, từ vựng ưu đãi native).
 
@@ -152,6 +165,8 @@ Gate: harness lặp lại được versioned trong apps/desktop/scripts; không 
 ### W3.1 Chiến dịch duplicate + diff + khóa bản chốt
 
 Campaign = bản snapshot có tên/ngày; tạo mới từ bản cũ; diff liệt kê ảnh nào đổi; bản chốt read-only.
+
+**Owner quyết 13/11/2026: chiến dịch là "sale event" cấp shop, chứa NHIỀU sản phẩm.** Offer, ngày, quy tắc giá nhập một lần cho cả đợt; giá sale từng sản phẩm vẫn sửa riêng. Mỗi sản phẩm trong đợt vẫn có snapshot read-only riêng khi xuất (giữ lịch sử theo sản phẩm của blueprint 2.3). Giá trị theo ba tầng: hồ sơ (gốc) → sale event (ghi đè) → ảnh đơn (ngoại lệ, luôn hiện trong diff). Mỗi lần xuất tự tạo snapshot. Lý do: preset dịp sale (W3.4) là sự kiện toàn shop, làm theo từng sản phẩm buộc lặp luồng B N lần. Mockup tham chiếu: canvas "Oia Seller Workflow Redesign" màn 6.
 
 Gate: mở lại sau crash không mất; mọi thao tác không đổi bản chốt (so hash scene); test đồng thời hai phiên bản.
 
@@ -205,12 +220,22 @@ Chạy trên bộ ảnh của shop; mỗi bản đổi một trục sáng tạo;
 
 Gate: đo khác biệt hiện số; từ chối ảnh không thuộc hồ sơ; 1 real run với nền thật; bản xuất nhìn khác nhau bằng mắt.
 
+Owner 16/11/2026: ảnh nhà cung cấp/brand gửi tính là ảnh thuộc hồ sơ (nhãn `Supplier photo`, backlog mục 11). Chống trùng GIỮA CÁC SHOP chung nguồn chuyển lên W2.1 (dựng lại bộ ảnh theo template riêng); W4.4 chỉ còn nhân bản cho các listing của chính shop.
+
 ### W4.9 Nhập gói NCC CSV + ZIP ảnh (cửa 4)
 
 Sau khi lô nhỏ W4.1 ổn: nhập CSV + giải nén ảnh vào asset store, map theo cột/tên file, cùng bảng duyệt. Rào bắt buộc đã ghi trong blueprint: giới hạn entry, chống zip bomb, chống path traversal, tên file Windows.
 
 Gate: ZIP độc/nhúng symlink/đường dẫn `../`/tên trùng không sập và không thoát thư mục; 0 quota.
 
+
+### W4.10 Xuất file chỉnh sửa được cho Canva (owner duyệt 16/11/2026)
+
+Nút "Export editable (PPTX/SVG)" ở màn Export, từng sản phẩm trước, chưa làm lô. Lý do: seller quen Canva; có lối ra giảm nỗi sợ bị khóa trong Oia, Oia lo facts + bộ concept + lô, Canva lo chỉnh tay lần cuối (khớp kết luận "Canva là chuẩn tham chiếu UX, không phải mối đe dọa"). Không dùng Canva Connect API ở bước này (cần OAuth, app, mạng; đi ngược hướng cục bộ), chỉ mở lại khi có nhu cầu lặp lại.
+
+Rào: sản phẩm đã xuất bản chỉnh sửa được bị gắn trạng thái "Edited outside Oia"; lần xuất sau hỏi trước khi ghi đè; kèm `facts.txt` có nguồn để seller tự đối chiếu, vì ra khỏi Oia là mất vòng đời khung sale. Kiểm tái dùng đường PPTX của ppt-translate trước khi viết mới.
+
+Gate: chữ là lớp chữ sửa được (không raster); font tiếng Việt (Be Vietnam Pro) và packshot giữ nguyên; 1 real run nhập file vào Canva thật, ghi lại những gì vỡ (font, hiệu ứng, ảnh tách nền) vào `docs/private/real-runs/`.
 ### W4.5-W4.8
 
 Watermark pass (0 AI, qua brand kit); destination checks (dữ liệu quy tắc có nguồn/ngày, pass/fail từng ảnh); role ảnh bìa video (khung tĩnh); wire image-translate (giữ chữ native, honest OCR). Gate từng việc theo backlog tương ứng; image-translate cần real-data run như ppt-translate từng làm.

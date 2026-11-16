@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Edit image</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4b33b8;text-decoration:none}
+.lbl{font-size:12px;font-weight:600;color:#4a4950}
+.muted{font-size:12px;color:#5f5e66}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;border:0;cursor:pointer;background:#f6f5f3;color:#1d1c21}
+.inp{font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;border:1px solid #e8e7e4;background:#fff;width:100%;box-sizing:border-box}
+.lay{width:76px;height:76px;border-radius:8px;position:relative;cursor:pointer;background:#dcecfb;overflow:hidden}
+.lay i{position:absolute;background:#1f4f80;border-radius:2px}
+.lay b{position:absolute;width:16%;height:44%;border-radius:3px;background:#8fbde6}
+.seg{display:inline-flex;gap:3px;padding:3px;border-radius:9px;background:#ebeae6}
+.seg button{font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:7px;border:0;cursor:pointer}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#f3f2ef;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1d1c21;overflow:hidden">
+  <header style="height:60px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 28px;border-bottom:1px solid #e8e7e4;background:#f6f5f3">
+    <a href="SSerum.dc.html" style="font-size:14px;color:#4a4950">← All 6 images</a>
+    <span style="font-size:15px;font-weight:600">2 · Key benefit</span>
+    <span class="muted">LUMA Hydra Ampoule 30ml</span>
+    <span style="flex-grow:1"></span>
+    <span class="muted">{{saveNote}}</span>
+    <a href="SSerum.dc.html" style="padding:10px 18px;border-radius:10px;background:#1d1c21;color:#fff;font-size:14px;font-weight:600">Done</a>
+  </header>
+  <div style="flex-grow:1;display:flex;min-height:0">
+    <aside style="width:300px;flex-shrink:0;padding:20px;display:flex;flex-direction:column;gap:12px;background:#fff;border-right:1px solid #e8e7e4;box-sizing:border-box">
+      <span class="lbl">Layout</span>
+      <div style="display:grid;grid-template-columns:repeat(3,76px);gap:10px">
+        <sc-for list="{{layouts}}" as="l" hint-placeholder-count="6">
+          <div class="lay" onClick="{{l.pick}}" style="box-shadow:{{l.ring}}">
+            <i style="left:{{l.tx}};top:{{l.ty}};width:{{l.tw}};height:10%"></i>
+            <i style="left:{{l.tx}};top:{{l.t2}};width:30%;height:6%;opacity:.5"></i>
+            <b style="left:{{l.bx}};top:{{l.by}}"></b>
+          </div>
+        </sc-for>
+      </div>
+      <span class="muted">Layouts keep your text and photo. Same layout choice can apply to all 38 serums.</span>
+      <span class="lbl" style="margin-top:6px">Product photo</span>
+      <div class="seg"><button type="button" style="background:#fff">Supplier packshot</button><button type="button" style="background:transparent">My photo 2</button></div>
+      <span class="lbl">Size</span>
+      <input type="range" min="60" max="130" value="{{scale}}" onInput="{{setScale}}" style="accent-color:#6d4ce8">
+      <span class="lbl">Tilt</span>
+      <div class="seg"><button type="button" onClick="{{tilt0}}" style="background:{{t0}}">Straight</button><button type="button" onClick="{{tilt1}}" style="background:{{t1}}">Tilted</button></div>
+    </aside>
+    <section style="flex-grow:1;display:flex;align-items:center;justify-content:center;gap:28px;min-width:0;position:relative">
+      <div style="width:560px;height:560px;position:relative;overflow:hidden;border-radius:6px;background:linear-gradient(160deg,#dcecfb 0%,#b7d6f3 55%,#8dbbe6 100%);box-shadow:0 10px 40px -16px rgba(20,30,60,.4)">
+        <div style="position:absolute;left:0;right:0;top:0;height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:#1f4f80"><span>Mây Cosmetics</span><span>Nhập khẩu Hàn Quốc</span></div>
+        <div style="position:absolute;left:{{txl}};top:{{txt}};width:300px;color:#123a63;outline:2px dashed #6d4ce8;outline-offset:6px">
+          <div style="font-size:17px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.8">{{kicker}}</div>
+          <div style="font-size:{{hs}};font-weight:900;line-height:1.02;margin-top:10px">{{head}}</div>
+          <div style="margin-top:20px;display:flex;flex-direction:column;gap:9px;font-size:17px;font-weight:600"><span>✓ Làm dịu da</span><span>✓ Không cồn, không hương liệu</span></div>
+        </div>
+        <div style="position:absolute;left:{{bl}};top:{{bt}};width:150px;height:390px;transform:rotate({{rot}}) scale({{sc}});transform-origin:50% 60%">
+          <div style="position:absolute;left:44px;top:0;width:62px;height:70px;border-radius:30px 30px 4px 4px;background:linear-gradient(90deg,#e9edf2,#fff,#cfd6de)"></div>
+          <div style="position:absolute;left:34px;top:66px;width:82px;height:56px;border-radius:3px;background:linear-gradient(90deg,#8d939c,#f4f6f8 30%,#b9bec6 55%,#7b818a)"></div>
+          <div style="position:absolute;left:22px;top:122px;width:106px;height:260px;border-radius:14px 14px 18px 18px;background:linear-gradient(90deg,#9cc6ea,#d9ecfb 18%,#bcdcf5 45%,#8fbde6 80%,#6fa5d6)"></div>
+          <div style="position:absolute;left:34px;top:196px;width:82px;height:120px;background:rgba(255,255,255,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:700;color:#1f4f80;font-size:18px;letter-spacing:2px">LUMA<span style="font-family:'Be Vietnam Pro';font-size:9px;letter-spacing:1px;margin-top:6px">HYDRA AMPOULE</span></div>
+        </div>
+      </div>
+      <div style="position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:12px;align-items:center" class="muted">
+        <span>Phone preview</span>
+        <div style="width:108px;height:108px;border-radius:4px;overflow:hidden;background:linear-gradient(160deg,#dcecfb,#8dbbe6);position:relative"><span style="position:absolute;left:8px;top:16px;width:60px;font-size:{{phs}};font-weight:900;line-height:1.02;color:#123a63">{{head}}</span></div>
+        <span style="color:{{readInk}}">{{readNote}}</span>
+      </div>
+    </section>
+    <aside style="width:340px;flex-shrink:0;padding:20px;display:flex;flex-direction:column;gap:10px;background:#fff;border-left:1px solid #e8e7e4;box-sizing:border-box">
+      <label class="lbl" for="k">Small line above</label>
+      <input id="k" class="inp" value="{{kicker}}" onInput="{{setKicker}}">
+      <label class="lbl" for="h">Headline</label>
+      <textarea id="h" class="inp" rows="3" onInput="{{setHead}}" style="resize:none">{{head}}</textarea>
+      <span class="muted">Suggestions from your facts</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <sc-for list="{{sugg}}" as="g" hint-placeholder-count="3"><button class="btn" type="button" onClick="{{g.use}}" style="font-size:12px;padding:5px 9px;background:#f4f9fe;color:#1f4f80;box-shadow:0 0 0 1px #d9e6f3">{{g.t}}</button></sc-for>
+      </div>
+      <label class="lbl" for="p">Points</label>
+      <textarea id="p" class="inp" rows="3" style="resize:none">Làm dịu da
+Không cồn, không hương liệu</textarea>
+      <div style="flex-grow:1"></div>
+      <label style="display:flex;gap:8px;font-size:13px;align-items:flex-start"><input type="checkbox" checked="{{onlyThis}}" onChange="{{toggleOnly}}" style="width:18px;height:18px;accent-color:#6d4ce8">Only this product. Untick to use this layout on all 38 serums; their own text stays.</label>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { lay: 0, head: 'Cấp ẩm ngay từ giọt đầu', kicker: 'Cho da khô, thiếu nước', scale: 100, tilt: true, onlyThis: true }; }
+  renderVals() {
+    const s = this.state;
+    const L = [
+      { tx: '10%', ty: '22%', tw: '44%', bx: '70%', by: '30%', txl: '40px', txt: '86px', bl: '370px', bt: '110px' },
+      { tx: '46%', ty: '22%', tw: '44%', bx: '14%', by: '30%', txl: '230px', txt: '86px', bl: '30px', bt: '110px' },
+      { tx: '20%', ty: '14%', tw: '60%', bx: '42%', by: '46%', txl: '130px', txt: '60px', bl: '205px', bt: '210px' },
+      { tx: '10%', ty: '62%', tw: '60%', bx: '60%', by: '14%', txl: '40px', txt: '330px', bl: '360px', bt: '60px' },
+      { tx: '10%', ty: '30%', tw: '36%', bx: '56%', by: '26%', txl: '40px', txt: '130px', bl: '330px', bt: '90px' },
+      { tx: '30%', ty: '70%', tw: '40%', bx: '42%', by: '16%', txl: '130px', txt: '360px', bl: '205px', bt: '50px' }
+    ];
+    const l = L[s.lay];
+    const long = s.head.length;
+    const hs = long > 34 ? '34px' : long > 24 ? '42px' : '48px';
+    const phs = long > 34 ? '6px' : '9px';
+    return {
+      layouts: L.map((x, i) => ({ ...x, t2: 'calc(' + x.ty + ' + 14%)', ring: i === s.lay ? '0 0 0 3px #6d4ce8' : '0 0 0 1px #e1e4ea', pick: () => this.setState({ lay: i }) })),
+      txl: l.txl, txt: l.txt, bl: l.bl, bt: l.bt,
+      head: s.head, kicker: s.kicker, hs, phs,
+      setHead: (e) => this.setState({ head: e.target.value }), setKicker: (e) => this.setState({ kicker: e.target.value }),
+      sugg: ['Cho da khô, thiếu nước', 'Làm dịu da', '15.000 mg HA'].map((t) => ({ t, use: () => this.setState({ head: t }) })),
+      scale: s.scale, setScale: (e) => this.setState({ scale: Number(e.target.value) }), sc: s.scale / 100,
+      rot: s.tilt ? '8deg' : '0deg', t0: s.tilt ? 'transparent' : '#fff', t1: s.tilt ? '#fff' : 'transparent',
+      tilt0: () => this.setState({ tilt: false }), tilt1: () => this.setState({ tilt: true }),
+      readNote: long > 34 ? 'Hard to read on phones. Shorten to about 25 characters.' : 'Readable on phones', readInk: long > 34 ? '#a5571c' : '#2f6e4b',
+      onlyThis: s.onlyThis, toggleOnly: (e) => this.setState({ onlyThis: e.target.checked }),
+      saveNote: s.onlyThis ? 'Saved · this product only' : 'Saved · layout on 38 serums'
+    };
+  }
+}
+</script>
+</body>
+</html>

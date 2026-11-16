@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Make images</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4b33b8;text-decoration:none}a:hover{color:#1d1c21}
+.lbl{font-size:12px;font-weight:600;color:#4a4950}
+.muted{font-size:12px;color:#5f5e66}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;border:0;cursor:pointer;background:#f6f5f3;color:#1d1c21}
+.inp{font:inherit;font-size:14px;padding:9px 11px;border-radius:8px;border:1px solid #e8e7e4;background:#fff;width:100%;box-sizing:border-box}
+.step{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:8px 14px;border-radius:999px}
+.n{width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.tile{aspect-ratio:1;border-radius:8px;position:relative;overflow:hidden;cursor:pointer}
+.bt{position:absolute;width:20%;height:50%;border-radius:6px 6px 8px 8px;background:linear-gradient(90deg,#9cc6ea,#d9ecfb 25%,#8fbde6)}
+.bt:before{content:"";position:absolute;left:25%;right:25%;top:-22%;height:24%;background:linear-gradient(90deg,#8d939c,#f4f6f8,#7b818a);border-radius:2px}
+.bt:after{content:"";position:absolute;left:33%;right:33%;top:-44%;height:24%;border-radius:8px 8px 2px 2px;background:#fff}
+.chip{font:inherit;font-size:12px;padding:5px 9px;border-radius:999px;border:1px solid #d9e6f3;background:#f4f9fe;color:#1f4f80;cursor:pointer}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#f3f2ef;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1d1c21;overflow:hidden">
+  <header style="height:60px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 28px;border-bottom:1px solid #e8e7e4;background:#f6f5f3">
+    <a href="SLibrary.dc.html" style="font-size:14px;color:#4a4950">← Products</a>
+    <span style="font-size:15px;font-weight:600">LUMA Hydra Ampoule 30ml</span>
+    <span class="muted">Draft · saved</span>
+    <span style="flex-grow:1"></span>
+    <div style="display:flex;gap:4px;padding:4px;border-radius:999px;background:#ebeae6">
+      <a class="step" href="SFacts.dc.html" style="color:#4a4950"><span class="n" style="background:#4f8a68;color:#fff">✓</span>Facts · 9</a>
+      <span class="step" style="color:#4a4950"><span class="n" style="background:#4f8a68;color:#fff">✓</span>Concepts · {{onCount}}</span>
+      <span class="step" style="background:#fff"><span class="n" style="background:#1d1c21;color:#fff">3</span>Review</span>
+    </div>
+    <span style="flex-grow:1"></span>
+    <button class="btn" type="button" style="background:#fff;box-shadow:0 0 0 1px #e8e7e4">Editable for Canva</button>
+    <a href="SDone.dc.html" style="padding:10px 18px;border-radius:10px;background:#1d1c21;color:#fff;font-size:14px;font-weight:600">Export {{onCount}} images</a>
+  </header>
+  <div style="flex-grow:1;display:flex;min-height:0">
+    <section style="flex-grow:1;padding:20px 26px;display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="lbl">Concepts</span>
+        <sc-for list="{{concepts}}" as="c" hint-placeholder-count="8">
+          <button class="btn" type="button" onClick="{{c.toggle}}" style="font-size:12px;padding:6px 10px;background:{{c.bg}};color:{{c.ink}};box-shadow:0 0 0 1px #e8e7e4">{{c.label}}</button>
+        </sc-for>
+        <span style="flex-grow:1"></span>
+        <span class="lbl">Template</span>
+        <span class="btn" style="background:#fff;box-shadow:0 0 0 2px #6d4ce8;display:flex;gap:6px;align-items:center;font-size:12px;padding:6px 10px"><span style="width:12px;height:12px;border-radius:3px;background:#1f4f80"></span>Sky · shop default</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px">
+        <sc-for list="{{tiles}}" as="t" hint-placeholder-count="6">
+          <div style="display:flex;flex-direction:column;gap:6px" onClick="{{t.pick}}">
+            <div class="tile" style="background:{{t.bg}};box-shadow:{{t.ring}}">
+              <sc-if value="{{t.bar}}" hint-placeholder-val="{{ true }}"><span style="position:absolute;left:0;right:0;top:0;height:8%;background:#1f4f80"></span></sc-if>
+              <span class="bt" style="left:{{t.bx}};top:{{t.by}};transform:scale({{t.bs}})"></span>
+              <span style="position:absolute;left:8%;top:{{t.ty}};width:{{t.tw}};font-weight:900;line-height:1.05;font-size:{{t.fs}};color:{{t.ink}}">{{t.head}}</span>
+              <span style="position:absolute;left:8%;top:{{t.sy}};width:55%;font-size:10px;font-weight:600;line-height:1.35;color:{{t.ink}};opacity:.85">{{t.sub}}</span>
+            </div>
+            <span style="font-size:13px;display:flex;justify-content:space-between"><b>{{t.n}} · {{t.label}}</b><span class="muted">{{t.cost}}</span></span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex-grow:1"></div>
+      <a href="SOutput.dc.html" style="font-size:13px">See the full-size set</a>
+    </section>
+    <aside aria-label="Edit image" style="width:380px;flex-shrink:0;padding:20px 22px;display:flex;flex-direction:column;gap:12px;background:#fff;border-left:1px solid #e8e7e4;box-sizing:border-box">
+      <span style="font-size:15px;font-weight:700">{{sel.n}} · {{sel.label}}</span>
+      <sc-if value="{{sel.editable}}" hint-placeholder-val="{{ true }}">
+        <label class="lbl" for="h">Headline</label>
+        <textarea id="h" class="inp" rows="2" onInput="{{setHead}}" style="resize:none">{{sel.headRaw}}</textarea>
+        <span class="muted">Suggestions from your facts</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <sc-for list="{{sel.sugg}}" as="g" hint-placeholder-count="3"><button class="chip" type="button" onClick="{{g.use}}">{{g.t}}</button></sc-for>
+        </div>
+        <label class="lbl" for="s2">Small text</label>
+        <textarea id="s2" class="inp" rows="3" style="resize:none">{{sel.sub}}</textarea>
+        <button class="btn" type="button" style="align-self:flex-start;background:#f1edfd;color:#4b33b8">Write 3 more headlines · 1 read</button>
+        <a href="SEdit.dc.html" style="font-size:13px;font-weight:600">Change layout, photo, size</a>
+      </sc-if>
+      <sc-if value="{{sel.isMain}}" hint-placeholder-val="{{ false }}">
+        <span class="muted">Your photo on a clean background. No text, safest for every marketplace.</span>
+        <button class="btn" type="button" style="align-self:flex-start;background:#f1edfd;color:#4b33b8">New background · 1 image</button>
+      </sc-if>
+      <div style="flex-grow:1"></div>
+      <div style="padding:12px;border-radius:10px;background:#f6f5f3;font-size:12.5px;line-height:1.5;color:#4a4950">Text is yours to write. Oia suggests from your facts and keeps their sources for small print, but it does not check what you type.</div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { sel: 1, off: { compare: true, ba: true }, heads: {} };
+  }
+  renderVals() {
+    const s = this.state;
+    const C = [
+      { k: 'main', label: 'Main', bg: '#f4f7fb', bx: '40%', by: '28%', head: '', sub: '', isMain: true },
+      { k: 'benefit', label: 'Key benefit', bg: 'linear-gradient(160deg,#dcecfb,#8dbbe6)', bx: '70%', by: '30%', bs: 1.05, head: 'Cấp ẩm ngay từ giọt đầu', sub: '✓ Làm dịu da · ✓ Không cồn, không hương liệu', ty: '16%', tw: '58%', fs: '20px', sy: '62%', sugg: ['Cho da khô, thiếu nước', 'Làm dịu da', '15.000 mg HA'] },
+      { k: 'numbers', label: 'Numbers', bg: '#0f2f52', bx: '72%', by: '34%', bs: 0.85, head: '+145% độ ẩm', sub: 'sau 72 giờ · thử nghiệm trên 14 người', ty: '30%', tw: '60%', fs: '24px', sy: '62%', ink: '#ffffff', sugg: ['+145% độ ẩm', '72 giờ giữ ẩm'] },
+      { k: 'ingr', label: 'Ingredients', bg: 'linear-gradient(#f6fbff,#e3f0fb)', bx: '200%', head: '15.000 mg HA', sub: '3 kích thước phân tử HA', ty: '18%', tw: '84%', fs: '22px', sy: '70%', sugg: ['15.000 mg HA', '3 kích thước phân tử'] },
+      { k: 'use', label: 'How to use', bg: '#ffffff', bx: '74%', by: '40%', bs: 0.7, head: 'Cách dùng', sub: '1 Sau toner · 2 đến 3 giọt · Vỗ nhẹ cho thấm', ty: '16%', tw: '70%', fs: '20px', sy: '40%', sugg: ['Cách dùng', 'Sáng và tối'] },
+      { k: 'shop', label: 'Why buy here', bg: 'linear-gradient(135deg,#1f4f80,#2f6fb3)', bx: '200%', head: 'Mua tại Mây Cosmetics', sub: 'Nhập khẩu Hàn Quốc · Đổi trả 7 ngày', ty: '14%', tw: '84%', fs: '18px', sy: '60%', ink: '#ffffff', shared: true },
+      { k: 'compare', label: 'Compare', bg: '#fff', head: 'So sánh', sub: '' },
+      { k: 'ba', label: 'Before / after', bg: '#fff', head: '', sub: '' }
+    ];
+    const on = C.filter((c) => !s.off[c.k]);
+    const cur = on[Math.min(s.sel, on.length - 1)] || on[0];
+    const headOf = (c) => (s.heads[c.k] !== undefined ? s.heads[c.k] : c.head);
+    return {
+      onCount: on.length,
+      concepts: C.map((c) => ({ label: c.label, bg: s.off[c.k] ? '#fff' : '#1d1c21', ink: s.off[c.k] ? '#5f5e66' : '#fff', toggle: () => this.setState({ off: { ...s.off, [c.k]: !s.off[c.k] } }) })),
+      tiles: on.map((c, i) => ({
+        n: i + 1, label: c.label, bg: c.bg, head: headOf(c), sub: c.sub,
+        bar: !c.isMain && !c.shared,
+        ring: cur === c ? '0 0 0 3px #6d4ce8' : '0 0 0 1px #e1e4ea',
+        cost: c.isMain ? 'AI · 1 image' : c.shared ? 'same on all products' : '0 AI',
+        pick: () => this.setState({ sel: i }),
+        ty: c.ty || '10%', tw: c.tw || '80%', fs: c.fs || '18px', sy: c.sy || '60%', ink: c.ink || '#123a63', bx: c.bx || '40%', by: c.by || '30%', bs: c.bs || 1
+      })),
+      sel: { n: on.indexOf(cur) + 1, label: cur.label, editable: !cur.isMain, isMain: !!cur.isMain, headRaw: headOf(cur), sub: cur.sub, sugg: (cur.sugg || []).map((t) => ({ t, use: () => this.setState({ heads: { ...s.heads, [cur.k]: t } }) })) },
+      setHead: (e) => this.setState({ heads: { ...s.heads, [cur.k]: e.target.value } })
+    };
+  }
+}
+</script>
+</body>
+</html>

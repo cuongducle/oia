@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Products library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;family=Instrument+Serif&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4b33b8;text-decoration:none}a:hover{color:#1d1c21}
+.nav a{display:flex;align-items:center;padding:9px 12px;border-radius:8px;color:#4a4950;font-size:14px}
+.nav a:hover{background:#ebeae6;color:#1d1c21}
+.nav a.on{background:#fff;color:#1d1c21;font-weight:600;box-shadow:0 0 0 1px rgba(20,18,30,.06)}
+.f{font:inherit;font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;border:0;cursor:pointer;white-space:nowrap}
+.tr{display:grid;grid-template-columns:36px 48px minmax(0,2.2fr) 110px 100px 150px 130px 120px;gap:12px;align-items:center;padding:8px 16px;font-size:13px;border-top:1px solid #f0efec}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.muted{font-size:12px;color:#5f5e66}
+.bb{font:inherit;font-size:13px;font-weight:600;padding:9px 14px;border-radius:9px;border:0;cursor:pointer;background:#2e2d33;color:#fff;white-space:nowrap}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;display:flex;background:#f3f2ef;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1d1c21;overflow:hidden">
+  <aside class="nav" style="width:220px;flex-shrink:0;padding:20px 14px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #e8e7e4;box-sizing:border-box">
+    <div style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;padding:4px 12px 12px">Oia</div>
+    <label for="shop" class="muted" style="padding:0 12px;font-weight:600">Shop</label>
+    <select id="shop" style="font:inherit;font-size:14px;font-weight:600;margin:4px 0 14px;padding:9px 10px;border-radius:8px;border:1px solid #e8e7e4;background:#fff"><option>Mây Cosmetics</option></select>
+    <a class="on" href="SLibrary.dc.html">Products</a>
+    <a href="SSale.dc.html">Sales</a>
+    <a href="SLibrary.dc.html">Collections</a>
+    <div style="flex-grow:1"></div>
+    <a href="SLibrary.dc.html">More tools</a>
+    <a href="SLibrary.dc.html">Settings</a>
+    <span class="muted" style="padding:10px 12px">ChatGPT Plus · AI images on</span>
+  </aside>
+  <main style="flex-grow:1;padding:28px 36px;display:flex;flex-direction:column;gap:16px;min-width:0;position:relative">
+    <header style="display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <h1 style="margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:40px">Products <span style="font-size:22px;color:#5f5e66">140</span></h1>
+      <div style="display:flex;gap:10px;align-items:center">
+        <label for="q" style="position:absolute;left:-9999px">Search</label>
+        <input id="q" placeholder="Search name, brand or SKU" style="font:inherit;font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid #e8e7e4;width:300px">
+        <a href="SStart.dc.html" style="font-size:14px;font-weight:600;padding:10px 14px;border-radius:10px;background:#fff;box-shadow:0 0 0 1px rgba(20,18,30,.08);white-space:nowrap">Import products</a>
+        <a href="SSerum.dc.html" style="font-size:14px;font-weight:600;padding:10px 14px;border-radius:10px;background:#1d1c21;color:#fff;white-space:nowrap">+ Product</a>
+      </div>
+    </header>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;background:#fdf1e4;color:#7c3a0b;font-size:14px">
+      <span style="flex-grow:1"><b>11.11 ended 2 days ago.</b> 30 products still show the 11.11 offer image in your last export.</span>
+      <button class="bb" type="button" onClick="{{pickStale}}" style="background:#a5571c">Remove offer image from 30</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Filters">
+      <sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+        <button class="f" type="button" onClick="{{f.pick}}" style="background:{{f.bg}};color:{{f.ink}};box-shadow:0 0 0 1px #e8e7e4">{{f.label}} <span style="opacity:.7">{{f.n}}</span></button>
+      </sc-for>
+      <span style="flex-grow:1"></span>
+      <select aria-label="Collection" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #e8e7e4;background:#fff"><option>All collections</option><option>Serum (38)</option><option>Kem dưỡng (41)</option><option>Toner (24)</option></select>
+    </div>
+    <div style="background:#fff;border-radius:14px;box-shadow:0 0 0 1px rgba(20,18,30,.06);overflow:hidden">
+      <div class="tr muted" style="font-weight:600;border-top:0"><span></span><span></span><span>Product</span><span>Brand</span><span>SKU</span><span>Images</span><span>Collection</span><span>Exported</span></div>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+        <div class="tr" style="background:{{r.rowBg}}">
+          <input type="checkbox" checked="{{r.checked}}" onChange="{{r.toggle}}" aria-label="Select {{r.name}}" style="width:18px;height:18px;accent-color:#6d4ce8">
+          <span style="width:40px;height:40px;border-radius:6px;background:{{r.thumb}}"></span>
+          <a href="SSerum.dc.html" style="color:#1d1c21;font-weight:600">{{r.name}}</a>
+          <span class="muted">{{r.price}}</span>
+          <span class="muted">{{r.sku}}</span>
+          <span><span class="dot" style="background:{{r.dot}}"></span>{{r.status}}</span>
+          <span class="muted">{{r.coll}}</span>
+          <span class="muted">{{r.exp}}</span>
+        </div>
+      </sc-for>
+    </div>
+    <span class="muted">Showing 9 of {{shown}}. Tip: shift-click to select a range.</span>
+    <sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:10px 12px 10px 18px;border-radius:14px;background:#1d1c21;color:#fff;box-shadow:0 18px 40px -12px rgba(20,18,30,.6)">
+        <span style="font-size:14px;font-weight:600;margin-right:8px;white-space:nowrap">{{selCount}} selected</span>
+        <a class="bb" href="SBulk.dc.html" style="color:#fff">Make images</a>
+        <a class="bb" href="SSale.dc.html" style="color:#fff">Add to sale</a>
+        <a class="bb" href="SBulk.dc.html" style="color:#fff">Export</a>
+        <button class="bb" type="button">Move to collection</button>
+        <button class="bb" type="button" onClick="{{clearSel}}" style="background:transparent">Clear</button>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { filter: 'all', sel: {} };
+    this.data = [
+      { id: 1, name: 'Serum cấp ẩm HA 30ml', price: 'LUMA', sku: 'MAY-LU-HA30', st: 'stale', coll: 'Serum', exp: '09 Nov', thumb: '#e6f1fb' },
+      { id: 2, name: 'Serum vitamin C 15% 20ml', price: 'LUMA', sku: 'MAY-LU-VC20', st: 'none', coll: 'Serum', exp: 'never', thumb: '#fbf1dc' },
+      { id: 3, name: 'Toner hoa cúc 200ml', price: 'Hanami', sku: 'MAY-HN-TC200', st: 'ok', coll: 'Toner', exp: '10 Nov', thumb: '#f3f6e6' },
+      { id: 4, name: 'Kem dưỡng ceramide 50ml', price: 'Dermalab', sku: 'MAY-DL-CE50', st: 'stale', coll: 'Kem dưỡng', exp: '09 Nov', thumb: '#eef0f3' },
+      { id: 5, name: 'Serum niacinamide 10% 30ml', price: 'LUMA', sku: 'MAY-LU-NI30', st: 'warn', coll: 'Serum', exp: 'never', thumb: '#ece9f6' },
+      { id: 6, name: 'Sữa rửa mặt amino 150ml', price: 'Hanami', sku: 'MAY-HN-SR150', st: 'draft', coll: 'Sữa rửa mặt', exp: 'never', thumb: '#e9f4f1' },
+      { id: 7, name: 'Kem chống nắng SPF50 50ml', price: 'Dermalab', sku: 'MAY-DL-CN50', st: 'ok', coll: 'Chống nắng', exp: '10 Nov', thumb: '#fdf4e3' },
+      { id: 8, name: 'Mặt nạ ngủ peptide 80ml', price: 'LUMA', sku: 'MAY-LU-MN80', st: 'none', coll: 'Mặt nạ', exp: 'never', thumb: '#f6e9ef' },
+      { id: 9, name: 'Serum retinol 0.3% 30ml', price: 'Dermalab', sku: 'MAY-DL-RE30', st: 'stale', coll: 'Serum', exp: '09 Nov', thumb: '#f4ece2' }
+    ];
+  }
+  renderVals() {
+    const s = this.state;
+    const META = { none: ['No images', '#b9b8c1'], draft: ['Draft', '#6d4ce8'], ok: ['Up to date', '#4f8a68'], stale: ['Offer ended', '#d97706'], warn: ['Needs a fix', '#dc2626'] };
+    const F = [['all', 'All', 140], ['none', 'Needs images', 36], ['stale', 'Offer ended', 30], ['warn', 'Needs a fix', 4], ['sale', 'In 12.12 sale', 22], ['draft', 'Drafts', 9]];
+    const rowsSrc = s.filter === 'all' || s.filter === 'sale' ? this.data : this.data.filter((d) => d.st === s.filter);
+    const selIds = Object.keys(s.sel).filter((k) => s.sel[k]);
+    return {
+      filters: F.map(([k, label, n]) => ({ label, n, bg: s.filter === k ? '#1d1c21' : '#fff', ink: s.filter === k ? '#fff' : '#1d1c21', pick: () => this.setState({ filter: k }) })),
+      rows: rowsSrc.map((d) => ({ ...d, status: META[d.st][0], dot: META[d.st][1], checked: !!s.sel[d.id], rowBg: s.sel[d.id] ? '#faf8ff' : '#fff', toggle: () => this.setState({ sel: { ...s.sel, [d.id]: !s.sel[d.id] } }) })),
+      shown: F.find((f) => f[0] === s.filter)[2],
+      hasSel: selIds.length > 0,
+      selCount: s.bulk ? 30 : selIds.length,
+      pickStale: () => { const sel = {}; this.data.filter((d) => d.st === 'stale').forEach((d) => { sel[d.id] = true; }); this.setState({ filter: 'stale', sel, bulk: true }); },
+      clearSel: () => this.setState({ sel: {}, bulk: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

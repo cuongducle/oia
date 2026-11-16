@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>First run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&amp;family=Instrument+Serif&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#4b33b8;text-decoration:none}
+.muted{font-size:13px;color:#5f5e66;line-height:1.5}
+.door{display:flex;flex-direction:column;gap:10px;padding:22px;border-radius:16px;background:#fff;box-shadow:0 0 0 1px rgba(20,18,30,.06);color:#1d1c21;cursor:pointer}
+.door:hover{box-shadow:0 0 0 2px #6d4ce8;color:#1d1c21}
+.ic{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;display:flex;flex-direction:column;align-items:center;background:#f3f2ef;font-family:'Be Vietnam Pro',system-ui,sans-serif;color:#1d1c21;overflow:hidden;box-sizing:border-box;padding:70px 0;justify-content:center">
+  <div style="font-family:'Instrument Serif',Georgia,serif;font-size:56px;line-height:1">Product images, for every product you sell</div>
+  <div class="muted" style="font-size:16px;margin-top:14px;max-width:720px;text-align:center">Bring your products in once. Oia turns each one into a full image set in your shop's style: main photo, benefits, numbers, ingredients, how to use.</div>
+  <div style="display:grid;grid-template-columns:repeat(3,340px);gap:18px;margin-top:44px">
+    <a class="door" href="SLibrary.dc.html">
+      <span class="ic" style="background:#eaf5ee">⇪</span>
+      <b style="font-size:17px">Import your product list</b>
+      <span class="muted">Shopee or TikTok Shop Mass Upload file, or any spreadsheet. Names, descriptions and photo links come in together.</span>
+      <span style="font-size:13px;font-weight:600;color:#4b33b8;margin-top:auto">Best for 20+ products</span>
+    </a>
+    <a class="door" href="SFacts.dc.html">
+      <span class="ic" style="background:#eceaf6">▣</span>
+      <b style="font-size:17px">Start with one product</b>
+      <span class="muted">Drop the photos and the supplier's sheet (PDF or image). Oia reads the facts for you to check.</span>
+      <span style="font-size:13px;font-weight:600;color:#4b33b8;margin-top:auto">About 5 minutes</span>
+    </a>
+    <a class="door" href="SOutput.dc.html">
+      <span class="ic" style="background:#fdf1e4">◎</span>
+      <b style="font-size:17px">Try a sample product</b>
+      <span class="muted">See a finished set for a serum before you add your own. Nothing is sent anywhere.</span>
+      <span style="font-size:13px;font-weight:600;color:#4b33b8;margin-top:auto">No setup</span>
+    </a>
+  </div>
+  <div style="display:flex;gap:22px;align-items:center;margin-top:44px;padding:16px 22px;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(20,18,30,.06)">
+    <span style="font-size:14px"><b>Your shop style</b> <span class="muted">name, colours, font, "why buy here" points. Used on every image.</span></span>
+    <a href="SStart.dc.html" style="font-size:14px;font-weight:600">Set up · 2 minutes</a>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;margin-top:18px">
+    <span style="width:8px;height:8px;border-radius:50%;background:#d97706"></span>
+    <span class="muted">AI backgrounds need ChatGPT Plus or higher. Without it, every layout still works with your own photos. <a href="SStart.dc.html">Connect</a></span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>
