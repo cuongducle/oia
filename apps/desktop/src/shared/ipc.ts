@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { chatRequestSchema } from "@oia/services";
-import { brandKitSchema, taskTypeSchema } from "@oia/schema";
+import { brandKitSchema, productProfileSchema, taskTypeSchema } from "@oia/schema";
 
 /**
  * MAIN-ONLY schemas (zod + @oia/services are not preload-loadable under sandbox).
@@ -80,6 +80,11 @@ export const brandKitUpsertSchema = brandKitSchema
   .omit({ id: true, createdAt: true })
   .extend({ id: z.string().optional(), createdAt: z.number().optional() });
 export const brandKitRemoveSchema = z.object({ id: z.string().min(1) });
+/** W1.1: loose at the boundary (id optional for create); ProductStore validates strictly. */
+export const productUpsertSchema = productProfileSchema
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({ id: z.string().optional(), createdAt: z.number().optional(), updatedAt: z.number().optional() });
+export const productRemoveSchema = z.object({ id: z.string().min(1) });
 export const apiKeyCreateSchema = z.object({
   name: z.string().min(1).max(60),
   ttlDays: z.number().int().positive().max(3650).nullable(),

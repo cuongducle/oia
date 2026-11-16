@@ -11,3 +11,4 @@ export * from "./deconstruct.js";
 export * from "./font-reference.js";
 export * from "./lens.js";
 export * from "./segment.js";
+export * from "./product.js";

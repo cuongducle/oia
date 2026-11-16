@@ -9,6 +9,7 @@ export const Icons = {
   home: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20H4z" /><path d="M10 20v-5h4v5" /></svg>,
   projects: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2" /><rect x="13" y="4" width="7" height="7" rx="2" /><rect x="4" y="13" width="7" height="7" rx="2" /><rect x="13" y="13" width="7" height="7" rx="2" /></svg>,
   templates: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M4 10h16M10 10v10" /></svg>,
+  products: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="M4 7h16l-1.5 12.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z" /><path d="M8 7a4 4 0 0 1 8 0" /></svg>,
   tools: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="m14 6 4 4M5 19l9.5-9.5M14.5 4.5l5 5-2 2-5-5z" /></svg>,
   brand: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><circle cx="12" cy="12" r="8" /><circle cx="9" cy="10" r="1.2" fill="currentColor" /><circle cx="12" cy="8" r="1.2" fill="currentColor" /><circle cx="15" cy="10" r="1.2" fill="currentColor" /></svg>,
   settings: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>,

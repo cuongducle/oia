@@ -90,3 +90,13 @@ describe("TP.7 durable load, BrandKitStore", () => {
     expect(readFileSync(pathMod.join(dir, q!), "utf8")).toBe("]]garbage");
   });
 });
+
+describe("BR-BK regression: wire-shape create", () => {
+  it("an explicit `id: undefined` key crossing the wire creates instead of throwing (W1.1 shot-gate class)", () => {
+    const dir2 = mkdtempSync(path.join(tmpdir(), "pf-bk2-"));
+    const s = new BrandKitStore(path.join(dir2, "bk.json"));
+    const kit = s.validate({ name: "x", id: undefined });
+    expect(typeof kit.id).toBe("string");
+    expect(kit.id.startsWith("bk_")).toBe(true);
+  });
+});

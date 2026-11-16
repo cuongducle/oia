@@ -1,7 +1,7 @@
 import path from "node:path";
 import {
   TaskStore, LocalFileStore, ApiKeyStore,
-  BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore,
+  BrandKitStore, TemplateStore, ProjectStore, ChatSessionStore, ProductStore,
   makeGeneratePoster, makeImageEdit, makeRemoveBackground, makeGeneratePresentation, makeGenericImageTask, makeDeconstruct, makeMatchFonts, makeRecognizeFonts, makeSegmentImage, makePptTranslate,
 } from "@oia/tasks";
 import { getLlmProvider, getImageProvider, assertNoMixedMockConfig, ProviderError, type LlmProvider, type ImageProvider } from "@oia/providers";
@@ -17,6 +17,7 @@ export interface ServiceContext {
   files: LocalFileStore;
   keys: ApiKeyStore;
   brandKits: BrandKitStore;
+  products: ProductStore;
   templates: TemplateStore;
   projects: ProjectStore;
   chatSessions: ChatSessionStore;
@@ -61,6 +62,8 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   await keys.load();
   const brandKits = new BrandKitStore(path.join(dataDir, "brandkits.json"));
   await brandKits.load();
+  const products = new ProductStore(path.join(dataDir, "products.json"));
+  await products.load();
   const templates = new TemplateStore(path.join(dataDir, "templates.json"));
   await templates.load();
   const projects = new ProjectStore(dataDir, files);
@@ -106,7 +109,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   });
 
   const ctx: ServiceContext = {
-    files, keys, brandKits, templates, projects, chatSessions, taskStore, chat,
+    files, keys, brandKits, products, templates, projects, chatSessions, taskStore, chat,
   };
   return ctx;
 }

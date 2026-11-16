@@ -20,12 +20,15 @@ export class BrandKitStore {
     await atomicWriteJson(this.file, this.kits);
   }
 
-/** Zod validation (BR-BK1..4), errors carry clear messages. */
+/** Zod validation (BR-BK1..4), errors carry clear messages. The spread comes FIRST:
+ *  an explicit `id: undefined` crossing the wire must not overwrite the assigned id
+ *  (same regression class as ProductStore, found by the W1.1 shot gate). */
   validate(input: unknown): BrandKit {
+    const raw = input as Record<string, unknown>;
     const parsed = brandKitSchema.safeParse({
-  id: (input as Record<string, unknown>)?.id ?? uniqueId("bk"), // keep id on update; unique even within the same ms
-      createdAt: Date.now(),
-      ...(input as Record<string, unknown>),
+      ...(raw as Record<string, unknown>),
+      id: raw?.id ?? uniqueId("bk"), // keep id on update; unique even within the same ms
+      createdAt: raw?.createdAt ?? Date.now(),
     });
     if (!parsed.success) {
       throw new Error(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));

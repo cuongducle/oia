@@ -3,6 +3,7 @@ import { Home } from "./views/Home.js";
 import { Editor, EditorErrorBoundary } from "./views/Editor.js";
 import { Workspace } from "./views/Workspace.js";
 import { Tools } from "./views/Tools.js";
+import { Products } from "./views/Products.js";
 import { BrandKit } from "./views/BrandKit.js";
 import { Settings } from "./views/Settings.js";
 import { Sidebar, type SectionName } from "./components/Sidebar.js";
@@ -23,6 +24,7 @@ import { CreateSheet } from "./components/CreateSheet.js";
 type View =
   | { name: "home"; resumeSession?: number | null; focusComposer?: number; prompt?: string }
   | { name: "workspace"; deconFile?: File }
+  | { name: "products" }
   | { name: "tools"; tool?: string }
   | { name: "brandkit" }
   | { name: "settings" }
@@ -84,6 +86,9 @@ export default function App() {
   switch (view.name) {
     case "workspace":
       body = <Workspace key={`ws-${view.deconFile?.name ?? ""}`} onOpenProject={openProject} onOpenSession={openSession} onNew={newDesign} initialDeconFile={view.deconFile} />;
+      break;
+    case "products":
+      body = <Products key="products" />;
       break;
     case "tools":
       body = <Tools key={`tools-${view.tool ?? ""}`} initialTool={view.tool ?? null} onOpenProject={openProject} />;

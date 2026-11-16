@@ -34,7 +34,7 @@ Tất cả nghiệp vụ dưới đây rút từ các doc đã có, không phát
 | Pha 0 | W0.1 Ma trận trạng thái/giấy phép thành phần | Không | Mới |
 | Pha 0 | W0.2 Benchmark luồng mẫu trên profile sạch | Không | Mới |
 | Pha 0 | W0.3 Sửa ma sát tái hiện từ W0.2 | W0.2 | Mới |
-| Pha 1 | W1.1 Schema + store hồ sơ sản phẩm | W0 xong | Mới |
+| Pha 1 | W1.1 Schema + store hồ sơ sản phẩm | W0 xong | Xong 16/11 (schema + store + Products view; xem ghi trạng thái cuối file) |
 | Pha 1 | W1.2 Màn assisted fill (cửa 2+3+6) | W1.1 | Mới |
 | Pha 1 | W1.3 Parser file Mass Upload sàn (cửa 1) | W1.1 | Mới |
 | Pha 1 | W1.4 Chính sách product asset 3 lớp + gate hash | W1.1 | Nền: layers.ts có lock |
@@ -273,7 +273,14 @@ Watermark pass (0 AI, qua brand kit); destination checks (dữ liệu quy tắc 
 
 ## Trạng thái khi đóng file
 
-Chỉ tổng hợp kế hoạch, chưa bắt đầu việc nào. Bước tiếp theo cụ thể: W0.1 và W0.2, cả hai không cần duyệt chi phí. `git diff --check` sạch.
+13/11: chỉ tổng hợp kế hoạch, chưa bắt đầu việc nào. Bước tiếp theo lúc đó: W0.1 và W0.2.
+
+Cập nhật 16/11/2026 (sau khi owner lưu canvas redesign làm chuẩn dựng view và chỉ thị bắt đầu làm):
+
+- **W1.1 xong đợt 1**: `@oia/schema` productProfile (đúng mô hình owner 13-16/11: Name + Description tự do + Photos[] có thứ tự + tags + lockNotes + facts giữ nguồn, không trường cấu trúc, không quy tắc chống bịa), ProductStore trong `@oia/tasks` (atomic JSON, test temp dir 7 test), wire IPC preload→main→utility, view Products + trình sửa hồ sơ (đăng ảnh qua uploadAsset, facts gõ tay + bật/tắt kept) theo board SLibrary/SFacts (canvas 16/11). Chỉ hiện trạng suy ra được (All / Needs photos, lọc tag); các nút Make images / Add to sale / Export và trạng thái ảnh chưa có vì W2/W3 chưa làm, không làm giả.
+- **Lệch thứ tự có chủ đích, ghi rõ**: Pha 0 (W0.1, W0.2) chưa chạy; owner chỉ thị làm theo canvas sau khi chốt thiết kế, benchmark W0.2 phục vụ việc phơi giới hạn luồng mẫu cũ trước khi thiết kế, giờ thiết kế đã chốt. W0.1 (ma trận giấy phép) vẫn mở, không phụ thuộc việc này.
+- Bug bắt được nhờ shot gate: spread đè id trong validate của ProductStore VÀ BrandKitStore (create với `id: undefined` qua structured clone ném lỗi zod); sửa cả hai + regression test. Kèm sửa createdAt của brandkit không còn bị reset mỗi lần lưu.
+- Gates: `pnpm build`, `pnpm test` (16 task), `pnpm typecheck`, `pnpm --filter @oia/desktop smoke` (OK), `pnpm --filter @oia/desktop shot` (exit 0, lane products mới: chặn lưu tên rỗng có thông báo, tạo hồ sơ đủ trường, dòng hiện trong bảng, `out/desktop-products.png`).
 
 ## Rà soát nhất quán 13/11/2026 (sau khi tổng hợp)
 

@@ -1,4 +1,4 @@
-import type { ChatEvent, Project, Template, TaskStatus, BrandKit } from "@oia/schema";
+import type { ChatEvent, Project, Template, TaskStatus, BrandKit, ProductProfile } from "@oia/schema";
 import type { ChatRequest, ChatRunResult } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
@@ -28,6 +28,13 @@ export interface RuntimeSnapshot {
 
 /** A brand-kit draft crossing the bridge: id/createdAt are store-assigned on create. */
 export type BrandKitInput = Omit<BrandKit, "id" | "createdAt"> & { id?: string; createdAt?: number };
+
+/** W1.1: a product-profile draft crossing the bridge; the store is the strict gate. */
+export type ProductInput = Omit<ProductProfile, "id" | "createdAt" | "updatedAt"> & {
+  id?: string;
+  createdAt?: number;
+  updatedAt?: number;
+};
 
 /** TP-D3: one-way progress frames for the long-running runtime flows. */
 export type RuntimeEvent =
@@ -109,6 +116,10 @@ export interface OiaBridge {
   listBrandKits: () => Promise<BrandKit[]>;
   upsertBrandKit: (input: BrandKitInput) => Promise<BrandKit>;
   removeBrandKit: (id: string) => Promise<boolean>;
+  /** ---- W1.1 seller-workflow redo: product profiles ---- */
+  listProducts: () => Promise<ProductProfile[]>;
+  upsertProduct: (input: ProductInput) => Promise<ProductProfile>;
+  removeProduct: (id: string) => Promise<boolean>;
   listApiKeys: () => Promise<ApiKeyRecord[]>;
   createApiKey: (name: string, ttlDays: number | null) => Promise<{ record: ApiKeyRecord; plaintext: string }>;
   revokeApiKey: (id: string) => Promise<boolean>;

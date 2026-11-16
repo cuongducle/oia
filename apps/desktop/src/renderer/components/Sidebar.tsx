@@ -11,11 +11,12 @@ import { runtimeStatusLine, type StatusTone } from "../lib/runtime-status.js";
  * used to show (runtime state + today's image usage). Clicking the card opens Settings.
  */
 
-export type SectionName = "home" | "workspace" | "tools" | "brandkit" | "settings";
+export type SectionName = "home" | "workspace" | "products" | "tools" | "brandkit" | "settings";
 
 const SECTIONS: { name: Exclude<SectionName, "settings">; label: string; icon: ReactNode }[] = [
   { name: "home", label: "Home", icon: Icons.home },
   { name: "workspace", label: "Projects", icon: Icons.projects },
+  { name: "products", label: "Products", icon: Icons.products },
   { name: "tools", label: "Tools", icon: Icons.tools },
   { name: "brandkit", label: "Brand kits", icon: Icons.brand },
 ];

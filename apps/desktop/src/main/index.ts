@@ -22,7 +22,7 @@ import {
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
   filesUploadSchema, exportSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
-  brandKitUpsertSchema, brandKitRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
+  brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
   clipboardWriteSchema, dataImportWebSchema,
 } from "../shared/ipc.js";
 import type { AgentJobFrame } from "../shared/bridge.js";
@@ -359,6 +359,29 @@ function registerIpc(): void {
       const { id } = brandKitRemoveSchema.parse(raw);
       await ensureUtility();
       return await utility.call({ cmd: "brandKits.remove", id });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  // ---- W1.1 seller-workflow redo: product profiles ------------------------------
+  handle(IPC.productsList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "products.list" });
+  });
+  handle(IPC.productsUpsert, async (_e, raw: unknown) => {
+    try {
+      const input = productUpsertSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "products.upsert", input });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.productsRemove, async (_e, raw: unknown) => {
+    try {
+      const { id } = productRemoveSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "products.remove", id });
     } catch (err) {
       ipcError(err);
     }
@@ -716,7 +739,8 @@ async function realSmoke(): Promise<void> {
  * · 17 A1 variant gate (preview-apply, docs/designs/variant-preview-apply.md)
  * · 18 C1 outline gate (docs/designs/outline-gate.md)
  * · 22 R6 composer (platform size menu + Skills ▾ + Recent designs, ui-v11)
- * · 23 R6 Skills click-through (a menu item opens THAT tool in the Tools view).
+ * · 23 R6 Skills click-through (a menu item opens THAT tool in the Tools view)
+ * · 28 W1.1 Products (empty-name refusal, profile save, library row shows).
  */
 async function shot(): Promise<void> {
   registerAssetProtocol();
@@ -2338,6 +2362,81 @@ async function shot(): Promise<void> {
     return;
   }
   await snap(win, "desktop-brandkit.png");
+
+  // ---- W1.1 seller-workflow redo: Products library + profile editor -------------
+  console.log("[shot] opening Products…");
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    pills.find((p) => p.textContent.trim() === "Products")?.click();
+    return true;
+  })()`, true);
+  for (let i = 0; i < 20 && !(await win.webContents.executeJavaScript(`Boolean(document.querySelector(".productsView"))`, true)); i++) await new Promise((r) => setTimeout(r, 150));
+  // Error path FIRST: Save with an empty name must show a visible error, not save.
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('[data-testid="product-new"]')?.click();
+    return true;
+  })()`, true);
+  for (let i = 0; i < 20 && !(await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="product-save"]'))`, true)); i++) await new Promise((r) => setTimeout(r, 150));
+  const emptyNameErr = await win.webContents.executeJavaScript(`(async () => {
+    document.querySelector('[data-testid="product-save"]')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    return Boolean(document.querySelector('.productEditor [role=alert]'));
+  })()`, true).catch(() => false);
+  console.log(`[shot] products empty-name error gate: ${emptyNameErr}`);
+  if (!emptyNameErr) {
+    console.error("DESKTOP_SHOT PRODUCTS EMPTY-NAME GATE FAILED (save must refuse an empty name, visibly)");
+    app.exit(28);
+    return;
+  }
+  // Fill a real profile through the editor: name, description, tag, fact, then save.
+  const productSaved = await win.webContents.executeJavaScript(`(async () => {
+    const set = (sel, value) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value").set;
+      setter.call(el, value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    };
+    if (!set('#pe-name', "Serum cấp ẩm HA 30ml")) return "no-name-field";
+    if (!set('#pe-desc', "Giá 289.000đ. Serum cấp ẩm với HA 3 kích thước phân tử, nhập khẩu Hàn Quốc.")) return "no-desc-field";
+    if (!set('#pe-tags', "Serum")) return "no-tags-field";
+    const tagInput = document.querySelector('#pe-tags');
+    tagInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    if (!set('.factAdd input', "15.000 mg HA / 30 ml")) return "no-fact-field";
+    if (!set('.factAdd .factSrcInput', "tech sheet.pdf")) return "no-src-field";
+    document.querySelector('.factAdd .secondaryBtn')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const factRows = document.querySelectorAll('.factRow').length;
+    if (factRows !== 1) return "fact-not-added:" + factRows;
+    document.querySelector('[data-testid="product-save"]')?.click();
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      if (document.querySelector('[data-testid="product-row"]')) return "saved";
+    }
+    return "row-never-appeared";
+  })()`, true).catch((e) => String(e));
+  console.log(`[shot] products editor save: ${productSaved}`);
+  if (productSaved !== "saved") {
+    console.error("DESKTOP_SHOT PRODUCTS SAVE GATE FAILED");
+    app.exit(28);
+    return;
+  }
+  const productsVerify = await win.webContents.executeJavaScript(`(() => {
+    const rows = [...document.querySelectorAll('[data-testid="product-row"]')];
+    const row = rows.find((r) => r.textContent.includes("Serum cấp ẩm HA 30ml"));
+    const counts = document.querySelector(".productsCount")?.textContent ?? "";
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: Boolean(row) && Number(counts) >= 1 && !err, rows: rows.length, counts, err };
+  })()`, true).catch((e) => ({ ok: false, why: String(e) }));
+  console.log("[shot] products verify:", JSON.stringify(productsVerify));
+  if (!productsVerify || !productsVerify.ok) {
+    console.error("DESKTOP_SHOT PRODUCTS VERIFY FAILED");
+    app.exit(28);
+    return;
+  }
+  await snap(win, "desktop-products.png");
 
   // ---- reorg 4d: For Agents, keys form + live loopback base URL ----------------
   console.log("[shot] opening For agents…");

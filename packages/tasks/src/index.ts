@@ -3,6 +3,7 @@ export * from "./projectMigrations.js";
 export * from "./importWebData.js";
 export * from "./templates.js";
 export * from "./brandkits.js";
+export * from "./products.js";
 export * from "./processors.js";
 export * from "./font-reference.js";
 export * from "./font-recognition.js";
