@@ -8,8 +8,9 @@
  *
  * Three stages, production code at every step:
  *  1. CROP (0 quota, hidden Electron window): the region becomes an integer
- *     pixel window through regionPixelWindow and cropPngBytes, the exact DOM
- *     path the editor runs on a page export at scale 1.
+ *     pixel window through regionPixelWindow + padPixelWindow + cropPngBytes,
+ *     the exact DOM path the editor runs on a page export at scale 1 (the pad
+ *     is the shipped glyph-edge protection).
  *  2. TASK (real quota): scripts/task-real.mjs deconstruct on the crop, the
  *     generic versioned harness with provider evidence + quota meter.
  *  3. REPLAY (0 quota, hidden Electron window): production matchedDeconstructScene
@@ -73,7 +74,7 @@ const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs");
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false });
-  win.webContents.on("console-message", (_e, _level, message) => console.log("PAGE", String(message).slice(0, 500)));
+  win.webContents.on("console-message", (event) => console.log("PAGE", String(event.message ?? "").slice(0, 500)));
   win.webContents.on("render-process-gone", (_e, details) => console.log("GONE", JSON.stringify(details)));
   await win.loadFile(${JSON.stringify(path.join(dir, "page.html"))});
   const payload = fs.readFileSync(${JSON.stringify(path.join(dir, "payload.json"))}, "utf8");
@@ -104,13 +105,14 @@ const lib = (name) => JSON.stringify(path.join(desktop, `src/renderer/lib/${name
 let cropResult;
 if (resume) {
   const saved = JSON.parse(await readFile(path.join(outDir, "region.json"), "utf8"));
-  cropResult = { win: saved.win, pngB64: (await readFile(path.join(outDir, "crop.png"))).toString("base64") };
+  cropResult = { win: saved.win, sceneRegion: saved.sceneRegion, pngB64: (await readFile(path.join(outDir, "crop.png"))).toString("base64") };
   console.log(`[d24] resume: crop reused, 0 quota`);
 } else {
   cropResult = await inWindow(`
-import { cropPngBytes, regionPixelWindow } from ${lib("deconstruct-region")};
+import { cropPngBytes, padPixelWindow, pixelWindowToSceneRegion, regionPixelWindow } from ${lib("deconstruct-region")};
 window.go = async ({ pageDataUrl, region, W, H }) => {
-  const win = regionPixelWindow(region, W, H, 1); // editor export is multiplier 1; the page IS the export here
+  const rawWin = regionPixelWindow(region, W, H, 1); // editor export is multiplier 1; the page IS the export here
+  const win = padPixelWindow(rawWin, W, H); // the shipped glyph-edge pad
   const probe = await new Promise((res) => {
     const i = new Image();
     i.onload = () => res({ ok: true, w: i.width, h: i.height });
@@ -119,22 +121,26 @@ window.go = async ({ pageDataUrl, region, W, H }) => {
   });
   if (!probe.ok) return { probeFail: probe };
   const png = await cropPngBytes(pageDataUrl, win);
-  return { win, pngB64: btoa(String.fromCharCode(...png)) };
+  const sceneRegion = pixelWindowToSceneRegion(win, 1);
+  let b64 = ""; // chunked, multiple of 3 bytes: spreading MB-sized arrays overflows the stack and misaligned chunks corrupt base64
+  for (let i = 0; i < png.length; i += 3 * 0x10000) b64 += btoa(String.fromCharCode(...png.subarray(i, i + 3 * 0x10000)));
+  return { win, sceneRegion, pngB64: b64 };
 };`, { pageDataUrl, region, W, H });
 }
 const win = cropResult.win;
+const sceneRegion = cropResult.sceneRegion;
 if (cropResult.probeFail) throw new Error(`crop probe failed: ${JSON.stringify(cropResult.probeFail)}`);
 if (win.w < 8 || win.h < 8) throw new Error(`degenerate crop window ${JSON.stringify(win)}`);
-const cropBytes = Uint8Array.from(atob(cropResult.pngB64), (c) => c.charCodeAt(0));
+const cropBytes = new Uint8Array(Buffer.from(cropResult.pngB64, "base64")); // Buffer base64 is size-safe in node
 if (!resume) {
   await writeFile(path.join(outDir, "crop.png"), cropBytes, { flag: "wx" });
   await writeFile(path.join(outDir, "region.json"), JSON.stringify({
     page: { file: path.basename(page), sha256: sha256(pageBytes), W, H },
-    region, win, exportScale: 1,
+    draggedRegion: region, sceneRegion, win, exportScale: 1,
     crop: { sha256: sha256(cropBytes), W: win.w, H: win.h },
   }, null, 2), { flag: "wx" });
 }
-console.log(`[d24] crop saved ${win.w}x${win.h} for region ${JSON.stringify(region)}`);
+console.log(`[d24] crop saved ${win.w}x${win.h} (dragged ${JSON.stringify(region)} + pad)`);
 
 // ---- stage 2: the real task, through the versioned generic harness ----
 const taskOut = path.join(outDir, "task");
@@ -156,7 +162,7 @@ const replay = await inWindow(`
 import { matchedDeconstructScene } from ${lib("deconstruct-font-match")};
 import { regionOverlayObjects } from ${lib("deconstruct-region")};
 import { StaticCanvas } from "fabric";
-window.go = async ({ pageDataUrl, cropB64, plateB64, texts, win, region, W, H }) => {
+window.go = async ({ pageDataUrl, cropB64, plateB64, texts, win, sceneRegion, W, H }) => {
   console.log("GO CALLED", typeof pageDataUrl, typeof cropB64, texts.length, JSON.stringify(win));
   const step = async (name, fn) => { try { const v = await fn(); console.log("STEP", name, "ok"); return v; } catch (e) { console.log("STEP", name, "FAIL", JSON.stringify(e, Object.getOwnPropertyNames(e)), String(e && e.message)); throw e; } };
   await document.fonts.ready;
@@ -167,7 +173,7 @@ window.go = async ({ pageDataUrl, cropB64, plateB64, texts, win, region, W, H })
     { uploadAsset: unavailable, submitTask: unavailable, getTask: unavailable, cancelTask: unavailable },
     { stopped: () => false, onTask: () => {} },
   ));
-  const overlay = await step("overlay", () => Promise.resolve(regionOverlayObjects(matched.scene, region, win)));
+  const overlay = await step("overlay", () => Promise.resolve(regionOverlayObjects(matched.scene, sceneRegion, win)));
   const pageObject = { type: "Image", left: 0, top: 0, originX: "left", originY: "top", width: W, height: H, src: pageDataUrl };
   const renderScene = async (objects) => {
     const c = new StaticCanvas(null, { width: W, height: H, enableRetinaScaling: false });
@@ -198,8 +204,8 @@ window.go = async ({ pageDataUrl, cropB64, plateB64, texts, win, region, W, H })
   }
   const textLayers = overlay.filter((o) => o.type === "Textbox");
   const inBounds = textLayers.every((t) =>
-    t.left >= region.left - 2 && t.top >= region.top - 2 &&
-    t.left <= region.left + region.width + 2 && t.top <= region.top + region.height + 2);
+    t.left >= sceneRegion.left - 2 && t.top >= sceneRegion.top - 2 &&
+    t.left <= sceneRegion.left + sceneRegion.width + 2 && t.top <= sceneRegion.top + sceneRegion.height + 2);
   return {
     baselinePng, finalPng,
     fontNote: matched.note,
@@ -210,7 +216,7 @@ window.go = async ({ pageDataUrl, cropB64, plateB64, texts, win, region, W, H })
 };
 console.log("BUNDLE LOADED", typeof window.go);`, {
   pageDataUrl, cropB64: Buffer.from(cropBytes).toString("base64"), plateB64: plateBytes.toString("base64"),
-  texts: final.taskResult.texts, win, region, W, H,
+  texts: final.taskResult.texts, win, sceneRegion, W, H,
 });
 await writeFile(path.join(outDir, "page-baseline.png"), Buffer.from(replay.baselinePng.split(",")[1], "base64"), { flag: "wx" });
 await writeFile(path.join(outDir, "final-page.png"), Buffer.from(replay.finalPng.split(",")[1], "base64"), { flag: "wx" });
@@ -221,7 +227,7 @@ const promiseKept = replay.metrics.finOutside === replay.metrics.baseOutside;
 const summary = {
   feature: "D24 region make text editable (real run)",
   page: { file: path.basename(page), sha256: sha256(pageBytes), W, H },
-  region, crop: { W: win.w, H: win.h, sha256: sha256(cropBytes) },
+  draggedRegion: region, sceneRegion, crop: { W: win.w, H: win.h, sha256: sha256(cropBytes) },
   task: { taskId: report.taskId, progress: final.progress, elapsedMs: report.elapsedMs, quota: report.quota,
     note: report.note, texts: final.taskResult.texts.length },
   replay: { scope: "Production matchedDeconstructScene (Lens deliberately disabled) + regionOverlayObjects; no provider quota.",

@@ -200,7 +200,10 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
 
   // ---- D24: "Make text editable" is REGION-ONLY (owner 2026-11-13): drag a
   // box, the deconstruct task sees ONLY the crop (wire unchanged), the page is
-  // merged additively (plate over the region + text layers), never swapped.
+  // merged additively: plate + text spliced above the SOURCE layer, old layers
+  // fully inside the padded region are REPLACED, never a scene swap. The drag
+  // itself is REAL mouse events: the gate must prove the interaction opens the
+  // dialog, not just the fabric plumbing.
   console.log("[shot] D24: region-only make text editable…");
   const regionPrep = await win.webContents.executeJavaScript(`(async () => {
     const c = window.__oiaCanvas;
@@ -217,23 +220,37 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
     await new Promise((r) => setTimeout(r, 400));
     const marquee = c.getObjects().find((o) => o.get("name") === "d24-text-edit-region");
     if (!marquee) return { failed: "no-marquee" };
-    if (c.getObjects().some((o) => o.get("name") === "d24-text-edit-region" && o.get("excludeFromExport") !== true)) return { failed: "marquee-serializes" };
-    // geometry via the fabric API, equivalent to the drag: the SALE band only
-    marquee.set({ left: 24, top: 8, width: 560, height: 70, scaleX: 1, scaleY: 1 });
+    const before0 = { left: marquee.left, top: marquee.top };
+    // REAL drag on the upper canvas: down at the marquee center, move, up.
+    // Fabric must move the marquee and fire object:modified, which is the
+    // production path that opens the cost dialog.
+    const el = c.upperCanvasEl;
+    const rect = el.getBoundingClientRect();
+    const vpt = c.viewportTransform;
+    const to = (sx, sy) => {
+      const vx = sx * vpt[0] + vpt[4], vy = sy * vpt[3] + vpt[5];
+      return { x: rect.left + vx * (rect.width / el.width), y: rect.top + vy * (rect.height / el.height) };
+    };
+    const cx = marquee.left + (marquee.width * (marquee.scaleX ?? 1)) / 2;
+    const cy = marquee.top + (marquee.height * (marquee.scaleY ?? 1)) / 2;
+    const from = to(cx, cy);
+    const end = to(cx - 40, cy - 18);
+    const ev = (t, p, down) => new MouseEvent(t, { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, button: 0, buttons: down ? 1 : 0 });
+    el.dispatchEvent(ev("mousedown", from, true));
+    el.dispatchEvent(ev("mousemove", end, true));
+    el.dispatchEvent(ev("mouseup", end, false));
+    await new Promise((r) => setTimeout(r, 400));
+    const moved = marquee.left !== before0.left || marquee.top !== before0.top;
+    const dialogByDrag = Boolean(document.querySelector('[data-testid="text-edit-confirm"]'));
+    if (!moved || !dialogByDrag) return { failed: "synthetic-drag", moved, dialogByDrag };
+    // widen to a deterministic band: full width, top third. Contains the B1
+    // SALE line fully (it must be REPLACED), leaves price/subtitle outside.
+    marquee.set({ left: 0, top: 0, width: 600, height: 130, scaleX: 1, scaleY: 1 });
     marquee.setCoords();
-    c.fire("object:modified", { target: marquee });
-    await new Promise((r) => setTimeout(r, 300));
-    const confirmBtn = document.querySelector('[data-testid="text-edit-confirm"]');
-    const size = document.querySelector('[data-testid="text-edit-region-size"]');
-    return { before, dialog: Boolean(confirmBtn), size: size ? size.textContent : "" };
+    return { before, movedBy: [Math.round(marquee.left - before0.left), Math.round(marquee.top - before0.top)] };
   })()`, true);
-  if (!regionPrep || regionPrep.failed || !regionPrep.dialog) {
+  if (!regionPrep || regionPrep.failed) {
     console.error(`DESKTOP_SHOT D24 FAILED, region prep (${JSON.stringify(regionPrep)})`);
-    app.exit(20);
-    return false;
-  }
-  if (!/560 × 70/.test(String(regionPrep.size))) {
-    console.error(`DESKTOP_SHOT D24 FAILED, region size label (${regionPrep.size})`);
     app.exit(20);
     return false;
   }
@@ -248,7 +265,7 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
     app.exit(20);
     return false;
   }
-  const target = regionPrep.before + 4; // plate image + 3 text layers land additively
+  const target = regionPrep.before + 3; // kept = before − 1 (old SALE replaced) + plate + 3 texts
   let regionDone = false;
   for (let i = 0; i < 50 && !regionDone; i++) {
     await new Promise((r) => setTimeout(r, 500));
@@ -261,32 +278,40 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
   const regionVerify = await win.webContents.executeJavaScript(`(() => {
     const c = window.__oiaCanvas;
     if (!c) return { ok: false, why: "no-canvas" };
-    const liveTexts = c.getObjects().filter((o) => o.type === "textbox");
-    const sales = liveTexts.filter((o) => String(o.text ?? "").includes("SALE 50"));
-    const fresh = sales.find((o) => o.left > 60);  // 24 + 0.08 * 560 = 68.8
-    const original = sales.find((o) => o.left <= 60); // B1 line sits at ~48
-    const images = c.getObjects().filter((o) => typeof o.get("src") === "string");
-    const plate = images.find((o) => Math.round(o.left) === 24 && Math.round(o.top) === 8);
-    const marqueeGone = !c.getObjects().some((o) => o.get("name") === "d24-text-edit-region");
+    const W = 600;
+    const s = c.getWidth() / W;
+    const pad = Math.max(4, Math.min(48, Math.round(Math.min(W * s, 130 * s) * 0.06))); // the production pad formula, recomputed as the oracle
+    const expTop = 0.1 * (130 + pad / s);
+    const objs = c.getObjects();
+    const sales = objs.filter((o) => o.type === "textbox" && String(o.text ?? "").includes("SALE 50"));
+    const price = objs.find((o) => o.type === "textbox" && String(o.text ?? "").includes("299.000") && o.top > 120); // the B1 original, the fresh mock line lands INSIDE the band
+    const subtitle = objs.find((o) => o.type === "textbox" && String(o.text ?? "").includes("Chỉ hôm nay") && o.top > 120);
+    const plateIdx = objs.findIndex((o, i) => i >= 2 && typeof o.get("src") === "string" && Math.round(o.left) <= 1 && Math.round(o.top) <= 1);
+    const plate = plateIdx >= 0 ? objs[plateIdx] : null;
+    const marqueeGone = !objs.some((o) => o.get("name") === "d24-text-edit-region");
     const notice = document.querySelector('.notice[role=status]')?.textContent ?? "";
+    const fresh = sales[0];
     return {
-      ok: sales.length === 2 && Boolean(fresh) && Boolean(original) && Boolean(plate) && marqueeGone && notice.includes("rebuilt from the selected area"),
-      sales: sales.length, fresh: fresh ? [Math.round(fresh.left), Math.round(fresh.top)] : null, // want ~[69, 15]
-      original: original ? Math.round(original.left) : null, // want ~48, untouched
-      plate: plate ? [Math.round(plate.getScaledWidth()), Math.round(plate.getScaledHeight())] : null, // want ~[560, 70]
+      ok: sales.length === 1 && Boolean(price) && Boolean(subtitle) && Boolean(plate) && marqueeGone
+        && notice.includes("rebuilt from the selected area") && notice.includes("1 old layer"),
+      sales: sales.length, // the B1 SALE inside the region was REPLACED, not doubled
+      fresh: fresh ? [Math.round(fresh.left), Math.round(fresh.top)] : null, // ~[48, 14]+ink offset: fittedDeconstructScene nudges anchors (pinned by D22)
+      outsideUntouched: price ? [Math.round(price.left), Math.round(price.top)] : null, // ~[61, 144], kept
+      plate: plate ? { idx: plateIdx, w: Math.round(plate.getScaledWidth()), h: Math.round(plate.getScaledHeight()), priceAbovePlate: price ? objs.indexOf(price) > plateIdx : null } : null,
+      exp: { expTop: Math.round(expTop), pad },
       marqueeGone, notice,
     };
   })()`, true);
   console.log("[shot] D24 verify:", JSON.stringify(regionVerify));
   if (!regionVerify || !regionVerify.ok
-      || !regionVerify.fresh || Math.abs(regionVerify.fresh[0] - 69) > 4 || Math.abs(regionVerify.fresh[1] - 15) > 4
-      || !regionVerify.plate || Math.abs(regionVerify.plate[0] - 560) > 4 || Math.abs(regionVerify.plate[1] - 70) > 4
-      || !regionVerify.original || Math.abs(regionVerify.original - 48) > 4) {
-    console.error("DESKTOP_SHOT D24 VERIFY FAILED, expected additive region overlay (fresh text at ~[69,15], plate ~[560x70], original untouched at ~48)");
+      || !regionVerify.fresh || Math.abs(regionVerify.fresh[0] - 48) > 4 || Math.abs(regionVerify.fresh[1] - regionVerify.exp.expTop) > 8
+      || !regionVerify.outsideUntouched || Math.abs(regionVerify.outsideUntouched[0] - 61) > 4 || Math.abs(regionVerify.outsideUntouched[1] - 144) > 5
+      || !regionVerify.plate || regionVerify.plate.w < 590 || regionVerify.plate.h < 130 || regionVerify.plate.h > 155 || regionVerify.plate.priceAbovePlate !== true) {
+    console.error("DESKTOP_SHOT D24 VERIFY FAILED, expected: old SALE replaced (1 SALE left), price/subtitle kept outside, plate padded over the band, price above plate");
     app.exit(20);
     return false;
   }
   await snap(win, "desktop-deconstruct-region.png");
-  console.log("[shot] D24 OK (region-only, additive merge, page outside the box untouched)");
+  console.log("[shot] D24 OK (real drag opened the dialog; padded crop; old in-region layer replaced; splice above source; outside untouched)");
   return true;
 }

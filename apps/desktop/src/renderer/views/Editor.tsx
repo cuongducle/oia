@@ -22,7 +22,7 @@ import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
 import { loadSceneFonts } from "../lib/scene-fonts.js";
 import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
-import { cropPngBytes, planRegionTextEdit, regionOverlayObjects, regionPixelWindow } from "../lib/deconstruct-region.js";
+import { cropPngBytes, padPixelWindow, pixelWindowToSceneRegion, planRegionTextEdit, regionOverlayObjects, regionPixelWindow } from "../lib/deconstruct-region.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
@@ -89,6 +89,15 @@ const icons = {
 /** A Replace target must be an image layer (has a src), pins the button state. */
 function hasSrc(o: fabricNS.Object | undefined): boolean {
   return typeof (o as { src?: unknown } | undefined)?.src === "string";
+}
+
+/** Thrown only inside runMakeTextEditable when the page changed under it; a
+ *  distinct name so the notice can be honest about the spent read (D24). */
+class PageSwitchedError extends Error {
+  constructor() {
+    super("the page changed during make-text-editable");
+    this.name = "PageSwitchedError";
+  }
 }
 
 /** Fabric never serializes selectable/evented, re-derive locks after every load (R4). */
@@ -213,6 +222,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const syncHasText = (c: fabricNS.Canvas | null) => setHasTextLayer(Boolean(c?.getObjects().some((o) => o.type === "textbox")));
   const loadPage = useCallback(async (idx: number, list: EditorPage[]) => {
     const c = fabricRef.current; if (!c) return;
+    // D24: a make-text-editable session belongs to ITS page; switching pages
+    // mid-run aborts it, the paid result never merges onto the wrong page
+    if (textEditSessionRef.current && textEditSessionRef.current.pageId !== list[idx]?.id) abortTextEditPageSwitch();
     restoring.current = true;
     try {
       await loadSceneFonts(list[idx].canvas);
@@ -841,6 +853,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const c = fabricRef.current;
     const obj = c?.getActiveObject() as CropSession["target"] | undefined;
     if (!c || !obj || typeof obj.src !== "string") return;
+    if (textEditSessionRef.current || textEditStartingRef.current) return; // D24: modes never overlap
     const fabric = await import("fabric");
     const prev = { selectable: obj.selectable, evented: obj.evented };
     obj.set({ selectable: false, evented: false });
@@ -950,6 +963,12 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   const textEditStoppedRef = useRef(false);
   interface TextEditSession {
     bounds: Rect;
+    /** The page the session was opened on: a page switch mid-run must abort,
+     *  not merge onto the wrong page. */
+    pageId: string;
+    /** The artwork layer the seller launched from: the plate + text splices
+     *  right above IT, layers stacked on top stay on top (D24 review fix). */
+    source: fabricNS.Object;
     marquee: fabricNS.Rect;
     shades: fabricNS.Rect[];
     onMoving: (e: { target?: fabricNS.Object }) => void;
@@ -957,6 +976,13 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     onModified: (e: { target?: fabricNS.Object }) => void;
   }
   const textEditSessionRef = useRef<TextEditSession | null>(null);
+  /** Closes the double-click race: the guard must be synchronous, setting the
+   *  session ref only AFTER `await import("fabric")` left a window where two
+   *  clicks both passed a null check (found in the D24 self-review). */
+  const textEditStartingRef = useRef(false);
+  /** Set when the page changed mid-run: the paid result must NOT merge onto
+   *  the wrong page; checked before upload (quota saved) and before merge. */
+  const textEditPageChangedRef = useRef(false);
   /** Session-only marquee geometry in scene coords; scaling events are normalized away. */
   function textEditRegionRect(): Rect | null {
     const s = textEditSessionRef.current;
@@ -980,38 +1006,46 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
   async function beginTextEditRegion() {
     const c = fabricRef.current;
     const size = sceneDimensions.current;
-    if (!c || !size.width || !size.height || textEditSessionRef.current) return;
-    const fabric = await import("fabric");
-    const bounds: Rect = { left: 0, top: 0, width: size.width, height: size.height };
-    const inset = { x: Math.max(8, bounds.width * 0.18), y: Math.max(8, bounds.height * 0.18) };
-    const initial = clampMarquee({ left: bounds.left + inset.x, top: bounds.top + inset.y, width: bounds.width - inset.x * 2, height: bounds.height - inset.y * 2 }, bounds, 8);
-    const marquee = new fabric.Rect({
-      ...initial,
-      fill: "rgba(0,0,0,0)", stroke: "#7c3aed", strokeWidth: 2 / (c.viewportTransform?.[0] ?? 1), strokeDashArray: [6, 4],
-      cornerColor: "#7c3aed", cornerStrokeColor: "#ffffff", transparentCorners: false, borderColor: "#7c3aed",
-      name: "d24-text-edit-region", excludeFromExport: true, // session helper NEVER serializes into scene JSON (the C3/ME lesson)
-    });
-    const shades = shadeRects(initial, bounds).map((r) =>
-      new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false, excludeFromExport: true }));
-    const session: TextEditSession = {
-      bounds, marquee, shades,
-      onMoving: (e) => { if (e.target === marquee) syncTextEditShades(); },
-      onScaling: (e) => { if (e.target === marquee) syncTextEditShades(); },
-      // "drag done" is the whole interaction: the cost dialog opens on release
-      onModified: (e) => { if (e.target === marquee) setTextEditPhase((p) => (p === "select" ? "ask" : p)); },
-    };
-    // Suspend junk history BEFORE the helpers land (object:added fires inside c.add),
-    // same lesson as the crop session.
-    textEditSessionRef.current = session;
-    c.on("object:moving", session.onMoving);
-    c.on("object:scaling", session.onScaling);
-    c.on("object:modified", session.onModified);
-    c.discardActiveObject();
-    shades.forEach((s) => c.add(s));
-    c.add(marquee);
-    c.setActiveObject(marquee);
-    c.requestRenderAll();
-    setTextEditPhase("select");
+    // mutual exclusion with every other interactive canvas mode: overlapping
+    // sessions corrupt each other's helpers (D24 review fix)
+    if (!c || !size.width || !size.height) return;
+    if (textEditStartingRef.current || textEditSessionRef.current || cropping || drawing || panning || markupRef.current) return;
+    const source = c.getActiveObject();
+    if (!source) return;
+    textEditStartingRef.current = true;
+    try {
+      const fabric = await import("fabric");
+      const bounds: Rect = { left: 0, top: 0, width: size.width, height: size.height };
+      const inset = { x: Math.max(8, bounds.width * 0.18), y: Math.max(8, bounds.height * 0.18) };
+      const initial = clampMarquee({ left: bounds.left + inset.x, top: bounds.top + inset.y, width: bounds.width - inset.x * 2, height: bounds.height - inset.y * 2 }, bounds, 8);
+      const marquee = new fabric.Rect({
+        ...initial,
+        fill: "rgba(0,0,0,0)", stroke: "#7c3aed", strokeWidth: 2 / (c.viewportTransform?.[0] ?? 1), strokeDashArray: [6, 4],
+        cornerColor: "#7c3aed", cornerStrokeColor: "#ffffff", transparentCorners: false, borderColor: "#7c3aed",
+        name: "d24-text-edit-region", excludeFromExport: true, // session helper NEVER serializes into scene JSON (the C3/ME lesson)
+      });
+      const shades = shadeRects(initial, bounds).map((r) =>
+        new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false, excludeFromExport: true }));
+      const session: TextEditSession = {
+        bounds, pageId: pages[activePage]?.id ?? "", source, marquee, shades,
+        onMoving: (e) => { if (e.target === marquee) syncTextEditShades(); },
+        onScaling: (e) => { if (e.target === marquee) syncTextEditShades(); },
+        // "drag done" is the whole interaction: the cost dialog opens on release
+        onModified: (e) => { if (e.target === marquee) setTextEditPhase((p) => (p === "select" ? "ask" : p)); },
+      };
+      // Suspend junk history BEFORE the helpers land (object:added fires inside c.add),
+      // same lesson as the crop session.
+      textEditSessionRef.current = session;
+      c.on("object:moving", session.onMoving);
+      c.on("object:scaling", session.onScaling);
+      c.on("object:modified", session.onModified);
+      c.discardActiveObject();
+      shades.forEach((s) => c.add(s));
+      c.add(marquee);
+      c.setActiveObject(marquee);
+      c.requestRenderAll();
+      setTextEditPhase("select");
+    } finally { textEditStartingRef.current = false; }
   }
   function teardownTextEditRegion(): void {
     const s = textEditSessionRef.current;
@@ -1028,6 +1062,15 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     teardownTextEditRegion();
     setTextEditPhase(null);
   }
+  /** Page switch mid-run: block the next paid phase, cancel the task, mark the
+   *  run so it reports honestly instead of merging onto the wrong page. */
+  function abortTextEditPageSwitch() {
+    textEditStoppedRef.current = true;
+    textEditPageChangedRef.current = true;
+    const id = textEditTaskRef.current;
+    if (id) void oia().cancelTask(id).catch(() => {});
+    endTextEdit();
+  }
   async function cancelTextEdit() {
     textEditStoppedRef.current = true; // Stop must block the next paid phase before IPC returns.
     const id = textEditTaskRef.current;
@@ -1035,21 +1078,28 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     teardownTextEditRegion();
     setTextEditPhase(null);
   }
+  /** Thrown only inside runMakeTextEditable when the page changed under it;
+   *  distinct name so the notice can be honest about the spent read. */
   async function runMakeTextEditable() {
     const c = fabricRef.current;
-    const region = textEditRegionRect();
-    if (!c || !region || textEditPhase !== "ask") return;
+    const session = textEditSessionRef.current;
+    const dragged = textEditRegionRect();
+    if (!c || !session || !dragged || textEditPhase !== "ask") return;
     const size = sceneDimensions.current;
     const myRun = ++textEditRunRef.current;
     textEditStoppedRef.current = false;
+    textEditPageChangedRef.current = false;
     setTextEditPhase("running"); setNotice("");
     try {
-      // export the page as-is, then crop the dragged box out of it: the model
-      // reads exactly the region the seller chose, nothing else
+      if (textEditPageChangedRef.current) throw new PageSwitchedError();
+      // export the page as-is, crop the dragged box (plus a small pad so glyphs
+      // at the edge are not cut mid-shape), the model reads exactly that
       const dataUrl = c.toDataURL({ format: "png", multiplier: 1, enableRetinaScaling: false });
       const exportScale = c.getWidth() / Math.max(1, size.width);
-      const win = regionPixelWindow(region, c.getWidth(), c.getHeight(), exportScale);
-      if (win.w < 8 || win.h < 8) throw new Error("The selected area is too small, drag a larger box around the text.");
+      const rawWin = regionPixelWindow(dragged, c.getWidth(), c.getHeight(), exportScale);
+      if (rawWin.w < 8 || rawWin.h < 8) throw new Error("The selected area is too small, drag a larger box around the text.");
+      const win = padPixelWindow(rawWin, c.getWidth(), c.getHeight());
+      const sceneRegion = pixelWindowToSceneRegion(win, exportScale); // sx === sy === 1/exportScale exactly
       const bytes = await cropPngBytes(dataUrl, win); // teardown #3 path: indexed decode inside
       const up = await oia().uploadAsset("text-edit-region.png", bytes);
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
@@ -1069,25 +1119,54 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         stopped: () => textEditStoppedRef.current || textEditRunRef.current !== myRun,
         onTask: (id) => { textEditTaskRef.current = id; },
       });
+      if (textEditPageChangedRef.current) throw new PageSwitchedError();
       // teardown BEFORE the snapshot: marquee and shades must never enter the merged scene
       teardownTextEditRegion();
-      const overlay = regionOverlayObjects(matched.scene, region, win);
+      const overlay = regionOverlayObjects(matched.scene, sceneRegion, win);
       // SAFETY: same cast as snapshotActive, fabric toObject carries the scene shape.
       const snapshot = unmapAssetUrls(c.toObject() as unknown as import("@oia/schema").SceneCanvas);
-      const merged: import("@oia/schema").SceneCanvas = { ...snapshot, objects: [...snapshot.objects, ...overlay] };
+      // Objects fully inside the padded region are re-baked by the plate: old
+      // text layers from an earlier run would double-render on top (their
+      // pixels are already rebuilt). Anything poking out, the page clip and the
+      // source artwork stay; 2px margin guards the unrotated AABB approximation.
+      const live = c.getObjects();
+      const aligned = live.length === snapshot.objects.length; // excludeFromExport drift → skip removal, keep all
+      const drop = new Set<number>();
+      if (aligned) {
+        live.forEach((o, i) => {
+          if (o === session.source || (o as fabricNS.Object & { name?: string }).name === "clip") return;
+          const w = (o.width ?? 0) * (o.scaleX ?? 1), h = (o.height ?? 0) * (o.scaleY ?? 1);
+          const l = o.left ?? 0, t = o.top ?? 0, m = 2;
+          if (w <= 0 || h <= 0) return;
+          if (l >= sceneRegion.left + m && t >= sceneRegion.top + m
+            && l + w <= sceneRegion.left + sceneRegion.width - m && t + h <= sceneRegion.top + sceneRegion.height - m) drop.add(i);
+        });
+      }
+      const kept = snapshot.objects.filter((_, i) => !drop.has(i));
+      // splice right above the SOURCE layer so whatever the seller stacked on
+      // top of the artwork stays on top; missing source (deleted mid-run) → append
+      const srcIdx = aligned ? live.indexOf(session.source) : -1;
+      let at = kept.length;
+      if (srcIdx >= 0) { let n = 0; for (let i = 0; i <= srcIdx; i++) if (!drop.has(i)) n++; at = n; }
+      const merged: import("@oia/schema").SceneCanvas = {
+        ...snapshot,
+        objects: [...kept.slice(0, at), ...overlay, ...kept.slice(at)],
+      };
       if (matched.scene.deconstructFontNote) merged.deconstructFontNote = matched.scene.deconstructFontNote;
       await replaceCurrentScene(merged);
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
       setTextEditPhase(null);
+      const replacedNote = drop.size ? ` ${drop.size} old layer${drop.size === 1 ? "" : "s"} inside the area ${drop.size === 1 ? "was" : "were"} replaced.` : "";
       // honest notice: a Stop does not refund the read, if it finished anyway, say so (B7)
       setNotice(textEditStoppedRef.current
         ? `It finished after you stopped, the quota was already spent, so the result was applied. ${plan.texts.length} text layer${plan.texts.length === 1 ? "" : "s"}; undo keeps the original.`
-        : `Text is editable, ${plan.texts.length} text layer${plan.texts.length === 1 ? "" : "s"} rebuilt from the selected area. ${matched.note || "Undo works if you prefer the original."}`);
+        : `Text is editable, ${plan.texts.length} text layer${plan.texts.length === 1 ? "" : "s"} rebuilt from the selected area.${replacedNote} ${matched.note || "Undo works if you prefer the original."}`);
     } catch (e) {
-      if (textEditRunRef.current === myRun) {
-        endTextEdit();
-        setNotice(bridgeErrorMessage(e, "The text could not be made editable. Please try again."));
-      }
+      if (textEditRunRef.current !== myRun) return;
+      endTextEdit();
+      setNotice(e instanceof PageSwitchedError
+        ? "The page changed while reading, so nothing was applied. The read was still spent; undo was not touched."
+        : bridgeErrorMessage(e, "The text could not be made editable. Please try again."));
     } finally {
       textEditTaskRef.current = null;
       if (textEditRunRef.current === myRun) setTextEditPhase(null);
@@ -1198,6 +1277,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
 
   function beginMarkupEdit() {
     const c = fabricRef.current;
+    if (textEditSessionRef.current || textEditStartingRef.current) return; // D24: modes never overlap
     // SAFETY: fabric.Image carries getElement/skew; the cast names exactly those.
     const active = c?.getActiveObject() as (fabricNS.Object & { src?: string; name?: string; skewX?: number; skewY?: number; getElement?: () => HTMLImageElement }) | undefined;
     if (!c || !active || !active.src) return;

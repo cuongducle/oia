@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SceneCanvas } from "@oia/schema";
-import { planRegionTextEdit, regionOverlayObjects, regionPixelWindow } from "./deconstruct-region.js";
+import { padPixelWindow, planRegionTextEdit, pixelWindowToSceneRegion, regionOverlayObjects, regionPixelWindow } from "./deconstruct-region.js";
 
 /** D24 gates: the crop window math and the crop-to-page mapping are the two
  *  things a wrong region edit silently corrupts; pin them here, the painted
@@ -19,6 +19,26 @@ describe("regionPixelWindow", () => {
     expect(win.y).toBe(400);
     expect(win.w).toBeLessThanOrEqual(1200);
     expect(win.h).toBe(0);
+  });
+});
+
+describe("padPixelWindow", () => {
+  it("expands a little, clamped at the export edges", () => {
+    const pad = Math.max(4, Math.min(48, Math.round(Math.min(560, 70) * 0.06))); // 4 for a 560x70 window
+    const w = padPixelWindow({ x: 24, y: 8, w: 560, h: 70 }, 1200, 400);
+    expect(w).toEqual({ x: 24 - pad, y: 8 - pad, w: 560 + pad * 2, h: 70 + pad * 2 });
+  });
+
+  it("never grows past the PNG", () => {
+    const w = padPixelWindow({ x: 0, y: 0, w: 100, h: 50 }, 100, 50);
+    expect(w).toEqual({ x: 0, y: 0, w: 100, h: 50 });
+  });
+});
+
+describe("pixelWindowToSceneRegion", () => {
+  it("is the exact inverse of the export scale, uniform in both axes", () => {
+    const r = pixelWindowToSceneRegion({ x: 25, y: 50, w: 1000, h: 240 }, 2);
+    expect(r).toEqual({ left: 12.5, top: 25, width: 500, height: 120 });
   });
 });
 
@@ -77,6 +97,41 @@ describe("regionOverlayObjects", () => {
     expect((sale as { fontSource?: unknown }).fontSource).toEqual({ family: "Georgia", url: "oia://fonts/georgia.ttf" });
     const price = out[2];
     expect(price.angle).toBe(-8);
+  });
+
+  it("drops the crop's white clip by NAME, a scene without one keeps every layer", () => {
+    const noClip: SceneCanvas = { version: "1", objects: scene.objects.slice(1) };
+    const out = regionOverlayObjects(noClip, region, win);
+    expect(out).toHaveLength(3); // the Image + 2 text layers, nothing eaten
+    const withClip = regionOverlayObjects(scene, region, win);
+    expect(withClip.map((o) => o.type)).toEqual(out.map((o) => o.type));
+  });
+
+  it("maps null left/top from the region origin instead of skipping", () => {
+    const loose: SceneCanvas = { version: "1", objects: [
+      { type: "Rect", name: "clip", left: 0, top: 0, width: 1000, height: 120, fill: "white" },
+      { type: "Image", src: "oia://plate.png" }, // no left/top at all
+    ] };
+    const out = regionOverlayObjects(loose, region, win);
+    expect(out[0].left).toBeCloseTo(12);
+    expect(out[0].top).toBeCloseTo(12);
+  });
+
+  it("clamps a line that would paint below the window (the pixel promise)", () => {
+    const edge: SceneCanvas = { version: "1", objects: [
+      { type: "Rect", name: "clip", left: 0, top: 0, width: 1000, height: 120, fill: "white" },
+      // box at the very bottom of the crop (y 108 of 120): glyphs would cross the edge
+      { type: "Textbox", text: "MONOSPACE 0123", left: 100, top: 108, width: 400, height: 14, fontSize: 12 },
+    ] };
+    const out = regionOverlayObjects(edge, region, win); // region bottom = 12 + 60 = 72
+    const t = out[0];
+    const est = 12 * 0.5 * 1.3; // scaled fontSize 6 → 7.8
+    expect(t.top).toBeCloseTo(72 - est); // nudged up, never below the window
+    const mid = regionOverlayObjects({ version: "1", objects: [
+      { type: "Rect", name: "clip", left: 0, top: 0, width: 1000, height: 120, fill: "white" },
+      { type: "Textbox", text: "SALE 50", left: 80, top: 25, width: 550, fontSize: 26 },
+    ] }, region, win);
+    expect(mid[0].top).toBeCloseTo(12 + 25 * 0.5); // a mid-window line is untouched
   });
 
   it("returns nothing for a degenerate window", () => {
