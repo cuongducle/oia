@@ -22,6 +22,7 @@ import { ContextToolbar } from "../components/ContextToolbar.js";
 import { stepsFromTimeline } from "../lib/run-steps.js";
 import { loadSceneFonts } from "../lib/scene-fonts.js";
 import { matchedDeconstructScene } from "../lib/deconstruct-font-match.js";
+import { cropPngBytes, planRegionTextEdit, regionOverlayObjects, regionPixelWindow } from "../lib/deconstruct-region.js";
 import { pollTask } from "../lib/poll-task.js";
 import { resolveEditTarget } from "../lib/edit-target.js";
 import { viewportToNatural, naturalToViewport, markupComposite, type Stroke } from "../lib/markup-annotate.js";
@@ -244,7 +245,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     if (autoFit.current) fitView();
   }, [customW, customH]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setExportOpen(false); setHistoryOpen(false); setPanel(null); if (cropRef.current) cancelCrop(); } };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { setExportOpen(false); setHistoryOpen(false); setPanel(null); if (cropRef.current) cancelCrop(); if (textEditPhaseRef.current === "select" || textEditPhaseRef.current === "ask") endTextEdit(); } };
     const shortcuts = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable="true"],[role="dialog"]'))) return;
       if (e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) void redoOp(); else void undo(); }
@@ -351,7 +352,9 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         // drag events must never reach the undo stack or autosave (the session
         // is view-layer, the C3/ME rule; the ONE history-worthy change is the
         // clip itself, applied after teardown when cropRef is null again).
-        if (cropRef.current) return;
+        // Same rule for the D24 region marquee: it is view-layer, the history
+        // entry is the merged scene itself (pushed by replaceCurrentScene).
+        if (cropRef.current || textEditSessionRef.current) return;
         undoStack.current.push(JSON.stringify(editor.toObject()));
         if (undoStack.current.length > 40) undoStack.current.shift();
         redoStack.current = [];
@@ -931,54 +934,158 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     setRightTab("ai");
     mentionSelection();
   }
-  /** D16 poster-mode edit path: the copy is baked into the artwork, deconstruct
-   *  THIS page (up to 1 image + a few reads) into a clean plate + native text layers.
-   *  Mirrors the Workspace B1 flow (upload → task → poll), then swaps the page
-   *  scene through replaceCurrentScene so undo/history/save all behave. */
-  // teardown #2: one phase instead of two booleans (ask → running → null)
-  const [textEditPhase, setTextEditPhase] = useState<"ask" | "running" | null>(null);
+  /** D16/D24 poster-mode edit path: the copy is baked into the artwork. The
+   *  seller drags a box over the text to edit (whole-page runs are gone, owner
+   *  2026-11-13), the renderer crops that box out of a page export, the
+   *  deconstruct task sees ONLY the crop (wire unchanged, boxes are fractions
+   *  of the sent image), and the result is layered back additively: cleaned
+   *  plate over the region, native text layers on top, the rest of the page
+   *  keeps its pixels and objects. */
+  // teardown #2: one phase instead of scattered booleans (select → ask → running → null)
+  const [textEditPhase, setTextEditPhase] = useState<"select" | "ask" | "running" | null>(null);
+  const textEditPhaseRef = useRef<"select" | "ask" | "running" | null>(null);
+  useEffect(() => { textEditPhaseRef.current = textEditPhase; }, [textEditPhase]);
   const textEditTaskRef = useRef<string | null>(null);
   const textEditRunRef = useRef(0);
   const textEditStoppedRef = useRef(false);
+  interface TextEditSession {
+    bounds: Rect;
+    marquee: fabricNS.Rect;
+    shades: fabricNS.Rect[];
+    onMoving: (e: { target?: fabricNS.Object }) => void;
+    onScaling: (e: { target?: fabricNS.Object }) => void;
+    onModified: (e: { target?: fabricNS.Object }) => void;
+  }
+  const textEditSessionRef = useRef<TextEditSession | null>(null);
+  /** Session-only marquee geometry in scene coords; scaling events are normalized away. */
+  function textEditRegionRect(): Rect | null {
+    const s = textEditSessionRef.current;
+    if (!s) return null;
+    const m = s.marquee;
+    return clampMarquee({ left: m.left, top: m.top, width: m.width * (m.scaleX ?? 1), height: m.height * (m.scaleY ?? 1) }, s.bounds, 8);
+  }
+  function syncTextEditShades(): void {
+    const s = textEditSessionRef.current;
+    const c = fabricRef.current;
+    if (!s || !c) return;
+    const next = clampMarquee(textEditRegionRect() ?? { left: 0, top: 0, width: 0, height: 0 }, s.bounds, 8);
+    s.marquee.set({ left: next.left, top: next.top, width: next.width, height: next.height, scaleX: 1, scaleY: 1 });
+    s.marquee.setCoords();
+    shadeRects(next, s.bounds).forEach((r, i) => {
+      s.shades[i].set({ left: r.left, top: r.top, width: r.width, height: r.height });
+      s.shades[i].setCoords();
+    });
+    c.requestRenderAll();
+  }
+  async function beginTextEditRegion() {
+    const c = fabricRef.current;
+    const size = sceneDimensions.current;
+    if (!c || !size.width || !size.height || textEditSessionRef.current) return;
+    const fabric = await import("fabric");
+    const bounds: Rect = { left: 0, top: 0, width: size.width, height: size.height };
+    const inset = { x: Math.max(8, bounds.width * 0.18), y: Math.max(8, bounds.height * 0.18) };
+    const initial = clampMarquee({ left: bounds.left + inset.x, top: bounds.top + inset.y, width: bounds.width - inset.x * 2, height: bounds.height - inset.y * 2 }, bounds, 8);
+    const marquee = new fabric.Rect({
+      ...initial,
+      fill: "rgba(0,0,0,0)", stroke: "#7c3aed", strokeWidth: 2 / (c.viewportTransform?.[0] ?? 1), strokeDashArray: [6, 4],
+      cornerColor: "#7c3aed", cornerStrokeColor: "#ffffff", transparentCorners: false, borderColor: "#7c3aed",
+      name: "d24-text-edit-region", excludeFromExport: true, // session helper NEVER serializes into scene JSON (the C3/ME lesson)
+    });
+    const shades = shadeRects(initial, bounds).map((r) =>
+      new fabric.Rect({ ...r, fill: "rgba(0,0,0,0.45)", selectable: false, evented: true, hasControls: false, excludeFromExport: true }));
+    const session: TextEditSession = {
+      bounds, marquee, shades,
+      onMoving: (e) => { if (e.target === marquee) syncTextEditShades(); },
+      onScaling: (e) => { if (e.target === marquee) syncTextEditShades(); },
+      // "drag done" is the whole interaction: the cost dialog opens on release
+      onModified: (e) => { if (e.target === marquee) setTextEditPhase((p) => (p === "select" ? "ask" : p)); },
+    };
+    // Suspend junk history BEFORE the helpers land (object:added fires inside c.add),
+    // same lesson as the crop session.
+    textEditSessionRef.current = session;
+    c.on("object:moving", session.onMoving);
+    c.on("object:scaling", session.onScaling);
+    c.on("object:modified", session.onModified);
+    c.discardActiveObject();
+    shades.forEach((s) => c.add(s));
+    c.add(marquee);
+    c.setActiveObject(marquee);
+    c.requestRenderAll();
+    setTextEditPhase("select");
+  }
+  function teardownTextEditRegion(): void {
+    const s = textEditSessionRef.current;
+    const c = fabricRef.current;
+    if (!s || !c) return;
+    c.off("object:moving", s.onMoving);
+    c.off("object:scaling", s.onScaling);
+    c.off("object:modified", s.onModified);
+    c.remove(s.marquee, ...s.shades); // ref still set: the removals are view-layer, not history
+    c.requestRenderAll();
+    textEditSessionRef.current = null; // cleared LAST, the crop-teardown lesson
+  }
+  function endTextEdit(): void {
+    teardownTextEditRegion();
+    setTextEditPhase(null);
+  }
   async function cancelTextEdit() {
     textEditStoppedRef.current = true; // Stop must block the next paid phase before IPC returns.
     const id = textEditTaskRef.current;
     if (id) await oia().cancelTask(id).catch(() => {});
+    teardownTextEditRegion();
     setTextEditPhase(null);
   }
   async function runMakeTextEditable() {
     const c = fabricRef.current;
-    if (!c || textEditPhase === "running") return;
-    const myRun = ++textEditRunRef.current;
+    const region = textEditRegionRect();
+    if (!c || !region || textEditPhase !== "ask") return;
     const size = sceneDimensions.current;
+    const myRun = ++textEditRunRef.current;
     textEditStoppedRef.current = false;
     setTextEditPhase("running"); setNotice("");
     try {
-      // export the page as-is, the model reads exactly what the seller sees
+      // export the page as-is, then crop the dragged box out of it: the model
+      // reads exactly the region the seller chose, nothing else
       const dataUrl = c.toDataURL({ format: "png", multiplier: 1, enableRetinaScaling: false });
-      const bytes = dataUrlBytes(dataUrl); // teardown #3: indexed loop, not the per-char callback path
-      const up = await oia().uploadAsset("page.png", bytes);
+      const exportScale = c.getWidth() / Math.max(1, size.width);
+      const win = regionPixelWindow(region, c.getWidth(), c.getHeight(), exportScale);
+      if (win.w < 8 || win.h < 8) throw new Error("The selected area is too small, drag a larger box around the text.");
+      const bytes = await cropPngBytes(dataUrl, win); // teardown #3 path: indexed decode inside
+      const up = await oia().uploadAsset("text-edit-region.png", bytes);
       const started = await oia().submitTask("deconstruct", { fileUrl: up.url });
       textEditTaskRef.current = started.taskId;
       const final = await pollTask(started, { get: (id) => oia().getTask(id) });
       if (final.progress !== "succeeded" || !final.taskResult?.download) {
         throw new Error([final.msg, final.taskNote].filter(Boolean).join(" ") || "The page was not changed.");
       }
-      const texts = (final.taskResult.texts ?? []) as DeconstructText[];
-      const matched = await matchedDeconstructScene({ png: bytes, imageUrl: final.taskResult.download, w: size.width, h: size.height, texts }, oia(), {
+      const plan = planRegionTextEdit({ texts: final.taskResult.texts, note: final.taskNote });
+      if (plan.kind === "empty") {
+        // D24 gate: an empty region never mutates the page; the read may be spent, an image is not
+        endTextEdit();
+        setNotice(plan.note);
+        return;
+      }
+      const matched = await matchedDeconstructScene({ png: bytes, imageUrl: final.taskResult.download, w: win.w, h: win.h, texts: plan.texts }, oia(), {
         stopped: () => textEditStoppedRef.current || textEditRunRef.current !== myRun,
         onTask: (id) => { textEditTaskRef.current = id; },
       });
-      await replaceCurrentScene(matched.scene);
+      // teardown BEFORE the snapshot: marquee and shades must never enter the merged scene
+      teardownTextEditRegion();
+      const overlay = regionOverlayObjects(matched.scene, region, win);
+      // SAFETY: same cast as snapshotActive, fabric toObject carries the scene shape.
+      const snapshot = unmapAssetUrls(c.toObject() as unknown as import("@oia/schema").SceneCanvas);
+      const merged: import("@oia/schema").SceneCanvas = { ...snapshot, objects: [...snapshot.objects, ...overlay] };
+      if (matched.scene.deconstructFontNote) merged.deconstructFontNote = matched.scene.deconstructFontNote;
+      await replaceCurrentScene(merged);
       if (textEditRunRef.current !== myRun) return; // a newer run owns the UI
       setTextEditPhase(null);
       // honest notice: a Stop does not refund the read, if it finished anyway, say so (B7)
       setNotice(textEditStoppedRef.current
-        ? `It finished after you stopped, the quota was already spent, so the result was applied. ${texts.length} text layer${texts.length === 1 ? "" : "s"}; undo keeps the original.`
-        : `Text is editable, ${texts.length} text layer${texts.length === 1 ? "" : "s"} rebuilt. ${matched.note || "Undo works if you prefer the original."}`);
+        ? `It finished after you stopped, the quota was already spent, so the result was applied. ${plan.texts.length} text layer${plan.texts.length === 1 ? "" : "s"}; undo keeps the original.`
+        : `Text is editable, ${plan.texts.length} text layer${plan.texts.length === 1 ? "" : "s"} rebuilt from the selected area. ${matched.note || "Undo works if you prefer the original."}`);
     } catch (e) {
       if (textEditRunRef.current === myRun) {
-        setTextEditPhase(null);
+        endTextEdit();
         setNotice(bridgeErrorMessage(e, "The text could not be made editable. Please try again."));
       }
     } finally {
@@ -1693,7 +1800,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
                     <button className="ctxDanger" onClick={endMarkupEdit}>Cancel</button>
                   </div>
                 )}
-                {!cropping && <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => setTextEditPhase("ask")} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onRemoveBackground={() => void runRemoveBackground()} onCrop={() => void beginCrop()} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />}
+                {!cropping && textEditPhase !== "select" && <ContextToolbar canvas={canvas} onEditWithAi={editSelectionWithAi} onReplaceImage={(f) => void replaceSelectedImage(f)} onDuplicate={() => void duplicateSelection()} onMakeTextEditable={() => void beginTextEditRegion()} onSplitLayer={() => void ensureSplitModels().then((ok) => { if (ok) setSplitPhase("ask"); })} onRemoveBackground={() => void runRemoveBackground()} onCrop={() => void beginCrop()} onCircleEdit={markupCapable ? beginMarkupEdit : undefined} />}
                 {guidesOn && activeGuide && guideRects(activeGuide.zones, customW, customH).map((r) => (
                   <div
                     key={r.edge}
@@ -1793,15 +1900,16 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
           <div className="dialogActions"><button className="secondaryBtn" onClick={() => setSplitPhase(null)}>Hide</button></div>
         </Dialog>
       )}
-      {textEditPhase && (
-        <Dialog onClose={() => { if (textEditPhase !== "running") setTextEditPhase(null); }} label="Make text editable">
+      {(textEditPhase === "ask" || textEditPhase === "running") && (
+        <Dialog onClose={() => { if (textEditPhase !== "running") endTextEdit(); }} label="Make text editable">
           <h3>Make this text editable?</h3>
-          <p>Oia reads the text on this page, cleans the text regions, and rebuilds editable layers with matching color, angle and spacing. Fonts are approximated from available families; complex lettering may need adjustment.</p>
+          <p>Oia reads the text inside the box you dragged, cleans those regions, and rebuilds editable layers with matching color, angle and spacing. Everything outside the box stays untouched. Fonts are approximated from available families; complex lettering may need adjustment.</p>
+          <p className="hintP" data-testid="text-edit-region-size">{(() => { const r = textEditRegionRect(); return r ? `Selected area ${Math.round(r.width)} × ${Math.round(r.height)} px` : ""; })()}</p>
           {!imageMock && <p className="hintP" data-testid="text-edit-cost">Up to 1 image + up to 6 reads on dense artwork; font matching runs locally</p>}
           {textEditPhase === "running" && <p className="hintP">Reading text, restoring the background and comparing font samples…</p>}
           <div className="dialogActions">
-            <button className="secondaryBtn" onClick={() => void cancelTextEdit()}>{textEditPhase === "running" ? "Stop" : "Cancel"}</button>
-            <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditPhase === "running"} onClick={() => void runMakeTextEditable()}>Make text editable</button>
+            <button className="secondaryBtn" onClick={() => { if (textEditPhase === "running") void cancelTextEdit(); else endTextEdit(); }}>{textEditPhase === "running" ? "Stop" : "Cancel"}</button>
+            <button className="primaryBtn" data-testid="text-edit-confirm" disabled={textEditPhase === "running" || !textEditRegionRect()} onClick={() => void runMakeTextEditable()}>Make text editable</button>
           </div>
         </Dialog>
       )}

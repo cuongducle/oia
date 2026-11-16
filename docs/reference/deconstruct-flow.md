@@ -62,6 +62,10 @@ chung với các tác vụ ảnh khác, được chuyển nguyên hàm cũ, khô
 - `font-reference-board.ts`: tạo ảnh cắt, mặt nạ và tập ứng viên phông.
 - `font-ranking.ts`: chấm điểm, tối ưu ứng viên, giới hạn thời gian so phông.
 - `deconstruct-typography.ts`: đo và đặt chữ, tạo cảnh với lớp chữ sửa được.
+`deconstruct-region.ts`: lane chọn vùng D24 của nút Make text editable: cửa
+sổ pixel của vùng kéo, cắt ảnh export, ánh xạ cảnh kết quả về tọa độ trang
+(đè plate + lớp chữ cộng thêm, không thay cảnh), kế hoạch áp dụng với nhánh
+vùng trống chữ không đổi trang.
 - `glyph-raster.ts`: đo mực và phép co giãn dùng chung khi chấm lẫn khi vẽ.
 - `deconstruct-scene.ts`: tạo cấu trúc cảnh nền và các lớp chữ.
 

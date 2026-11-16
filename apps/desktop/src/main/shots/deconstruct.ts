@@ -197,5 +197,96 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
     app.exit(20);
     return false;
   }
+
+  // ---- D24: "Make text editable" is REGION-ONLY (owner 2026-11-13): drag a
+  // box, the deconstruct task sees ONLY the crop (wire unchanged), the page is
+  // merged additively (plate over the region + text layers), never swapped.
+  console.log("[shot] D24: region-only make text editable…");
+  const regionPrep = await win.webContents.executeJavaScript(`(async () => {
+    const c = window.__oiaCanvas;
+    if (!c) return { failed: "no-canvas" };
+    const before = c.toObject().objects.length;
+    const img = c.getObjects().find((o) => typeof o.get("src") === "string");
+    if (!img) return { failed: "no-image" };
+    c.setActiveObject(img);
+    c.requestRenderAll();
+    await new Promise((r) => setTimeout(r, 400));
+    const btn = document.querySelector('[data-testid="ctx-make-text-editable"]');
+    if (!btn) return { failed: "no-button" };
+    btn.click();
+    await new Promise((r) => setTimeout(r, 400));
+    const marquee = c.getObjects().find((o) => o.get("name") === "d24-text-edit-region");
+    if (!marquee) return { failed: "no-marquee" };
+    if (c.getObjects().some((o) => o.get("name") === "d24-text-edit-region" && o.get("excludeFromExport") !== true)) return { failed: "marquee-serializes" };
+    // geometry via the fabric API, equivalent to the drag: the SALE band only
+    marquee.set({ left: 24, top: 8, width: 560, height: 70, scaleX: 1, scaleY: 1 });
+    marquee.setCoords();
+    c.fire("object:modified", { target: marquee });
+    await new Promise((r) => setTimeout(r, 300));
+    const confirmBtn = document.querySelector('[data-testid="text-edit-confirm"]');
+    const size = document.querySelector('[data-testid="text-edit-region-size"]');
+    return { before, dialog: Boolean(confirmBtn), size: size ? size.textContent : "" };
+  })()`, true);
+  if (!regionPrep || regionPrep.failed || !regionPrep.dialog) {
+    console.error(`DESKTOP_SHOT D24 FAILED, region prep (${JSON.stringify(regionPrep)})`);
+    app.exit(20);
+    return false;
+  }
+  if (!/560 × 70/.test(String(regionPrep.size))) {
+    console.error(`DESKTOP_SHOT D24 FAILED, region size label (${regionPrep.size})`);
+    app.exit(20);
+    return false;
+  }
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="text-edit-confirm"]').click()`, true);
+  // teardown pin: Stop must stay clickable while the run is in flight
+  const stopAlive = await win.webContents.executeJavaScript(`(() => {
+    const btn = [...document.querySelectorAll('.dialogActions .secondaryBtn')].find((b) => b.textContent.includes("Stop"));
+    return btn ? { present: true, disabled: btn.disabled } : { present: false };
+  })()`, true);
+  if (!stopAlive?.present || stopAlive.disabled !== false) {
+    console.error(`DESKTOP_SHOT D24 FAILED, stop must stay alive mid-run (${JSON.stringify(stopAlive)})`);
+    app.exit(20);
+    return false;
+  }
+  const target = regionPrep.before + 4; // plate image + 3 text layers land additively
+  let regionDone = false;
+  for (let i = 0; i < 50 && !regionDone; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    regionDone = await win.webContents.executeJavaScript(
+      `((window).__oiaCanvas ? (window).__oiaCanvas.toObject().objects.length >= ${target} : false)`,
+      true,
+    ).catch(() => false);
+  }
+  await new Promise((r) => setTimeout(r, 800)); // scene load + render settle
+  const regionVerify = await win.webContents.executeJavaScript(`(() => {
+    const c = window.__oiaCanvas;
+    if (!c) return { ok: false, why: "no-canvas" };
+    const liveTexts = c.getObjects().filter((o) => o.type === "textbox");
+    const sales = liveTexts.filter((o) => String(o.text ?? "").includes("SALE 50"));
+    const fresh = sales.find((o) => o.left > 60);  // 24 + 0.08 * 560 = 68.8
+    const original = sales.find((o) => o.left <= 60); // B1 line sits at ~48
+    const images = c.getObjects().filter((o) => typeof o.get("src") === "string");
+    const plate = images.find((o) => Math.round(o.left) === 24 && Math.round(o.top) === 8);
+    const marqueeGone = !c.getObjects().some((o) => o.get("name") === "d24-text-edit-region");
+    const notice = document.querySelector('.notice[role=status]')?.textContent ?? "";
+    return {
+      ok: sales.length === 2 && Boolean(fresh) && Boolean(original) && Boolean(plate) && marqueeGone && notice.includes("rebuilt from the selected area"),
+      sales: sales.length, fresh: fresh ? [Math.round(fresh.left), Math.round(fresh.top)] : null, // want ~[69, 15]
+      original: original ? Math.round(original.left) : null, // want ~48, untouched
+      plate: plate ? [Math.round(plate.getScaledWidth()), Math.round(plate.getScaledHeight())] : null, // want ~[560, 70]
+      marqueeGone, notice,
+    };
+  })()`, true);
+  console.log("[shot] D24 verify:", JSON.stringify(regionVerify));
+  if (!regionVerify || !regionVerify.ok
+      || !regionVerify.fresh || Math.abs(regionVerify.fresh[0] - 69) > 4 || Math.abs(regionVerify.fresh[1] - 15) > 4
+      || !regionVerify.plate || Math.abs(regionVerify.plate[0] - 560) > 4 || Math.abs(regionVerify.plate[1] - 70) > 4
+      || !regionVerify.original || Math.abs(regionVerify.original - 48) > 4) {
+    console.error("DESKTOP_SHOT D24 VERIFY FAILED, expected additive region overlay (fresh text at ~[69,15], plate ~[560x70], original untouched at ~48)");
+    app.exit(20);
+    return false;
+  }
+  await snap(win, "desktop-deconstruct-region.png");
+  console.log("[shot] D24 OK (region-only, additive merge, page outside the box untouched)");
   return true;
 }
