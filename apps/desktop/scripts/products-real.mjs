@@ -150,6 +150,12 @@ async function main() {
       for (let i = 0; i < 60 && document.querySelectorAll(".photoTile").length < 1; i++) await new Promise((r) => setTimeout(r, 250));
       if (document.querySelectorAll(".photoTile").length !== 1) return "photo-upload";
       if (!document.querySelector(".photoTile .photoMain")) return "main-badge-missing";
+      // the editor is where most of the new CSS lives: capture it FILLED, before Save closes it
+      return "editor-ready";
+    })()`);
+    if (created !== "editor-ready") throw new Error(`fill: ${created}`);
+    await app.screenshot("phase0-editor-filled.png");
+    const saved = await app.evalPage(`(async () => {
       document.querySelector('[data-testid="product-save"]')?.click();
       for (let i = 0; i < 60 && !document.querySelector('[data-testid="product-row"]'); i++) await new Promise((r) => setTimeout(r, 250));
       const row = [...document.querySelectorAll('[data-testid="product-row"]')].find((r) => r.textContent.includes(${JSON.stringify(PRODUCT.name)}));
@@ -162,8 +168,8 @@ async function main() {
       return "ok|desc-first-line=" + row.querySelector(".productsDesc")?.textContent.slice(0, 60);
     })()`);
     await app.screenshot("phase1-library.png");
-    if (!created.startsWith("ok")) throw new Error(`create: ${created}`);
-    console.log(`[real] phase 1: ${created}`);
+    if (!saved.startsWith("ok")) throw new Error(`save: ${saved}`);
+    console.log(`[real] phase 1: ${saved}`);
     await app.quit();
   } catch (e) { await app.quit().catch(() => {}); throw e; }
 

@@ -2450,7 +2450,7 @@ async function shot(): Promise<void> {
   // W1.1 fix round: the photo lane (upload, order, Main badge) needs a gate too,
   // plus fact kept-toggle, search, and the selection-bar delete. A canvas-drawn
   // pair of PNGs rides the REAL upload path (files:upload → LocalFileStore → ref).
-  const photoLane = await win.webContents.executeJavaScript(`(async () => {
+  const photoLaneA = await win.webContents.executeJavaScript(`(async () => {
     const setNative = (el, value) => {
       const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
@@ -2504,12 +2504,24 @@ async function shot(): Promise<void> {
     setNative(search, "");
     await new Promise((r) => setTimeout(r, 200));
     if (document.querySelectorAll('[data-testid="product-row"]').length < 1) return "search-clear-broken";
+    return "search-ok";
+  })()`, true).catch((e) => String(e));
+  console.log(`[shot] products photo+lane phase A: ${photoLaneA}`);
+  if (photoLaneA !== "search-ok") {
+    console.error("DESKTOP_SHOT PRODUCTS PHOTO LANE FAILED");
+    app.exit(28);
+    return;
+  }
+  // capture the POPULATED library (2 photos, red 0 photos-vocabulary, tags) BEFORE
+  // the delete phase empties it: this PNG is the visual-review artifact for the board
+  await snap(win, "desktop-products.png");
+  const photoLaneB = await win.webContents.executeJavaScript(`(async () => {
     // selection-bar delete (window.confirm is overridden: a native dialog would hang the gate).
     // The row is RE-QUERIED: the search cycle unmounted it, a captured node is detached
     // and clicking it would silently miss every React handler.
     window.confirm = () => true;
     const liveRow = [...document.querySelectorAll('[data-testid="product-row"]')].find((r) => r.textContent.includes("Serum cấp ẩm HA 30ml"));
-    if (!liveRow) return "row-missing-after-search";
+    if (!liveRow) return "row-missing";
     liveRow.querySelector('input[type="checkbox"]')?.click();
     for (let i = 0; i < 20 && !document.querySelector('[data-testid="products-selbar"]'); i++) await new Promise((r) => setTimeout(r, 150));
     if (!document.querySelector('[data-testid="products-selbar"]')) return "selbar-missing";
@@ -2520,13 +2532,12 @@ async function shot(): Promise<void> {
     }
     return "delete-noop";
   })()`, true).catch((e) => String(e));
-  console.log(`[shot] products photo+lane: ${photoLane}`);
-  if (photoLane !== "deleted") {
+  console.log(`[shot] products photo+lane phase B: ${photoLaneB}`);
+  if (photoLaneB !== "deleted") {
     console.error("DESKTOP_SHOT PRODUCTS PHOTO LANE FAILED");
     app.exit(28);
     return;
   }
-  await snap(win, "desktop-products.png");
 
   // ---- reorg 4d: For Agents, keys form + live loopback base URL ----------------
   console.log("[shot] opening For agents…");
