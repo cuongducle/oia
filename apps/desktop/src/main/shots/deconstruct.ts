@@ -220,7 +220,23 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
     await new Promise((r) => setTimeout(r, 400));
     const marquee = c.getObjects().find((o) => o.get("name") === "d24-text-edit-region");
     if (!marquee) return { failed: "no-marquee" };
-    const before0 = { left: marquee.left, top: marquee.top };
+    // zombie pin: a scene reload that does NOT go through loadPage (undo, redo,
+    // variant apply) clears the canvas; the mode must END, not survive invisibly
+    await c.loadFromJSON(c.toObject());
+    c.renderAll();
+    await new Promise((r) => setTimeout(r, 300));
+    if (c.getObjects().some((o) => o.get("name") === "d24-text-edit-region")) return { failed: "zombie-session" };
+    // fresh session for the rest of the gate
+    const img2 = c.getObjects().find((o) => typeof o.get("src") === "string");
+    c.setActiveObject(img2);
+    c.requestRenderAll();
+    await new Promise((r) => setTimeout(r, 300));
+    document.querySelector('[data-testid="ctx-make-text-editable"]')?.click();
+    await new Promise((r) => setTimeout(r, 400));
+    const freshMarquee = c.getObjects().find((o) => o.get("name") === "d24-text-edit-region");
+    if (!freshMarquee) return { failed: "no-marquee-after-reload" };
+    const marquee2 = freshMarquee;
+    const before0 = { left: marquee2.left, top: marquee2.top };
     // REAL drag on the upper canvas: down at the marquee center, move, up.
     // Fabric must move the marquee and fire object:modified, which is the
     // production path that opens the cost dialog.
@@ -231,8 +247,8 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
       const vx = sx * vpt[0] + vpt[4], vy = sy * vpt[3] + vpt[5];
       return { x: rect.left + vx * (rect.width / el.width), y: rect.top + vy * (rect.height / el.height) };
     };
-    const cx = marquee.left + (marquee.width * (marquee.scaleX ?? 1)) / 2;
-    const cy = marquee.top + (marquee.height * (marquee.scaleY ?? 1)) / 2;
+    const cx = marquee2.left + (marquee2.width * (marquee2.scaleX ?? 1)) / 2;
+    const cy = marquee2.top + (marquee2.height * (marquee2.scaleY ?? 1)) / 2;
     const from = to(cx, cy);
     const end = to(cx - 40, cy - 18);
     const ev = (t, p, down) => new MouseEvent(t, { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, button: 0, buttons: down ? 1 : 0 });
@@ -240,14 +256,14 @@ export async function shotDeconstruct(win: BrowserWindow, snap: Capture): Promis
     el.dispatchEvent(ev("mousemove", end, true));
     el.dispatchEvent(ev("mouseup", end, false));
     await new Promise((r) => setTimeout(r, 400));
-    const moved = marquee.left !== before0.left || marquee.top !== before0.top;
+    const moved = marquee2.left !== before0.left || marquee2.top !== before0.top;
     const dialogByDrag = Boolean(document.querySelector('[data-testid="text-edit-confirm"]'));
     if (!moved || !dialogByDrag) return { failed: "synthetic-drag", moved, dialogByDrag };
     // widen to a deterministic band: full width, top third. Contains the B1
     // SALE line fully (it must be REPLACED), leaves price/subtitle outside.
-    marquee.set({ left: 0, top: 0, width: 600, height: 130, scaleX: 1, scaleY: 1 });
-    marquee.setCoords();
-    return { before, movedBy: [Math.round(marquee.left - before0.left), Math.round(marquee.top - before0.top)] };
+    marquee2.set({ left: 0, top: 0, width: 600, height: 130, scaleX: 1, scaleY: 1 });
+    marquee2.setCoords();
+    return { before, movedBy: [Math.round(marquee2.left - before0.left), Math.round(marquee2.top - before0.top)] };
   })()`, true);
   if (!regionPrep || regionPrep.failed) {
     console.error(`DESKTOP_SHOT D24 FAILED, region prep (${JSON.stringify(regionPrep)})`);

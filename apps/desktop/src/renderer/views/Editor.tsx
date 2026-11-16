@@ -974,6 +974,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     onMoving: (e: { target?: fabricNS.Object }) => void;
     onScaling: (e: { target?: fabricNS.Object }) => void;
     onModified: (e: { target?: fabricNS.Object }) => void;
+    /** Undo/redo/variant-apply reload the scene WITHOUT loadPage; clear()
+     *  removes the marquee and this handler ends the mode instead of leaving
+     *  a zombie session with no visible box. */
+    disposed: boolean;
+    onRemoved: (e: { target?: fabricNS.Object }) => void;
   }
   const textEditSessionRef = useRef<TextEditSession | null>(null);
   /** Closes the double-click race: the guard must be synchronous, setting the
@@ -1032,6 +1037,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
         onScaling: (e) => { if (e.target === marquee) syncTextEditShades(); },
         // "drag done" is the whole interaction: the cost dialog opens on release
         onModified: (e) => { if (e.target === marquee) setTextEditPhase((p) => (p === "select" ? "ask" : p)); },
+        disposed: false,
+        onRemoved: (e) => {
+          if (e.target !== marquee || session.disposed) return;
+          endTextEdit(); // the box was taken away (scene reload): exit quietly
+        },
       };
       // Suspend junk history BEFORE the helpers land (object:added fires inside c.add),
       // same lesson as the crop session.
@@ -1039,6 +1049,7 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
       c.on("object:moving", session.onMoving);
       c.on("object:scaling", session.onScaling);
       c.on("object:modified", session.onModified);
+      c.on("object:removed", session.onRemoved);
       c.discardActiveObject();
       shades.forEach((s) => c.add(s));
       c.add(marquee);
@@ -1051,9 +1062,11 @@ export function Editor({ projectId: initialProjectId, onExit, onOpenProject }: E
     const s = textEditSessionRef.current;
     const c = fabricRef.current;
     if (!s || !c) return;
+    s.disposed = true; // our own removals must not re-trigger onRemoved
     c.off("object:moving", s.onMoving);
     c.off("object:scaling", s.onScaling);
     c.off("object:modified", s.onModified);
+    c.off("object:removed", s.onRemoved);
     c.remove(s.marquee, ...s.shades); // ref still set: the removals are view-layer, not history
     c.requestRenderAll();
     textEditSessionRef.current = null; // cleared LAST, the crop-teardown lesson
