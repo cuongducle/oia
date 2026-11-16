@@ -13,6 +13,7 @@
     "crash-smoke": "electron-vite build && cross-env OIA_DESKTOP_CRASH_SMOKE=1 electron .",
     "packaged-smoke": "node scripts/packaged-smoke.mjs",
     "shot": "electron-vite build && cross-env OIA_DESKTOP_SHOT=1 electron .",
+    "products-real": "node scripts/products-real.mjs",
     "shot:busy": "electron-vite build && cross-env OIA_DESKTOP_SHOT_BUSY=1 electron .",
     "template-qa": "electron scripts/template-qa.cjs",
     "text-smoke": "node scripts/deconstruct-text-smoke.mjs",

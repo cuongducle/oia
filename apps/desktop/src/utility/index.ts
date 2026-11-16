@@ -266,6 +266,8 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       return requireCtx().brandKits.remove(req.id);
     case "products.list":
       return requireCtx().products.list();
+    case "products.get":
+      return requireCtx().products.get(req.id) ?? null;
     case "products.upsert":
       return requireCtx().products.upsert(req.input);
     case "products.remove":

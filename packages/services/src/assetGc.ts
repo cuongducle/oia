@@ -14,6 +14,7 @@ export function assetRoots(ctx: ServiceContext): unknown[] {
     ctx.chatSessions.recent(Number.MAX_SAFE_INTEGER),
     templates,
     ctx.brandKits.list(),
+    ctx.products.list(), // W1.1: product photos are live references, a sweep must never delete them
   ];
 }
 

@@ -29,6 +29,7 @@ export const IPC = {
   brandKitsUpsert: "brandkits:upsert",
   brandKitsRemove: "brandkits:remove",
   productsList: "products:list",
+  productsGet: "products:get",
   productsUpsert: "products:upsert",
   productsRemove: "products:remove",
   apiKeysList: "apikeys:list",

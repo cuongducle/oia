@@ -53,6 +53,7 @@ export type UtilityCommand =
   | { cmd: "brandKits.remove"; id: string }
   /** W1.1 seller-workflow redo: product profiles (ProductStore). */
   | { cmd: "products.list" }
+  | { cmd: "products.get"; id: string }
   | { cmd: "products.upsert"; input: unknown }
   | { cmd: "products.remove"; id: string }
   | { cmd: "keys.list" }

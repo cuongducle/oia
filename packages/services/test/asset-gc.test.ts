@@ -34,4 +34,16 @@ describe("collectAssetGarbage (T11)", () => {
     expect(existsSync(path.join(filesRoot, inSession.key))).toBe(true);
     expect(existsSync(path.join(filesRoot, shared.key))).toBe(true);
   });
+
+  it("regression (W1.1): a product's photos are roots, a sweep must never delete them", async () => {
+    const dataDir = mkdtempSync(path.join(tmpdir(), "oia-gc-prd-"));
+    const ctx = await createServiceContext({ dataDir, env: {} });
+    const packshot = await ctx.files.put(new Uint8Array([9, 9]), "png");
+    const product = await ctx.products.upsert({ name: "P", photos: [{ ref: packshot.url }] });
+    const later = Date.now() + 30 * 24 * 60 * 60 * 1000; // past the grace window, nothing else references it
+    expect((await collectAssetGarbage(ctx, { now: later })).removed).toEqual([]);
+    expect(existsSync(path.join(dataDir, "files", packshot.key))).toBe(true);
+    await ctx.products.remove(product.id);
+    expect((await collectAssetGarbage(ctx, { now: later })).removed).toEqual([packshot.key]); // freed only with its owner
+  });
 });

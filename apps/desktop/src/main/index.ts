@@ -22,7 +22,7 @@ import {
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
   filesUploadSchema, exportSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
-  brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
+  brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productGetSchema, productRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
   clipboardWriteSchema, dataImportWebSchema,
 } from "../shared/ipc.js";
 import type { AgentJobFrame } from "../shared/bridge.js";
@@ -367,6 +367,15 @@ function registerIpc(): void {
   handle(IPC.productsList, async () => {
     await ensureUtility();
     return await utility.call({ cmd: "products.list" });
+  });
+  handle(IPC.productsGet, async (_e, raw: unknown) => {
+    try {
+      const { id } = productGetSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "products.get", id });
+    } catch (err) {
+      ipcError(err);
+    }
   });
   handle(IPC.productsUpsert, async (_e, raw: unknown) => {
     try {
@@ -2415,7 +2424,7 @@ async function shot(): Promise<void> {
       await new Promise((r) => setTimeout(r, 250));
       if (document.querySelector('[data-testid="product-row"]')) return "saved";
     }
-    return "row-never-appeared";
+    return "row-never-appeared|alert=" + (document.querySelector('[role=alert]')?.textContent ?? "none") + "|btn=" + (document.querySelector('[data-testid="product-save"]')?.textContent ?? "none");
   })()`, true).catch((e) => String(e));
   console.log(`[shot] products editor save: ${productSaved}`);
   if (productSaved !== "saved") {
@@ -2433,6 +2442,87 @@ async function shot(): Promise<void> {
   console.log("[shot] products verify:", JSON.stringify(productsVerify));
   if (!productsVerify || !productsVerify.ok) {
     console.error("DESKTOP_SHOT PRODUCTS VERIFY FAILED");
+    app.exit(28);
+    return;
+  }
+  await snap(win, "desktop-products.png");
+
+  // W1.1 fix round: the photo lane (upload, order, Main badge) needs a gate too,
+  // plus fact kept-toggle, search, and the selection-bar delete. A canvas-drawn
+  // pair of PNGs rides the REAL upload path (files:upload → LocalFileStore → ref).
+  const photoLane = await win.webContents.executeJavaScript(`(async () => {
+    const setNative = (el, value) => {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    document.querySelector('[data-testid="product-open"]')?.click();
+    await new Promise((r) => setTimeout(r, 300));
+    if (!document.querySelector('[data-testid="product-photo-input"]')) return "no-photo-input";
+    const png = (r, g, b) => {
+      const c = document.createElement("canvas"); c.width = 60; c.height = 60;
+      const x = c.getContext("2d");
+      x.fillStyle = "rgb(" + r + "," + g + "," + b + ")"; x.fillRect(0, 0, 60, 60);
+      return Uint8Array.from(atob(c.toDataURL("image/png").split(",")[1]), (ch) => ch.charCodeAt(0));
+    };
+    const input = document.querySelector('[data-testid="product-photo-input"]');
+    const dt = new DataTransfer();
+    dt.items.add(new File([png(10, 60, 120)], "packshot-a.png", { type: "image/png" }));
+    dt.items.add(new File([png(200, 120, 20)], "packshot-b.png", { type: "image/png" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    for (let i = 0; i < 40 && document.querySelectorAll(".photoTile").length < 2; i++) await new Promise((r) => setTimeout(r, 250));
+    const tiles = document.querySelectorAll(".photoTile");
+    if (tiles.length !== 2) return "photos-not-uploaded:" + tiles.length;
+    const srcs = () => [...document.querySelectorAll(".photoTile img")].map((i) => i.src);
+    const before = srcs();
+    if (!tiles[0].querySelector(".photoMain")) return "first-not-main";
+    document.querySelector('[aria-label="Move photo 2 up"]')?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const after = srcs();
+    if (after.length !== 2 || after[0] !== before[1] || after[1] !== before[0]) return "reorder-noop";
+    if (!document.querySelector('[aria-label="Move photo 1 up"]')?.disabled) return "up-enabled-at-top";
+    const factCheck = document.querySelector('.factRow input[type="checkbox"]');
+    if (!factCheck) return "no-fact-row";
+    factCheck.click();
+    await new Promise((r) => setTimeout(r, 150));
+    if (!document.querySelector(".factRow.off")) return "fact-off-not-shown";
+    document.querySelector('[data-testid="product-save"]')?.click();
+    for (let i = 0; i < 40 && !document.querySelector('[data-testid="product-row"]'); i++) await new Promise((r) => setTimeout(r, 250));
+    const row = [...document.querySelectorAll('[data-testid="product-row"]')].find((r) => r.textContent.includes("Serum cấp ẩm HA 30ml"));
+    if (!row) return "row-gone-after-photo-save";
+    const cells = [...row.querySelectorAll('[role=cell]')].map((c) => c.textContent.trim());
+    if (cells[4] !== "2") return "photo-count-wrong:" + cells[4];
+    if (cells[5] !== "0") return "kept-fact-count-wrong:" + cells[5];
+    const thumb = row.querySelector(".productsThumb img");
+    if (!thumb || !thumb.src.startsWith("oia://files/")) return "thumb-not-oia:" + (thumb ? thumb.src : "none");
+    // search gate: a nonsense query empties the table, clearing restores it
+    const search = document.querySelector('[data-testid="products-search"]');
+    setNative(search, "zzz-no-such-product");
+    await new Promise((r) => setTimeout(r, 200));
+    if (document.querySelectorAll('[data-testid="product-row"]').length !== 0) return "search-noop";
+    setNative(search, "");
+    await new Promise((r) => setTimeout(r, 200));
+    if (document.querySelectorAll('[data-testid="product-row"]').length < 1) return "search-clear-broken";
+    // selection-bar delete (window.confirm is overridden: a native dialog would hang the gate).
+    // The row is RE-QUERIED: the search cycle unmounted it, a captured node is detached
+    // and clicking it would silently miss every React handler.
+    window.confirm = () => true;
+    const liveRow = [...document.querySelectorAll('[data-testid="product-row"]')].find((r) => r.textContent.includes("Serum cấp ẩm HA 30ml"));
+    if (!liveRow) return "row-missing-after-search";
+    liveRow.querySelector('input[type="checkbox"]')?.click();
+    for (let i = 0; i < 20 && !document.querySelector('[data-testid="products-selbar"]'); i++) await new Promise((r) => setTimeout(r, 150));
+    if (!document.querySelector('[data-testid="products-selbar"]')) return "selbar-missing";
+    document.querySelector('[data-testid="products-selbar"] .selBarBtn.danger')?.click();
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      if (![...document.querySelectorAll('[data-testid="product-row"]')].some((r) => r.textContent.includes("Serum cấp ẩm HA 30ml"))) return "deleted";
+    }
+    return "delete-noop";
+  })()`, true).catch((e) => String(e));
+  console.log(`[shot] products photo+lane: ${photoLane}`);
+  if (photoLane !== "deleted") {
+    console.error("DESKTOP_SHOT PRODUCTS PHOTO LANE FAILED");
     app.exit(28);
     return;
   }

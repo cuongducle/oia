@@ -4,6 +4,7 @@ import { PRODUCT_LIMITS } from "@oia/schema";
 import { oia } from "../lib/bridge.js";
 import { toDisplayUrl } from "../../shared/assets.js";
 import type { ProductInput } from "../../shared/bridge.js";
+import { ipcErrorDetail } from "../lib/ipc-error-detail.js";
 import { Icons } from "../components/icons.js";
 
 /**
@@ -16,7 +17,24 @@ import { Icons } from "../components/icons.js";
 
 type Filter = "all" | "no-photos";
 
-interface Props {}
+/** Strip store-owned fields; timestamps are never inputs (bridge contract). */
+function toDraft(p: ProductProfile): ProductInput {
+  const { createdAt: _c, updatedAt: _u, ...draft } = { ...p, photos: [...p.photos], tags: [...p.tags], facts: [...p.facts] };
+  return draft;
+}
+
+let factSeq = 0;
+function newFactId(): string {
+  factSeq += 1;
+  return `f_${Date.now().toString(36)}_${factSeq.toString(36)}`;
+}
+
+/** Pinned locale: D8 wants English UI everywhere, a Vietnamese system locale
+ *  must not leak "16 thg 11" into the table. */
+function fmtDate(ms?: number): string {
+  if (!ms) return "never";
+  return new Date(ms).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
 
 const BLANK: ProductInput = {
   id: undefined,
@@ -28,30 +46,14 @@ const BLANK: ProductInput = {
   facts: [],
 };
 
-let factSeq = 0;
-function newFactId(): string {
-  factSeq += 1;
-  return `f_${Date.now().toString(36)}_${factSeq.toString(36)}`;
-}
-
-function fmtDate(ms?: number): string {
-  if (!ms) return "never";
-  return new Date(ms).toLocaleDateString(undefined, { day: "2-digit", month: "short" });
-}
-
-/** Store validation errors arrive wrapped by Electron; recover the detail (BrandKit precedent). */
-function errorDetail(e: unknown): string {
-  const raw = e instanceof Error ? e.message : String(e);
-  return raw.includes("Error:") ? raw.slice(raw.lastIndexOf("Error:") + "Error:".length).trim() : raw;
-}
-
-export function Products(_props: Props) {
+export function Products() {
   const [products, setProducts] = useState<ProductProfile[] | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [tag, setTag] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<ProductInput | null>(null);
+  /** List-level errors only (load, bulk delete). The editor owns ITS errors. */
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
@@ -80,16 +82,14 @@ export function Products(_props: Props) {
     setProducts(await oia().listProducts());
   }
 
-  async function saveProduct(draft: ProductInput): Promise<boolean> {
+  /** The editor owns save errors; the list only learns about the outcome. */
+  async function saveProduct(draft: ProductInput): Promise<{ ok: true } | { ok: false; error: string }> {
     try {
-      const saved = await oia().upsertProduct(draft);
+      await oia().upsertProduct(draft);
       await refresh();
-      setEditing(null);
-      setMsg("");
-      return true;
+      return { ok: true };
     } catch (e) {
-      setMsg(errorDetail(e) || "Could not save the product.");
-      return false;
+      return { ok: false, error: ipcErrorDetail(e) || "Could not save the product." };
     }
   }
 
@@ -122,9 +122,12 @@ export function Products(_props: Props) {
   if (editing) {
     return (
       <ProductEditor
+        key={editing.id ?? "new"} /* state must never leak across two profiles */
         draft={editing}
-        onCancel={() => { setEditing(null); setMsg(""); }}
+        tagSuggestions={tags.map(([t]) => t).filter((t) => !editing.tags.includes(t)).slice(0, 12)}
+        onCancel={() => setEditing(null)}
         onSave={saveProduct}
+        onSaved={() => setEditing(null)}
         onDelete={editing.id ? async (id, name) => { if (await removeProduct(id, name)) setEditing(null); } : undefined}
       />
     );
@@ -140,7 +143,7 @@ export function Products(_props: Props) {
   return (
     <section className="view productsView" aria-label="Products">
       <header className="productsHead">
-        <h1>Products <span className="productsCount">{total}</span></h1>
+        <h1>Products <span className="productsCount">{products === null ? "…" : total}</span></h1>
         <div className="productsHeadActions">
           <label htmlFor="products-search" className="visuallyHidden">Search</label>
           <input
@@ -150,7 +153,7 @@ export function Products(_props: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="secondaryBtn" type="button" onClick={() => setEditing({ ...BLANK })} data-testid="product-new">
+          <button className="secondaryBtn" type="button" onClick={() => setEditing({ ...BLANK, photos: [], tags: [], facts: [] })} data-testid="product-new">
             {Icons.plus} Product
           </button>
         </div>
@@ -163,7 +166,7 @@ export function Products(_props: Props) {
         <div className="productsEmpty" data-testid="products-empty">
           <h2>Add your first product</h2>
           <p>Paste its listing description, drop the photos you already have, and note the facts worth putting on images. Image sets come next.</p>
-          <button className="primaryBtn" type="button" onClick={() => setEditing({ ...BLANK })}>+ Product</button>
+          <button className="primaryBtn" type="button" onClick={() => setEditing({ ...BLANK, photos: [], tags: [], facts: [] })}>+ Product</button>
         </div>
       ) : (
         <>
@@ -188,39 +191,43 @@ export function Products(_props: Props) {
             )}
           </div>
 
-          <div className="productsTable" role="grid" aria-label="Product list">
+          <div className="productsTable" role="table" aria-label="Product list">
             <div className="productsRow productsRowHead" role="row">
-              <span />
-              <span />
-              <span>Product</span>
-              <span>Tags</span>
-              <span>Photos</span>
-              <span>Facts</span>
-              <span>Updated</span>
+              <span role="columnheader" />
+              <span role="columnheader" />
+              <span role="columnheader">Product</span>
+              <span role="columnheader">Tags</span>
+              <span role="columnheader">Photos</span>
+              <span role="columnheader">Facts</span>
+              <span role="columnheader">Updated</span>
             </div>
             {rows.map((p) => (
               <div key={p.id} className={`productsRow ${selected.has(p.id) ? "sel" : ""}`} role="row" data-testid="product-row">
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${p.name}`}
-                  checked={selected.has(p.id)}
-                  onChange={() => setSelected((s) => {
-                    const n = new Set(s);
-                    if (n.has(p.id)) n.delete(p.id); else n.add(p.id);
-                    return n;
-                  })}
-                />
-                <span className="productsThumb" aria-hidden="true">
+                <span role="cell">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${p.name}`}
+                    checked={selected.has(p.id)}
+                    onChange={() => setSelected((s) => {
+                      const n = new Set(s);
+                      if (n.has(p.id)) n.delete(p.id); else n.add(p.id);
+                      return n;
+                    })}
+                  />
+                </span>
+                <span role="cell" className="productsThumb" aria-hidden="true">
                   {p.photos[0] ? <img src={toDisplayUrl(p.photos[0].ref)} alt="" /> : null}
                 </span>
-                <button type="button" className="productsName" onClick={() => setEditing({ ...p })} data-testid="product-open">
-                  <b>{p.name}</b>
-                  <span className="productsDesc">{p.description.split("\n")[0].slice(0, 90)}</span>
-                </button>
-                <span className="productsTags">{p.tags.slice(0, 3).map((t) => <span key={t} className="miniTag">{t}</span>)}</span>
-                <span className="mutedCell">{p.photos.length > 0 ? `${p.photos.length}` : <span className="warnCell">none</span>}</span>
-                <span className="mutedCell">{p.facts.filter((f) => f.kept).length}</span>
-                <span className="mutedCell">{fmtDate(p.updatedAt)}</span>
+                <span role="cell" className="productsNameCell">
+                  <button type="button" className="productsName" onClick={() => setEditing(toDraft(p))} data-testid="product-open">
+                    <b>{p.name}</b>
+                    <span className="productsDesc">{p.description.split("\n")[0].slice(0, 90)}</span>
+                  </button>
+                </span>
+                <span role="cell" className="productsTags">{p.tags.slice(0, 3).map((t) => <span key={t} className="miniTag">{t}</span>)}</span>
+                <span role="cell" className="mutedCell">{p.photos.length > 0 ? p.photos.length : <span className="warnCell">0</span>}</span>
+                <span role="cell" className="mutedCell">{p.facts.filter((f) => f.kept).length}</span>
+                <span role="cell" className="mutedCell">{fmtDate(p.updatedAt)}</span>
               </div>
             ))}
             {rows.length === 0 && <div className="productsNoMatch">No products match this filter.</div>}
@@ -241,13 +248,20 @@ export function Products(_props: Props) {
 }
 
 /** The profile editor: one screen, owner's field set exactly (W1.1), nothing structured beyond it. */
-function ProductEditor({ draft, onCancel, onSave, onDelete }: {
+function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDelete }: {
   draft: ProductInput;
+  tagSuggestions: string[];
   onCancel: () => void;
-  onSave: (draft: ProductInput) => Promise<boolean>;
+  onSave: (draft: ProductInput) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** A successful save returns to the library (the saved state is already on disk). */
+  onSaved: () => void;
   onDelete?: (id: string, name: string) => void;
 }) {
-  const [d, setD] = useState<ProductInput>({ ...draft, photos: [...draft.photos], tags: [...draft.tags], facts: [...draft.facts] });
+  const [d, setD] = useState<ProductInput>(() => ({ ...draft, photos: [...draft.photos], tags: [...draft.tags], facts: [...draft.facts] }));
+  /** Dirty check basis: leaving with unsaved work must ask, never silently discard.
+   *  Both sides normalized the same way (JSON drops `id: undefined`, so pin it). */
+  const norm = (x: ProductInput) => JSON.stringify({ ...x, id: x.id ?? null });
+  const initial = useRef(norm(draft));
   const [tagInput, setTagInput] = useState("");
   const [factText, setFactText] = useState("");
   const [factSource, setFactSource] = useState("");
@@ -255,13 +269,22 @@ function ProductEditor({ draft, onCancel, onSave, onDelete }: {
   const [err, setErr] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  function isDirty(): boolean {
+    return norm(d) !== initial.current;
+  }
+
+  function tryLeave(): void {
+    if (isDirty() && !confirm("Discard unsaved changes to this product?")) return;
+    onCancel();
+  }
+
   function patch(p: Partial<ProductInput>) { setD((prev) => ({ ...prev, ...p })); }
 
   function addTag() {
     const t = tagInput.trim();
     if (!t) return;
     if (d.tags.length >= PRODUCT_LIMITS.tags) { setErr(`At most ${PRODUCT_LIMITS.tags} tags.`); return; }
-    if (!d.tags.includes(t)) patch({ tags: [...d.tags, t] });
+    if (!d.tags.some((x) => x.toLowerCase() === t.toLowerCase())) patch({ tags: [...d.tags, t] });
     setTagInput("");
   }
 
@@ -273,20 +296,29 @@ function ProductEditor({ draft, onCancel, onSave, onDelete }: {
     setFactText(""); setFactSource("");
   }
 
+  /** Per-file isolation: one bad upload keeps the good ones and names the failures. */
   async function uploadPhotos(files: FileList) {
     setBusy(true); setErr("");
-    try {
-      const room = PRODUCT_LIMITS.photos - d.photos.length;
-      const list = [...files].slice(0, Math.max(0, room));
-      if ([...files].length > room) setErr(`Kept the first ${room} photo${room === 1 ? "" : "s"} (limit ${PRODUCT_LIMITS.photos}).`);
-      const photos = [...d.photos];
-      for (const f of list) {
+    const room = PRODUCT_LIMITS.photos - d.photos.length;
+    const list = [...files].slice(0, Math.max(0, room));
+    const skipped = [...files].length - list.length;
+    const photos = [...d.photos];
+    const failed: string[] = [];
+    for (const f of list) {
+      try {
         const bytes = new Uint8Array(await f.arrayBuffer());
         const up = await oia().uploadAsset(f.name, bytes);
         photos.push({ ref: up.url, note: "" });
+      } catch {
+        failed.push(f.name);
       }
-      patch({ photos });
-    } catch { setErr("Could not upload a photo."); } finally { setBusy(false); }
+    }
+    patch({ photos });
+    const parts: string[] = [];
+    if (failed.length > 0) parts.push(`Could not upload: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? ` (+${failed.length - 3} more)` : ""}`);
+    if (skipped > 0) parts.push(`Kept the first ${list.length} (limit ${PRODUCT_LIMITS.photos}).`);
+    if (parts.length > 0) setErr(parts.join(" "));
+    setBusy(false);
   }
 
   function movePhoto(i: number, dir: -1 | 1) {
@@ -300,15 +332,25 @@ function ProductEditor({ draft, onCancel, onSave, onDelete }: {
   async function save() {
     if (!d.name.trim()) { setErr("Name is required."); return; }
     setBusy(true); setErr("");
-    const ok = await onSave({ ...d, name: d.name.trim() });
-    if (!ok) setErr("Could not save. Check the field limits.");
+    const payload: ProductInput = {
+      id: d.id,
+      name: d.name.trim(),
+      description: d.description,
+      photos: d.photos,
+      tags: d.tags,
+      lockNotes: d.lockNotes,
+      facts: d.facts,
+    };
+    const result = await onSave(payload);
     setBusy(false);
+    if (result.ok) onSaved();
+    else setErr(result.error);
   }
 
   return (
     <section className="view productEditor" aria-label="Product profile">
       <header className="productEditorHead">
-        <button className="ghostBtn" type="button" onClick={onCancel}>← Products</button>
+        <button className="ghostBtn" type="button" onClick={tryLeave}>← Products</button>
         <h1>{d.name || "New product"}</h1>
         <span className="productEditorHeadGap" />
         {onDelete && d.id && (
@@ -344,7 +386,9 @@ function ProductEditor({ draft, onCancel, onSave, onDelete }: {
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }}
             />
-            <datalist id="pe-tag-list" />
+            <datalist id="pe-tag-list">
+              {tagSuggestions.map((t) => <option key={t} value={t} />)}
+            </datalist>
           </div>
           <label htmlFor="pe-lock">Lock notes <span className="fieldHint">rules every AI edit must obey</span></label>
           <textarea id="pe-lock" rows={3} value={d.lockNotes} maxLength={PRODUCT_LIMITS.lockNotes} placeholder="Keep the logo; no extra text on the main image" onChange={(e) => patch({ lockNotes: e.target.value })} />
@@ -371,7 +415,7 @@ function ProductEditor({ draft, onCancel, onSave, onDelete }: {
             )}
           </div>
           <input
-            ref={fileRef} type="file" accept="image/*" multiple hidden
+            ref={fileRef} type="file" accept="image/*" multiple hidden data-testid="product-photo-input"
             onChange={(e) => { const fs = e.target.files; if (fs && fs.length > 0) void uploadPhotos(fs); e.target.value = ""; }}
           />
 

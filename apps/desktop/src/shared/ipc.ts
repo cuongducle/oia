@@ -80,10 +80,13 @@ export const brandKitUpsertSchema = brandKitSchema
   .omit({ id: true, createdAt: true })
   .extend({ id: z.string().optional(), createdAt: z.number().optional() });
 export const brandKitRemoveSchema = z.object({ id: z.string().min(1) });
-/** W1.1: loose at the boundary (id optional for create); ProductStore validates strictly. */
+/** W1.1: loose at the boundary (id optional for create); ProductStore validates strictly.
+ *  Timestamps are deliberately ABSENT: they are store-owned, a draft carrying one
+ *  fails here loudly instead of pretending it was honored. */
 export const productUpsertSchema = productProfileSchema
   .omit({ id: true, createdAt: true, updatedAt: true })
-  .extend({ id: z.string().optional(), createdAt: z.number().optional(), updatedAt: z.number().optional() });
+  .extend({ id: z.string().optional() });
+export const productGetSchema = z.object({ id: z.string().min(1) });
 export const productRemoveSchema = z.object({ id: z.string().min(1) });
 export const apiKeyCreateSchema = z.object({
   name: z.string().min(1).max(60),

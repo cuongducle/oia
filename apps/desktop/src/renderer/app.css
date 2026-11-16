@@ -374,7 +374,8 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .productsRow input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
 .productsThumb { width: 40px; height: 40px; border-radius: 6px; background: var(--soft); overflow: hidden; display: grid; place-items: center; }
 .productsThumb img { width: 100%; height: 100%; object-fit: cover; }
-.productsName { display: grid; text-align: left; background: none; border: 0; padding: 0; min-width: 0; color: var(--ink); }
+.productsNameCell { min-width: 0; }
+.productsName { display: grid; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); }
 .productsName b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .productsName:hover b { color: var(--accent-dark); }
 .productsDesc { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

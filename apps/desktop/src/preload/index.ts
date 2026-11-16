@@ -35,6 +35,7 @@ const api: OiaBridge = {
   upsertBrandKit: (input) => ipcRenderer.invoke(IPC.brandKitsUpsert, input),
   removeBrandKit: (id) => ipcRenderer.invoke(IPC.brandKitsRemove, { id }),
   listProducts: () => ipcRenderer.invoke(IPC.productsList),
+  getProduct: (id) => ipcRenderer.invoke(IPC.productsGet, { id }),
   upsertProduct: (input) => ipcRenderer.invoke(IPC.productsUpsert, input),
   removeProduct: (id) => ipcRenderer.invoke(IPC.productsRemove, { id }),
   listApiKeys: () => ipcRenderer.invoke(IPC.apiKeysList),

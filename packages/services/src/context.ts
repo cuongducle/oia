@@ -62,7 +62,7 @@ export async function createServiceContext(opts: { dataDir?: string; env?: NodeJ
   await keys.load();
   const brandKits = new BrandKitStore(path.join(dataDir, "brandkits.json"));
   await brandKits.load();
-  const products = new ProductStore(path.join(dataDir, "products.json"));
+  const products = new ProductStore(dataDir, files);
   await products.load();
   const templates = new TemplateStore(path.join(dataDir, "templates.json"));
   await templates.load();

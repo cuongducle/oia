@@ -100,3 +100,15 @@ describe("BR-BK regression: wire-shape create", () => {
     expect(kit.id.startsWith("bk_")).toBe(true);
   });
 });
+
+describe("BR-BK regression: store surface hygiene", () => {
+  it("list() returns a copy: mutating it never corrupts the in-memory store", async () => {
+    const dir3 = mkdtempSync(path.join(tmpdir(), "pf-bk3-"));
+    const s = new BrandKitStore(path.join(dir3, "bk.json"));
+    await s.load();
+    await s.upsert({ name: "one" });
+    const before = s.list().length;
+    s.list().push({ ...s.list()[0], id: "injected" });
+    expect(s.list().length).toBe(before);
+  });
+});

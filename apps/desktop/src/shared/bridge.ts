@@ -29,12 +29,10 @@ export interface RuntimeSnapshot {
 /** A brand-kit draft crossing the bridge: id/createdAt are store-assigned on create. */
 export type BrandKitInput = Omit<BrandKit, "id" | "createdAt"> & { id?: string; createdAt?: number };
 
-/** W1.1: a product-profile draft crossing the bridge; the store is the strict gate. */
-export type ProductInput = Omit<ProductProfile, "id" | "createdAt" | "updatedAt"> & {
-  id?: string;
-  createdAt?: number;
-  updatedAt?: number;
-};
+/** W1.1: a product-profile draft crossing the bridge; the store is the strict gate.
+ *  createdAt/updatedAt are STORE-OWNED: they are not inputs, sending one is a
+ *  wire error (rejected at the main boundary), not a silently ignored field. */
+export type ProductInput = Omit<ProductProfile, "id" | "createdAt" | "updatedAt"> & { id?: string };
 
 /** TP-D3: one-way progress frames for the long-running runtime flows. */
 export type RuntimeEvent =
@@ -118,6 +116,7 @@ export interface OiaBridge {
   removeBrandKit: (id: string) => Promise<boolean>;
   /** ---- W1.1 seller-workflow redo: product profiles ---- */
   listProducts: () => Promise<ProductProfile[]>;
+  getProduct: (id: string) => Promise<ProductProfile | null>;
   upsertProduct: (input: ProductInput) => Promise<ProductProfile>;
   removeProduct: (id: string) => Promise<boolean>;
   listApiKeys: () => Promise<ApiKeyRecord[]>;

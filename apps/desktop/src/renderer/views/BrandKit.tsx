@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { BrandKit } from "@oia/schema";
 import { BRANDKIT_LIMITS } from "@oia/schema";
 import { oia } from "../lib/bridge.js";
+import { ipcErrorDetail } from "../lib/ipc-error-detail.js";
 import { toDisplayUrl } from "../../shared/assets.js";
 import type { BrandKitInput } from "../../shared/bridge.js";
 
@@ -59,11 +60,8 @@ export function BrandKit({ onDesignWithKit }: BrandKitProps) {
       setMsg("Brand kit saved.");
       await refresh();
     } catch (e) {
-      // Electron wraps handler rejections ("Error invoking remote method …: Error: <detail>")
-      //, recover the LAST detail segment so store validation reaches the user
-      // instead of being buried under the wrapper (never match the wrapper itself).
-      const raw = e instanceof Error ? e.message : "";
-      const detail = raw.includes("Error:") ? raw.slice(raw.lastIndexOf("Error:") + "Error:".length).trim() : raw;
+      // Electron wraps handler rejections; one shared home recovers the store's detail
+      const detail = ipcErrorDetail(e);
       setMsg(detail || "Could not save the brand kit. Check the limits under each field.");
     } finally { setBusy(false); }
   }

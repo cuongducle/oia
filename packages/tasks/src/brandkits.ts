@@ -46,7 +46,8 @@ export class BrandKitStore {
     return kit;
   }
 
-  list(): BrandKit[] { return this.kits; }
+  /** A copy: mutating the result never corrupts the in-memory store. */
+  list(): BrandKit[] { return [...this.kits]; }
   get(id: string): BrandKit | undefined { return this.kits.find((k) => k.id === id); }
   active(): BrandKit | undefined { return this.kits.find((k) => k.applyByDefault); }
 
