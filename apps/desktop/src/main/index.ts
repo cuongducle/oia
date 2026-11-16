@@ -1465,6 +1465,15 @@ async function shot(): Promise<void> {
   // ---- ME (markup-edit.md): Circle-to-edit, capability-gated toolbar button,
   // annotate overlay strokes, ask panel, dispatched edit → 3rd variant card, and
   // the C3-lesson pin: the annotation NEVER enters the scene JSON. ----
+  // The markup overlay paints on rAF; an occluded window throttles rAF and the
+  // stroke never lands on the canvas (found live: a covered shot window made
+  // red=0 while the Done button still armed). Bring the app forward first:
+  // on macOS win.focus() alone does nothing while the APP is backgrounded.
+  if (process.platform === "darwin") app.focus({ steal: true });
+  win.restore();
+  win.moveTop();
+  win.focus();
+  await new Promise((r) => setTimeout(r, 400)); // let rAF resume before drawing
   const meEntry = await win.webContents.executeJavaScript(`(async () => {
     const c = (window).__oiaCanvas;
     const img = c.getObjects().find((o) => o.src && o.name !== "clip");
@@ -1497,16 +1506,28 @@ async function shot(): Promise<void> {
     await new Promise((res) => setTimeout(res, 150));
     const done = document.querySelector('[data-testid="markup-bar"] button:not([disabled])');
     // pixel truth: is the fabric canvas still painted, and did the overlay actually draw red?
-    const sample = (cnv) => { const t = document.createElement("canvas"); t.width = 64; t.height = 64; const tc = t.getContext("2d"); tc.drawImage(cnv, 0, 0, 64, 64); return tc.getImageData(0, 0, 64, 64).data; };
+    // The overlay is sampled as a NATIVE-RESOLUTION crop around the stroke path:
+    // the old 64x64 downscale (factor ~39 at 2x DPR) anti-aliased a thin stroke
+    // below the red threshold on every pixel, a DPR-sensitive false negative.
     const fc = (window).__oiaCanvas;
     const upper = fc.lowerCanvasEl.parentElement.querySelector("canvas.upper-canvas") ?? fc.lowerCanvasEl;
-    const fd = sample(upper);
+    const dpr = ov.width / Math.max(1, r.width);
+    const crop = (cnv, w, h) => { const t = document.createElement("canvas"); t.width = w; t.height = h; t.getContext("2d").drawImage(cnv, 0, 0, w, h); return t.getContext("2d").getImageData(0, 0, w, h).data; };
+    const native = (cnv, xCss, yCss, wCss, hCss) => {
+      const w = Math.max(1, Math.round(wCss * dpr)), h = Math.max(1, Math.round(hCss * dpr));
+      const t = document.createElement("canvas"); t.width = w; t.height = h;
+      t.getContext("2d").drawImage(cnv, Math.round(xCss * dpr), Math.round(yCss * dpr), w, h, 0, 0, w, h);
+      return t.getContext("2d").getImageData(0, 0, w, h).data;
+    };
+    const fd = crop(upper, 64, 64);
     let painted = 0;
     for (let i = 0; i < fd.length; i += 4) { if (fd[i] < 245 || fd[i+1] < 245 || fd[i+2] < 245) painted++; }
-    const od = sample(ov);
+    const od = native(ov, cx - r.left - 80, cy - r.top - 16, 160, 32);
     let red = 0;
     for (let i = 0; i < od.length; i += 4) { if (od[i] > 180 && od[i+1] < 90 && od[i+2] < 90) red++; }
-    return { ok: Boolean(done), doneLabel: done ? done.textContent : null, painted, red,
+    // occlusion probe: rAF firings in 300ms (0 or 1 = the window is covered/throttled)
+    const rafN = await new Promise((res) => { let n = 0; const t0 = performance.now(); const cb = () => { n++; if (performance.now() - t0 < 300) requestAnimationFrame(cb); else res(n); }; requestAnimationFrame(cb); });
+    return { ok: Boolean(done), doneLabel: done ? done.textContent : null, painted, red, rafN,
              };
   })()`, true);
   if (!meDrew || meDrew.ok !== true || meDrew.doneLabel !== "Done circling" || meDrew.painted < 40 || meDrew.red < 3) {

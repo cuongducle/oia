@@ -51,3 +51,6 @@ apps/desktop/resources/segment/
 apps/desktop/resources/textdet/
 apps/desktop/segment-runner/target/
 .astro/
+
+# repo-root scratch output (visual-check runs, harness profiles)
+/out/

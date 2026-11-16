@@ -141,7 +141,7 @@ export function Products() {
   ];
 
   return (
-    <section className="view productsView" aria-label="Products">
+    <main className="studioPage productsView" aria-label="Products" data-testid="products-view">
       <header className="productsHead">
         <h1>Products <span className="productsCount">{products === null ? "…" : total}</span></h1>
         <div className="productsHeadActions">
@@ -153,7 +153,7 @@ export function Products() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button className="secondaryBtn" type="button" onClick={() => setEditing({ ...BLANK, photos: [], tags: [], facts: [] })} data-testid="product-new">
+          <button className="primaryBtn productsNewBtn" type="button" onClick={() => setEditing({ ...BLANK, photos: [], tags: [], facts: [] })} data-testid="product-new">
             {Icons.plus} Product
           </button>
         </div>
@@ -243,7 +243,7 @@ export function Products() {
           <button className="selBarBtn ghost" type="button" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
-    </section>
+    </main>
   );
 }
 
@@ -348,7 +348,7 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
   }
 
   return (
-    <section className="view productEditor" aria-label="Product profile">
+    <main className="studioPage productEditor" aria-label="Product profile" data-testid="product-editor">
       <header className="productEditorHead">
         <button className="ghostBtn" type="button" onClick={tryLeave}>← Products</button>
         <h1>{d.name || "New product"}</h1>
@@ -428,7 +428,7 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
                   onChange={() => patch({ facts: d.facts.map((x) => x.id === f.id ? { ...x, kept: !x.kept } : x) })}
                 />
                 <span className="factText">{f.text}</span>
-                <span className="factSrc">{f.source.name}</span>
+                <span className={`factSrc k-${f.source.kind}`}>{f.source.name}</span>
                 <button type="button" aria-label={`Remove fact: ${f.text}`} onClick={() => patch({ facts: d.facts.filter((x) => x.id !== f.id) })}>×</button>
               </div>
             ))}
@@ -449,6 +449,6 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
           </div>
         </div>
       </div>
-    </section>
+    </main>
   );
 }
