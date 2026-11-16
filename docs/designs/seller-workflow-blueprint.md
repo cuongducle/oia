@@ -15,7 +15,7 @@ Nguyên tắc xuyên suốt: **mô tả bằng công việc của người dùng
 
 ## 1. Định vị một câu
 
-> Oia là **bàn làm hình bán hàng trên máy tính**: nhập thông tin sản phẩm MỘT LẦN, tạo bộ ảnh đúng vai trò, sửa giá và ưu đãi mà không sinh lại ảnh, xuất đúng khổ sàn, và tuần sau mở lại cập nhật tiếp.
+> Oia là **xưởng tài sản bán hàng đa sàn trên máy tính**: nhập hồ sơ sản phẩm MỘT LẦN, tạo bộ ảnh đúng vai trò (main sạch, ảnh phụ, banner, overlay), cập nhật theo nhịp đợt sale và livestream hằng ngày mà không làm lại từ đầu, xuất đúng khổ từng sàn bằng cùng một bộ dữ liệu.
 
 Không định vị: công cụ AI vẽ mọi thứ, web app cộng tác, công cụ cho người chỉ dùng điện thoại.
 
@@ -58,11 +58,13 @@ Một sản phẩm có một bộ ảnh đang sống. Mỗi ảnh trong bộ có
 
 | Role | Nội dung | Nguồn gốc | Tốn AI? |
 | --- | --- | --- | --- |
-| Main | Sản phẩm + tên + giá | Ảnh thật + layout + chữ native | Không |
-| Selling point | 1-2 điểm bán đã nhập | Chữ native + ảnh thật | Không |
-| Detail | Ảnh chi tiết THẬT do người dùng cung cấp | Crop/chèn ảnh thật | Không |
-| Offer | Ưu đãi + giá + thời gian | Chữ native | Không |
+| Main | Sản phẩm trên nền sạch, KHÔNG chữ mặc định (an toàn mọi sàn, kể cả Shopee Mall và Amazon khi cross-border) | Ảnh thật + layout | Không |
+| Selling point | 1-2 điểm bán đã nhập (ảnh phụ) | Chữ native + ảnh thật | Không |
+| Detail | Ảnh chi tiết THẬT do người dùng cung cấp (ảnh phụ) | Crop/chèn ảnh thật | Không |
+| Offer | Ưu đãi + giá + thời gian (ảnh phụ; giá trên ảnh phải khớp giá hệ thống) | Chữ native | Không |
 | Lifestyle (tùy chọn) | Sản phẩm trong bối cảnh | Ảnh thật làm lớp + nền AI | Có, hiện giá trước |
+
+Điểm cứng giữ nguyên: ảnh detail không do AI vẽ. **Bổ sung từ đính chính 13/11/2026 (owner chỉ ra, đã kiểm chứng nguồn):** TikTok Shop cấm giá/giảm giá gây hiểu lầm hoặc không nhất quán trên ảnh ([listing guidelines](https://seller-vn.tiktok.com/university/essay?knowledge_id=6837791128454914), 17/03/2026); Shopee Mall đòi ảnh chụp thật ([98](https://banhang.shopee.vn/edu/article/98)); watermark Shopee chỉ được góc trên, tối đa 10% khung hình ([6396](https://banhang.shopee.vn/edu/article/6396)). Vì vậy mặc định của Oia: chữ giá/ưu đãi KHÔNG đặt lên ảnh chính; destination checks (backlog mục 4) quyết định từng đích, luật là dữ liệu có nguồn + ngày kiểm. Đổi giá vì thế chỉ chạm ảnh offer/overlay/social, ảnh chính giữ nguyên.
 
 Điểm cứng: **ảnh chi tiết không bao giờ do AI vẽ ra rồi gọi là ảnh thật.** Không có ảnh phù hợp thì bộ ảnh hiển thị "Detail: needs photo" và cho phép bỏ role đó (C9: hàng không giống hình là rủi ro bán hàng thật, không phải chuyện thẩm mỹ).
 
@@ -135,8 +137,9 @@ Tuần sau, người dùng mở "Update a campaign":
 3. **Bảng khác biệt (diff):** Oia liệt kê ảnh nào đổi, ảnh nào giữ:
 
    ```text
-   Main    price + offer sẽ đổi    (chữ native, 0 ảnh)
+   Main    không đổi               (ảnh chính không chứa giá/ưu đãi theo mặc định an toàn sàn)
    Offer   toàn bộ sẽ đổi          (chữ native, 0 ảnh)
+   Banner shop + overlay livestream sẽ đổi (chữ native, 0 ảnh)
    Detail  không đổi
    Lifestyle nền giữ nguyên        (không chạy lại AI)
    ```
@@ -260,5 +263,43 @@ Thứ tự triển khai đề xuất giữ như hướng đã ghi: S0/S1 trướ
 - S3: dữ liệu xấu/tràn/thiếu, restart giữa lô, tên file đặc biệt, 0 AI cho lô từ mẫu.
 - S5: chiến dịch cũ bất biến sau mọi thao tác; mở lại sau crash.
 - Mỗi slice kèm shot gate UI thật (rule repo: view không có shot là chưa xác minh).
+
+## 13. Chuyên biệt hóa cho tệp khách Việt (owner chốt 13/11/2026)
+
+Nguyên tắc: sản phẩm chuyên biệt là lợi thế sống còn trước đối thủ tổng quát. Mọi mặc định phải được nghiên cứu và tùy biến cho đúng tệp khách; thứ gì không có bằng chứng tệp khách thì không trở thành mặc định.
+
+### 13.1 Tệp khách phục vụ (chọn có chủ đích)
+
+1. **Seller 1 shop, máy tính, cập nhật giá/ưu đãi đều đặn mỗi tuần hoặc mỗi đợt sale.** Nhóm đích chính của mọi pha 0-3.
+2. **Người làm hình cho vài shop (freelancer/nhân viên vận hành).** Nhóm phụ, hưởng lợi từ brand kit theo shop + manifest bàn giao + MCP.
+3. **Seller cross-border nhỏ** bán đa thị trường (ảnh đa ngôn ngữ): nhóm sau, qua image-translate (W4.8).
+
+Không phục vụ: người bán chính điện thoại, đội lớn cần governance, người làm thiết kế sáng tạo đa mục đích.
+
+### 13.2 Checklist tùy biến Việt Nam phải nghiệm trong từng W
+
+| Mục | Nội dung cụ thể | Việc liên quan |
+| --- | --- | --- |
+| Định dạng giá | 129.000đ kiểu VN (dấu chấm ngăn cách, hậu tố đ/₫); chuỗi giá đưa vào prompt phải là chuỗi hiển thị đúng; critic đã kiểm dấu, thêm kiểm định dạng giá | W2.3, critic |
+| Phông/chữ | Be Vietnam Pro mặc định nội dung; dấu tiếng Việt full trong mọi template layout; không chọn phông thiếu glyph VN cho layout mới | W2.1 |
+| Thứ tự khổ | Shopee/Lazada/TikTok Shop/TikTok 9:16 đứng đầu danh sách preset cho persona này (preset list hiện đang đặt Instagram trước; đổi thứ tự hiển thị theo persona, không xóa preset nào) | W2.2, W3.2 |
+| Lịch sale VN | Tết dương/âm, 2/9, 11/11, 12/12, Black Friday, tựu trường; nguồn seller center VN + năm kiểm | W3.4 |
+| Từ vựng ưu đãi | Freeship, COD, giá sốc, flash sale, mua 2 giảm X; làm thành khối chữ native có sẵn trong layout, không bắt gõ lại | W2.1 |
+| Overlay livestream | Giữ bộ preset trong suốt + safe zone hiện có; đối chiếu thực tế room TikTok Live VN khi làm W2.1 | W2.1 |
+| Nền tảng máy | Windows là máy chính của tệp khách VN: mọi benchmark W0.2 và gate Pha 1 phải có chạy Windows thật, không chỉ macOS | W0.2, P.5 |
+| Kênh dữ liệu vào | Dán text Zalo NCC (cửa 3) là cửa nhập hạng nhất, không phải phụ | W1.2 |
+
+### 13.3 Vòng nghiên cứu liên tục (không dùng khảo sát trực tiếp)
+
+1. **Nguồn chính thức:** Shopee VN Seller Edu, TikTok Shop VN seller, Lazada VN: quy tắc ảnh, lịch chiến dịch, thông báo. Ghi URL + ngày kiểm; không hard-code không nguồn.
+2. **Cộng đồng seller thật:** nhóm Facebook/shopee seller VN, video hướng dẫn quy trình thật, bài chia sẻ. Ghi URL, ngày, ngữ cảnh; tách phàn nàn lặp từ repost.
+3. **Ảnh thật trên sàn:** lấy mẫu ảnh chính theo ngành (thực phẩm đồ uống, thời trang phụ kiện, làm đẹp) để rút khuôn bố cục thật đang chạy; lưu provenance; học cấu trúc, không chép tài sản.
+4. **Goldfish nhập vai theo ngành:** mỗi ngành một persona (ví dụ chủ quán cà phê bán online, shop phụ kiện thời trang) để stress-test luồng A/B/C trước khi làm layout ngành đó.
+
+Đầu ra của vòng nghiên cứu là bằng chứng có nguồn, không phải phỏng vấn; kết quả nhập vào gate các việc (bộ layout W2.1 phải kèm căn cứ chọn ngành, benchmark W2.5 dùng ảnh VN thật).
+
+### 13.4 Chọn ngành cho bộ layout đầu tiên
+
+Chưa chốt ngành; điều kiện chọn: có bằng chứng từ 13.3 mục 2-3 (mức lặp cao + mẫu bố cục quan sát được), không chọn theo cảm tính. Ứng viên tạm để đối chiếu: thực phẩm/đồ uống nội địa, phụ kiện thời trang, làm đẹp. Quyết định thuộc owner khi W2.1 mở.
 
 Chỉ tài liệu. Không code, không gate đã chạy trong vòng này. `git diff --check` sạch.

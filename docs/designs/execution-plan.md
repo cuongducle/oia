@@ -53,7 +53,7 @@ Tất cả nghiệp vụ dưới đây rút từ các doc đã có, không phát
 | Pha 4 | W4.3 Bảng tham chiếu đối thủ (mục 10) | W1.2 (cửa 6), W2.1 | Owner duyệt làm |
 | Pha 4 | W4.4 Variant pass chống trùng (mục 11) | W1.4, W2.4 | Owner duyệt làm |
 | Pha 4 | W4.5 Watermark pass hàng loạt | W2.1, W3.2 | Mới |
-| Pha 4 | W4.6 Destination checks khi xuất | W3.2 | Mới |
+| Pha 4 | W4.6 Destination checks khi xuất (ưu tiên CAO, làm cùng W3.2) | W3.2 | Mới |
 | Pha 4 | W4.7 Role ảnh bìa video | W2.1 | Mới |
 | Pha 4 | W4.8 Wire image-translate thành tool thật | W1.x | Skill đã có |
 | Pha 4 | W4.9 Nhập gói NCC CSV + ZIP ảnh (cửa 4) | W4.1 | Mới |
@@ -77,7 +77,7 @@ Gate: file ma trận trong docs/reference hoặc docs/private; mọi dòng có U
 
 ### W0.2 Benchmark luồng mẫu trên profile sạch
 
-Kịch bản bắt buộc: userData mới tinh (env override đã có từ SG-2, `releaseGate.ts` kiểm chặt), KHÔNG provider/mock rõ, KHÔNG rembg, KHÔNG model tải sẵn. Mở mẫu native, thay ảnh sản phẩm thật (giữ nguyên không tách nền), sửa giá + chữ tiếng Việt dài, đổi preset khổ, xuất PNG/PDF, mở lại file. Ghi từng bước: số click, chỗ kẹt, thông báo khó hiểu, lỗi thật.
+Kịch bản bắt buộc: userData mới tinh (env override đã có từ SG-2, `releaseGate.ts` kiểm chặt), KHÔNG provider/mock rõ, KHÔNG rembg, KHÔNG model tải sẵn. Mở mẫu native, thay ảnh sản phẩm thật (giữ nguyên không tách nền), sửa giá + chữ tiếng Việt dài, đổi preset khổ, xuất PNG/PDF, mở lại file. Kèm kịch bản chiến dịch theo đính chính 13/11/2026: đổi ưu đãi/đợt sale trên banner shop + ảnh phụ offer + overlay livestream, ảnh chính KHÔNG đụng, 0 lượt AI. Ghi từng bước: số click, chỗ kẹt, thông báo khó hiểu, lỗi thật.
 
 Lưu ý để không kết luận sai: theo D16, phần lớn mẫu studio hiện có chữ BAKED trong ảnh; vùng giá native chỉ có ở một số mẫu (menu, overlay). Kịch bản phải chạy CẢ hai loại và ghi rõ loại nào: mục đích là phơi đúng giới hạn hôm nay, không phải ép mẫu baked thành bằng chứng đường 0-AI khả dụng cho mọi mẫu.
 
@@ -119,7 +119,7 @@ Gate: test xuyên `@oia/services` với provider fake đổi src; cancel/giữ n
 
 ### W2.1 Role + layout binding
 
-Mỗi role (main/point/detail/offer/lifestyle tùy chọn) là mục trong schema; layout khai báo slot gắn ID lớp ổn định (không tên hiển thị). Bộ layout khởi đầu: tối thiểu 3 bộ cho 2-3 ngành, làm thật bằng đường sinh ảnh có provenance như quy tắc template-bundle-audit (ảnh thật, không nền màu + chữ giả).
+Mỗi role (main/point/detail/offer/lifestyle tùy chọn) là mục trong schema; layout khai báo slot gắn ID lớp ổn định (không tên hiển thị). Bộ layout khởi đầu: tối thiểu 3 bộ cho 2-3 ngành, làm thật bằng đường sinh ảnh có provenance như quy tắc template-bundle-audit (ảnh thật, không nền màu + chữ giả). Ngành chọn theo mục 13.3-13.4 blueprint (bằng chứng cộng đồng + ảnh sàn thật), owner chốt khi mở việc; mọi layout phải qua checklist tùy biến VN mục 13.2 (giá kiểu VN, phông đủ dấu, từ vựng ưu đãi native).
 
 Gate: serialize/load giữ binding; đổi tên layer không mất binding; schema test.
 
@@ -169,7 +169,7 @@ Gate: bản gốc bất biến qua mọi thao tác của chiến dịch sau.
 
 ### W3.4 Preset lịch sale VN
 
-Danh sách dịp (Tết, 2/9, 11/11, 12/12, Black Friday, tựu trường) dạng dữ liệu có nguồn seller center + năm kiểm; mỗi dịp checklist vật liệu; chiến dịch sinh từ preset.
+Danh sách dịp (Tết, 2/9, 11/11, 12/12, Black Friday, tựu trường) dạng dữ liệu có nguồn seller center VN + năm kiểm; mỗi dịp checklist vật liệu; chiến dịch sinh từ preset. Theo checklist 13.2 blueprint: không ngày nào không nguồn VN.
 
 Gate: không có ngày nào không nguồn; UI hiện nguồn khi xem.
 
@@ -227,7 +227,7 @@ Watermark pass (0 AI, qua brand kit); destination checks (dữ liệu quy tắc 
 
 ## Thứ tự đề xuất và điều kiện dừng
 
-1. Pha 0 ngay; nếu W0.2 phát hiện blocker nền tảng thì sửa trước, không vào Pha 1.
+1. Pha 0 ngay; nếu W0.2 phát hiện blocker nền tảng thì sửa trước, không vào Pha 1. Kèm theo: đo search volume VN cho cụm từ khóa banner/khung ảnh shopee (0 đồng, ghi vào demand-sizing-vn.md làm dữ liệu nền).
 2. Pha 1 nguyên vẹn trước Pha 2 (hồ sơ + bảo vệ asset là nền của mọi pha sau).
 3. Pha 2 xong bộ nháp + duyệt mới mở Pha 3.3-3.5; Pha 3.1-3.2 có thể làm song song Pha 2 cuối.
 4. Pha 4 theo thứ tự: W4.2 (MCP) sớm vì rẻ trên nền loopback; W4.3/W4.4 sau W1.4 + W2.4; còn lại theo nhu cầu.
@@ -262,6 +262,7 @@ Một lượt rà chéo toàn bộ doc của đợt làm lại này (direction, 
 6. **Backlog mục 7/8/9 + grouping shop + Ask AI ngữ cảnh** chưa có chỗ đứng: không phải bỏ, là đỗ lại; đã ghi mục riêng để sau này không "phát hiện lại" như-new.
 7. **W0.1/P.1 chồng lấn Lens**: đã tách W0.1 ghi nhận/verdict, P.1 hành động xin phép/thay model.
 8. Rà D20 (không em/en dash) và không lẫn ký tự TQ trong văn tiếng Việt trên toàn bộ file mới/sửa: sạch.
+9. **Đính chính sau rà (owner chỉ ra chiều 13/11/2026):** bảng role blueprint cũ đặt "giá" trên ảnh chính, sai với quy định thật (TikTok Shop cấm giá gây hiểu lầm/không nhất quán trên ảnh; Shopee Mall đòi ảnh chụp thật; watermark Shopee ≤10%). Đã sửa: main sạch không chữ làm mặc định, giá nằm ở ảnh phụ/overlay/social; destination checks (backlog mục 4) tăng ưu tiên CAO, làm cùng W3.2 với luật dạng dữ liệu có nguồn. Để cập nhật bảng W4.6: đổi ưu tiên và phụ thuộc sang W3.2.
 
 Kiểm tra lại sau rà: `git diff --check` sạch; không có thay đổi nào động vào mã sản phẩm trong đợt rà này.
 

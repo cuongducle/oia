@@ -41,11 +41,11 @@ Góc Oia: một role "watermark pass" chạy trên layout + logo của brand kit
 
 Rào: tôn trọng kích thước/vị trí của từng sàn do người dùng đặt; không che sản phẩm.
 
-### 4. Kiểm đích đến theo quy tắc sàn (ưu tiên trung bình, phải dữ liệu hóa)
+### 4. Kiểm đích đến theo quy tắc sàn (ưu tiên CAO sau đính chính 13/11/2026, làm cùng W3.2)
 
-Vấn đề: mỗi sàn có quy tắc ảnh (nền trắng RGB thuần cho main Amazon, tỉ lệ, kích thước tối thiểu, hạn chế chữ/quảng cáo trên main); sai là bị từ chối duyệt. Hướng dẫn quy phạm năm 2026 của nhà cung cấp cho thấy đây là nhu cầu thường trực ([focalflow.app](https://focalflow.app/blog/douyin-product-image-requirements-2026) 06/04/2026, [lovart Amazon](https://www.lovart.ai/zh/blog/amazon-requirements-ai-white-background-images)).
+Vấn đề: mỗi sàn có quy tắc ảnh khác nhau và đã được kiểm chứng chính thức: TikTok Shop cấm giá/giảm giá gây hiểu lầm/không nhất quán trên ảnh ([listing guidelines](https://seller-vn.tiktok.com/university/essay?knowledge_id=6837791128454914), 17/03/2026); Shopee giới hạn watermark góc trên tối đa 10% ([6396](https://banhang.shopee.vn/edu/article/6396)); Shopee Mall đòi ảnh chụp thật ([98](https://banhang.shopee.vn/edu/article/98)); Amazon main nền trắng thuần (nguồn bên thứ ba, dùng cho cross-border). Hướng dẫn quy phạm năm 2026 của nhà cung cấp cho thấy đây là nhu cầu thường trực ([focalflow.app](https://focalflow.app/blog/douyin-product-image-requirements-2026) 06/04/2026, [lovart Amazon](https://www.lovart.ai/zh/blog/amazon-requirements-ai-white-background-images)).
 
-Góc Oia: khi xuất, chạy "destination check": quy tắc khai báo có nguồn và ngày (nền trắng, min-width, số ảnh mỗi listing) rồi hiện pass/fail từng ảnh.
+Góc Oia: khi xuất, chạy "destination check": quy tắc khai báo có nguồn và ngày (nền trắng main, vị trí chữ giá được phép, watermark ≤10%, min-width) rồi hiện pass/fail từng ảnh. Luật theo đích cụ thể: main sạch không chữ là mặc định; giá chỉ ảnh phụ/overlay/social.
 
 Rào: luật cũ D19 cấm UI copy "platform required" vô căn cứ; quy tắc phải là dữ liệu có nguồn, ngày kiểm, người dùng thấy được; sàn đổi quy tắc thì cập nhật dữ liệu, không cần code lại.
 
