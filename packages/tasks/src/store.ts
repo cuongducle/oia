@@ -33,7 +33,7 @@ export interface SubmitOptions {
    *  runToCompletion never rejects, so this ALWAYS fires. */
   onSettled?: (status: TaskStatus) => void;
 }
-export type TaskHandlerResult = { urls: string[]; note?: string; texts?: DeconstructText[]; fontMatches?: FontMatch[]; fontSuggestions?: LensSuggestion[]; objects?: { box: [number, number, number, number]; score: number; url: string }[] };
+export type TaskHandlerResult = { urls: string[]; note?: string; texts?: DeconstructText[]; fontMatches?: FontMatch[]; fontSuggestions?: LensSuggestion[]; objects?: { box: [number, number, number, number]; score: number; url: string }[]; labelRead?: import("@oia/schema").LabelRead };
 
 /** Handlers may thread cooperative cancellation into providers (TP.5). */
 export interface TaskContext {
@@ -178,7 +178,7 @@ export class TaskStore {
       const handler = this.handlers.get(type);
       if (!handler) throw new Error(`no handler registered for ${type}`);
       const keepResult = async (result: TaskHandlerResult, partial = false) => {
-        status.taskResult = { ...this.downloadResult(type, result, partial), ...(result.texts ? { texts: result.texts } : {}), ...(result.objects ? { objects: result.objects } : {}), ...(result.fontMatches ? { fontMatches: result.fontMatches } : {}), ...(result.fontSuggestions ? { fontSuggestions: result.fontSuggestions } : {}) };
+        status.taskResult = { ...this.downloadResult(type, result, partial), ...(result.texts ? { texts: result.texts } : {}), ...(result.objects ? { objects: result.objects } : {}), ...(result.fontMatches ? { fontMatches: result.fontMatches } : {}), ...(result.fontSuggestions ? { fontSuggestions: result.fontSuggestions } : {}), ...(result.labelRead ? { labelRead: result.labelRead } : {}) };
         status.taskNote = result.note ?? null;
         await this.persist(status);
       };

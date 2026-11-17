@@ -32,6 +32,8 @@ export const IPC = {
   productsGet: "products:get",
   productsUpsert: "products:upsert",
   productsRemove: "products:remove",
+  listingsParsePaste: "listings:parsePaste",
+  listingsFetchUrl: "listings:fetchUrl",
   apiKeysList: "apikeys:list",
   apiKeysCreate: "apikeys:create",
   apiKeysRevoke: "apikeys:revoke",

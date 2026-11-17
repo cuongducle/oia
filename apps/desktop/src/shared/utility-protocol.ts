@@ -56,6 +56,9 @@ export type UtilityCommand =
   | { cmd: "products.get"; id: string }
   | { cmd: "products.upsert"; input: unknown }
   | { cmd: "products.remove"; id: string }
+  /** W1.2 assisted fill: pure paste parse + guarded URL fetch, both 0 quota. */
+  | { cmd: "listings.parsePaste"; text: string }
+  | { cmd: "listings.fetchUrl"; url: string }
   | { cmd: "keys.list" }
   | { cmd: "keys.create"; name: string; ttlDays: number | null }
   | { cmd: "keys.revoke"; id: string }

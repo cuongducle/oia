@@ -88,6 +88,9 @@ export const productUpsertSchema = productProfileSchema
   .extend({ id: z.string().optional() });
 export const productGetSchema = z.object({ id: z.string().min(1) });
 export const productRemoveSchema = z.object({ id: z.string().min(1) });
+/** W1.2: proposals are bounded by the profile limits they will fill. */
+export const listingsParsePasteSchema = z.object({ text: z.string().min(1).max(21_000) });
+export const listingsFetchUrlSchema = z.object({ url: z.string().min(1).max(2048) });
 export const apiKeyCreateSchema = z.object({
   name: z.string().min(1).max(60),
   ttlDays: z.number().int().positive().max(3650).nullable(),

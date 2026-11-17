@@ -9,7 +9,7 @@ import {
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { templateListQuery } from "@oia/schema";
-import { TaskNotFound, importWebData } from "@oia/tasks";
+import { TaskNotFound, importWebData, parsePastedListing, fetchListing } from "@oia/tasks";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { seedSampleProjects } from "./seedSamples.js";
@@ -272,6 +272,11 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
       return requireCtx().products.upsert(req.input);
     case "products.remove":
       return requireCtx().products.remove(req.id);
+    case "listings.parsePaste":
+      return parsePastedListing(req.text);
+    case "listings.fetchUrl":
+      // ListingFetchError carries errorClass, the wire envelope keeps it as-is
+      return await fetchListing(req.url);
     case "keys.list":
       return requireCtx().keys.list();
     case "keys.create":

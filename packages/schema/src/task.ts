@@ -5,6 +5,7 @@ import { fontMatchSchema, fontReferenceInputSchema } from "./font-reference.js";
 import { lensSuggestionSchema, recognizeFontsInputSchema } from "./lens.js";
 import { segmentObjectSchema } from "./segment.js";
 import { SEGMENT_PROMPT_MAX } from "./segment.js";
+import { labelReadSchema } from "./label-read.js";
 import { PPT_LANGUAGE_MAX } from "./ppt-translate.js";
 
 export const taskTypeSchema = z.enum([
@@ -24,6 +25,7 @@ export const taskTypeSchema = z.enum([
   "match-fonts",
   "recognize-fonts",
   "segment-image",
+  "read-label",
 ]);
 export type TaskType = z.infer<typeof taskTypeSchema>;
 
@@ -98,7 +100,7 @@ export const taskStatusSchema = z.object({
   taskId: z.string(),
   sessionId: z.number(),
   progress: z.enum(["processing", "succeeded", "failed"]),
-  taskResult: z.object({ download: z.string().optional(), texts: z.array(deconstructTextSchema).optional(), objects: z.array(segmentObjectSchema).optional(), fontMatches: z.array(fontMatchSchema).optional(), fontSuggestions: z.array(lensSuggestionSchema).optional() }).nullable(),
+  taskResult: z.object({ download: z.string().optional(), texts: z.array(deconstructTextSchema).optional(), objects: z.array(segmentObjectSchema).optional(), fontMatches: z.array(fontMatchSchema).optional(), fontSuggestions: z.array(lensSuggestionSchema).optional(), labelRead: labelReadSchema.optional() }).nullable(),
   taskNote: z.string().nullable(),
   msg: z.string().default(""),
   /** TP.4 durability: every task record carries these (nullable for legacy rows). */

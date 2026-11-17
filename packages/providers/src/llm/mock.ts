@@ -1,6 +1,6 @@
 import type { LlmProvider, LlmMessage, LlmChatOpts, ProviderDiagnostic, ProviderCapabilities } from "../types.js";
 import { holdMockPace } from "../mockPace.js";
-import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA, FONT_MATCH_MARKER, fontReferenceRowSchema, PPT_TRANSLATE_INSTRUCTION } from "@oia/schema";
+import { PLANNER_INSTRUCTIONS, REFINE_INSTRUCTION, EVAL_READ_MARKER, DECONSTRUCT_READ_MARKER, DECONSTRUCT_JSON_SCHEMA, FONT_MATCH_MARKER, fontReferenceRowSchema, PPT_TRANSLATE_INSTRUCTION, LABEL_READ_MARKER } from "@oia/schema";
 
 /**
  * Mock planner: costs no tokens; generates the outline demos need.
@@ -139,6 +139,18 @@ export class MockLlmProvider implements LlmProvider {
           ? { verdict: "fail", scope: "localized", scores: { textHandling: 4, brand: 8, fidelity: 7, composition: 7, realism: 6 }, issues: ["mock issue: headline rendered with a typo"], fixHints: ["fix the headline spelling"] }
           : { verdict: "pass", scope: "global", scores: { textHandling: 9, brand: 9, fidelity: 9, composition: 9, realism: 9 }, issues: [], fixHints: [] },
       );
+    }
+    if (prompt.includes(LABEL_READ_MARKER)) {
+      // W1.2 mock label read: deterministic wiring proof, bytes ignored
+      return JSON.stringify({
+        name: "Hydra Ampoule II 30ml",
+        brand: "LUMA",
+        facts: [
+          { text: "8 tầng HA" },
+          { text: "Hyaluronic Acid 15.000 mg / 30 ml" },
+          { text: "Độ ẩm +145,16% sau 72 giờ" },
+        ],
+      });
     }
     if (!prompt.includes(DECONSTRUCT_READ_MARKER)) {
       throw new Error(`mock vision: prompt is not a deconstruct read (missing ${DECONSTRUCT_READ_MARKER})`);

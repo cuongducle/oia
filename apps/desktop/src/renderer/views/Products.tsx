@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ProductFact, ProductProfile } from "@oia/schema";
+import type { ProductFact, ProductProfile, ListingProposal, TaskStatus } from "@oia/schema";
 import { PRODUCT_LIMITS } from "@oia/schema";
 import { oia } from "../lib/bridge.js";
 import { toDisplayUrl } from "../../shared/assets.js";
 import type { ProductInput } from "../../shared/bridge.js";
 import { ipcErrorDetail } from "../lib/ipc-error-detail.js";
+import { pollTask } from "../lib/poll-task.js";
 import { Icons } from "../components/icons.js";
 
 /**
@@ -329,6 +330,19 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
     patch({ photos });
   }
 
+  /** W1.2: a proposal OVERWRITES only with the user's blessing when content exists. */
+  function applyProposal(p: ListingProposal, kind: "paste" | "url"): void {
+    const nameNext = p.name || d.name;
+    const descNext = p.description || d.description;
+    const overwriting = (p.name && d.name && p.name !== d.name) || (p.description && d.description && p.description !== d.description);
+    if (overwriting && !confirm("Replace the current name/description with this proposal?")) return;
+    const tags = p.brand && !d.tags.some((t) => t.toLowerCase() === p.brand.toLowerCase()) ? [...d.tags, p.brand] : d.tags;
+    setImported({ source: p.source, kind, prices: p.priceSpans.length });
+    patch({ name: nameNext, description: descNext, tags });
+  }
+
+  const [imported, setImported] = useState<{ source: string; kind: string; prices: number } | null>(null);
+
   async function save() {
     if (!d.name.trim()) { setErr("Name is required."); return; }
     setBusy(true); setErr("");
@@ -365,6 +379,11 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
 
       <div className="productEditorBody">
         <div className="productCol">
+          <ImportPanel
+            disabled={busy}
+            onProposal={(p, kind) => applyProposal(p, kind)}
+            onFacts={(items) => patch({ facts: [...d.facts, ...items.map((i) => ({ id: newFactId(), text: i.text, kept: true, source: { kind: "file" as const, name: i.sourceName, detail: "" } }))] })}
+          />
           <label htmlFor="pe-name">Name</label>
           <input id="pe-name" value={d.name} maxLength={PRODUCT_LIMITS.name} placeholder="LUMA Hydra Ampoule 30ml" onChange={(e) => patch({ name: e.target.value })} />
           <label htmlFor="pe-desc">Description <span className="fieldHint">paste from the listing; price stays as text</span></label>
@@ -450,5 +469,171 @@ function ProductEditor({ draft, tagSuggestions, onCancel, onSave, onSaved, onDel
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * W1.2 assisted fill, three doors in one panel (execution-plan W1.2):
+ * - Paste (0 quota): utility-side parse, name/description proposals, VN prices
+ *   highlighted in the preview.
+ * - Label photo (1 metered read): validate-first, cost shown before running,
+ *   poll + cancellable, results land as name/brand-tag/facts with source.
+ * - URL (0 quota): guarded fetch in the UTILITY process (D15: the renderer
+ *   gains no network origin), public metadata only, one-time fetch note.
+ * Everything lands as PROPOSALS the seller approves or edits (owner 16/11:
+ * no anti-fabrication gate, suggestions not verdicts).
+ */
+function ImportPanel({ disabled, onProposal, onFacts }: {
+  disabled: boolean;
+  onProposal: (p: ListingProposal, kind: "paste" | "url") => void;
+  /** One batch, one state write: a per-item callback would read a stale facts array mid-loop. */
+  onFacts: (items: { text: string; sourceName: string }[]) => void;
+}) {
+  const [tab, setTab] = useState<"paste" | "label" | "url">("paste");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+  const [err, setErr] = useState("");
+  const [paste, setPaste] = useState("");
+  const [preview, setPreview] = useState<{ text: string; spans: { start: number; end: number }[] } | null>(null);
+  const [url, setUrl] = useState("");
+  const labelFileRef = useRef<HTMLInputElement>(null);
+  const [labelTask, setLabelTask] = useState<TaskStatus | null>(null);
+
+  async function runPaste() {
+    setBusy(true); setErr(""); setNote("");
+    try {
+      const p = await oia().parsePaste(paste);
+      setPreview({ text: paste, spans: p.priceSpans });
+      onProposal(p, "paste");
+      setNote(`Proposed from pasted text${p.priceSpans.length ? ` · ${p.priceSpans.length} price${p.priceSpans.length > 1 ? "s" : ""} highlighted` : ""}`);
+    } catch (e) {
+      setErr(ipcErrorDetail(e) || "Could not parse the paste.");
+    } finally { setBusy(false); }
+  }
+
+  async function runUrl() {
+    setBusy(true); setErr(""); setNote("");
+    try {
+      const p = await oia().fetchListingUrl(url.trim());
+      onProposal(p, "url");
+      setNote(`Proposed from ${p.source} · public metadata, fetched once`);
+    } catch (e) {
+      setErr(ipcErrorDetail(e) || "Could not fetch that URL.");
+    } finally { setBusy(false); }
+  }
+
+  async function runLabel(file: File) {
+    setBusy(true); setErr(""); setNote("");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const up = await oia().uploadAsset(file.name, bytes);
+      const started = await oia().submitTask("read-label", { fileUrl: up.url });
+      setLabelTask(started);
+      const done = await pollTask(started, { get: (id) => oia().getTask(id) });
+      setLabelTask(null);
+      if (done.progress !== "succeeded" || !done.taskResult) {
+        // failed/cancelled: the read may be spent, nothing is fabricated on top
+        throw new Error(done.msg || done.errorClass || "The label read did not finish.");
+      }
+      const read = done.taskResult.labelRead;
+      if (!read) throw new Error("The label read returned no content.");
+      if (read.name || read.brand) onProposal({ name: read.name, description: "", brand: read.brand, priceSpans: [], source: `label photo (${file.name})` } as ListingProposal, "paste");
+      onFacts(read.facts.map((f) => ({ text: f.text, sourceName: `label photo (${file.name})` })));
+      setNote(`Label read done · 1 metered read · proposed ${read.facts.length} fact${read.facts.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      setLabelTask(null);
+      setErr(ipcErrorDetail(e) || "The label read failed.");
+    } finally { setBusy(false); }
+  }
+
+  const TABS: { key: "paste" | "label" | "url"; label: string }[] = [
+    { key: "paste", label: "Paste text" },
+    { key: "label", label: "Label photo" },
+    { key: "url", label: "Listing URL" },
+  ];
+
+  return (
+    <div className="importPanel" data-testid="import-panel">
+      <div className="importTabs" role="tablist" aria-label="Import">
+        {TABS.map((t) => (
+          <button
+            key={t.key} type="button" role="tab" aria-selected={tab === t.key}
+            className={`importTab ${tab === t.key ? "on" : ""}`} disabled={disabled}
+            onClick={() => { setTab(t.key); setErr(""); setNote(""); }}
+          >
+            {t.label}
+            {t.key === "label" && <span className="importCost">≈ 1 read</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === "paste" && (
+        <div className="importBody">
+          <textarea
+            data-testid="import-paste" rows={5} value={paste} placeholder="Paste the listing description here; price stays as text"
+            onChange={(e) => setPaste(e.target.value)}
+          />
+          <div className="importRow">
+            <button className="secondaryBtn" type="button" disabled={disabled || busy || !paste.trim()} data-testid="import-parse" onClick={() => void runPaste()}>
+              {busy ? "Parsing…" : "Parse paste"}
+            </button>
+            {preview && <PricePreview text={preview.text} spans={preview.spans} />}
+          </div>
+        </div>
+      )}
+
+      {tab === "label" && (
+        <div className="importBody">
+          <p className="hintP">One metered vision read proposes the name, brand and the printed claims as facts. Nothing is invented on top of what the label shows.</p>
+          <div className="importRow">
+            <button className="secondaryBtn" type="button" disabled={disabled || busy} data-testid="import-label" onClick={() => labelFileRef.current?.click()}>
+              {busy ? (labelTask ? "Reading label…" : "Uploading…") : "Choose label photo"}
+            </button>
+            {busy && labelTask && (
+              <button className="secondaryBtn" type="button" onClick={() => void oia().cancelTask(labelTask.taskId).catch(() => {})}>Stop</button>
+            )}
+          </div>
+          <input
+            ref={labelFileRef} type="file" accept="image/*" hidden data-testid="import-label-input"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void runLabel(f); e.target.value = ""; }}
+          />
+        </div>
+      )}
+
+      {tab === "url" && (
+        <div className="importBody">
+          <input
+            data-testid="import-url" value={url} placeholder="https://shop.example/product"
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (url.trim() && !busy && !disabled) void runUrl(); } }}
+          />
+          <div className="importRow">
+            <button className="secondaryBtn" type="button" disabled={disabled || busy || !url.trim()} data-testid="import-fetch" onClick={() => void runUrl()}>
+              {busy ? "Fetching…" : "Fetch public info"}
+            </button>
+          </div>
+          <p className="hintP">Public metadata only (JSON-LD / Open Graph), fetched once from the utility process. You are responsible for complying with the site's terms.</p>
+        </div>
+      )}
+
+      {note && <p className="importNote" data-testid="import-note">{note}</p>}
+      {err && <div className="notice error" role="alert" data-testid="import-error">{err}</div>}
+    </div>
+  );
+}
+
+/** The always-highlight rule for prices, rendered over the pasted source text:
+ *  a context window around the FIRST price (the whole paste is one textarea
+ *  away, the preview proves the prices were SEEN, not where each one sits). */
+function PricePreview({ text, spans }: { text: string; spans: { start: number; end: number }[] }) {
+  if (!spans.length) return null;
+  const s = spans[0];
+  const from = Math.max(0, s.start - 16);
+  const to = Math.min(text.length, s.end + 16);
+  return (
+    <p className="pricePreview" data-testid="price-preview">
+      {from > 0 ? "…" : ""}{text.slice(from, s.start)}<mark className="priceMark">{text.slice(s.start, s.end)}</mark>{text.slice(s.end, to)}{to < text.length ? "…" : ""}
+      {spans.length > 1 ? <span className="priceMore"> +{spans.length - 1} more</span> : null}
+    </p>
   );
 }

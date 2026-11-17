@@ -1,4 +1,4 @@
-import type { ChatEvent, Project, Template, TaskStatus, BrandKit, ProductProfile } from "@oia/schema";
+import type { ChatEvent, Project, Template, TaskStatus, BrandKit, ProductProfile, ListingProposal } from "@oia/schema";
 import type { ChatRequest, ChatRunResult } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
 import type { RuntimeModeChoice } from "./ipc.js";
@@ -119,6 +119,9 @@ export interface OiaBridge {
   getProduct: (id: string) => Promise<ProductProfile | null>;
   upsertProduct: (input: ProductInput) => Promise<ProductProfile>;
   removeProduct: (id: string) => Promise<boolean>;
+  /** W1.2 assisted fill: 0-quota proposals (paste parse, guarded URL fetch). */
+  parsePaste: (text: string) => Promise<ListingProposal>;
+  fetchListingUrl: (url: string) => Promise<ListingProposal>;
   listApiKeys: () => Promise<ApiKeyRecord[]>;
   createApiKey: (name: string, ttlDays: number | null) => Promise<{ record: ApiKeyRecord; plaintext: string }>;
   revokeApiKey: (id: string) => Promise<boolean>;

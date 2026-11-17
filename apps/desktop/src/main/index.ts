@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { writeFile, mkdir as mkdirAsync } from "node:fs/promises";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -22,7 +23,7 @@ import {
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
   filesUploadSchema, exportSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
-  brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productGetSchema, productRemoveSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
+  brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productGetSchema, productRemoveSchema, listingsParsePasteSchema, listingsFetchUrlSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
   clipboardWriteSchema, dataImportWebSchema,
 } from "../shared/ipc.js";
 import type { AgentJobFrame } from "../shared/bridge.js";
@@ -391,6 +392,25 @@ function registerIpc(): void {
       const { id } = productRemoveSchema.parse(raw);
       await ensureUtility();
       return await utility.call({ cmd: "products.remove", id });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  // ---- W1.2 assisted fill: 0-quota proposal lanes --------------------------------
+  handle(IPC.listingsParsePaste, async (_e, raw: unknown) => {
+    try {
+      const { text } = listingsParsePasteSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "listings.parsePaste", text });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  handle(IPC.listingsFetchUrl, async (_e, raw: unknown) => {
+    try {
+      const { url } = listingsFetchUrlSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "listings.fetchUrl", url });
     } catch (err) {
       ipcError(err);
     }
@@ -2559,6 +2579,97 @@ async function shot(): Promise<void> {
     app.exit(28);
     return;
   }
+
+  // ---- W1.2: the assisted-fill doors (paste / URL / label photo) -----------------
+  // Deterministic happy path for the URL door: a fixture page served from MAIN,
+  // the utility fetches it like any public site (D15 holds, renderer never fetches).
+  const fixtureSrv = createServer((req, res) => {
+    if (req.url?.startsWith("/product.html")) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(`<html><head><title>Fixture fallback title</title><script type="application/ld+json">{"@type":"Product","name":"Fixture Hydra Serum 50ml","description":"Fixture listing description with 8 muc HA","brand":{"name":"FixtureBrand"}}</script></head></html>`);
+      return;
+    }
+    res.writeHead(404); res.end("no");
+  });
+  await new Promise<void>((r) => fixtureSrv.listen(0, "127.0.0.1", r));
+  const fixturePort = (fixtureSrv.address() as { port: number }).port;
+
+  const importLane = await win.webContents.executeJavaScript(`(async () => {
+    const setNative = (el, value) => {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    window.confirm = () => true; // proposal-overwrite asks; the gate accepts
+    document.querySelector('[data-testid="product-new"]')?.click();
+    for (let i = 0; i < 40 && !document.querySelector('[data-testid="import-panel"]'); i++) await new Promise((r) => setTimeout(r, 250));
+    if (!document.querySelector('[data-testid="import-panel"]')) return "no-import-panel";
+
+    // door 3 (paste): name/description proposals + price highlight
+    setNative(document.querySelector('[data-testid="import-paste"]'), "Fixture Serum HA 30ml\\nGia 289.000đ hom nay, con hang.");
+    document.querySelector('[data-testid="import-parse"]')?.click();
+    for (let i = 0; i < 20 && !document.querySelector('[data-testid="import-note"]'); i++) await new Promise((r) => setTimeout(r, 250));
+    const peName = document.querySelector("#pe-name");
+    const peDesc = document.querySelector("#pe-desc");
+    if (peName?.value !== "Fixture Serum HA 30ml") return "paste-name:" + peName?.value;
+    if (!peDesc?.value.includes("289.000")) return "paste-desc-missing";
+    const mark = document.querySelector('[data-testid="price-preview"] mark');
+    if (!mark || !/289/.test(mark.textContent ?? "")) return "price-mark-missing";
+
+    // door 6 (URL) happy path against the fixture server
+    const urlTab = [...document.querySelectorAll('.importTab')].find((t) => t.textContent.includes("Listing URL"));
+    urlTab?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    setNative(document.querySelector('[data-testid="import-url"]'), "http://127.0.0.1:${fixturePort}/product.html");
+    document.querySelector('[data-testid="import-fetch"]')?.click();
+    for (let i = 0; i < 40 && !document.querySelector('[data-testid="import-note"]')?.textContent.includes("127.0.0.1"); i++) await new Promise((r) => setTimeout(r, 250));
+    if (peName?.value !== "Fixture Hydra Serum 50ml") return "url-name:" + peName?.value;
+    const tagChip = [...document.querySelectorAll(".miniTag")].some((t) => t.textContent.includes("FixtureBrand"));
+    if (!tagChip) return "brand-tag-missing";
+
+    // door 6 error path: connection refused, visible error, no crash
+    setNative(document.querySelector('[data-testid="import-url"]'), "http://127.0.0.1:9/nothing");
+    document.querySelector('[data-testid="import-fetch"]')?.click();
+    let urlErr = "";
+    for (let i = 0; i < 40 && !urlErr; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      urlErr = document.querySelector('[data-testid="import-error"]')?.textContent ?? "";
+    }
+    if (!urlErr) return "url-error-invisible";
+
+    // door 2 (label photo): mock metered read → name/brand/facts as proposals
+    const labelTab = [...document.querySelectorAll('.importTab')].find((t) => t.textContent.includes("Label photo"));
+    labelTab?.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const c = document.createElement("canvas"); c.width = 80; c.height = 80;
+    c.getContext("2d").fillStyle = "#eeeeee"; c.getContext("2d").fillRect(0, 0, 80, 80);
+    const bytes = Uint8Array.from(atob(c.toDataURL("image/png").split(",")[1]), (ch) => ch.charCodeAt(0));
+    const input = document.querySelector('[data-testid="import-label-input"]');
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], "label.png", { type: "image/png" }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    let labelNote = "";
+    for (let i = 0; i < 80 && !labelNote; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      labelNote = document.querySelector('[data-testid="import-note"]')?.textContent ?? "";
+      if (labelNote.includes("metered read")) break;
+    }
+    if (!labelNote.includes("metered read")) return "label-note:" + labelNote + "|err=" + (document.querySelector('[data-testid="import-error"]')?.textContent ?? "none");
+    const factRows = document.querySelectorAll(".factRow").length;
+    if (factRows < 3) return "label-facts:" + factRows;
+    if (peName?.value !== "Hydra Ampoule II 30ml") return "label-name:" + peName?.value;
+    if (!document.querySelector('.factSrc.k-file')) return "fact-source-kind-missing";
+    return "ok|facts=" + factRows;
+  })()`, true).catch((e) => String(e));
+  fixtureSrv.close();
+  console.log(`[shot] products import lane: ${importLane}`);
+  if (typeof importLane !== "string" || !importLane.startsWith("ok")) {
+    console.error("DESKTOP_SHOT PRODUCTS IMPORT LANE FAILED");
+    app.exit(28);
+    return;
+  }
+  await snap(win, "desktop-products-import.png");
 
   // ---- reorg 4d: For Agents, keys form + live loopback base URL ----------------
   console.log("[shot] opening For agents…");
