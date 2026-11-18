@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chipAnchor, arrowHead, marksPrompt, zoomAt, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
+import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
 
 describe("SIL chipAnchor, pure math", () => {
   it("box: the chip sits on the box's top-left corner", () => {
@@ -72,6 +72,39 @@ describe("SIL zoomAt, cursor-pinned zoom (pure math)", () => {
   it("clamps at both ends instead of running away", () => {
     expect(zoomAt({ s: 0.2, tx: 0, ty: 0 }, 10, 10, 0.5).s).toBe(0.15);
     expect(zoomAt({ s: 10, tx: 0, ty: 0 }, 10, 10, 2).s).toBe(12);
+  });
+});
+
+describe("SIL clampPan, the image stays reachable", () => {
+  const stage = { w: 800, h: 600 };
+  const fit = { w: 400, h: 300 };
+
+  it("a reasonable pan passes through untouched", () => {
+    const v = { s: 1, tx: 200, ty: 150 };
+    expect(clampPan(v, stage.w, stage.h, fit.w, fit.h)).toEqual(v);
+  });
+
+  it("flinging the image off-screen clamps back to the keep fraction", () => {
+    const out = clampPan({ s: 1, tx: -5000, ty: 9000 }, stage.w, stage.h, fit.w, fit.h);
+    expect(out.tx).toBe(stage.w * 0.12 - fit.w);
+    expect(out.ty).toBe(stage.h * 0.88);
+  });
+
+  it("bounds stay non-empty when the image is larger than the stage", () => {
+    const out = clampPan({ s: 4, tx: 3000, ty: -3000 }, stage.w, stage.h, fit.w, fit.h);
+    expect(out.tx).toBe(stage.w * 0.88);
+    expect(out.ty).toBe(stage.h * 0.12 - fit.h * 4);
+  });
+});
+
+describe("SIL clampChipAnchor, numbers never clip away", () => {
+  it("an interior anchor is untouched", () => {
+    expect(clampChipAnchor({ x: 100, y: 100 }, 1024, 1536, 22)).toEqual({ x: 100, y: 100 });
+  });
+
+  it("a negative anchor slides to the half-size edge", () => {
+    expect(clampChipAnchor({ x: -5, y: -5 }, 1024, 1536, 22)).toEqual({ x: 11, y: 11 });
+    expect(clampChipAnchor({ x: 2000, y: 2000 }, 1024, 1536, 22)).toEqual({ x: 1013, y: 1525 });
   });
 });
 

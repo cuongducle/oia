@@ -11,7 +11,8 @@ import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
-import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { mergeVersion } from "../lib/loop-versions.js";
 import type { ChatRequest } from "@oia/services";
 
 /**
@@ -81,7 +82,11 @@ export function Loop() {
   const startedAtRef = useRef<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const activeJobRef = useRef<string | null>(null);
+  /** job kind: ref for the mount-time chat-event closure, state for render */
   const jobKindRef = useRef<"generate" | "edit" | null>(null);
+  const [jobKind, setJobKind] = useState<"generate" | "edit" | null>(null);
+  /** base (zoom-1) centered view; double-click resets here */
+  const baseRef = useRef({ tx: 0, ty: 0 });
   const offRef = useRef<(() => void) | null>(null);
 
   // ---- SL-2: marks + stage view transform ----
@@ -139,28 +144,16 @@ export function Loop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Canvas event → the loop's flat PNG. A single job can yield SEVERAL canvas
-   * events (auto refine rounds re-generate); each job owns exactly ONE version
-   * slot, later candidates REPLACE the job's earlier ones (the last canvas is
-   * the winner the designer yields). B7: nothing but a real job pushes history. */
+  /** Canvas event → the loop's flat PNG, merged through the one-slot-per-job
+   * rule (loop-versions.ts, the "Edit 3" bug's home, unit-tested there). */
   async function adoptCanvas(m: CanvasMsgMeta) {
     try {
       const flat = await flattenScenePng(m.canvas as SceneCanvas);
       setFlattenFailed("");
       const jobId = activeJobRef.current;
-      setVersions((v) => {
-        const last = v[v.length - 1];
-        if (last && last.jobId === jobId) {
-          return [...v.slice(0, -1), { ...flat, label: last.label, jobId }];
-        }
-        const label = jobKindRef.current === "edit" ? `Edit ${v.length}` : "Generated";
-        return [...v, { ...flat, label, jobId }];
-      });
+      setVersions((v) => mergeVersion(v, flat, jobId, jobKindRef.current === "edit" ? "edit" : "generate"));
       setCursor(null);
       setCompareOn(false);
-      setMarks([]); // a different image invalidates old regions
-      viewRef.current = { s: 1, tx: 0, ty: 0 };
-      setFit(null); // recompute for the new dimensions
       setNotesOpen(false);
       if (startedAtRef.current) setGenSeconds(Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000)));
     } catch (e) {
@@ -176,6 +169,7 @@ export function Loop() {
     setGenSeconds(null);
     activeJobRef.current = null;
     jobKindRef.current = "generate";
+    setJobKind("generate");
     setError("");
     setFlattenFailed("");
     setTimeline([]);
@@ -212,6 +206,7 @@ export function Loop() {
     setGenSeconds(null);
     activeJobRef.current = null;
     jobKindRef.current = "edit";
+    setJobKind("edit");
     setError("");
     setFlattenFailed("");
     setTimeline([]);
@@ -275,12 +270,20 @@ export function Loop() {
   /** Before/After: compare shows the PREVIOUS version of the current slot. */
   const showBefore = compareOn && idx > 0;
   const displayed = showBefore ? versions[idx - 1] : current;
-  const autoRefineOn = readAutoRefinePref();
+  const [autoRefinePref] = useState(() => readAutoRefinePref());
   const notesMissing = marks.some((m) => !m.note.trim());
   const editDisabled = busy || !marks.length || notesMissing;
-  const editing = busy && jobKindRef.current === "edit";
+  const editing = busy && jobKind === "edit";
 
-  // ---- SL-2 stage: fit the image into the stage once, keep mapping stable --
+  // ---- stage: fit + CENTER the image once per displayed version; switching
+  // the image (new job OR undo/latest walk) invalidates its marks and view,
+  // a region only belongs to the exact image it was drawn on ----
+  useEffect(() => {
+    setMarks([]);
+    setSelectedId(null);
+    setFit(null);
+  }, [current]);
+
   useEffect(() => {
     if (!current || fit) return;
     const stage = stageRef.current;
@@ -288,7 +291,11 @@ export function Loop() {
     const cw = stage.clientWidth || 1;
     const ch = stage.clientHeight || 1;
     const k = Math.min(cw / current.width, ch / current.height) * 0.96;
-    setFit({ w: Math.max(1, Math.round(current.width * k)), h: Math.max(1, Math.round(current.height * k)) });
+    const w = Math.max(1, Math.round(current.width * k));
+    const h = Math.max(1, Math.round(current.height * k));
+    baseRef.current = { tx: Math.round((cw - w) / 2), ty: Math.round((ch - h) / 2) };
+    viewRef.current = { s: 1, ...baseRef.current };
+    setFit({ w, h });
   }, [current, fit]);
 
   /** viewport (overlay css px) → natural image px, the ME mapping with an
@@ -375,15 +382,44 @@ export function Loop() {
     draftRef.current = { kind: tool, from: toNatural(e.clientX, e.clientY), to: toNatural(e.clientX, e.clientY) };
   }
 
+  /** wheel is a NATIVE non-passive listener: React's JSX onWheel is passive,
+   * preventDefault there is a silent no-op (teardown P0-5). */
+  useEffect(() => {
+    const ov = overlayRef.current;
+    if (!ov || !current || compareOn) return;
+    const onWheelNative = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = ov.getBoundingClientRect();
+      viewRef.current = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+    };
+    ov.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => ov.removeEventListener("wheel", onWheelNative);
+  }, [current, compareOn]);
+
+  // elapsed seconds tick while a job runs (the run bar under the tools)
+  const [, setRunTick] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(() => setRunTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
+  const elapsedS = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : null;
+
   function onOverlayPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const pan = panRef.current;
     if (pan) {
-      viewRef.current.tx = pan.tx + (e.clientX - pan.x);
-      viewRef.current.ty = pan.ty + (e.clientY - pan.y);
+      const stage = stageRef.current;
+      const next = { s: viewRef.current.s, tx: pan.tx + (e.clientX - pan.x), ty: pan.ty + (e.clientY - pan.y) };
+      viewRef.current = stage && fit ? clampPan(next, stage.clientWidth, stage.clientHeight, fit.w, fit.h) : next;
       return;
     }
     const d = draftRef.current;
     if (d) d.to = toNatural(e.clientX, e.clientY);
+  }
+
+  function onOverlayDoubleClick() {
+    if (compareOn) return;
+    viewRef.current = { s: 1, ...baseRef.current };
   }
 
   function onOverlayPointerUp() {
@@ -396,8 +432,11 @@ export function Loop() {
     draftRef.current = null;
     if (!d) return;
     if (d.kind === "box") {
-      if (d.to.x - d.from.x >= MIN_BOX_PX || d.from.x - d.to.x >= MIN_BOX_PX || d.to.y - d.from.y >= MIN_BOX_PX || d.from.y - d.to.y >= MIN_BOX_PX) {
-        pushMark({ id: newMarkId(), kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w: Math.abs(d.to.x - d.from.x), h: Math.abs(d.to.y - d.from.y) });
+      const w = Math.abs(d.to.x - d.from.x);
+      const h = Math.abs(d.to.y - d.from.y);
+      // BOTH sides must clear the minimum, a 1000×1 sliver is not a region
+      if (w >= MIN_BOX_PX && h >= MIN_BOX_PX) {
+        pushMark({ id: newMarkId(), kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w, h });
       }
       return;
     }
@@ -428,6 +467,7 @@ export function Loop() {
       if (e.key === "1") {
         setTool("pan");
         setSelectedId(null);
+        setCompareOn(false);
       } else if (e.key === "2") {
         setTool("box");
         setCompareOn(false);
@@ -493,10 +533,10 @@ export function Loop() {
             {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <span className="composerSpacer" />
-          {!busy && (
+          {!busy && !current && (
             <CostHint
               testId="loop-cost"
-              text={costHintText({ images: 1, isMock: mockMode, autoRefineRounds: autoRefineOn ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
+              text={costHintText({ images: 1, isMock: mockMode, autoRefineRounds: autoRefinePref ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
             />
           )}
           {busy ? (
@@ -519,6 +559,16 @@ export function Loop() {
               <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region (2)" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span></button>
               <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow (3)" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span></button>
               {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
+              {busy && current && (
+                <span className="loopRunBar" data-testid="loop-runbar" role="status">
+                  <span className="spin" aria-hidden="true">◌</span>
+                  <span>{jobKind === "edit" ? "Editing" : "Generating"}…</span>
+                  {elapsedS !== null && <span className="mono">{elapsedS}s</span>}
+                  {stepsFromTimeline(timeline).map((s, i) => (
+                    <span key={i} className={`loopStep ${s.state}`}>{s.state === "done" ? "✓" : "·"} {s.label}</span>
+                  ))}
+                </span>
+              )}
               <span className="composerSpacer" />
               <button className="loopTool" data-testid="loop-compare" aria-pressed={compareOn} disabled={idx < 1} title="Toggle the previous version" onClick={() => setCompareOn((v) => !v)}>{Icon.undo}<span>{compareOn ? "After" : "Before"}</span></button>
             </div>

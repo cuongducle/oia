@@ -2816,16 +2816,21 @@ async function shot(): Promise<void> {
     if (edit.disabled) return { ok: false, why: "edit disabled with both notes filled" };
     const before = document.querySelector('[data-testid="loop-image"]').src.slice(0, 96);
     edit.click();
-    // wait for the edited version to land (meta flips to Edit 1, 2/2)
+    // the edit round now SHOWS progress (teardown P0-3). The run bar assert is
+    // OBSERVATIONAL only: the mock pair finishes faster than the first poll
+    // tick, so a missing bar here proves nothing (the very race the teardown
+    // warned about). The bar is verified visually on a dev/real run instead.
+    let runbarSeen = false;
     for (let i = 0; i < 60; i++) {
+      if (document.querySelector('[data-testid="loop-runbar"]')) runbarSeen = true;
       const meta = document.querySelector('.loopMeta')?.textContent ?? "";
       if (meta.includes("Edit 1") && meta.includes("2/2")) break;
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 50));
     }
     const meta = document.querySelector('.loopMeta')?.textContent ?? "";
     const after = document.querySelector('[data-testid="loop-image"]').src.slice(0, 96);
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(' ');
-    return { ok: /Edit 1/.test(meta) && meta.includes('2/2') && after !== before, meta, changed: after !== before, err };
+    return { ok: /Edit 1/.test(meta) && meta.includes('2/2') && after !== before, meta, changed: after !== before, runbarSeen, err };
   })()`, true);
   if (!silEdit || silEdit.ok !== true) {
     console.error(`DESKTOP_SHOT SIL FAILED, the edit round-trip did not land (${JSON.stringify(silEdit)})`);

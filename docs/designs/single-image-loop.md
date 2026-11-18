@@ -87,3 +87,21 @@ Nút Save PNG: dialog save của main qua bridge (đường Tools đã có), tê
 
 - Giữ annotation giữa các vòng (vùng cũ vẽ lại trên bản mới) để thử lại cùng vùng: ME đã để mở câu này; SIL same, đề xuất không giữ v1 (bản mới đã khác ảnh).
 - Có cần ô "global note" (chỉ dẫn áp cả ảnh, không gắn vùng) không: đề xuất có ở SL-3 nếu real run cho thấy nhu cầu ("làm toàn ảnh ấm hơn").
+
+## Đợt sửa sau teardown 18/11 (P0 + #8, tất cả đã đóng)
+
+Teardown chủ động (owner yêu cầu mổ sẻ) tìm 6 lỗi P0 + #8, sửa hết trong ngày:
+
+1. **Undo giữ marks của ảnh khác (P0-1) + fit stale (P0-1b):** sửa bằng effect `[current]` duy nhất: marks clear + selection clear + `setFit(null)` + reset view về base mỗi khi đổi ảnh hiển thị; fit effect là nơi duy nhất tính fit + base center (một nguồn sự thật). Base giờ CENTER ảnh (trước đây top-left, ảnh lệch góc trên trái - teardown tìm thêm).
+2. **Focus/click toggle đánh nhau (P0-2):** row click bỏ qua khi target là input (focus đã chọn); nút X stopPropagation.
+3. **Vòng edit im lặng (P0-3):** RunBar trong loopTools khi `busy && current` (spin + Editing/Generating… + giây + steps); RunPanel vẫn chỉ màn đầu.
+4. **Wheel passive (P0-5):** listener native `{ passive: false }` qua ref, bỏ prop onWheel.
+5. **Pan không biên (P0-6):** `clampPan` (loop-marks.ts, PAN_KEEP_FRACTION 0,12, unit test 3 case) + double-click reset về base center.
+6. **Chi phí label lệch pha (#20):** label gen ẩn khi `current` tồn tại; `autoRefineOn` đọc mỗi render → state `autoRefinePref` một lần mount; submit vẫn tự đọc pref lúc chạy.
+7. **#8 tách hẳn:** `mergeVersion` ra `loop-versions.ts` thuần + 5 unit test (replace cùng job, push job mới, null jobId không replace, label Generate/Edit N).
+8. **Chip clip (#13):** `clampChipAnchor` trong drawMark (unit test).
+9. **MIN_BOX AND 2 chiều (#14), phím 1 tắt compare (#12), jobKind ref+state đôi (ref cho closure mount, state cho render).**
+
+Gates sau đợt: tsc + 321 test + shot trọn vòng xanh (lane edit ghi nhận runbar OBSERVATIONAL, không fail: mock xong nhanh hơn poll tick, đúng race teardown đã báo; bar kiểm tra bằng mắt lúc dev/real run). Lane marks red 8.598px, polish 12 vùng 27.043px. Bug bắt thêm: chuỗi JSON lớn bị đứt giữa các edit khi qua tool (tái hiện được, sửa bằng cắt đợt nhỏ).
+
+Còn đỗ lại CÓ CHỦ ĐÍCH (từ teardown, không phải bỏ sót): rAF chạy liên tục ở idle (dirty-flag là slice riêng), versions dataUrl không cap, không cap số vùng + note xuống dòng, shot lane phình (index.ts ~3.000 dòng), script real scrape URL bằng regex, session mất khi đóng cửa sổ không cảnh báo, "Start over" xóa sạch history không hỏi.

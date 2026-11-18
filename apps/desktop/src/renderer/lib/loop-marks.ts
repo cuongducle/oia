@@ -48,6 +48,36 @@ export function zoomAt(v: LoopView, cx: number, cy: number, factor: number, min 
   return { s: s2, tx: cx - (cx - v.tx) * f, ty: cy - (cy - v.ty) * f };
 }
 
+/** Fraction of the stage the image must keep overlapping however far it is
+ * panned; 0.12 = the image can never leave more than ~88% of the viewport. */
+export const PAN_KEEP_FRACTION = 0.12;
+
+/** Clamp pan so the fitted image always stays reachable: its edges may leave
+ * the stage but at least PAN_KEEP_FRACTION of the stage stays covered (pure).
+ * Bounds are non-empty for every zoom because min uses the image's far edge. */
+export function clampPan(v: LoopView, stageW: number, stageH: number, fitW: number, fitH: number): LoopView {
+  const keep = PAN_KEEP_FRACTION;
+  const txMin = stageW * keep - fitW * v.s;
+  const txMax = stageW * (1 - keep);
+  const tyMin = stageH * keep - fitH * v.s;
+  const tyMax = stageH * (1 - keep);
+  return {
+    s: v.s,
+    tx: Math.min(txMax, Math.max(txMin, v.tx)),
+    ty: Math.min(tyMax, Math.max(tyMin, v.ty)),
+  };
+}
+
+/** Keep the numbered chip inside the image: anchors near an edge slide in so
+ * the number is never clipped away (the prompt references it). Pure. */
+export function clampChipAnchor(p: Point, naturalWidth: number, naturalHeight: number, size: number): Point {
+  const half = size / 2;
+  return {
+    x: Math.min(naturalWidth - half, Math.max(half, p.x)),
+    y: Math.min(naturalHeight - half, Math.max(half, p.y)),
+  };
+}
+
 let markSeq = 0;
 export function newMarkId(): string {
   markSeq += 1;
@@ -104,7 +134,7 @@ export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: n
     ctx.closePath();
     ctx.fill();
   }
-  drawChip(ctx, index + 1, chipAnchor(mark), lw);
+  drawChip(ctx, index + 1, clampChipAnchor(chipAnchor(mark), naturalWidth, naturalHeight, Math.max(18, lw * 4)), lw);
 }
 
 /** Numbered chip: red rounded square with the white region number. */
