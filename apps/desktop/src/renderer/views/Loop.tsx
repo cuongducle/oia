@@ -56,6 +56,7 @@ const Icon = {
   textType: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2" /><path d="M9 5v14" /><path d="M7 19h4" /><path d="M14 12h6" /><path d="M17 12v7" /><path d="M15 19h4" /></svg>,
   upload: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>,
   paperclip: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>,
+  sparkle: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
@@ -85,6 +86,9 @@ export function Loop() {
   const [importedNote, setImportedNote] = useState("");
   /** ChatGPT-style: an attached photo waiting in the bar, becomes the base on send. */
   const [attach, setAttach] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
+  /** The two intents behind one attached photo: fix it, or build a new image
+   * around it (the seller's product as the reference). */
+  const [attachMode, setAttachMode] = useState<"edit" | "new">("edit");
   const attachInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [mockMode, setMockMode] = useState(false);
@@ -220,10 +224,20 @@ export function Loop() {
     // attached photo becomes the base; text (if any) immediately edits it
     if (attach) {
       const base = attach;
+      const mode = attachMode;
       setAttach(null);
+      setAttachMode("edit");
       pushImported(base);
       if (!prompt.trim()) return; // just the base, no quota spent
-      await runEditRound(base, marks, prompt.trim());
+      if (mode === "new") {
+        await runEditRound(
+          base,
+          [],
+          `Using the attached photo as the product reference, create a NEW image: ${prompt.trim()}. Keep the product itself exactly the same shape, colors and details; freely change everything else around it.`,
+        );
+      } else {
+        await runEditRound(base, marks, prompt.trim());
+      }
       setPrompt("");
       return;
     }
@@ -986,6 +1000,10 @@ export function Loop() {
           <div className="loopAttachRow" data-testid="loop-attach-preview">
             <img src={attach.dataUrl} alt="Attached image" />
             <span className="mono">{attach.width} × {attach.height}</span>
+            <div className="loopAttachModes" role="radiogroup" aria-label="What to do with this photo">
+              <button type="button" className={`loopModePill ${attachMode === "edit" ? "active" : ""}`} role="radio" aria-checked={attachMode === "edit"} data-testid="loop-mode-edit" onClick={() => setAttachMode("edit")}>{Icon.pen}<span>Edit this photo</span></button>
+              <button type="button" className={`loopModePill ${attachMode === "new" ? "active" : ""}`} role="radio" aria-checked={attachMode === "new"} data-testid="loop-mode-new" onClick={() => setAttachMode("new")}>{Icon.sparkle}<span>New image with it</span></button>
+            </div>
             <button className="iconBtn" aria-label="Remove the attached image" onClick={() => setAttach(null)}>{Icon.x}</button>
           </div>
         )}
@@ -993,7 +1011,7 @@ export function Loop() {
           aria-label="Image idea"
           data-testid="loop-idea"
           value={prompt}
-          placeholder={attach ? "Describe what to change in this image…" : current ? "Ask for a change, or mark regions above…" : "What would you like to generate?"}
+          placeholder={attach ? (attachMode === "new" ? "Describe the new image around this product… (e.g. a warm wooden table, morning light)" : "Describe what to change in this photo…") : current ? "Ask for a change, or mark regions above…" : "What would you like to generate?"}
           rows={current || attach ? 1 : 2}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
@@ -1028,7 +1046,7 @@ export function Loop() {
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
-            <button className="generateBtn labeled" aria-label={attach ? (prompt.trim() ? "Edit the attached image" : "Add the attached image to the canvas") : current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach ? (prompt.trim() ? "Edit" : "Add") : current ? "Edit" : "Generate"}{Icon.arrow}</button>
+            <button className="generateBtn labeled" aria-label={attach ? (prompt.trim() ? "Edit the attached image" : "Add the attached image to the canvas") : current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach ? (prompt.trim() ? (attachMode === "new" ? "Create" : "Edit") : "Add") : current ? "Edit" : "Generate"}{Icon.arrow}</button>
           )}
         </div>
       </section>
