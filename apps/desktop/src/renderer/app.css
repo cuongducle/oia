@@ -1018,3 +1018,13 @@ input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outlin
 .loopAssetThumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .loopAssetsEmpty { margin: 4px 2px 8px; font-size: 12px; color: var(--muted); }
 .iconBtn.labeledIcon.active { background: rgba(20,18,30,.07); }
+
+/* competitor layout: Upload above Assets, a tile column beside the textarea */
+.loopBarBody { display: flex; gap: 10px; align-items: stretch; position: relative; }
+.loopAttachCol { display: flex; flex-direction: column; gap: 6px; position: relative; flex: none; }
+.loopAttachTile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 74px; min-height: 52px; border: 1px solid #d8d6e2; background: #fff; border-radius: 10px; font-size: 11.5px; color: #3f3b4d; cursor: pointer; }
+.loopAttachTile:hover { border-color: var(--ink); box-shadow: 0 1px 6px rgba(20,18,30,.10); }
+.loopAttachTile.active { border-color: var(--ink); background: rgba(20,18,30,.05); font-weight: 600; }
+.loopAttachTile svg { width: 17px; height: 17px; }
+.loopBarBody textarea { flex: 1; }
+.loopAssetsPop { left: 0; right: auto; width: min(560px, 62vw); }
