@@ -58,6 +58,8 @@ const Icon = {
   paperclip: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>,
   sparkle: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" /></svg>,
   grid: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
+  send: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></svg>,
+  gallery: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5" /><circle cx="8.6" cy="10" r="1.5" /><path d="m5 17 4-4a1.8 1.8 0 0 1 2.5 0L16 17" /><path d="m14 15 2.2-2.2a1.8 1.8 0 0 1 2.5 0L21 15" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
@@ -1072,7 +1074,7 @@ export function Loop() {
           {!current && (
             <div className="loopAttachCol">
               <button className="loopAttachTile" aria-label="Upload an image to edit" data-testid="loop-attach" title="Upload a PNG/JPEG/WebP from this computer" onClick={() => attachInputRef.current?.click()}>{Icon.upload}<span>Upload</span></button>
-              <button className={`loopAttachTile ${assetsOpen ? "active" : ""}`} aria-label="Pick one of your saved images" aria-expanded={assetsOpen} data-testid="loop-assets" title="Pick from the images this app already has" onClick={() => void openAssets()}>{Icon.grid}<span>Assets</span></button>
+              <button className={`loopAttachTile ${assetsOpen ? "active" : ""}`} aria-label="Pick one of your saved images" aria-expanded={assetsOpen} data-testid="loop-assets" title="Pick from the images this app already has" onClick={() => void openAssets()}>{Icon.gallery}<span>Assets</span></button>
               <input ref={attachInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickAttach(f); e.target.value = ""; }} />
               {assetsOpen && (
                 <div className="loopAssetsPop" role="dialog" aria-label="Your images">
@@ -1113,18 +1115,20 @@ export function Loop() {
             {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <span className="composerSpacer" />
-          {!busy && !current && (
+          {busy ? (
+            <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
+          ) : (
+            <button className="generateBtn labeled" aria-label={attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create a new image with it" : "Edit image") : "Add the attached image to the canvas") : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create" : "Edit") : attach ? "Add" : "Edit") : "Generate"}{Icon.send}</button>
+          )}
+        </div>
+        {!busy && !current && (
+          <p className="loopBarCaption">
             <CostHint
               testId="loop-cost"
               text={costHintText({ images: 1, isMock: mockMode, autoRefineRounds: autoRefinePref ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
             />
-          )}
-          {busy ? (
-            <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
-          ) : (
-            <button className="generateBtn labeled" aria-label={attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create a new image with it" : "Edit image") : "Add the attached image to the canvas") : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create" : "Edit") : attach ? "Add" : "Edit") : "Generate"}{Icon.arrow}</button>
-          )}
-        </div>
+          </p>
+        )}
       </section>
     </main>
   );

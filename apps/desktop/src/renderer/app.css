@@ -1019,12 +1019,26 @@ input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outlin
 .loopAssetsEmpty { margin: 4px 2px 8px; font-size: 12px; color: var(--muted); }
 .iconBtn.labeledIcon.active { background: rgba(20,18,30,.07); }
 
-/* competitor layout: Upload above Assets, a tile column beside the textarea */
-.loopBarBody { display: flex; gap: 10px; align-items: stretch; position: relative; }
-.loopAttachCol { display: flex; flex-direction: column; gap: 6px; position: relative; flex: none; }
-.loopAttachTile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 74px; min-height: 52px; border: 1px solid #d8d6e2; background: #fff; border-radius: 10px; font-size: 11.5px; color: #3f3b4d; cursor: pointer; }
-.loopAttachTile:hover { border-color: var(--ink); box-shadow: 0 1px 6px rgba(20,18,30,.10); }
-.loopAttachTile.active { border-color: var(--ink); background: rgba(20,18,30,.05); font-weight: 600; }
-.loopAttachTile svg { width: 17px; height: 17px; }
-.loopBarBody textarea { flex: 1; }
+/* entry bar v2 (vision iterate): one control system, ink CTA, compact tiles */
+.loopBarBody { display: flex; gap: 12px; align-items: stretch; position: relative; }
+.loopAttachCol { display: flex; flex-direction: column; gap: 8px; position: relative; flex: none; }
+.loopAttachTile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 72px; flex: 1; border: 1px solid #dedbe6; background: #fff; border-radius: 10px; font-size: 11.5px; font-weight: 550; color: #3f3b4d; cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease; padding: 8px 6px; }
+.loopAttachTile:hover { border-color: var(--ink); box-shadow: 0 2px 10px -2px rgba(20,18,30,.16); transform: translateY(-1px); }
+.loopAttachTile.active { border-color: var(--ink); background: rgba(20,18,30,.05); font-weight: 650; }
+.loopAttachTile svg { width: 18px; height: 18px; }
+.loopBarBody textarea { flex: 1; background: #fafafd; border: 1px solid #e2e0ea; border-radius: 10px; padding: 11px 14px; font-size: 14px; color: var(--ink); resize: none; min-height: 96px; }
+.loopBarBody textarea:focus { outline: none; border-color: var(--ink); background: #fff; box-shadow: 0 0 0 3px rgba(20,18,30,.08); }
+.loopBarBody textarea::placeholder { color: #8a8698; }
 .loopAssetsPop { left: 0; right: auto; width: min(560px, 62vw); }
+/* one height grid + equal selects on the controls row */
+.promptCard.loopBar .composerControls { margin-top: 10px; gap: 8px; }
+.promptCard.loopBar .composerControls select { height: 38px; border-radius: 10px; border: 1px solid #dedbe6; background: #fff; font-size: 13px; color: #3f3b4d; padding: 0 10px; min-width: 118px; }
+.promptCard.loopBar .composerControls select:hover { border-color: #b7b4c2; }
+.promptCard.loopBar .costHint { font-size: 11.5px; color: #9894a8; }
+.promptCard.loopBar .generateBtn { height: 40px; padding: 0 20px; border-radius: 10px; background: var(--ink); color: #fff; display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.promptCard.loopBar .generateBtn:hover:not(:disabled) { background: #000; box-shadow: 0 2px 10px -2px rgba(20,18,30,.4); }
+.promptCard.loopBar .generateBtn:disabled { opacity: .4; }
+
+/* the quota/refine status is a caption under the row, not a chip look-alike */
+.loopBarCaption { margin: 8px 2px 0; font-size: 11.5px; color: #9894a8; }
+.loopBarCaption .costHint { color: #9894a8; }

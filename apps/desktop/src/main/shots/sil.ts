@@ -20,6 +20,7 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     loop.click();
     return true;
   })()`, true);
+  await new Promise((r) => setTimeout(r, 600));
   let loopReady = false;
   for (let i = 0; i < 20; i++) {
     loopReady = await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="loop-idea"]'))`, true);
