@@ -189,3 +189,18 @@ Vết nứt tìm được khi đấu với fabric (đều đóng):
 - Shot polish lane thêm: vẽ oval + freehand qua fabric + **probe pixel mép**: đếm pixel đỏ ngoài bbox ảnh phải = 0 (vision lần này đoán sai "box tràn mép", pixel probe là bằng chứng thật).
 
 Gates: tsc + 340 test + shot 6 lane SIL (14 regions, red=104107px, redOutside=0) + smoke + crash-smoke.
+
+## Probe P5 (18/11 khuya): marker có cần đỏ đặc không? KHÔNG
+
+Owner chất vấn "model nó hiểu được hết, không nhất thiết đỏ đặc" → kiểm chứng bằng real run (evidence: `docs/private/real-runs/2026-11-18-sil-marker-color-probe/`, script `apps/desktop/scripts/marker-color-probe.mjs`).
+
+Thiết kế: 1 ảnh 3 bóng phẳng (đỏ/xanh/vàng, nền trắng, bbox đo pixel), 1 box đánh dấu bóng đỏ + chip số, instruction repaint bóng marked thành tím #7C3AED + "remove every marker", đúng kênh production (`runChat` + `editMode.markup=flatten`). 6 biến thể chỉ khác màu/nét marker: đỏ đặc lw4 (baseline), đỏ mảnh lw2, đỏ + fill 8%, xanh #2563eb, vàng #f59e0b, đen #111111. Chấm pixel tự động.
+
+Kết quả: **6/6 PASS** - mọi biến thể: repaint đúng vùng (~65k purple px = đúng diện tích bóng), residue màu marker = 0, 2 bóng khác nguyên vẹn, dims giữ.
+
+Kết luận:
+1. Model KHÔNG phụ thuộc màu đỏ đặc - nhận định owner đúng trong phạm vi probe (vùng đơn giản, nền trắng, 1 region).
+2. Composite mặc định VẪN GIỮ đỏ #ff0000, vì lý do khác: đỏ thuần hiếm trùng màu chủ thể ảnh thương mại, còn xanh/vàng dễ trùng vật thể → rủiêu nhầm region với vật thể màu đó ở ảnh phức tạp (probe chưa phủ).
+3. Nếu cần đổi màu composite sau này (ảnh có chủ thể đỏ), có nền tảng bằng chứng ở probe này để mở việc.
+
+Vận hành ghi nhận: 1 lần gen đầu im lặng fail (Image Generator status 0, không files, loop-real exit!=0 dù session ghi "completed") - chạy lại là được; kênh đôi khi vậy.
