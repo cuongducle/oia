@@ -11,16 +11,18 @@ import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural } from "../lib/markup-annotate.js";
-import { drawMark, newMarkId, zoomAt, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
 import type { ChatRequest } from "@oia/services";
 
 /**
  * SIL (docs/designs/single-image-loop.md): the single-image edit loop.
  * SL-1: generate ONE image (designer pipeline, pages=1, no outline gate),
  * flattened to a plain <img>, Save PNG. SL-2: numbered region marks (box +
- * arrow) drawn on a view-layer overlay with pan/zoom; marks live in view state
- * only and NEVER in any scene/store (ME-3 purity rule). One session per mount
- * like Home (C1 pin).
+ * arrow) on a view-layer overlay with pan/zoom; marks live in view state only,
+ * never in a scene/store (ME-3 purity rule). SL-3: ONE codex edit per round
+ * carries ALL regions (flatten composite + per-region prompt, the ME channel),
+ * the result becomes the current image, undo/compare walk the version stack
+ * (B7: only real jobs push entries). One session per mount like Home (C1).
  *
  * UI copy is ENGLISH by owner decision (D8).
  */
@@ -32,6 +34,8 @@ const LOOP_ASPECTS: Record<string, [number, number] | null> = {
 const HOW_IT_WORKS = "One image at a time: describe it, generate, then mark what to change next.";
 const STOP_LABEL = "Stop";
 const MARK_HINT = "Drag on the image to mark a region";
+const EDIT_HEAD = "Edit this image following the numbered red regions.";
+const EVERY_REGION_NEEDS_A_NOTE = "Every region needs an instruction";
 
 const Icon = {
   arrow: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>,
@@ -41,6 +45,7 @@ const Icon = {
   box: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"><rect x="4" y="5" width="16" height="14" rx="2" strokeDasharray="3.4 2.6" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
+  undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
 };
 
 type Tool = "pan" | "box" | "arrow";
@@ -64,7 +69,11 @@ export function Loop() {
   const [narrative, setNarrative] = useState("");
   const [error, setError] = useState("");
   const [mockMode, setMockMode] = useState(false);
+  const [markupCapable, setMarkupCapable] = useState(false);
   const [versions, setVersions] = useState<LoopVersion[]>([]);
+  /** index into versions; null = the latest (undo walks it, nothing is deleted) */
+  const [cursor, setCursor] = useState<number | null>(null);
+  const [compareOn, setCompareOn] = useState(false);
   const [flattenFailed, setFlattenFailed] = useState("");
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -72,6 +81,7 @@ export function Loop() {
   const startedAtRef = useRef<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const activeJobRef = useRef<string | null>(null);
+  const jobKindRef = useRef<"generate" | "edit" | null>(null);
   const offRef = useRef<(() => void) | null>(null);
 
   // ---- SL-2: marks + stage view transform ----
@@ -95,7 +105,10 @@ export function Loop() {
   }
 
   useEffect(() => {
-    void oia().providerStatus().then((s) => setMockMode(s.image.capabilities.isMock)).catch(() => {});
+    void oia().providerStatus().then((s) => {
+      setMockMode(s.image.capabilities.isMock);
+      setMarkupCapable(s.image.capabilities.markupEdit === "flatten");
+    }).catch(() => {});
     offRef.current = oia().onChatEvent((ev) => {
       if (activeJobRef.current && ev.jobId && ev.jobId !== activeJobRef.current) return;
       if (ev.jobId) {
@@ -136,8 +149,11 @@ export function Loop() {
         if (last && last.jobId === jobId) {
           return [...v.slice(0, -1), { ...flat, label: last.label, jobId }];
         }
-        return [...v, { ...flat, label: "Generated", jobId }];
+        const label = jobKindRef.current === "edit" ? `Edit ${v.length}` : "Generated";
+        return [...v, { ...flat, label, jobId }];
       });
+      setCursor(null);
+      setCompareOn(false);
       setMarks([]); // a different image invalidates old regions
       viewRef.current = { s: 1, tx: 0, ty: 0 };
       setFit(null); // recompute for the new dimensions
@@ -155,6 +171,7 @@ export function Loop() {
     markRunStart(Date.now());
     setGenSeconds(null);
     activeJobRef.current = null;
+    jobKindRef.current = "generate";
     setError("");
     setFlattenFailed("");
     setTimeline([]);
@@ -175,13 +192,47 @@ export function Loop() {
       const res = await oia().chatRun(req);
       setSessionId(res.sessionId);
     } catch (e) {
-      const name = e instanceof Error ? e.name : "";
-      if (name === "IpcValidationError") setError("Invalid request, please try again.");
-      else if (name === "ProviderConfigError") setError("Provider configuration is invalid (mock mixed with real). See the README.");
-      else setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      setChatRunError(e);
     } finally {
       setBusy(false);
     }
+  }
+
+  /** SL-3: ONE edit per round carries every marked region (flatten channel). */
+  async function sendEdit() {
+    const cur = current;
+    if (!cur || busy || !marks.length || marks.some((m) => !m.note.trim())) return;
+    setBusy(true);
+    setNotesOpen(true);
+    markRunStart(Date.now());
+    setGenSeconds(null);
+    activeJobRef.current = null;
+    jobKindRef.current = "edit";
+    setError("");
+    setFlattenFailed("");
+    setTimeline([]);
+    setNarrative("");
+    try {
+      const composite = await regionComposite(cur.dataUrl, marks, cur.width, cur.height);
+      const res = await oia().chatRun({
+        prompt: `${EDIT_HEAD}\n${marksPrompt(marks)}`,
+        ...(sessionId ? { sessionId } : {}),
+        referenceImages: [composite],
+        editMode: { markup: "flatten", targetName: "loop image" },
+      });
+      setSessionId(res.sessionId);
+    } catch (e) {
+      setChatRunError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function setChatRunError(e: unknown) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "IpcValidationError") setError("Invalid request, please try again.");
+    else if (name === "ProviderConfigError") setError("Provider configuration is invalid (mock mixed with real). See the README.");
+    else setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
   }
 
   async function stop() {
@@ -190,10 +241,9 @@ export function Loop() {
 
   /** Full-resolution PNG via the native save dialog, same channel Home uses. */
   async function savePng() {
-    const v = versions[versions.length - 1];
-    if (!v) return;
+    if (!current) return;
     try {
-      const blob = await (await fetch(v.dataUrl)).blob();
+      const blob = await (await fetch(current.dataUrl)).blob();
       await oia().saveExport("oia-loop.png", new Uint8Array(await blob.arrayBuffer()));
     } catch {
       setError("The image could not be saved. Please try again.");
@@ -202,6 +252,8 @@ export function Loop() {
 
   function startOver() {
     setVersions([]);
+    setCursor(null);
+    setCompareOn(false);
     setMarks([]);
     setFit(null);
     setPrompt("");
@@ -214,8 +266,15 @@ export function Loop() {
     markRunStart(null);
   }
 
-  const current = versions[versions.length - 1] ?? null;
+  const idx = cursor ?? Math.max(0, versions.length - 1);
+  const current = versions[idx] ?? null;
+  /** Before/After: compare shows the PREVIOUS version of the current slot. */
+  const showBefore = compareOn && idx > 0;
+  const displayed = showBefore ? versions[idx - 1] : current;
   const autoRefineOn = readAutoRefinePref();
+  const notesMissing = marks.some((m) => !m.note.trim());
+  const editDisabled = busy || !marks.length || notesMissing;
+  const editing = busy && jobKindRef.current === "edit";
 
   // ---- SL-2 stage: fit the image into the stage once, keep mapping stable --
   useEffect(() => {
@@ -232,7 +291,7 @@ export function Loop() {
    * identity object matrix (the <img> is never rotated). */
   function toNatural(clientX: number, clientY: number): { x: number; y: number } {
     const ov = overlayRef.current;
-    const cur = versions[versions.length - 1];
+    const cur = current;
     if (!ov || !cur || !fit) return { x: 0, y: 0 };
     const r = ov.getBoundingClientRect();
     const { s, tx, ty } = viewRef.current;
@@ -240,13 +299,15 @@ export function Loop() {
   }
 
   /** rAF overlay: image pixel-truth partner of the ME overlay (C3 lesson:
-   * the canvas carries CSS size 100%, attrs follow dpr × rect). */
+   * the canvas carries CSS size 100%, attrs follow dpr × rect). While
+   * comparing, the stage shows a plain picture, no marks, no pointers. */
   useEffect(() => {
     if (!current || !fit) return;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
       const ov = overlayRef.current;
-      const cur = versions[versions.length - 1];
+      const world = worldRef.current;
+      const cur = current;
       if (!ov || !cur) return;
       const rect = ov.getBoundingClientRect();
       if (rect.width < 2 || rect.height < 2) return;
@@ -261,8 +322,9 @@ export function Loop() {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, rect.width, rect.height);
+      if (compareOn) return; // plain before/after view
       const { s, tx, ty } = viewRef.current;
-      if (worldRef.current) worldRef.current.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+      if (world) world.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
       const k = fit.w / cur.width;
       ctx.translate(tx, ty);
       ctx.scale(s, s);
@@ -279,10 +341,10 @@ export function Loop() {
     };
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [current, fit, marks]);
+  }, [current, fit, marks, compareOn]);
 
   function onOverlayPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!current || !fit) return;
+    if (!current || !fit || compareOn) return;
     // synthetic/untracked pointers cannot capture (same lesson as the ME overlay)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* the draft already started */ }
     if (tool === "pan") {
@@ -324,13 +386,12 @@ export function Loop() {
   }
 
   function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
-    if (!current) return;
+    if (!current || compareOn) return;
     e.preventDefault();
     const ov = overlayRef.current;
     if (!ov) return;
     const r = ov.getBoundingClientRect();
-    const v = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
-    viewRef.current = v;
+    viewRef.current = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
   }
 
   // Esc kills the in-progress draft; nothing was sent, nothing was burned (ME)
@@ -399,27 +460,29 @@ export function Loop() {
         <div className="notice error" role="alert">{error || flattenFailed}</div>
       )}
 
-      {current && (
+      {current && displayed && (
         <section className="loopWork" aria-label="Mark and edit">
           <div className="loopStageCol">
             <div className="loopTools" role="toolbar" aria-label="Marking tools">
-              <button className={`loopTool ${tool === "pan" ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom" onClick={() => setTool("pan")}>{Icon.pan}<span>Pan</span></button>
-              <button className={`loopTool ${tool === "box" ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region" onClick={() => setTool("box")}>{Icon.box}<span>Box</span></button>
-              <button className={`loopTool ${tool === "arrow" ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow" onClick={() => setTool("arrow")}>{Icon.arrowUp}<span>Arrow</span></button>
-              {tool !== "pan" && <span className="loopHint">{MARK_HINT}</span>}
+              <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span></button>
+              <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span></button>
+              <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span></button>
+              {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
+              <span className="composerSpacer" />
+              <button className="loopTool" data-testid="loop-compare" aria-pressed={compareOn} disabled={idx < 1} title="Toggle the previous version" onClick={() => setCompareOn((v) => !v)}>{Icon.undo}<span>{compareOn ? "After" : "Before"}</span></button>
             </div>
             <div className="loopStage" ref={stageRef} data-testid="loop-stage">
-              {fit && (
+              {showBefore && <span className="stageBadge" data-testid="loop-before-badge">Before</span>}
+              {fit && displayed && (
                 <div className="loopWorld" ref={worldRef}>
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <img data-testid="loop-image" src={current.dataUrl} alt="The current loop image" width={fit.w} height={fit.h} draggable={false} />
+                  <img data-testid="loop-image" src={displayed.dataUrl} alt={showBefore ? "The previous loop image" : "The current loop image"} width={fit.w} height={fit.h} draggable={false} />
                 </div>
               )}
               <canvas
                 ref={overlayRef}
                 className="loopOverlay"
                 data-testid="loop-overlay"
-                style={{ cursor: tool === "pan" ? "grab" : "crosshair" }}
+                style={{ cursor: compareOn ? "default" : tool === "pan" ? "grab" : "crosshair", pointerEvents: compareOn ? "none" : "auto" }}
                 onPointerDown={onOverlayPointerDown}
                 onPointerMove={onOverlayPointerMove}
                 onPointerUp={onOverlayPointerUp}
@@ -428,7 +491,11 @@ export function Loop() {
               />
             </div>
             <div className="loopToolbar">
-              <span className="loopMeta mono">{current.width}×{current.height}{current.label ? ` · ${current.label}` : ""}{genSeconds ? ` · ${genSeconds}s` : ""}</span>
+              <button className="iconBtn labeledIcon" aria-label="Undo to the previous version" data-testid="loop-undo" disabled={idx < 1} onClick={() => { setCursor(Math.max(0, idx - 1)); setCompareOn(false); }}>{Icon.undo}Undo</button>
+              {cursor !== null && (
+                <button className="iconBtn labeledIcon" aria-label="Back to the latest version" data-testid="loop-latest" onClick={() => { setCursor(null); setCompareOn(false); }}>Latest</button>
+              )}
+              <span className="loopMeta mono">{current.width}×{current.height} · {current.label}{versions.length > 1 ? ` · ${idx + 1}/${versions.length}` : ""}{genSeconds ? ` · ${genSeconds}s` : ""}</span>
               <button className="iconBtn labeledIcon" aria-label="Save PNG" data-testid="loop-save" onClick={() => void savePng()}>{Icon.download}Save PNG</button>
               <button className="iconBtn labeledIcon" aria-label="Start over" data-testid="loop-reset" onClick={startOver}>Start over</button>
             </div>
@@ -444,6 +511,7 @@ export function Loop() {
                   <input
                     aria-label={`Region ${i + 1} instruction`}
                     data-testid={`region-note-${i + 1}`}
+                    className={!m.note.trim() && marks.length && notesMissing ? "invalid" : ""}
                     value={m.note}
                     placeholder="What should change here?"
                     onChange={(e) => updateNote(m.id, e.target.value)}
@@ -452,6 +520,25 @@ export function Loop() {
                 </li>
               ))}
             </ol>
+            {markupCapable ? (
+              editing ? (
+                <button className="generateBtn labeled stop loopEditBtn" aria-label={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
+              ) : (
+                <button
+                  className="generateBtn labeled loopEditBtn"
+                  aria-label="Edit marked regions"
+                  data-testid="loop-edit"
+                  disabled={editDisabled}
+                  title={marks.length === 0 ? "Mark a region first" : notesMissing ? EVERY_REGION_NEEDS_A_NOTE : "Send every region in one edit"}
+                  onClick={() => void sendEdit()}
+                >
+                  Edit regions
+                  <CostHint testId="loop-edit-cost" text={costHintText({ images: 1, isMock: mockMode })} />
+                </button>
+              )
+            ) : (
+              <p className="loopEmpty">Region edits need a provider that supports markup edits.</p>
+            )}
           </aside>
         </section>
       )}

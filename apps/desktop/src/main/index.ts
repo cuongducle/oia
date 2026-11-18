@@ -2793,6 +2793,72 @@ async function shot(): Promise<void> {
   }
   console.log(`[shot] SIL marks OK (rows=${silMarks.rows.join(",")} red=${silMarks.red}px)`);
   await snap(win, "desktop-loop-marks.png");
+
+  // SL-3: fill both region notes, send ONE edit carrying every region, expect a
+  // second version (Edit 1), undo walks the stack, latest returns, before/after
+  // toggles the badge. Mock pair: the edited canvas differs from the generated one.
+  const silEdit = await win.webContents.executeJavaScript(`(async () => {
+    const setVal = (el, v) => { const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); };
+    const n1 = document.querySelector('[data-testid="region-note-1"]');
+    const n2 = document.querySelector('[data-testid="region-note-2"]');
+    if (!n1 || !n2) return { ok: false, why: "note inputs missing" };
+    // error-path gate: with EMPTY notes the button must refuse to send
+    const edit0 = document.querySelector('[data-testid="loop-edit"]');
+    if (!edit0) return { ok: false, why: "edit button missing (capability gate?)" };
+    if (!edit0.disabled) return { ok: false, why: "edit enabled while notes are empty" };
+    setVal(n1, "make this area a clean mint gradient");
+    setVal(n2, "point at the straw with a small tag");
+    const edit = document.querySelector('[data-testid="loop-edit"]');
+    if (!edit) return { ok: false, why: "edit button missing (capability gate?)" };
+    if (edit.disabled) return { ok: false, why: "edit disabled with both notes filled" };
+    const before = document.querySelector('[data-testid="loop-image"]').src.slice(0, 96);
+    edit.click();
+    // wait for the edited version to land (meta flips to Edit 1, 2/2)
+    for (let i = 0; i < 60; i++) {
+      const meta = document.querySelector('.loopMeta')?.textContent ?? "";
+      if (meta.includes("Edit 1") && meta.includes("2/2")) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    const meta = document.querySelector('.loopMeta')?.textContent ?? "";
+    const after = document.querySelector('[data-testid="loop-image"]').src.slice(0, 96);
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(' ');
+    return { ok: /Edit 1/.test(meta) && meta.includes('2/2') && after !== before, meta, changed: after !== before, err };
+  })()`, true);
+  if (!silEdit || silEdit.ok !== true) {
+    console.error(`DESKTOP_SHOT SIL FAILED, the edit round-trip did not land (${JSON.stringify(silEdit)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL edit round-trip OK (meta "${silEdit.meta}")`);
+  const silNav = await win.webContents.executeJavaScript(`(async () => {
+    const meta = () => document.querySelector('.loopMeta')?.textContent ?? "";
+    const undo = document.querySelector('[data-testid="loop-undo"]');
+    if (!undo || undo.disabled) return { ok: false, why: 'undo disabled' };
+    undo.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const afterUndo = meta();
+    const latest = document.querySelector('[data-testid="loop-latest"]');
+    if (!latest) return { ok: false, why: 'latest button missing after undo', afterUndo };
+    latest.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const afterLatest = meta();
+    const cmp = document.querySelector('[data-testid="loop-compare"]');
+    if (!cmp || cmp.disabled) return { ok: false, why: 'compare disabled', afterUndo, afterLatest };
+    cmp.click();
+    await new Promise((r) => setTimeout(r, 250));
+    const badge = document.querySelector('[data-testid="loop-before-badge"]')?.textContent ?? null;
+    cmp.click();
+    await new Promise((r) => setTimeout(r, 200));
+    const badgeGone = !document.querySelector('[data-testid="loop-before-badge"]');
+    return { ok: afterUndo.includes('Generated') && afterUndo.includes('1/2') && afterLatest.includes('2/2') && badge === 'Before' && badgeGone, afterUndo, afterLatest, badge, badgeGone };
+  })()`, true);
+  if (!silNav || silNav.ok !== true) {
+    console.error(`DESKTOP_SHOT SIL FAILED, undo/latest/compare wrong (${JSON.stringify(silNav)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL history nav OK (undo→"${silNav.afterUndo}" latest→"${silNav.afterLatest}" compare badge=${silNav.badge})`);
+  await snap(win, "desktop-loop-edit.png");
   await win.webContents.executeJavaScript(`document.querySelector('[data-testid="loop-reset"]').click()`, true);
   await new Promise((r) => setTimeout(r, 300));
 

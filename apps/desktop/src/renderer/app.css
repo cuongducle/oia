@@ -922,3 +922,8 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .regionChip { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #ff0000; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .regionKind { flex: none; color: var(--muted); display: inline-flex; }
 .loopRegion input { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.loopTool:disabled { opacity: 0.45; cursor: default; }
+.loopEditBtn { width: 100%; justify-content: center; margin-top: 10px; gap: 8px; }
+.loopEditBtn .costHint { color: #ffffffb0; }
+.loopRegion input.invalid { border-color: var(--danger); }
+.stageBadge { position: absolute; top: 10px; left: 10px; z-index: 3; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px; }
