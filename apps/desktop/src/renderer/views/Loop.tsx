@@ -12,7 +12,7 @@ import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
 import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
-import { mergeVersion } from "../lib/loop-versions.js";
+import { mergeVersion, capVersions } from "../lib/loop-versions.js";
 import type { ChatRequest } from "@oia/services";
 
 /**
@@ -155,7 +155,7 @@ export function Loop() {
       const flat = await flattenScenePng(m.canvas as SceneCanvas);
       setFlattenFailed("");
       const jobId = activeJobRef.current;
-      setVersions((v) => mergeVersion(v, flat, jobId, jobKindRef.current === "edit" ? "edit" : "generate"));
+      setVersions((v) => capVersions(mergeVersion(v, flat, jobId, jobKindRef.current === "edit" ? "edit" : "generate")));
       setCursor(null);
       setCompareOn(false);
       setNotesOpen(false);
@@ -315,12 +315,21 @@ export function Loop() {
   }
 
   /** rAF overlay: image pixel-truth partner of the ME overlay (C3 lesson:
-   * the canvas carries CSS size 100%, attrs follow dpr × rect). While
+   * the canvas carries CSS size 100%, attrs follow dpr × rect). Idle-saving:
+   * the loop keeps ticking but only REPAINTS when something actually changed
+   * (state deps restart the effect; ref mutations below mark dirty). While
    * comparing, the stage shows a plain picture, no marks, no pointers. */
+  const dirtyRef = useRef(true);
+  function markDirty(): void {
+    dirtyRef.current = true;
+  }
   useEffect(() => {
     if (!current || !fit) return;
+    markDirty();
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
+      if (!dirtyRef.current) return; // idle: keep the loop, skip the paint
+      dirtyRef.current = false;
       const ov = overlayRef.current;
       const world = worldRef.current;
       const cur = current;
@@ -387,6 +396,7 @@ export function Loop() {
       return;
     }
     draftRef.current = { kind: tool, from: toNatural(e.clientX, e.clientY), to: toNatural(e.clientX, e.clientY) };
+    markDirty();
   }
 
   /** wheel is a NATIVE non-passive listener: React's JSX onWheel is passive,
@@ -399,6 +409,7 @@ export function Loop() {
       const r = ov.getBoundingClientRect();
       const v = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
       viewRef.current = v;
+      markDirty();
       setZoomPct(Math.round(v.s * 100));
     };
     ov.addEventListener("wheel", onWheelNative, { passive: false });
@@ -420,15 +431,20 @@ export function Loop() {
       const stage = stageRef.current;
       const next = { s: viewRef.current.s, tx: pan.tx + (e.clientX - pan.x), ty: pan.ty + (e.clientY - pan.y) };
       viewRef.current = stage && fit ? clampPan(next, stage.clientWidth, stage.clientHeight, fit.w, fit.h) : next;
+      markDirty();
       return;
     }
     const d = draftRef.current;
-    if (d) d.to = toNatural(e.clientX, e.clientY);
+    if (d) {
+      d.to = toNatural(e.clientX, e.clientY);
+      markDirty();
+    }
   }
 
   function onOverlayDoubleClick() {
     if (compareOn) return;
     viewRef.current = { s: 1, ...baseRef.current };
+    markDirty();
     setZoomPct(100);
   }
 
@@ -440,10 +456,12 @@ export function Loop() {
     const cy = stage ? stage.clientHeight / 2 : 0;
     const v = zoomAt(viewRef.current, cx, cy, factor);
     viewRef.current = v;
+    markDirty();
     setZoomPct(Math.round(v.s * 100));
   }
   function fitView() {
     viewRef.current = { s: 1, ...baseRef.current };
+    markDirty();
     setZoomPct(100);
   }
 

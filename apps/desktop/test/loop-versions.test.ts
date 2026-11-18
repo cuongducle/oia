@@ -1,11 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { mergeVersion, type VersionSlot } from "../src/renderer/lib/loop-versions.js";
+import { mergeVersion, capVersions, type VersionSlot } from "../src/renderer/lib/loop-versions.js";
 
 const flat = (n: number) => ({ dataUrl: `data:image/png;base64,${n}`, width: 100 + n, height: 200 + n });
 
 function seed(...entries: { label: string; jobId: string | null }[]): VersionSlot[] {
   return entries.map((e) => ({ ...flat(0), ...e }));
 }
+
+describe("SIL capVersions, bounded history", () => {
+  it("stays a no-op at or under the cap", () => {
+    const v: { label: string; jobId: string | null }[] = Array.from({ length: 10 }, (_, i) => ({ label: `v${i}`, jobId: `j${i}` }));
+    expect(capVersions([...v]).length).toBe(10);
+  });
+
+  it("trims the OLDEST slots beyond the cap, latest survives", () => {
+    const v = Array.from({ length: 12 }, (_, i) => ({ label: `v${i}`, jobId: `j${i}` }));
+    const out = capVersions(v);
+    expect(out.length).toBe(10);
+    expect(out[0].label).toBe("v2"); // v0/v1 dropped, push cursor always latest
+    expect(out[out.length - 1].label).toBe("v11");
+  });
+});
 
 describe("SIL mergeVersion, one slot per job", () => {
   it("a generate on an empty stack labels Generated", () => {

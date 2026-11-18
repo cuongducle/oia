@@ -34,3 +34,12 @@ export function mergeVersion(
   const label = kind === "edit" ? `Edit ${versions.length}` : "Generated";
   return [...versions, { ...flat, label, jobId }];
 }
+
+/** Session version cap (deliberate-debt item from the teardown): every version
+ * pins a ~2MB data URL for undo. 10 keeps the history useful while bounding
+ * the loop's memory (~20MB worst case instead of unbounded). Pure. */
+export const MAX_LOOP_VERSIONS = 10;
+
+export function capVersions(versions: VersionSlot[], max: number = MAX_LOOP_VERSIONS): VersionSlot[] {
+  return versions.length <= max ? versions : versions.slice(versions.length - max);
+}

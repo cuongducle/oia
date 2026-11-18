@@ -130,3 +130,13 @@ Research 3 mô hình placement prompt sau gen: (A) chat feed (ChatGPT/Gemini), (
 - Lane shot pin layout mới: assert [data-testid=loop-empty] h1 trước khi submit + artifact mới out/desktop-loop-empty.png; artifact cũ desktop-loop.png (stale từ layout cũ) đã xóa. Vision verify: empty canvas ~70% chiều cao + bar đáy + disabled Generate đúng state, không artifact cũ.
 
 Gates: tsc + 328 test + shot trọn vòng xanh. Câu mở còn lại từ đợt research: version filmstrip + segmented After/Before vẫn đỗ lại chờ nhu cầu.
+
+## Trả nợ nhóm 1 (18/11 tối, owner "làm luôn")
+
+Ba việc kỹ thuật đỗ lại sau teardown, tất cả đóng:
+
+1. **Idle rAF:** overlay loop chuyển sang dirty-flag (`dirtyRef` + `markDirty()`): rAF vẫn tick nhưng bỏ qua paint khi không đổi gì; mọi mutator ref-based (pan, wheel zoom, zoom cluster, double-click, draft pointer) đánh dirty; state deps (marks/selection/hover/fit/compare) tự restart effect và đánh dirty lần đầu. CPU thật sự chi cho canvas khi đứng im = 0.
+2. **Memory cap:** `capVersions` (loop-versions.ts, MAX_LOOP_VERSIONS = 10, pure, 2 unit test) áp ngay sau mergeVersion trong adoptCanvas; cursor luôn reset latest khi push (đã có), bản cũ nhất rơi ra ngoài khi vượt 10, chặn ~20MB trần trên thay vì vô hạn.
+3. **Tách shot lane SIL:** toàn bộ lane SIL (SL-1 đến polish, 251 dòng) chuyển sang `src/main/shots/sil.ts` (`shotSil(win, snap)`, pattern shots/), index.ts còn lại gọi 1 dòng; 8 chỗ app.exit(31) giờ sống trong file riêng cùng lane chúng validate. index.ts: 3234 → 2985 dòng.
+
+Gates: tsc + 330 test (2 capVersions mới) + shot trọn vòng xanh (marks red 8.940px, polish 12 vùng 30.238px).
