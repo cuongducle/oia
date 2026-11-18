@@ -127,6 +127,22 @@ export const loopSessionMarkSchema = z.discriminatedUnion("kind", [
     from: z.object({ x: z.number(), y: z.number() }),
     to: z.object({ x: z.number(), y: z.number() }),
   }),
+  z.object({
+    id: z.string().min(1).max(64),
+    kind: z.literal("oval"),
+    note: z.string().max(2000),
+    cx: z.number().min(0),
+    cy: z.number().min(0),
+    rx: z.number().min(0),
+    ry: z.number().min(0),
+  }),
+  z.object({
+    id: z.string().min(1).max(64),
+    kind: z.literal("path"),
+    note: z.string().max(2000),
+    thick: z.boolean(),
+    pts: z.array(z.object({ x: z.number(), y: z.number() })).max(400),
+  }),
 ]);
 export type LoopSessionMark = z.infer<typeof loopSessionMarkSchema>;
 

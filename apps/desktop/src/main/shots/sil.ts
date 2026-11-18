@@ -99,8 +99,9 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     if (!boxBtn) return { ok: false, why: "no box tool" };
     boxBtn.click();
     await new Promise((r) => setTimeout(r, 150));
-    const ov = document.querySelector('[data-testid="loop-overlay"]');
-    if (!ov) return { ok: false, why: "no overlay" };
+    const ovRaw = document.querySelector('[data-testid="loop-overlay"]');
+    if (!ovRaw) return { ok: false, why: "no overlay" };
+    const ov = ovRaw.closest(".canvas-container")?.querySelector(".upper-canvas") ?? ovRaw;
     const img = document.querySelector('[data-testid="loop-image"]');
     if (!img || !img.getAttribute("width")) return { ok: false, why: "image not fitted yet" };
     const r = ov.getBoundingClientRect();
@@ -121,17 +122,20 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     const rows = [...document.querySelectorAll(".loopRegion")].map((n) => n.dataset.testid);
     const chip1 = document.querySelector('[data-testid="region-1"] .regionChip')?.textContent;
     const chip2 = document.querySelector('[data-testid="region-2"] .regionChip')?.textContent;
-    // pixel truth: red marker pixels in a crop around the box path (native res, DPR-aware)
-    const dpr = ov.width / Math.max(1, r.width);
+    // pixel truth: red marker pixels in a crop around the box path (native
+    // res, DPR-aware). Fabric paints objects on the LOWER canvas; the upper
+    // one only carries interaction/controls.
+    const lower = ovRaw;
+    const dpr = lower.width / Math.max(1, r.width);
     const t = document.createElement("canvas");
     const wCss = ir.width * 0.45, hCss = ir.height * 0.25, x0css = cx - r.left - ir.width * 0.22, y0css = cy - r.top - ir.height * 0.12;
     t.width = Math.round(wCss * dpr); t.height = Math.round(hCss * dpr);
-    t.getContext("2d").drawImage(ov, Math.round(x0css * dpr), Math.round(y0css * dpr), t.width, t.height, 0, 0, t.width, t.height);
+    t.getContext("2d").drawImage(lower, Math.round(x0css * dpr), Math.round(y0css * dpr), t.width, t.height, 0, 0, t.width, t.height);
     const d = t.getContext("2d").getImageData(0, 0, t.width, t.height).data;
     let red = 0;
     for (let i = 0; i < d.length; i += 4) { if (d[i] > 180 && d[i + 1] < 90 && d[i + 2] < 90) red++; }
     const hintGone = !document.querySelector('[data-testid="loop-first-hint"]');
-    return { ok: rows.length === 2 && chip1 === "1" && chip2 === "2" && hint && hintGone, rows, chip1, chip2, red, hint, hintGone, err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ") };
+    return { ok: rows.length === 2 && chip1 === "1" && chip2 === "2" && hint && hintGone, rows, chip1, chip2, red, hint, hintGone, wrap: !!ovRaw.closest(".canvas-container"), upperIsOv: ov !== ovRaw, ovW: ov.getBoundingClientRect().width, err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ") };
   })()`, true);
   if (!silMarks || silMarks.ok !== true || silMarks.red < 3) {
     console.error(`DESKTOP_SHOT SIL FAILED, mark drawing did not land (${JSON.stringify(silMarks)})`);
@@ -254,7 +258,9 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     key("2");
     await new Promise((r) => setTimeout(r, 120));
     if (pressed("tool-box") !== "true") return { ok: false, why: "key 2 did not pick the box tool" };
-    const ov = document.querySelector('[data-testid="loop-overlay"]');
+    const ovRaw = document.querySelector('[data-testid="loop-overlay"]');
+    const ov = ovRaw.closest(".canvas-container")?.querySelector(".upper-canvas") ?? ovRaw;
+    if (!ov) return { ok: false, why: "no overlay" };
     const r = ov.getBoundingClientRect();
     // drag in the IMAGE bbox: committed boxes are clamped into the artwork now,
     // overlay-relative drags would land on the gray apron and get trimmed
@@ -280,16 +286,49 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     // 12 small boxes at once, overlay must stay painted (perf sanity)
     for (let i = 0; i < 12; i++) await drag(ir.left + ir.width * (0.08 + i * 0.07), ir.top + ir.height * 0.12, ir.left + ir.width * (0.08 + i * 0.07) + ir.width * 0.05, ir.top + ir.height * 0.3);
     await new Promise((res) => setTimeout(res, 300));
+    const rowsAfterBoxes = document.querySelectorAll(".loopRegion").length;
+    // oval tool (4) and freehand draw (5) through the fabric layer
+    key("4");
+    await new Promise((r) => setTimeout(r, 120));
+    await drag(ir.left + ir.width * 0.3, ir.top + ir.height * 0.5, ir.left + ir.width * 0.5, ir.top + ir.height * 0.65);
+    key("5");
+    await new Promise((r) => setTimeout(r, 120));
+    await drag(ir.left + ir.width * 0.55, ir.top + ir.height * 0.5, ir.left + ir.width * 0.7, ir.top + ir.height * 0.6);
+    await new Promise((res) => setTimeout(res, 300));
+    // hard proof no mark crosses the artwork's right/bottom edge: count red
+    // pixels OUTSIDE the image bbox on the LOWER (drawing) canvas
+    const lower2 = ovRaw;
+    const rr = lower2.getBoundingClientRect();
+    const dpr2 = lower2.width / Math.max(1, rr.width);
+    const tc = document.createElement("canvas");
+    tc.width = lower2.width; tc.height = lower2.height;
+    tc.getContext("2d").drawImage(lower2, 0, 0);
+    const dd2 = tc.getContext("2d").getImageData(0, 0, tc.width, tc.height).data;
+    let redOutside = 0;
+    const ix1 = Math.round((ir.right - rr.left) * dpr2), iy1 = Math.round((ir.bottom - rr.top) * dpr2);
+    for (let y = 0; y < tc.height; y += 1) for (let x = ix1 + 2; x < tc.width; x += 1) {
+      const i = (y * tc.width + x) * 4;
+      if (dd2[i] > 190 && dd2[i + 1] < 90 && dd2[i + 2] < 90) redOutside++;
+    }
+    for (let y = iy1 + 2; y < tc.height; y += 1) for (let x = 0; x < ix1; x += 1) {
+      const i = (y * tc.width + x) * 4;
+      if (dd2[i] > 190 && dd2[i + 1] < 90 && dd2[i + 2] < 90) redOutside++;
+    }
+    const kinds = [...document.querySelectorAll(".loopRegion .regionKind")].map((n) => n.innerHTML);
+    const hasOval = kinds.some((k) => k.includes("ellipse"));
+    const hasPath = kinds.some((k) => k.includes("path"));
+    const afterNewTools = document.querySelectorAll(".loopRegion").length;
     const rows = document.querySelectorAll(".loopRegion").length;
-    const dpr = ov.width / Math.max(1, r.width);
+    const lower = ovRaw; // fabric paints objects on the LOWER canvas
+    const dpr = lower.width / Math.max(1, r.width);
     const t = document.createElement("canvas");
     t.width = Math.round(r.width * dpr); t.height = Math.round(r.height * dpr);
-    t.getContext("2d").drawImage(ov, 0, 0, t.width, t.height);
+    t.getContext("2d").drawImage(lower, 0, 0, t.width, t.height);
     const dd = t.getContext("2d").getImageData(0, 0, t.width, t.height).data;
     let red = 0;
     for (let i = 0; i < dd.length; i += 4) { if (dd[i] > 180 && dd[i + 1] < 90 && dd[i + 2] < 90) red++; }
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: rows === rowsBefore + 12 && red > 200 && !err, rows, rowsBefore, red, err };
+    return { ok: rows === rowsBefore + 14 && afterNewTools === rowsAfterBoxes + 2 && hasOval && hasPath && redOutside === 0 && red > 200 && !err, rows, rowsBefore, rowsAfterBoxes, afterNewTools, hasOval, hasPath, redOutside, red, err };
   })()`, true);
   if (!silPolish || silPolish.ok !== true) {
     console.error(`DESKTOP_SHOT SIL FAILED, polish lane (${JSON.stringify(silPolish)})`);

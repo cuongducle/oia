@@ -167,3 +167,25 @@ Ba năng lực mới, mỗi cái một commit scope trong cùng đợt:
 Lane shot thêm "session restore": reload renderer giữa chừng, đòi meta Version 2 of 2 + 2 vùng carry + prompt còn. Polish lane đổi đếm delta (carry marks không còn bị tính là box mới).
 
 Gates: tsc + 344 test (9 mới) + shot 6 lane SIL xanh + smoke + crash-smoke (utility dispatch mới sống qua kill-restart).
+
+## Vòng 6: bộ công cụ Canva-style trên nền Fabric (18/11 khuya)
+
+Owner: "phần edit vẽ box và mũi tên nhiều công cụ hơn giống canva" + "model hiểu được hết mà có cần phải đỏ đặc đâu. Fabric thì dùng những cái có sẵn nha". Hai quyết định rút ra:
+
+1. **Giữ composite đỏ đặc #ff0000**: đỏ đặc chỉ nằm trên bản flatten gửi model (kênh probe P3 đã kiểm chứng: model nhận diện + tự xóa marker). UI không đỏ đặc (stroke mảnh + fill 8%). Đổi màu composite = probe lại + rủi ro sót vùng, không đáng.
+2. **Marking layer chuyển hẳn sang Fabric 7.4** (đã có sẵn trong bundle cho scene, 0KB thêm), thay hệ pointer/draft tự viết:
+
+   - Tools 6 cái: Pan (1, kiêm select-move kiểu Canva: bám object = kéo, nền = pan), Box (2), Arrow (3), **Oval (4, mới)**, **Draw freehand (5, mới, PencilBrush)**, **Highlight (6, mới, nét dày)**.
+   - Move/resize/multi-select/handles: fabric controls có sẵn (corner tròn viền cam, border amber), bỏ markHit/moveMark/resizeBox tự viết (-4 test tương ứng).
+   - Mỗi mark = fabric Group [shape + chip đỏ số], chip đi theo object. LoopMark[] vẫn là nguồn thật duy nhất (prompt, composite đỏ, session); fabric chỉ là lớp tương tác, rebuild sync mỗi lần marks đổi.
+   - Đọc ngược geometry: box/oval từ bbox group, path qua transform matrix của Path con, arrow move-only (scale lock, dịch from/to theo delta).
+   - LoopMark union mở rộng: OvalMark {cx,cy,rx,ry}, PathMark {thick, pts}; simplifyPath/pathLength giữ cho commit freehand; session schema thêm 2 case (backward-compatible).
+   - marksPrompt: "(red oval)", "(red freehand path)", "(red highlighter stroke)".
+
+Vết nứt tìm được khi đấu với fabric (đều đóng):
+- fabric mặc định nghe `mousedown`, không phải `pointerdown` → `enablePointerEvents: true` (lane shot phát hiện: dispatch PointerEvent không tới).
+- Fabric vẽ objects trên LOWER canvas, upper chỉ có controls → lane crop pixel đỏ phải đọc lower.
+- Gate F4 (fabric-import-compat) đúng: mọi file đụng fabric phải kéo @oia/canvas (origin v6 compat) - thêm side-effect import ở loop-fabric.ts + Loop.tsx init.
+- Shot polish lane thêm: vẽ oval + freehand qua fabric + **probe pixel mép**: đếm pixel đỏ ngoài bbox ảnh phải = 0 (vision lần này đoán sai "box tràn mép", pixel probe là bằng chứng thật).
+
+Gates: tsc + 340 test + shot 6 lane SIL (14 regions, red=104107px, redOutside=0) + smoke + crash-smoke.

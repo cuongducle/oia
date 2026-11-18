@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, layoutChips, markHit, moveMark, resizeBox, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
+import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
 
 describe("SIL chipAnchor, pure math", () => {
   it("box: the chip sits on the box's top-left corner", () => {
@@ -134,44 +134,5 @@ describe("SIL minimum drag sizes exist as constants (UI gate uses them)", () => 
   it("box and arrow thresholds are sane natural-pixel values", () => {
     expect(MIN_BOX_PX).toBeGreaterThan(0);
     expect(MIN_ARROW_PX).toBeGreaterThan(0);
-  });
-});
-
-describe("SIL move/resize, drag instead of redraw", () => {
-  const box = { id: "b", kind: "box", note: "", x: 100, y: 100, w: 200, h: 150 } as const;
-
-  it("markHit lands inside a box and near an arrow, misses far away", () => {
-    expect(markHit(box, { x: 150, y: 150 }, 4)).toBe(true);
-    expect(markHit(box, { x: 310, y: 260 }, 20)).toBe(true); // tolerance zone
-    expect(markHit(box, { x: 500, y: 500 }, 4)).toBe(false);
-    const arrow = { id: "a", kind: "arrow", note: "", from: { x: 0, y: 0 }, to: { x: 100, y: 0 } } as const;
-    expect(markHit(arrow, { x: 50, y: 3 }, 4)).toBe(true);
-    expect(markHit(arrow, { x: 50, y: 30 }, 4)).toBe(false);
-    expect(markHit(arrow, { x: 120, y: 0 }, 4)).toBe(false); // past the tip
-  });
-
-  it("moveMark shifts a box and clamps it inside the image", () => {
-    const moved = moveMark(box, 50, 60, 1000, 1000);
-    expect(moved).toMatchObject({ x: 150, y: 160, w: 200, h: 150 });
-    const clamped = moveMark(box, -500, -500, 1000, 1000);
-    expect(clamped).toMatchObject({ x: 0, y: 0 });
-    const far = moveMark(box, 5000, 0, 1000, 1000);
-    expect(far).toMatchObject({ x: 800, y: 100 }); // right edge pinned
-  });
-
-  it("moveMark keeps an arrow's shape, clamps its bbox", () => {
-    const arrow = { id: "a", kind: "arrow", note: "", from: { x: 10, y: 10 }, to: { x: 110, y: 10 } } as const;
-    const moved = moveMark(arrow, -100, 5, 1000, 1000);
-    expect(moved).toMatchObject({ from: { x: 0, y: 15 }, to: { x: 100, y: 15 } });
-  });
-
-  it("resizeBox follows the pointer, enforces the minimum, stays inside", () => {
-    const bigger = resizeBox(box, { x: 400, y: 350 }, 1000, 1000);
-    expect(bigger).toMatchObject({ x: 100, y: 100, w: 300, h: 250 });
-    const tiny = resizeBox(box, { x: 102, y: 103 }, 1000, 1000);
-    expect(tiny.w).toBeGreaterThanOrEqual(MIN_BOX_PX);
-    expect(tiny.h).toBeGreaterThanOrEqual(MIN_BOX_PX);
-    const outside = resizeBox(box, { x: 5000, y: 5000 }, 600, 400);
-    expect(outside).toMatchObject({ w: 500, h: 300 }); // clamped to image edge
   });
 });

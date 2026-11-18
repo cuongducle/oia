@@ -11,7 +11,8 @@ import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
-import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, layoutChips, markHit, moveMark, resizeBox, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, simplifyPath, pathLength, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { markToObject, objectToMark, pathStrokePoints, markStrokeWidth, MARK_UI } from "../lib/loop-fabric.js";
 import { importPlan, importableFile, IMPORT_MAX_EDGE } from "../lib/loop-import.js";
 import { mergeVersion, capVersions } from "../lib/loop-versions.js";
 import type { ChatRequest } from "@oia/services";
@@ -45,12 +46,15 @@ const Icon = {
   download: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>,
   pan: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></svg>,
   box: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"><rect x="4" y="5" width="16" height="14" rx="2" strokeDasharray="3.4 2.6" /></svg>,
+  oval: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><ellipse cx="12" cy="12" rx="8" ry="7" strokeDasharray="3.4 2.6" /></svg>,
+  pen: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" /></svg>,
+  highlight: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18l9-9 4 4-9 9H5v-4z" /><path d="M13 5l2-2 6 6-2 2" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
 };
 
-type Tool = "pan" | "box" | "arrow";
+type Tool = "pan" | "box" | "arrow" | "oval" | "path" | "highlight";
 
 /** One flat image in the session history; only real jobs push entries (B7). */
 interface LoopVersion {
@@ -95,6 +99,8 @@ export function Loop() {
   // ---- SL-2: marks + stage view transform ----
   const [tool, setTool] = useState<Tool>("pan");
   const [marks, setMarks] = useState<LoopMark[]>([]);
+  const marksRef = useRef<LoopMark[]>(marks);
+  marksRef.current = marks;
   /** SL-4: the selected region row (Delete removes it, highlighted on overlay) */
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** panel row hover mirrors onto the canvas marker (amber ring) */
@@ -107,12 +113,25 @@ export function Loop() {
   const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
   /** view transform: viewport = worldCss * s + t (world = fitted image plane) */
   const viewRef = useRef({ s: 1, tx: 0, ty: 0 });
-  const draftRef = useRef<{ kind: "box" | "arrow"; from: { x: number; y: number }; to: { x: number; y: number } } | null>(null);
+  const draftRef = useRef<
+    | { kind: "box" | "arrow" | "oval"; from: { x: number; y: number }; to: { x: number; y: number } }
+    | { kind: "path" | "highlight"; pts: { x: number; y: number }[] }
+    | null
+  >(null);
   const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
-  const rafRef = useRef(0);
+  const fabricRef = useRef<import("fabric").Canvas | null>(null);
+  const fabricNSRef = useRef<typeof import("fabric") | null>(null);
+  const fabricDraftRef = useRef<import("fabric").Object | null>(null);
+  const drawRef = useRef<{ kind: "box" | "oval" | "arrow"; from: { x: number; y: number }; to: { x: number; y: number } } | null>(null);
+  const syncingRef = useRef(false);
+  const [syncTick, setSyncTick] = useState(0);
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const compareOnRef = useRef(compareOn);
+  compareOnRef.current = compareOn;
 
   /** One clock like Home (ref feeds the ✓ summary, state feeds the timer). */
   function markRunStart(ms: number | null): void {
@@ -402,152 +421,245 @@ export function Loop() {
     setFit({ w, h });
   }, [current, fit]);
 
-  /** viewport (overlay css px) → natural image px, the ME mapping with an
-   * identity object matrix (the <img> is never rotated). */
-  function toNatural(clientX: number, clientY: number): { x: number; y: number } {
-    const ov = overlayRef.current;
+  // ---- Fabric marking layer (owner directive 18/11: use the library we
+  // already ship instead of hand-rolling). Interaction (drag, handles,
+  // selection, freehand brush) belongs to fabric; LoopMark[] stays the single
+  // source of truth: the prompt, the red composite and the session file read
+  // marks, never fabric objects. While comparing, the stage shows a plain
+  // picture: no marks, no interaction.
+  function applyViewToFabric(): void {
+    const fc = fabricRef.current;
     const cur = current;
-    if (!ov || !cur || !fit) return { x: 0, y: 0 };
-    const r = ov.getBoundingClientRect();
+    if (!fc || !cur || !fit) return;
     const { s, tx, ty } = viewRef.current;
-    return viewportToNatural({ x: clientX - r.left, y: clientY - r.top }, [s, 0, 0, s, tx, ty], [1, 0, 0, 1, 0, 0], fit.w, fit.h, cur.width, cur.height);
+    const world = worldRef.current;
+    if (world) world.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+    const z = s * (fit.w / cur.width);
+    fc.setViewportTransform([z, 0, 0, z, tx, ty]);
+    fc.requestRenderAll();
   }
 
-  /** rAF overlay: image pixel-truth partner of the ME overlay (C3 lesson:
-   * the canvas carries CSS size 100%, attrs follow dpr × rect). Idle-saving:
-   * the loop keeps ticking but only REPAINTS when something actually changed
-   * (state deps restart the effect; ref mutations below mark dirty). While
-   * comparing, the stage shows a plain picture, no marks, no pointers. */
-  const dirtyRef = useRef(true);
-  function markDirty(): void {
-    dirtyRef.current = true;
+  function scenePt(fc: import("fabric").Canvas, opt: { e: Event; scenePoint?: { x: number; y: number } }): { x: number; y: number } {
+    if (opt.scenePoint) return opt.scenePoint;
+    const ev = opt.e as PointerEvent;
+    const r = fc.getElement().getBoundingClientRect();
+    const z = fc.getZoom() || 1;
+    const vpt = fc.viewportTransform ?? [1, 0, 0, 1, 0, 0];
+    return { x: ((ev.clientX - r.left) - vpt[4]) / z, y: ((ev.clientY - r.top) - vpt[5]) / z };
   }
-  useEffect(() => {
-    if (!current || !fit) return;
-    markDirty();
-    const draw = () => {
-      rafRef.current = requestAnimationFrame(draw);
-      if (!dirtyRef.current) return; // idle: keep the loop, skip the paint
-      dirtyRef.current = false;
-      const ov = overlayRef.current;
-      const world = worldRef.current;
-      const cur = current;
-      if (!ov || !cur) return;
-      const rect = ov.getBoundingClientRect();
-      if (rect.width < 2 || rect.height < 2) return;
-      const dpr = window.devicePixelRatio || 1;
-      const w = Math.round(rect.width * dpr);
-      const h = Math.round(rect.height * dpr);
-      if (ov.width !== w || ov.height !== h) {
-        ov.width = w;
-        ov.height = h;
-      }
-      const ctx = ov.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      if (compareOn) return; // plain before/after view
-      const { s, tx, ty } = viewRef.current;
-      if (world) world.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
-      const k = fit.w / cur.width;
-      ctx.translate(tx, ty);
-      ctx.scale(s, s);
-      ctx.scale(k, k);
-      const chips = layoutChips(marks, cur.width, cur.height);
-      marks.forEach((m, i) => {
-        drawMark(ctx, m, i, cur.width, cur.height, chips[i], "canvas");
-        const highlight = m.id === selectedId ? "#ffffff" : m.id === hoveredId ? "#f59e0b" : null;
-        if (highlight) {
-          // selection ring (white) / hover ring (amber): dashed over the mark
-          ctx.save();
-          ctx.strokeStyle = highlight;
-          ctx.lineWidth = markerWidthFor(cur.width, cur.height) * 0.5;
-          ctx.setLineDash([markerWidthFor(cur.width, cur.height), markerWidthFor(cur.width, cur.height) * 0.8]);
-          if (m.kind === "box") ctx.strokeRect(m.x, m.y, m.w, m.h);
-          else {
-            ctx.beginPath();
-            ctx.moveTo(m.from.x, m.from.y);
-            ctx.lineTo(m.to.x, m.to.y);
-            ctx.stroke();
-          }
-          ctx.restore();
-          // a selected BOX also shows its resize handle (bottom-right)
-          if (m.kind === "box" && m.id === selectedId) {
-            const hs = markerWidthFor(cur.width, cur.height) * 2.2;
-            ctx.fillStyle = "#ffffff";
-            ctx.strokeStyle = "#ff0000";
-            ctx.lineWidth = markerWidthFor(cur.width, cur.height) * 0.4;
-            ctx.beginPath();
-            ctx.rect(m.x + m.w - hs / 2, m.y + m.h - hs / 2, hs, hs);
-            ctx.fill();
-            ctx.stroke();
-          }
-        }
-      });
-      const d = draftRef.current;
-      if (d) {
-        const draftMark: LoopMark =
-          d.kind === "box"
-            ? { id: "draft", kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w: Math.abs(d.to.x - d.from.x), h: Math.abs(d.to.y - d.from.y) }
-            : { id: "draft", kind: "arrow", note: "", from: d.from, to: d.to };
-        drawMark(ctx, draftMark, marks.length, cur.width, cur.height, undefined, "canvas");
-      }
-    };
-    rafRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [current, fit, marks, compareOn, selectedId, hoveredId]);
 
-  /** Drag-an-existing-mark state (move or box bottom-right resize). Natural
-   * coordinates only at the boundary, transforms stay out of the helpers. */
-  const dragMarkRef = useRef<{ id: string; mode: "move" | "resize-br"; grab: { x: number; y: number } } | null>(null);
+  /** Draft preview for box/oval/arrow drags (the library has no shape-draw
+   * tool; the brush only covers freehand). One live fabric object. */
+  function updateDraft(fabric: typeof import("fabric"), d: { kind: "box" | "oval" | "arrow"; from: { x: number; y: number }; to: { x: number; y: number } }): void {
+    const fc = fabricRef.current;
+    if (!fc || !current) return;
+    const sw = markStrokeWidth(current.width, current.height);
+    const x = Math.min(d.from.x, d.to.x);
+    const y = Math.min(d.from.y, d.to.y);
+    const w = Math.abs(d.to.x - d.from.x);
+    const h = Math.abs(d.to.y - d.from.y);
+    if (!fabricDraftRef.current) {
+      const style = { stroke: MARK_UI.stroke, strokeWidth: sw, fill: "rgba(255,0,0,0.08)", strokeUniform: true, strokeDashArray: [sw * 2, sw * 1.4], selectable: false, evented: false, objectCaching: false };
+      fabricDraftRef.current = d.kind === "oval"
+        ? new fabric.Ellipse({ left: x, top: y, rx: w / 2, ry: h / 2, ...style })
+        : d.kind === "box"
+          ? new fabric.Rect({ left: x, top: y, width: w, height: h, ...style })
+          : new fabric.Line([d.from.x, d.from.y, d.to.x, d.to.y], { stroke: MARK_UI.stroke, strokeWidth: sw * 2.2, strokeLineCap: "round", selectable: false, evented: false });
+      fc.add(fabricDraftRef.current);
+    } else {
+      const o = fabricDraftRef.current;
+      if (d.kind === "oval" && "rx" in o) { o.set({ left: x, top: y, rx: w / 2, ry: h / 2 }); }
+      else if (d.kind === "box" && "width" in o) { o.set({ left: x, top: y, width: w, height: h }); }
+      else if (d.kind === "arrow") { (o as import("fabric").Line).set({ x1: d.from.x, y1: d.from.y, x2: d.to.x, y2: d.to.y }); }
+      o.setCoords();
+    }
+    fc.requestRenderAll();
+  }
 
-  function onOverlayPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!current || !fit || compareOn) return;
-    // synthetic/untracked pointers cannot capture (same lesson as the ME overlay)
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* the draft already started */ }
-    const p = toNatural(e.clientX, e.clientY);
-    // ~10 css px of grab forgiveness, expressed in natural units
-    const npp = viewRef.current.s * (fit.w / Math.max(1, current.width));
-    // the Pan tool doubles as the move tool: grabbing a mark drags it, empty
-    // space pans. Box/Arrow tools always draw fresh (a drag over a mark is a
-    // new overlapping region, the shot lane's 12-box pattern relies on it)
-    if (tool === "pan") {
-      const selBox = selectedId ? marks.find((m) => m.id === selectedId && m.kind === "box") : null;
-      if (selBox && selBox.kind === "box" && Math.hypot(p.x - (selBox.x + selBox.w), p.y - (selBox.y + selBox.h)) * (npp || 1) <= 12) {
-        dragMarkRef.current = { id: selBox.id, mode: "resize-br", grab: p };
-        return;
+  /** Commit a dragged draft with the same clamps the hand-rolled layer had:
+   * shapes land inside the image, minimum sizes apply. */
+  function commitDraft(d: { kind: "box" | "oval" | "arrow"; from: { x: number; y: number }; to: { x: number; y: number } }): void {
+    if (!current) return;
+    const W = current.width;
+    const H = current.height;
+    if (d.kind === "arrow") {
+      const pin = (p: { x: number; y: number }) => ({ x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) });
+      if (Math.hypot(d.to.x - d.from.x, d.to.y - d.from.y) >= MIN_ARROW_PX) {
+        pushMark({ id: newMarkId(), kind: "arrow", note: "", from: pin(d.from), to: pin(d.to) });
       }
-      for (let i = marks.length - 1; i >= 0; i--) {
-        const m = marks[i];
-        if (markHit(m, p, 10 / (npp || 1))) {
-          setSelectedId(m.id);
-          dragMarkRef.current = { id: m.id, mode: "move", grab: p };
-          return;
-        }
-      }
-      panRef.current = { x: e.clientX, y: e.clientY, tx: viewRef.current.tx, ty: viewRef.current.ty };
       return;
     }
-    draftRef.current = { kind: tool, from: p, to: p };
-    markDirty();
+    const x0 = Math.max(0, Math.min(d.from.x, d.to.x));
+    const y0 = Math.max(0, Math.min(d.from.y, d.to.y));
+    const x1 = Math.min(W, Math.max(d.from.x, d.to.x));
+    const y1 = Math.min(H, Math.max(d.from.y, d.to.y));
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if (w >= MIN_BOX_PX && h >= MIN_BOX_PX) {
+      pushMark(
+        d.kind === "box"
+          ? { id: newMarkId(), kind: "box", note: "", x: x0, y: y0, w, h }
+          : { id: newMarkId(), kind: "oval", note: "", cx: x0 + w / 2, cy: y0 + h / 2, rx: w / 2, ry: h / 2 },
+      );
+    }
   }
 
-  /** wheel is a NATIVE non-passive listener: React's JSX onWheel is passive,
-   * preventDefault there is a silent no-op (teardown P0-5). */
+  // one fabric canvas per displayed image (tool/compare refs beat stale closures)
   useEffect(() => {
-    const ov = overlayRef.current;
-    if (!ov || !current || compareOn) return;
-    const onWheelNative = (e: WheelEvent) => {
-      e.preventDefault();
-      const r = ov.getBoundingClientRect();
-      const v = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
-      viewRef.current = v;
-      markDirty();
-      setZoomPct(Math.round(v.s * 100));
+    if (!current || !fit) return;
+    const el = overlayRef.current;
+    const stage = stageRef.current;
+    if (!el || !stage) return;
+    let dead = false;
+    void (async () => {
+      await import("@oia/canvas"); // F4: v6 origin compat before any fabric object exists
+      const fabric = await import("fabric");
+      if (dead) return;
+      fabricNSRef.current = fabric;
+      const fc = new fabric.Canvas(el, { selection: false, targetFindTolerance: 12, stopContextMenu: true, enablePointerEvents: true });
+      fabricRef.current = fc;
+      fc.setDimensions({ width: stage.clientWidth, height: stage.clientHeight });
+      applyViewToFabric();
+
+      fc.on("mouse:down", (opt) => {
+        if (compareOnRef.current) return;
+        const t = toolRef.current;
+        if (t === "path" || t === "highlight") return; // brush mode owns the gesture
+        if (t === "pan") {
+          if (!opt.target) panRef.current = { x: (opt.e as PointerEvent).clientX, y: (opt.e as PointerEvent).clientY, tx: viewRef.current.tx, ty: viewRef.current.ty };
+          return; // target hit: fabric starts the move itself
+        }
+        drawRef.current = { kind: t, from: scenePt(fc, opt), to: scenePt(fc, opt) };
+      });
+      fc.on("mouse:move", (opt) => {
+        if (panRef.current) {
+          const stageEl = stageRef.current;
+          const e = opt.e as PointerEvent;
+          const next = { s: viewRef.current.s, tx: panRef.current.tx + (e.clientX - panRef.current.x), ty: panRef.current.ty + (e.clientY - panRef.current.y) };
+          viewRef.current = stageEl && fit ? clampPan(next, stageEl.clientWidth, stageEl.clientHeight, fit.w, fit.h) : next;
+          applyViewToFabric();
+          setZoomPct(Math.round(viewRef.current.s * 100));
+          return;
+        }
+        const d = drawRef.current;
+        if (d) {
+          d.to = scenePt(fc, opt);
+          updateDraft(fabric, d);
+        }
+      });
+      fc.on("mouse:up", () => {
+        if (panRef.current) {
+          panRef.current = null;
+          return;
+        }
+        const d = drawRef.current;
+        drawRef.current = null;
+        if (fabricDraftRef.current) {
+          fc.remove(fabricDraftRef.current);
+          fabricDraftRef.current = null;
+        }
+        if (d) commitDraft(d);
+      });
+      fc.on("mouse:wheel", (opt) => {
+        const e = opt.e as WheelEvent;
+        e.preventDefault();
+        if (compareOnRef.current) return;
+        const r = fc.getElement().getBoundingClientRect();
+        const v = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+        viewRef.current = v;
+        applyViewToFabric();
+        setZoomPct(Math.round(v.s * 100));
+      });
+      fc.on("mouse:dblclick", () => {
+        if (compareOnRef.current) return;
+        viewRef.current = { s: 1, ...baseRef.current };
+        applyViewToFabric();
+        setZoomPct(100);
+      });
+      const fromFabric = (opt: { selected?: import("fabric").Object[]; deselected?: import("fabric").Object[] }) => {
+        const id = String((opt.selected?.[0] as unknown as { markId?: string })?.markId ?? "");
+        if (!syncingRef.current) setSelectedId(id || null);
+      };
+      fc.on("selection:created", fromFabric);
+      fc.on("selection:updated", fromFabric);
+      fc.on("selection:cleared", () => { if (!syncingRef.current) setSelectedId(null); });
+      fc.on("object:modified", (opt) => {
+        if (syncingRef.current || !current || !opt.target) return;
+        const id = String((opt.target as unknown as { markId?: string }).markId ?? "");
+        const prev = marksRef.current.find((m) => m.id === id);
+        if (!prev) return;
+        setMarks((ms) => ms.map((m) => (m.id === id ? objectToMark(prev, opt.target!, fabric, current.width, current.height) : m)));
+      });
+      fc.on("path:created", (opt) => {
+        const pathObj = opt.path;
+        if (!pathObj || !current || compareOnRef.current) return;
+        const pts = simplifyPath(pathStrokePoints(pathObj as unknown as import("fabric").Path)).map((q) => ({ x: Math.max(0, Math.min(current.width, q.x)), y: Math.max(0, Math.min(current.height, q.y)) }));
+        fc.remove(pathObj); // the sync effect redraws it as a numbered group
+        if (pts.length >= 2 && pathLength(pts) >= MIN_ARROW_PX) {
+          pushMark({ id: newMarkId(), kind: "path", note: "", thick: toolRef.current === "highlight", pts });
+        }
+      });
+      fc.on("mouse:over", (opt) => {
+        const id = String((opt.target as unknown as { markId?: string })?.markId ?? "");
+        setHoveredId(id || null);
+      });
+      fc.on("mouse:out", () => setHoveredId(null));
+      setSyncTick((n) => n + 1); // force one marks sync now that the canvas exists
+    })();
+    return () => {
+      dead = true;
+      fabricRef.current?.dispose();
+      fabricRef.current = null;
+      fabricDraftRef.current = null;
     };
-    ov.addEventListener("wheel", onWheelNative, { passive: false });
-    return () => ov.removeEventListener("wheel", onWheelNative);
-  }, [current, compareOn]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, fit]);
+
+  // marks → fabric objects. Full rebuild: cheap for <= 40 groups and it can
+  // never drift from the truth (panel edits, Delete, carry-over, restore).
+  useEffect(() => {
+    const fc = fabricRef.current;
+    const fabric = fabricNSRef.current;
+    if (!fc || !fabric) return;
+    syncingRef.current = true;
+    fc.discardActiveObject();
+    fc.remove(...fc.getObjects());
+    if (!compareOn && current) {
+      marks.forEach((m, i) => {
+        const g = markToObject(fabric, m, i, current.width, current.height);
+        const g2 = g as unknown as { prevLeft?: number; prevTop?: number };
+        g2.prevLeft = g.left;
+        g2.prevTop = g.top;
+        if (m.id === hoveredId) g.set({ opacity: 0.65 });
+        fc.add(g);
+        if (m.id === selectedId) fc.setActiveObject(g);
+      });
+    }
+    fc.requestRenderAll();
+    syncingRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marks, selectedId, hoveredId, compareOn, current, syncTick]);
+
+  // tool → canvas modes: draw tools ignore objects (a drag is a new region),
+  // pan doubles as select (Canva-style: grab a mark, or the empty space pans)
+  useEffect(() => {
+    const fc = fabricRef.current;
+    const fabric = fabricNSRef.current;
+    if (!fc || !fabric || !current) return;
+    const freehand = tool === "path" || tool === "highlight";
+    fc.isDrawingMode = freehand && !compareOn;
+    if (fc.isDrawingMode) {
+      const brush = new fabric.PencilBrush(fc);
+      brush.color = MARK_UI.stroke;
+      brush.width = markStrokeWidth(current.width, current.height) * (tool === "highlight" ? 3 : 1);
+      fc.freeDrawingBrush = brush;
+    }
+    fc.selection = tool === "pan" && !compareOn;
+    fc.skipTargetFind = tool !== "pan" || compareOn;
+    fc.defaultCursor = compareOn ? "default" : tool === "pan" ? "grab" : "crosshair";
+    fc.requestRenderAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, compareOn, current, syncTick]);
 
   // elapsed seconds tick while a job runs (the run bar under the tools)
   const [, setRunTick] = useState(0);
@@ -558,40 +670,6 @@ export function Loop() {
   }, [busy]);
   const elapsedS = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : null;
 
-  function onOverlayPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    const drag = dragMarkRef.current;
-    if (drag && current) {
-      const p = toNatural(e.clientX, e.clientY);
-      setMarks((ms) => ms.map((m) => {
-        if (m.id !== drag.id) return m;
-        if (drag.mode === "resize-br" && m.kind === "box") return resizeBox(m, p, current.width, current.height);
-        return moveMark(m, p.x - drag.grab.x, p.y - drag.grab.y, current.width, current.height);
-      }));
-      markDirty();
-      return;
-    }
-    const pan = panRef.current;
-    if (pan) {
-      const stage = stageRef.current;
-      const next = { s: viewRef.current.s, tx: pan.tx + (e.clientX - pan.x), ty: pan.ty + (e.clientY - pan.y) };
-      viewRef.current = stage && fit ? clampPan(next, stage.clientWidth, stage.clientHeight, fit.w, fit.h) : next;
-      markDirty();
-      return;
-    }
-    const d = draftRef.current;
-    if (d) {
-      d.to = toNatural(e.clientX, e.clientY);
-      markDirty();
-    }
-  }
-
-  function onOverlayDoubleClick() {
-    if (compareOn) return;
-    viewRef.current = { s: 1, ...baseRef.current };
-    markDirty();
-    setZoomPct(100);
-  }
-
   /** zoom cluster helpers: zoom keeps the STAGE CENTER pinned (cursor pinning
    * stays on the wheel); % resets, Fit returns to the centered base view. */
   function stageZoom(factor: number) {
@@ -600,60 +678,15 @@ export function Loop() {
     const cy = stage ? stage.clientHeight / 2 : 0;
     const v = zoomAt(viewRef.current, cx, cy, factor);
     viewRef.current = v;
-    markDirty();
+    applyViewToFabric();
     setZoomPct(Math.round(v.s * 100));
   }
   function fitView() {
     viewRef.current = { s: 1, ...baseRef.current };
-    markDirty();
+    applyViewToFabric();
     setZoomPct(100);
   }
 
-  function onOverlayPointerUp() {
-    if (dragMarkRef.current) {
-      dragMarkRef.current = null;
-      return;
-    }
-    const pan = panRef.current;
-    if (pan) {
-      panRef.current = null;
-      return;
-    }
-    const d = draftRef.current;
-    draftRef.current = null;
-    if (!d || !current) return;
-    const W = current.width;
-    const H = current.height;
-    if (d.kind === "box") {
-      // clamp the committed box INTO the image: the overlay spans the whole
-      // stage, a drag started on the gray apron must not pin a region outside
-      // the artwork (the model reads image-space coordinates)
-      const x0 = Math.max(0, Math.min(d.from.x, d.to.x));
-      const y0 = Math.max(0, Math.min(d.from.y, d.to.y));
-      const x1 = Math.min(W, Math.max(d.from.x, d.to.x));
-      const y1 = Math.min(H, Math.max(d.from.y, d.to.y));
-      const w = x1 - x0;
-      const h = y1 - y0;
-      // BOTH sides must clear the minimum, a 1000×1 sliver is not a region
-      if (w >= MIN_BOX_PX && h >= MIN_BOX_PX) {
-        pushMark({ id: newMarkId(), kind: "box", note: "", x: x0, y: y0, w, h });
-      }
-      return;
-    }
-    const pin = (p: { x: number; y: number }) => ({ x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) });
-    if (Math.hypot(d.to.x - d.from.x, d.to.y - d.from.y) >= MIN_ARROW_PX) {
-      pushMark({ id: newMarkId(), kind: "arrow", note: "", from: pin(d.from), to: pin(d.to) });
-    }
-  }
-
-  function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
-    if (!current || compareOn) return;
-    e.preventDefault();
-    const ov = overlayRef.current;
-    if (!ov) return;
-    const r = ov.getBoundingClientRect();
-    viewRef.current = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
-  }
 
   // Esc kills the in-progress draft; 1/2/3 pick the tool, Delete removes the
   // selected region (SL-4). Typing in a field never reaches here.
@@ -674,6 +707,15 @@ export function Loop() {
         setCompareOn(false);
       } else if (e.key === "3") {
         setTool("arrow");
+        setCompareOn(false);
+      } else if (e.key === "4") {
+        setTool("oval");
+        setCompareOn(false);
+      } else if (e.key === "5") {
+        setTool("path");
+        setCompareOn(false);
+      } else if (e.key === "6") {
+        setTool("highlight");
         setCompareOn(false);
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         e.preventDefault();
@@ -739,6 +781,9 @@ export function Loop() {
               <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom (1)" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span><kbd>1</kbd></button>
               <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region (2)" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span><kbd>2</kbd></button>
               <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow (3)" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span><kbd>3</kbd></button>
+              <button className={`loopTool ${tool === "oval" && !compareOn ? "active" : ""}`} data-testid="tool-oval" aria-pressed={tool === "oval"} title="Circle a round region (4)" onClick={() => { setTool("oval"); setCompareOn(false); }}>{Icon.oval}<span>Oval</span><kbd>4</kbd></button>
+              <button className={`loopTool ${tool === "path" && !compareOn ? "active" : ""}`} data-testid="tool-path" aria-pressed={tool === "path"} title="Draw freely around a detail (5)" onClick={() => { setTool("path"); setCompareOn(false); }}>{Icon.pen}<span>Draw</span><kbd>5</kbd></button>
+              <button className={`loopTool ${tool === "highlight" && !compareOn ? "active" : ""}`} data-testid="tool-highlight" aria-pressed={tool === "highlight"} title="Highlight a broad area with a wide stroke (6)" onClick={() => { setTool("highlight"); setCompareOn(false); }}>{Icon.highlight}<span>Highlight</span><kbd>6</kbd></button>
               {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
               {busy && current && (
                 <span className="loopRunBar" data-testid="loop-runbar" role="status">
@@ -753,7 +798,7 @@ export function Loop() {
               <span className="composerSpacer" />
               <button className="loopTool" data-testid="loop-compare" aria-pressed={compareOn} disabled={idx < 1} title="Toggle the previous version" onClick={() => setCompareOn((v) => !v)}>{Icon.undo}<span>{compareOn ? "After" : "Before"}</span></button>
             </div>
-            <div className="loopStage" ref={stageRef} data-testid="loop-stage" onDragOver={(e) => e.preventDefault()} onDrop={onImportDrop}>
+            <div className={`loopStage ${compareOn ? "loopCompare" : ""}`} ref={stageRef} data-testid="loop-stage" onDragOver={(e) => e.preventDefault()} onDrop={onImportDrop}>
               {showBefore && <span className="stageBadge" data-testid="loop-before-badge">Before</span>}
               {!hintDone && marks.length === 0 && !compareOn && !busy && (
                 <p className="loopFirstHint" data-testid="loop-first-hint">Circle the part you want changed, one box per fix.</p>
@@ -775,16 +820,7 @@ export function Loop() {
                 <button aria-label="Zoom in" title="Zoom in" onClick={() => stageZoom(1.25)}>+</button>
                 <button title="Fit to screen" onClick={fitView}>Fit</button>
               </div>
-              <canvas
-                ref={overlayRef}
-                className="loopOverlay"
-                data-testid="loop-overlay"
-                style={{ cursor: compareOn ? "default" : tool === "pan" ? "grab" : "crosshair", pointerEvents: compareOn ? "none" : "auto" }}
-                onPointerDown={onOverlayPointerDown}
-                onPointerMove={onOverlayPointerMove}
-                onPointerUp={onOverlayPointerUp}
-                onPointerCancel={onOverlayPointerUp}
-              />
+              <canvas ref={overlayRef} className="loopOverlay" data-testid="loop-overlay" />
             </div>
             <div className="loopToolbar">
               <span className="loopMeta mono">{current.width} × {current.height} · Version {idx + 1} of {versions.length} · {current.label}{genSeconds ? ` · ${genSeconds}s` : ""}</span>
@@ -822,7 +858,7 @@ export function Loop() {
               {marks.map((m, i) => (
                 <li key={m.id} className={`loopRegion ${m.id === selectedId ? "selected" : ""}`} data-testid={`region-${i + 1}`} onClick={() => setSelectedId((cur) => (cur === m.id ? null : m.id))} onMouseEnter={() => setHoveredId(m.id)} onMouseLeave={() => setHoveredId(null)}>
                   <span className="regionChip" aria-hidden="true">{i + 1}</span>
-                  <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : Icon.arrowUp}</span>
+                  <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : m.kind === "oval" ? Icon.oval : m.kind === "path" ? (m.thick ? Icon.highlight : Icon.pen) : Icon.arrowUp}</span>
                   <input
                     aria-label={`Region ${i + 1} instruction`}
                     data-testid={`region-note-${i + 1}`}

@@ -28,47 +28,47 @@ export interface ArrowMark {
   to: Point;
 }
 
-export type LoopMark = BoxMark | ArrowMark;
+/** Owner pick 18/11 (more marking tools, Canva-style): oval for round regions,
+ * freehand path for curves/details, thick = the highlighter register. */
+export interface OvalMark {
+  id: string;
+  kind: "oval";
+  note: string;
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
 
-/** Hit-testing and dragging existing marks (owner pick 18/11: move a region
- * instead of delete + redraw). Pure, unit-tested. */
-export function markHit(mark: LoopMark, p: Point, tol: number): boolean {
-  if (mark.kind === "box") {
-    return p.x >= mark.x - tol && p.x <= mark.x + mark.w + tol && p.y >= mark.y - tol && p.y <= mark.y + mark.h + tol;
+export interface PathMark {
+  id: string;
+  kind: "path";
+  note: string;
+  /** highlighter variant: same geometry, wide solid stroke in the composite. */
+  thick: boolean;
+  pts: Point[];
+}
+
+export type LoopMark = BoxMark | ArrowMark | OvalMark | PathMark;
+
+/** Freehand commit filter: keep the first point, every point at least
+ * `minDist` natural px from the last KEPT one, and the last point. Without
+ * this a 2-second drag stores hundreds of points for a short squiggle. */
+export function simplifyPath(pts: Point[], minDist = 4): Point[] {
+  if (pts.length <= 2) return pts;
+  const out: Point[] = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const last = out[out.length - 1];
+    if (Math.hypot(pts[i].x - last.x, pts[i].y - last.y) >= minDist) out.push(pts[i]);
   }
-  return segDist(p, mark.from, mark.to) <= tol;
+  out.push(pts[pts.length - 1]);
+  return out;
 }
 
-function segDist(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len2 = dx * dx + dy * dy;
-  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
-}
-
-/** Move a whole mark by (dx, dy), clamped back into the image bounds. */
-export function moveMark(mark: LoopMark, dx: number, dy: number, w: number, h: number): LoopMark {
-  if (mark.kind === "box") {
-    const x = Math.max(0, Math.min(w - mark.w, mark.x + dx));
-    const y = Math.max(0, Math.min(h - mark.h, mark.y + dy));
-    return { ...mark, x, y };
-  }
-  const minX = Math.min(mark.from.x, mark.to.x);
-  const maxX = Math.max(mark.from.x, mark.to.x);
-  const minY = Math.min(mark.from.y, mark.to.y);
-  const maxY = Math.max(mark.from.y, mark.to.y);
-  const ox = dx > 0 ? Math.min(dx, w - maxX) : Math.max(dx, -minX);
-  const oy = dy > 0 ? Math.min(dy, h - maxY) : Math.max(dy, -minY);
-  return { ...mark, from: { x: mark.from.x + ox, y: mark.from.y + oy }, to: { x: mark.to.x + ox, y: mark.to.y + oy } };
-}
-
-/** Resize a box from its bottom-right handle to the pointer position,
- * keeping the minimum size and staying inside the image. */
-export function resizeBox(mark: BoxMark, p: Point, w: number, h: number): BoxMark {
-  const x1 = Math.min(w, Math.max(mark.x + MIN_BOX_PX, p.x));
-  const y1 = Math.min(h, Math.max(mark.y + MIN_BOX_PX, p.y));
-  return { ...mark, w: x1 - mark.x, h: y1 - mark.y };
+export function pathLength(pts: Point[]): number {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  return len;
 }
 
 /** Minimum drag (natural px) below which a shape is a stray click, not a mark. */
@@ -130,6 +130,11 @@ export function newMarkId(): string {
  * does not sit on the line. Pure math, unit-testable. */
 export function chipAnchor(mark: LoopMark): Point {
   if (mark.kind === "box") return { x: mark.x, y: mark.y };
+  if (mark.kind === "oval") return { x: mark.cx - mark.rx, y: mark.cy - mark.ry };
+  if (mark.kind === "path") {
+    const mid = mark.pts[Math.floor(mark.pts.length / 2)] ?? mark.pts[0];
+    return { x: mid.x, y: mid.y };
+  }
   const dx = mark.to.x - mark.from.x;
   const dy = mark.to.y - mark.from.y;
   const len = Math.hypot(dx, dy) || 1;
@@ -182,6 +187,24 @@ export function drawMark(
       ctx.fillStyle = "#ff0000";
     }
     ctx.strokeRect(mark.x, mark.y, mark.w, mark.h);
+  } else if (mark.kind === "oval") {
+    ctx.beginPath();
+    ctx.ellipse(mark.cx, mark.cy, mark.rx, mark.ry, 0, 0, Math.PI * 2);
+    if (display === "canvas") {
+      ctx.fillStyle = "rgba(255, 0, 0, 0.08)";
+      ctx.fill();
+      ctx.fillStyle = "#ff0000";
+    }
+    ctx.stroke();
+  } else if (mark.kind === "path") {
+    ctx.lineWidth = mark.thick ? lw * 2.6 : Math.max(1.5, lw * 0.7);
+    ctx.globalAlpha = display === "canvas" && mark.thick ? 0.55 : 1;
+    ctx.beginPath();
+    ctx.moveTo(mark.pts[0].x, mark.pts[0].y);
+    for (let i = 1; i < mark.pts.length; i++) ctx.lineTo(mark.pts[i].x, mark.pts[i].y);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = lw;
   } else {
     ctx.beginPath();
     ctx.moveTo(mark.from.x, mark.from.y);
@@ -274,6 +297,6 @@ export function regionComposite(src: string, marks: LoopMark[], naturalWidth: nu
  */
 export function marksPrompt(marks: LoopMark[]): string {
   return marks
-    .map((m, i) => `Region ${i + 1} (red ${m.kind === "box" ? "box" : "arrow"}): ${m.note.trim()}`)
+    .map((m, i) => `Region ${i + 1} (red ${m.kind === "path" ? (m.thick ? "highlighter stroke" : "freehand path") : m.kind}): ${m.note.trim()}`)
     .join("\n");
 }
