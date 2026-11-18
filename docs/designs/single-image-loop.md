@@ -155,3 +155,15 @@ Vision audit vòng này phát hiện + fix luôn: **box kéo từ nền xám ngo
 Vision verify cuối: 12/12 box trong tác phẩm, không cắt mép, chip đọc rõ. Còn ghi nhận: cluster box sát nhau (10-12) outline gần chạm nhau - đã có selected dashed phân biệt, chấp nhận.
 
 Gates: tsc + 330 test + shot trọn vòng xanh.
+
+## Mở rộng vòng 5 (18/11 khuya, owner chọn 1-3-4 từ bản đồ mở rộng)
+
+Ba năng lực mới, mỗi cái một commit scope trong cùng đợt:
+
+1. **Import ảnh có sẵn (chọn 1):** kéo PNG/JPEG/WebP vào canvas hoặc nút "Open an image" trên empty state → decode → cap cạnh dài 2048px (`importPlan`, pure, 5 unit test; quota honesty: ảnh 4000px của điện thoại không đốt token vô ích) → version slot "Imported" (jobId null, không thay slot ai). Tool giờ dùng được cho người đã có ảnh sản phẩm, không chỉ sinh từ prompt.
+2. **Giữ vùng giữa các vòng + kéo/di chuyển (chọn 3):** sau 1 edit round hoàn thành, vùng + note giữ nguyên trên ảnh mới (carryMarksRef), vòng sau chỉ sửa note là chạy tiếp. Tool Pan (1) kiêm move-tool: bấm trúng vùng → kéo cả vùng (clamp trong ảnh), box đang chọn có handle góc dưới-phải để resize (min MIN_BOX, clamp mép). Tool Box/Arrow luôn vẽ mới (kéo đè lên vùng cũ là vùng mới, không phải move). markHit/moveMark/resizeBox pure trong loop-marks.ts, 4 unit test.
+3. **Session persist (chọn 4):** phiên (versions + cursor + prompt + marks) lưu atomic vào dataDir/loop-session.json qua IPC mới `loop:session:save/load` (schema zod chặn file rác: dataUrl chỉ image, tối đa 10 version, cursor phải trong stack, mark union box/arrow), debounce 800ms, Start over = xóa file. Reload app → phiên sống lại nguyên vẹn, marks restore không bị effect clear đánh rơi (carry flag tái dùng).
+
+Lane shot thêm "session restore": reload renderer giữa chừng, đòi meta Version 2 of 2 + 2 vùng carry + prompt còn. Polish lane đổi đếm delta (carry marks không còn bị tính là box mới).
+
+Gates: tsc + 344 test (9 mới) + shot 6 lane SIL xanh + smoke + crash-smoke (utility dispatch mới sống qua kill-restart).

@@ -9,7 +9,8 @@ import {
 } from "@oia/services";
 import { checkNsfw } from "@oia/providers";
 import { templateListQuery } from "@oia/schema";
-import { TaskNotFound, importWebData, parsePastedListing, fetchListing } from "@oia/tasks";
+import { TaskNotFound, importWebData, parsePastedListing, fetchListing, atomicWriteJson, sweepTempFiles } from "@oia/tasks";
+import { readFileSync } from "node:fs";
 import { startLoopback } from "./loopback.js";
 import { createGuardedSubmitter } from "./guardedTaskSubmit.js";
 import { seedSampleProjects } from "./seedSamples.js";
@@ -240,6 +241,26 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     }
     case "files.read":
       return await requireCtx().files.read(req.key);
+
+    // ---- SIL: one loop session, crash-safe (TP.7 atomic write) ----
+    case "loop.session.save": {
+      const file = path.join(dataDir, "loop-session.json");
+      await sweepTempFiles(file);
+      if (req.session.versions.length === 0 && req.session.prompt.trim() === "") {
+        // an empty session means Start over: drop the file, not an empty husk
+        if (existsSync(file)) unlinkSync(file);
+        return { ok: true };
+      }
+      await atomicWriteJson(file, req.session);
+      return { ok: true };
+    }
+    case "loop.session.load": {
+      try {
+        return JSON.parse(readFileSync(path.join(dataDir, "loop-session.json"), "utf8"));
+      } catch {
+        return null; // first run or unreadable: start a fresh loop
+      }
+    }
 
     // ---- reorg step 4c: quick-tools task lane (renderer IPC) ----
     case "tasks.submit": {

@@ -182,6 +182,40 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     return;
   }
   console.log(`[shot] SIL edit round-trip OK (meta "${silEdit.meta}")`);
+  // owner pick 18/11 #4: the session must survive a reload/restart. Reload the
+  // renderer and expect versions + prompt + carried marks to come back from
+  // loop-session.json (the utility writes it atomically ~800ms after changes).
+  await new Promise((r) => setTimeout(r, 1400));
+  const silReload = await win.webContents.executeJavaScript(`(async () => {
+    location.reload();
+    return true;
+  })()`, true).catch(() => true);
+  if (silReload !== true) { /* reload always tears the context down; ignore */ }
+  let silRestored: { img: boolean; meta: string; rows: number; prompt: string; err: string } | null = null;
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    silRestored = await win.webContents.executeJavaScript(`(() => {
+      const pills = [...document.querySelectorAll(".viewNav .navPill")];
+      const loop = pills.find((p) => p.textContent.trim() === "Edit loop");
+      if (loop) loop.click();
+      return {
+        img: !!document.querySelector('[data-testid="loop-image"]'),
+        meta: document.querySelector('.loopMeta')?.textContent ?? '',
+        rows: document.querySelectorAll('.loopRegion').length,
+        prompt: document.querySelector('.promptCard textarea')?.value ?? '',
+        err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(' '),
+      };
+    })()`, true).catch(() => null);
+    if (silRestored && silRestored.img && silRestored.meta.includes("Version")) break;
+  }
+  if (!silRestored || !silRestored.img || !silRestored.meta.includes("Version 2 of 2") || silRestored.rows !== 2) {
+    console.error(`DESKTOP_SHOT SIL FAILED, session restore wrong (${JSON.stringify(silRestored)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL session restore OK (reload → "${silRestored.meta}", ${silRestored.rows} carried marks, prompt kept)`);
+  await snap(win, "desktop-loop-restored.png");
+
   const silNav = await win.webContents.executeJavaScript(`(async () => {
     const meta = () => document.querySelector('.loopMeta')?.textContent ?? "";
     const thumb1 = document.querySelector('[data-testid="loop-version-1"]');
@@ -211,6 +245,7 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
   }
   console.log(`[shot] SIL history nav OK (thumb1→"${silNav.afterUndo}" thumb2→"${silNav.afterLatest}" compare badge=${silNav.badge})`);
 
+
   // SL-4 polish: keyboard tools (2/3/1), row selection + Delete, and 12 marks
   // on the overlay at once (perf sanity, pixel truth stays red).
   const silPolish = await win.webContents.executeJavaScript(`(async () => {
@@ -232,14 +267,16 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
       ov.dispatchEvent(new PointerEvent("pointerup", { ...base, clientX: x1, clientY: y1 }));
       await new Promise((res) => setTimeout(res, 90));
     };
-    await drag(ir.left + ir.width * 0.2, ir.top + ir.height * 0.2, ir.left + ir.width * 0.2 + 26, ir.top + ir.height * 0.2 + 26); // keyboard-drawn box → 1 region (the edit round cleared old marks)
-    if (document.querySelectorAll(".loopRegion").length !== 1) return { ok: false, why: "keyboard tool did not draw", rows: document.querySelectorAll(".loopRegion").length };
+    const rowsBefore = document.querySelectorAll(".loopRegion").length;
+    await drag(ir.left + ir.width * 0.2, ir.top + ir.height * 0.2, ir.left + ir.width * 0.2 + 26, ir.top + ir.height * 0.2 + 26); // keyboard-drawn box → +1 region (carry-over marks from the edit stay)
+    if (document.querySelectorAll(".loopRegion").length !== rowsBefore + 1) return { ok: false, why: "keyboard tool did not draw", rows: document.querySelectorAll(".loopRegion").length, rowsBefore };
     // a fresh mark arrives SELECTED (Delete targets it); a row click toggles it
-    const sel = document.querySelector('[data-testid="region-1"]')?.classList.contains("selected");
+    const newId = [...document.querySelectorAll(".loopRegion")].map((n) => n.dataset.testid).find((id) => document.querySelector('[data-testid="' + id + '"] .regionChip')?.textContent === String(rowsBefore + 1));
+    const sel = newId ? document.querySelector('[data-testid="' + newId + '"]')?.classList.contains("selected") : false;
     key("Delete");
     await new Promise((res) => setTimeout(res, 120));
     const rowsAfterDel = document.querySelectorAll(".loopRegion").length;
-    if (!sel || rowsAfterDel !== 0) return { ok: false, why: "selection or Delete failed", sel, rowsAfterDel };
+    if (!sel || rowsAfterDel !== rowsBefore) return { ok: false, why: "selection or Delete failed", sel, rowsAfterDel, rowsBefore };
     // 12 small boxes at once, overlay must stay painted (perf sanity)
     for (let i = 0; i < 12; i++) await drag(ir.left + ir.width * (0.08 + i * 0.07), ir.top + ir.height * 0.12, ir.left + ir.width * (0.08 + i * 0.07) + ir.width * 0.05, ir.top + ir.height * 0.3);
     await new Promise((res) => setTimeout(res, 300));
@@ -252,7 +289,7 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     let red = 0;
     for (let i = 0; i < dd.length; i += 4) { if (dd[i] > 180 && dd[i + 1] < 90 && dd[i + 2] < 90) red++; }
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: rows === 12 && red > 200 && !err, rows, red, err };
+    return { ok: rows === rowsBefore + 12 && red > 200 && !err, rows, rowsBefore, red, err };
   })()`, true);
   if (!silPolish || silPolish.ok !== true) {
     console.error(`DESKTOP_SHOT SIL FAILED, polish lane (${JSON.stringify(silPolish)})`);

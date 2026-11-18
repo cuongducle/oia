@@ -974,3 +974,6 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .loopThumb:hover:not(.active) { border-color: #b7b4c2; }
 .loopProgressTrack { height: 4px; border-radius: 999px; background: #e8e6f0; overflow: hidden; margin: 8px 0; }
 .loopProgressTrack span { display: block; height: 100%; background: #b91c1c; border-radius: 999px; transition: width .18s ease; }
+.loopImportRow { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 18px; }
+.loopImportAlt { font-size: 12.5px; color: #6e6a7c; }
+.loopImportNote { margin-top: 10px; font-size: 11.5px; color: #6e6a7c; }

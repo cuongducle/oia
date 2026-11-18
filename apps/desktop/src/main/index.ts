@@ -22,7 +22,7 @@ import {
   chatRequestSchema,
   chatCancelSchema, projectsCreateSchema, projectsGetSchema,
   projectsRemoveSchema, projectsSaveSchema, templatesCreateSchema, sessionsGetSchema,
-  filesUploadSchema, exportSaveSchema,
+  filesUploadSchema, exportSaveSchema, loopSessionSaveSchema,
   taskSubmitSchema, taskGetSchema, taskCancelSchema,
   brandKitUpsertSchema, brandKitRemoveSchema, productUpsertSchema, productGetSchema, productRemoveSchema, listingsParsePasteSchema, listingsFetchUrlSchema, apiKeyCreateSchema, apiKeyRevokeSchema,
   clipboardWriteSchema, dataImportWebSchema,
@@ -310,6 +310,20 @@ function registerIpc(): void {
       const { name, bytes } = filesUploadSchema.parse(raw);
       await ensureUtility();
       return await utility.call({ cmd: "files.put", name, bytes });
+    } catch (err) {
+      ipcError(err);
+    }
+  });
+  // ---- SIL: the single loop session, load on mount / save debounced ----
+  handle(IPC.loopSessionLoad, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "loop.session.load" });
+  });
+  handle(IPC.loopSessionSave, async (_e, raw: unknown) => {
+    try {
+      const { session } = loopSessionSaveSchema.parse(raw);
+      await ensureUtility();
+      return await utility.call({ cmd: "loop.session.save", session });
     } catch (err) {
       ipcError(err);
     }

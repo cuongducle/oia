@@ -11,7 +11,8 @@ import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
-import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, layoutChips, markHit, moveMark, resizeBox, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { importPlan, importableFile, IMPORT_MAX_EDGE } from "../lib/loop-import.js";
 import { mergeVersion, capVersions } from "../lib/loop-versions.js";
 import type { ChatRequest } from "@oia/services";
 
@@ -69,6 +70,8 @@ export function Loop() {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [narrative, setNarrative] = useState("");
   const [error, setError] = useState("");
+  const [importedNote, setImportedNote] = useState("");
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [mockMode, setMockMode] = useState(false);
   const [markupCapable, setMarkupCapable] = useState(false);
   const [versions, setVersions] = useState<LoopVersion[]>([]);
@@ -122,6 +125,20 @@ export function Loop() {
       setMockMode(s.image.capabilities.isMock);
       setMarkupCapable(s.image.capabilities.markupEdit === "flatten");
     }).catch(() => {});
+    // restore the last loop session (versions + prompt + marks); the schema
+    // gate keeps a corrupt/stale file from injecting junk into the view
+    void oia()
+      .loopSessionLoad()
+      .then((s) => {
+        if (!s || s.versions.length === 0) return;
+        const cursor = s.cursor !== null && s.cursor < s.versions.length ? s.cursor : null;
+        carryMarksRef.current = true; // the [current] effect must not wipe restored marks
+        setVersions(s.versions);
+        setCursor(cursor);
+        setPrompt(s.prompt);
+        setMarks(s.marks);
+      })
+      .catch(() => {});
     offRef.current = oia().onChatEvent((ev) => {
       if (activeJobRef.current && ev.jobId && ev.jobId !== activeJobRef.current) return;
       if (ev.jobId) {
@@ -155,7 +172,9 @@ export function Loop() {
       const flat = await flattenScenePng(m.canvas as SceneCanvas);
       setFlattenFailed("");
       const jobId = activeJobRef.current;
-      setVersions((v) => capVersions(mergeVersion(v, flat, jobId, jobKindRef.current === "edit" ? "edit" : "generate")));
+      const wasEdit = jobKindRef.current === "edit";
+      setVersions((v) => capVersions(mergeVersion(v, flat, jobId, wasEdit ? "edit" : "generate")));
+      if (wasEdit) carryMarksRef.current = true; // regions carry into the fresh image
       setCursor(null);
       setCompareOn(false);
       setNotesOpen(false);
@@ -242,6 +261,58 @@ export function Loop() {
     if (jobId) await oia().cancelChat(jobId).catch(() => {});
   }
 
+  /** Start (or restart) the loop from the seller's own photo: decode, cap the
+   * long edge at IMPORT_MAX_EDGE (quota honesty: the edit round sends the
+   * image, oversized pixels waste it), then push an Imported version slot. */
+  async function importImageFile(file: File): Promise<void> {
+    if (busy) return;
+    if (!importableFile(file)) {
+      setError("Only PNG, JPEG or WebP images can be imported.");
+      return;
+    }
+    try {
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result));
+        fr.onerror = () => rej(fr.error ?? new Error("read failed"));
+        fr.readAsDataURL(file);
+      });
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const el = new Image();
+        el.onload = () => res(el);
+        el.onerror = () => rej(new Error("decode failed"));
+        el.src = dataUrl;
+      });
+      const plan = importPlan(img.naturalWidth, img.naturalHeight);
+      let out = dataUrl;
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (!plan.keep && plan.width > 0) {
+        const c = document.createElement("canvas");
+        c.width = plan.width;
+        c.height = plan.height;
+        c.getContext("2d")!.drawImage(img, 0, 0, plan.width, plan.height);
+        out = c.toDataURL("image/png");
+        w = plan.width;
+        h = plan.height;
+      }
+      setVersions((v) => capVersions(mergeVersion(v, { dataUrl: out, width: w, height: h }, null, "import")));
+      setCursor(null);
+      setCompareOn(false);
+      setMarks([]);
+      setError("");
+      setImportedNote(w === img.naturalWidth ? "" : `Imported at ${w} × ${h} (capped at ${IMPORT_MAX_EDGE}px long edge).`);
+    } catch {
+      setError("That image could not be imported. Please try another file.");
+    }
+  }
+
+  function onImportDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (f) void importImageFile(f);
+  }
+
   /** Full-resolution PNG via the native save dialog, same channel Home uses. */
   async function savePng() {
     if (!current) return;
@@ -252,6 +323,27 @@ export function Loop() {
       setError("The image could not be saved. Please try again.");
     }
   }
+
+  /** Debounced session save: every versions/cursor/prompt/marks change lands
+   * on disk ~800ms later (atomic write utility-side). Start over saves an
+   * empty session, which the utility treats as "delete the file". */
+  const sessionLoadedRef = useRef(false);
+  const sessionTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sessionLoadedRef.current) {
+      // first paint of a restored session is the loaded state, not a change
+      if (versions.length > 0 || prompt.trim() !== "") sessionLoadedRef.current = true;
+      if (!sessionLoadedRef.current) return;
+    }
+    if (sessionTimerRef.current !== null) window.clearTimeout(sessionTimerRef.current);
+    sessionTimerRef.current = window.setTimeout(() => {
+      void oia().loopSessionSave({ versions, cursor, prompt, marks }).catch(() => {});
+    }, 800);
+    return () => {
+      if (sessionTimerRef.current !== null) window.clearTimeout(sessionTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [versions, cursor, prompt, marks]);
 
   function startOver() {
     setVersions([]);
@@ -281,8 +373,15 @@ export function Loop() {
 
   // ---- stage: fit + CENTER the image once per displayed version; switching
   // the image (new job OR undo/latest walk) invalidates its marks and view,
-  // a region only belongs to the exact image it was drawn on ----
+  // a region only belongs to the exact image it was drawn on. EXCEPT right
+  // after a finished edit round: marks carry over (position + note) so the
+  // next round refines them instead of re-drawing them (owner pick 18/11) ----
+  const carryMarksRef = useRef(false);
   useEffect(() => {
+    if (carryMarksRef.current) {
+      carryMarksRef.current = false;
+      return;
+    }
     setMarks([]);
     setSelectedId(null);
     setFit(null);
@@ -372,6 +471,17 @@ export function Loop() {
             ctx.stroke();
           }
           ctx.restore();
+          // a selected BOX also shows its resize handle (bottom-right)
+          if (m.kind === "box" && m.id === selectedId) {
+            const hs = markerWidthFor(cur.width, cur.height) * 2.2;
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#ff0000";
+            ctx.lineWidth = markerWidthFor(cur.width, cur.height) * 0.4;
+            ctx.beginPath();
+            ctx.rect(m.x + m.w - hs / 2, m.y + m.h - hs / 2, hs, hs);
+            ctx.fill();
+            ctx.stroke();
+          }
         }
       });
       const d = draftRef.current;
@@ -387,15 +497,38 @@ export function Loop() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [current, fit, marks, compareOn, selectedId, hoveredId]);
 
+  /** Drag-an-existing-mark state (move or box bottom-right resize). Natural
+   * coordinates only at the boundary, transforms stay out of the helpers. */
+  const dragMarkRef = useRef<{ id: string; mode: "move" | "resize-br"; grab: { x: number; y: number } } | null>(null);
+
   function onOverlayPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!current || !fit || compareOn) return;
     // synthetic/untracked pointers cannot capture (same lesson as the ME overlay)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* the draft already started */ }
+    const p = toNatural(e.clientX, e.clientY);
+    // ~10 css px of grab forgiveness, expressed in natural units
+    const npp = viewRef.current.s * (fit.w / Math.max(1, current.width));
+    // the Pan tool doubles as the move tool: grabbing a mark drags it, empty
+    // space pans. Box/Arrow tools always draw fresh (a drag over a mark is a
+    // new overlapping region, the shot lane's 12-box pattern relies on it)
     if (tool === "pan") {
+      const selBox = selectedId ? marks.find((m) => m.id === selectedId && m.kind === "box") : null;
+      if (selBox && selBox.kind === "box" && Math.hypot(p.x - (selBox.x + selBox.w), p.y - (selBox.y + selBox.h)) * (npp || 1) <= 12) {
+        dragMarkRef.current = { id: selBox.id, mode: "resize-br", grab: p };
+        return;
+      }
+      for (let i = marks.length - 1; i >= 0; i--) {
+        const m = marks[i];
+        if (markHit(m, p, 10 / (npp || 1))) {
+          setSelectedId(m.id);
+          dragMarkRef.current = { id: m.id, mode: "move", grab: p };
+          return;
+        }
+      }
       panRef.current = { x: e.clientX, y: e.clientY, tx: viewRef.current.tx, ty: viewRef.current.ty };
       return;
     }
-    draftRef.current = { kind: tool, from: toNatural(e.clientX, e.clientY), to: toNatural(e.clientX, e.clientY) };
+    draftRef.current = { kind: tool, from: p, to: p };
     markDirty();
   }
 
@@ -426,6 +559,17 @@ export function Loop() {
   const elapsedS = startedAt ? Math.floor((Date.now() - startedAt) / 1000) : null;
 
   function onOverlayPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    const drag = dragMarkRef.current;
+    if (drag && current) {
+      const p = toNatural(e.clientX, e.clientY);
+      setMarks((ms) => ms.map((m) => {
+        if (m.id !== drag.id) return m;
+        if (drag.mode === "resize-br" && m.kind === "box") return resizeBox(m, p, current.width, current.height);
+        return moveMark(m, p.x - drag.grab.x, p.y - drag.grab.y, current.width, current.height);
+      }));
+      markDirty();
+      return;
+    }
     const pan = panRef.current;
     if (pan) {
       const stage = stageRef.current;
@@ -466,6 +610,10 @@ export function Loop() {
   }
 
   function onOverlayPointerUp() {
+    if (dragMarkRef.current) {
+      dragMarkRef.current = null;
+      return;
+    }
     const pan = panRef.current;
     if (pan) {
       panRef.current = null;
@@ -557,7 +705,7 @@ export function Loop() {
   return (
     <main className="studioPage loopView loopCanvasFirst" aria-label="Edit loop">
       {!current && !displayed && (
-        <section className="loopStage loopEmptyStage" data-testid="loop-empty" aria-label="Canvas">
+        <section className="loopStage loopEmptyStage" data-testid="loop-empty" aria-label="Canvas" onDragOver={(e) => e.preventDefault()} onDrop={onImportDrop}>
           {busy ? (
             <div className="loopEmptyRun">
               <RunPanel busy={busy} steps={stepsFromTimeline(timeline)} narrative={narrative} notesOpen={notesOpen} onToggleNotes={setNotesOpen} startedAt={startedAt} summarySeconds={genSeconds} />
@@ -569,6 +717,12 @@ export function Loop() {
               </span>
               <h1>Describe the image below, then Generate</h1>
               <p>{HOW_IT_WORKS}</p>
+              <div className="loopImportRow">
+                <button className="generateBtn labeled" data-testid="loop-import" onClick={() => importInputRef.current?.click()}>Open an image</button>
+                <span className="loopImportAlt">or drop a PNG/JPEG/WebP anywhere on the canvas to edit your own photo</span>
+                <input ref={importInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImageFile(f); e.target.value = ""; }} />
+              </div>
+              {importedNote && <p className="loopImportNote">{importedNote}</p>}
             </div>
           )}
         </section>
@@ -599,7 +753,7 @@ export function Loop() {
               <span className="composerSpacer" />
               <button className="loopTool" data-testid="loop-compare" aria-pressed={compareOn} disabled={idx < 1} title="Toggle the previous version" onClick={() => setCompareOn((v) => !v)}>{Icon.undo}<span>{compareOn ? "After" : "Before"}</span></button>
             </div>
-            <div className="loopStage" ref={stageRef} data-testid="loop-stage">
+            <div className="loopStage" ref={stageRef} data-testid="loop-stage" onDragOver={(e) => e.preventDefault()} onDrop={onImportDrop}>
               {showBefore && <span className="stageBadge" data-testid="loop-before-badge">Before</span>}
               {!hintDone && marks.length === 0 && !compareOn && !busy && (
                 <p className="loopFirstHint" data-testid="loop-first-hint">Circle the part you want changed, one box per fix.</p>

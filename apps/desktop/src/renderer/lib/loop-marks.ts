@@ -30,6 +30,47 @@ export interface ArrowMark {
 
 export type LoopMark = BoxMark | ArrowMark;
 
+/** Hit-testing and dragging existing marks (owner pick 18/11: move a region
+ * instead of delete + redraw). Pure, unit-tested. */
+export function markHit(mark: LoopMark, p: Point, tol: number): boolean {
+  if (mark.kind === "box") {
+    return p.x >= mark.x - tol && p.x <= mark.x + mark.w + tol && p.y >= mark.y - tol && p.y <= mark.y + mark.h + tol;
+  }
+  return segDist(p, mark.from, mark.to) <= tol;
+}
+
+function segDist(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/** Move a whole mark by (dx, dy), clamped back into the image bounds. */
+export function moveMark(mark: LoopMark, dx: number, dy: number, w: number, h: number): LoopMark {
+  if (mark.kind === "box") {
+    const x = Math.max(0, Math.min(w - mark.w, mark.x + dx));
+    const y = Math.max(0, Math.min(h - mark.h, mark.y + dy));
+    return { ...mark, x, y };
+  }
+  const minX = Math.min(mark.from.x, mark.to.x);
+  const maxX = Math.max(mark.from.x, mark.to.x);
+  const minY = Math.min(mark.from.y, mark.to.y);
+  const maxY = Math.max(mark.from.y, mark.to.y);
+  const ox = dx > 0 ? Math.min(dx, w - maxX) : Math.max(dx, -minX);
+  const oy = dy > 0 ? Math.min(dy, h - maxY) : Math.max(dy, -minY);
+  return { ...mark, from: { x: mark.from.x + ox, y: mark.from.y + oy }, to: { x: mark.to.x + ox, y: mark.to.y + oy } };
+}
+
+/** Resize a box from its bottom-right handle to the pointer position,
+ * keeping the minimum size and staying inside the image. */
+export function resizeBox(mark: BoxMark, p: Point, w: number, h: number): BoxMark {
+  const x1 = Math.min(w, Math.max(mark.x + MIN_BOX_PX, p.x));
+  const y1 = Math.min(h, Math.max(mark.y + MIN_BOX_PX, p.y));
+  return { ...mark, w: x1 - mark.x, h: y1 - mark.y };
+}
+
 /** Minimum drag (natural px) below which a shape is a stray click, not a mark. */
 export const MIN_BOX_PX = 6;
 export const MIN_ARROW_PX = 8;

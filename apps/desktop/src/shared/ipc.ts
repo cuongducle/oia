@@ -105,3 +105,52 @@ export const runtimeSetModeSchema = z.object({
   mode: z.enum(["auto", "mock", "codex"]),
 });
 export type RuntimeModeChoice = z.infer<typeof runtimeSetModeSchema>["mode"];
+
+/** SIL session persistence (owner pick 18/11): one loop session file, saved
+ * atomically by the utility process. The renderer sends the whole session;
+ * the wire shape is validated here so a stale/corrupt file cannot inject junk
+ * into the view on load. */
+export const loopSessionMarkSchema = z.discriminatedUnion("kind", [
+  z.object({
+    id: z.string().min(1).max(64),
+    kind: z.literal("box"),
+    note: z.string().max(2000),
+    x: z.number().min(0),
+    y: z.number().min(0),
+    w: z.number().min(0),
+    h: z.number().min(0),
+  }),
+  z.object({
+    id: z.string().min(1).max(64),
+    kind: z.literal("arrow"),
+    note: z.string().max(2000),
+    from: z.object({ x: z.number(), y: z.number() }),
+    to: z.object({ x: z.number(), y: z.number() }),
+  }),
+]);
+export type LoopSessionMark = z.infer<typeof loopSessionMarkSchema>;
+
+export const loopSessionSchema = z
+  .object({
+    versions: z
+      .array(
+        z.object({
+          label: z.string().min(1).max(40),
+          jobId: z.string().nullable(),
+          dataUrl: z.string().startsWith("data:image/").max(12_000_000),
+          width: z.number().int().min(1).max(8192),
+          height: z.number().int().min(1).max(8192),
+        }),
+      )
+      .max(10),
+    cursor: z.number().int().min(0).nullable(),
+    prompt: z.string().max(8000),
+    marks: z.array(loopSessionMarkSchema).max(40),
+  })
+  .superRefine((s, ctx) => {
+    if (s.cursor !== null && s.versions.length === 0) ctx.addIssue({ code: "custom", message: "cursor without versions" });
+    if (s.cursor !== null && s.cursor >= s.versions.length) ctx.addIssue({ code: "custom", message: "cursor beyond the stack" });
+  });
+export type LoopSession = z.infer<typeof loopSessionSchema>;
+
+export const loopSessionSaveSchema = z.object({ session: loopSessionSchema });

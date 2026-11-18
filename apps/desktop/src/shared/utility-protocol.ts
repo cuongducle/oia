@@ -10,6 +10,7 @@
  * Bytes cross as Uint8Array, parentPort.postMessage is structured-clone.
  */
 import type { TaskType } from "@oia/schema";
+import type { LoopSession } from "./ipc.js";
 
 export type UtilityEnv = Record<string, string | undefined>;
 
@@ -42,6 +43,8 @@ export type UtilityCommand =
   | { cmd: "sessions.get"; id: number }
   | { cmd: "files.put"; name: string; bytes: Uint8Array }
   | { cmd: "files.read"; key: string }
+  | { cmd: "loop.session.save"; session: LoopSession }
+  | { cmd: "loop.session.load" }
   /** reorg step 4c, the quick-tools task lane (renderer IPC, NOT the loopback API).
    *  Same TaskStore + same G3 metered guard; source "web" mirrors the web tools UI. */
   | { cmd: "tasks.submit"; type: TaskType; params: Record<string, unknown> }

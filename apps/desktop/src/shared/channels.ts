@@ -20,6 +20,8 @@ export const IPC = {
   sessionsGet: "sessions:get",
   filesUpload: "files:upload",
   exportSave: "export:save",
+  loopSessionLoad: "loop:session:load",
+  loopSessionSave: "loop:session:save",
   // reorg step 4c, quick tools run tasks over IPC (the web fetch lanes, ported)
   taskSubmit: "task:submit",
   taskGet: "task:get",

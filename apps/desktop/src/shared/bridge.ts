@@ -1,7 +1,7 @@
 import type { ChatEvent, Project, Template, TaskStatus, BrandKit, ProductProfile, ListingProposal } from "@oia/schema";
 import type { ChatRequest, ChatRunResult } from "@oia/services";
 import type { RuntimeStatus, InstallProgress } from "@oia/providers";
-import type { RuntimeModeChoice } from "./ipc.js";
+import type { RuntimeModeChoice, LoopSession } from "./ipc.js";
 import type { ApiKeyRecord, WebImportCounts } from "@oia/tasks";
 
 /**
@@ -103,6 +103,9 @@ export interface OiaBridge {
   uploadAsset: (name: string, bytes: Uint8Array) => Promise<{ url: string; size: number }>;
   /** Native save dialog + write, the desktop replacement for the browser download anchor. */
   saveExport: (fileName: string, bytes: Uint8Array) => Promise<{ saved: boolean; path: string | null }>;
+  /** SIL: the single edit-loop session (versions + prompt + marks), crash-safe on disk. */
+  loopSessionLoad: () => Promise<LoopSession | null>;
+  loopSessionSave: (session: LoopSession) => Promise<{ ok: boolean }>;
   /** ---- reorg step 4c: quick tools task lane (web /api/tasks, ported to IPC). ----
    * Background mode (noWait:false) + poll: the submit RPC returns immediately, so a
    * 1-6 min generation never sits on one long-lived call (and stays cancellable). */

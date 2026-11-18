@@ -25,13 +25,13 @@ export function mergeVersion(
   versions: VersionSlot[],
   flat: { dataUrl: string; width: number; height: number },
   jobId: string | null,
-  kind: "generate" | "edit",
+  kind: "generate" | "edit" | "import",
 ): VersionSlot[] {
   const last = versions[versions.length - 1];
   if (last && jobId !== null && last.jobId === jobId) {
     return [...versions.slice(0, -1), { ...flat, label: last.label, jobId }];
   }
-  const label = kind === "edit" ? `Edit ${versions.length}` : "Generated";
+  const label = kind === "edit" ? `Edit ${versions.length}` : kind === "import" ? "Imported" : "Generated";
   return [...versions, { ...flat, label, jobId }];
 }
 
