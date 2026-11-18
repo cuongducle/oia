@@ -224,3 +224,9 @@ LoopMark union + session schema (text + globalNote default "") + fabric IText wi
 E2E real run (loop-edit-real.mjs mở rộng globalNote + text mark): box không note + text "PAINT PURPLE" + global "repaint every circled balloon in solid purple" → PASS pixel (65.496px tím đúng bóng, 0 sót, 2 bóng khác nguyên, dims giữ).
 
 Gates: tsc + 344 test (4 mới) + shot 6 lane + smoke.
+
+## Probe P8 (18/11 tối): đa vùng đa yêu cầu
+
+Owner hỏi độ chắc chắn "sửa đúng vùng khoanh". P8: 2 box, 2 yêu cầu màu khác nhau trên cùng ảnh (trái→tím, phải→xanh lá), không global note. PASS pixel hoàn toàn: 65.620px tím + 65.436px xanh lá đúng từng vùng, bóng giữa nguyên vẹn, 0 residue. Lũy kế: P5 (6 màu), P7 (scribble + text), SL-3 (banner thật), P8 (đa vùng) - chưa có trường hợp sai vị trí nào khi CÓ dấu tại chỗ. Còn hở: ảnh nhiễu cao + vùng chồng lấn chưa probe.
+
+Về "model mới của codex hỗ trợ": kênh hiện tại pin `chatgpt-imagegen (gpt-image family)` qua codex CLI 0.163. CLI không expose mask/inpainting parameter, chỉ ảnh + prompt, nên "vùng" phải đi qua marker flatten (chính là cái đang đo PASS). Nếu codex CLI sau này expose mask native, kênh có thể nâng - ghi ở đây để không quên.
