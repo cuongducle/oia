@@ -34,7 +34,11 @@ const LOOP_ASPECTS: Record<string, [number, number] | null> = {
   auto: null, "1:1": [1024, 1024], "4:5": [1024, 1280], "2:3": [1024, 1536], "9:16": [1080, 1920], "16:9": [1920, 1080],
 };
 
-const HOW_IT_WORKS = "One image at a time: describe it, generate, then mark what to change next.";
+const SUGGESTIONS = [
+  "Phone case banner on a mint background, minimal studio light",
+  "Milk tea poster with Vietnamese headline text, warm tones",
+  "Cosmetics flat lay, soft daylight, clean shadows",
+];
 const STOP_LABEL = "Stop";
 const MARK_HINT = "Drag on the image to mark a region";
 const EDIT_HEAD = "Edit this image following the red annotations.";
@@ -50,6 +54,7 @@ const Icon = {
   pen: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" /></svg>,
   highlight: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18l9-9 4 4-9 9H5v-4z" /><path d="M13 5l2-2 6 6-2 2" /></svg>,
   textType: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2" /><path d="M9 5v14" /><path d="M7 19h4" /><path d="M14 12h6" /><path d="M17 12v7" /><path d="M15 19h4" /></svg>,
+  upload: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
@@ -781,14 +786,14 @@ export function Loop() {
             </div>
           ) : (
             <div className="loopEmptyInner">
-              <span className="loopEmptyGlyph" aria-hidden="true">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="5" width="16" height="14" rx="2.5" /><circle cx="9.2" cy="10" r="1.6" /><path d="m5 17 4.2-4.2a1.6 1.6 0 0 1 2.3 0L16 17" /></svg>
-              </span>
-              <h1>Describe the image below, then Generate</h1>
-              <p>{HOW_IT_WORKS}</p>
+              <div className="loopChipRow" aria-label="Try a starter idea">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} type="button" className="loopSuggestChip" onClick={() => setPrompt(s)}>{s}</button>
+                ))}
+              </div>
               <div className="loopImportRow">
-                <button className="generateBtn labeled" data-testid="loop-import" onClick={() => importInputRef.current?.click()}>Open an image</button>
-                <span className="loopImportAlt">or drop a PNG/JPEG/WebP anywhere on the canvas to edit your own photo</span>
+                <button className="loopImportBtn" data-testid="loop-import" onClick={() => importInputRef.current?.click()}>{Icon.upload}<span>Open an image</span></button>
+                <span className="loopImportAlt">PNG · JPEG · WebP — or just drop it anywhere on the canvas</span>
                 <input ref={importInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImageFile(f); e.target.value = ""; }} />
               </div>
               {importedNote && <p className="loopImportNote">{importedNote}</p>}

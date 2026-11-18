@@ -984,3 +984,19 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .regionTextNote { flex: 1; font-size: 12.5px; color: #b91c1c; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 input[data-testid="loop-global-note"] { width: 100%; margin: 8px 0; padding: 7px 10px; border: 1px solid #d8d6e2; border-radius: 8px; font-size: 12.5px; }
 input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outline-offset: -1px; border-color: transparent; }
+
+/* empty canvas, pro-editor register (Figma/Krea-style start state) */
+.loopEmptyInner h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); margin: 0 0 8px; }
+.loopEmptyInner > p { margin: 0 0 18px; font-size: 13.5px; color: #6e6a7c; }
+.loopChipRow { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 22px; }
+.loopSuggestChip { border: 1px solid #d8d6e2; background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; color: #3f3b4d; cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease; }
+.loopSuggestChip:hover { border-color: var(--ink); box-shadow: 0 1px 6px rgba(20,18,30,.10); }
+.loopImportBtn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--ink); background: transparent; color: var(--ink); border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.loopImportBtn:hover { background: rgba(20,18,30,.05); }
+
+/* empty canvas: quiet like ChatGPT/Krea, the prompt bar IS the interface */
+.loopEmptyInner { gap: 14px; display: flex; flex-direction: column; align-items: center; }
+.loopEmptyInner .loopChipRow { margin-bottom: 10px; }
+.loopEmptyInner .loopSuggestChip { font-size: 12px; padding: 6px 13px; color: #55516a; }
+.loopEmptyInner .loopImportBtn { padding: 6px 13px; font-size: 12px; border-color: #cfccdb; color: #55516a; font-weight: 500; }
+.loopEmptyInner .loopImportAlt { font-size: 11.5px; color: #9894a8; }
