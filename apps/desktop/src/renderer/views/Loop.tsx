@@ -10,7 +10,7 @@ import { readAutoRefinePref, readResearchPref, readStylePref, writeStylePref } f
 import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
-import { viewportToNatural } from "../lib/markup-annotate.js";
+import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
 import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
 import type { ChatRequest } from "@oia/services";
 
@@ -87,6 +87,10 @@ export function Loop() {
   // ---- SL-2: marks + stage view transform ----
   const [tool, setTool] = useState<Tool>("pan");
   const [marks, setMarks] = useState<LoopMark[]>([]);
+  /** SL-4: the selected region row (Delete removes it, highlighted on overlay) */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** SL-4: first-use hint until the user draws their very first mark (OC-6 localStorage) */
+  const [hintDone, setHintDone] = useState(() => globalThis.localStorage?.getItem("oia.loopMarkHintDone") === "1");
   /** fitted display size of the current image inside the stage (css px, zoom 1) */
   const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
   /** view transform: viewport = worldCss * s + t (world = fitted image plane) */
@@ -329,7 +333,24 @@ export function Loop() {
       ctx.translate(tx, ty);
       ctx.scale(s, s);
       ctx.scale(k, k);
-      marks.forEach((m, i) => drawMark(ctx, m, i, cur.width, cur.height));
+      marks.forEach((m, i) => {
+        drawMark(ctx, m, i, cur.width, cur.height);
+        if (m.id === selectedId) {
+          // SL-4 selection ring: dashed white over the selected mark
+          ctx.save();
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = markerWidthFor(cur.width, cur.height) * 0.5;
+          ctx.setLineDash([markerWidthFor(cur.width, cur.height), markerWidthFor(cur.width, cur.height) * 0.8]);
+          if (m.kind === "box") ctx.strokeRect(m.x, m.y, m.w, m.h);
+          else {
+            ctx.beginPath();
+            ctx.moveTo(m.from.x, m.from.y);
+            ctx.lineTo(m.to.x, m.to.y);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      });
       const d = draftRef.current;
       if (d) {
         const draftMark: LoopMark =
@@ -341,7 +362,7 @@ export function Loop() {
     };
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [current, fit, marks, compareOn]);
+  }, [current, fit, marks, compareOn, selectedId]);
 
   function onOverlayPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!current || !fit || compareOn) return;
@@ -376,12 +397,12 @@ export function Loop() {
     if (!d) return;
     if (d.kind === "box") {
       if (d.to.x - d.from.x >= MIN_BOX_PX || d.from.x - d.to.x >= MIN_BOX_PX || d.to.y - d.from.y >= MIN_BOX_PX || d.from.y - d.to.y >= MIN_BOX_PX) {
-        setMarks((m) => [...m, { id: newMarkId(), kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w: Math.abs(d.to.x - d.from.x), h: Math.abs(d.to.y - d.from.y) }]);
+        pushMark({ id: newMarkId(), kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w: Math.abs(d.to.x - d.from.x), h: Math.abs(d.to.y - d.from.y) });
       }
       return;
     }
     if (Math.hypot(d.to.x - d.from.x, d.to.y - d.from.y) >= MIN_ARROW_PX) {
-      setMarks((m) => [...m, { id: newMarkId(), kind: "arrow", note: "", from: d.from, to: d.to }]);
+      pushMark({ id: newMarkId(), kind: "arrow", note: "", from: d.from, to: d.to });
     }
   }
 
@@ -394,20 +415,50 @@ export function Loop() {
     viewRef.current = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
   }
 
-  // Esc kills the in-progress draft; nothing was sent, nothing was burned (ME)
+  // Esc kills the in-progress draft; 1/2/3 pick the tool, Delete removes the
+  // selected region (SL-4). Typing in a field never reaches here.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && draftRef.current) draftRef.current = null;
+      if (e.key === "Escape" && draftRef.current) {
+        draftRef.current = null;
+        return;
+      }
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
+      if (e.key === "1") {
+        setTool("pan");
+        setSelectedId(null);
+      } else if (e.key === "2") {
+        setTool("box");
+        setCompareOn(false);
+      } else if (e.key === "3") {
+        setTool("arrow");
+        setCompareOn(false);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+        e.preventDefault();
+        setMarks((m) => m.filter((k) => k.id !== selectedId));
+        setSelectedId(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [selectedId]);
+
+  function pushMark(m: LoopMark) {
+    setMarks((prev) => [...prev, m]);
+    setSelectedId(m.id);
+    if (!hintDone) {
+      globalThis.localStorage?.setItem("oia.loopMarkHintDone", "1");
+      setHintDone(true);
+    }
+  }
 
   function updateNote(id: string, note: string) {
     setMarks((m) => m.map((k) => (k.id === id ? ({ ...k, note } as LoopMark) : k)));
   }
   function removeMark(id: string) {
     setMarks((m) => m.filter((k) => k.id !== id));
+    if (selectedId === id) setSelectedId(null);
   }
 
   return (
@@ -464,15 +515,18 @@ export function Loop() {
         <section className="loopWork" aria-label="Mark and edit">
           <div className="loopStageCol">
             <div className="loopTools" role="toolbar" aria-label="Marking tools">
-              <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span></button>
-              <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span></button>
-              <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span></button>
+              <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom (1)" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span></button>
+              <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region (2)" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span></button>
+              <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow (3)" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span></button>
               {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
               <span className="composerSpacer" />
               <button className="loopTool" data-testid="loop-compare" aria-pressed={compareOn} disabled={idx < 1} title="Toggle the previous version" onClick={() => setCompareOn((v) => !v)}>{Icon.undo}<span>{compareOn ? "After" : "Before"}</span></button>
             </div>
             <div className="loopStage" ref={stageRef} data-testid="loop-stage">
               {showBefore && <span className="stageBadge" data-testid="loop-before-badge">Before</span>}
+              {!hintDone && marks.length === 0 && !compareOn && !busy && (
+                <p className="loopFirstHint" data-testid="loop-first-hint">Circle the part you want changed, one box per fix.</p>
+              )}
               {fit && displayed && (
                 <div className="loopWorld" ref={worldRef}>
                   <img data-testid="loop-image" src={displayed.dataUrl} alt={showBefore ? "The previous loop image" : "The current loop image"} width={fit.w} height={fit.h} draggable={false} />
@@ -503,9 +557,10 @@ export function Loop() {
           <aside className="loopSide" aria-label="Regions">
             <h2>Regions</h2>
             {marks.length === 0 && <p className="loopEmpty">Pick Box or Arrow and drag on the image. Each region gets its own instruction.</p>}
+            {marks.length > 0 && <p className="loopEmpty loopKeyHint">Click a region to select it, Delete removes it. Keys 1, 2, 3 switch tools.</p>}
             <ol className="loopRegions">
               {marks.map((m, i) => (
-                <li key={m.id} className="loopRegion" data-testid={`region-${i + 1}`}>
+                <li key={m.id} className={`loopRegion ${m.id === selectedId ? "selected" : ""}`} data-testid={`region-${i + 1}`} onClick={() => setSelectedId((cur) => (cur === m.id ? null : m.id))}>
                   <span className="regionChip" aria-hidden="true">{i + 1}</span>
                   <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : Icon.arrowUp}</span>
                   <input
@@ -514,6 +569,7 @@ export function Loop() {
                     className={!m.note.trim() && marks.length && notesMissing ? "invalid" : ""}
                     value={m.note}
                     placeholder="What should change here?"
+                    onFocus={() => setSelectedId(m.id)}
                     onChange={(e) => updateNote(m.id, e.target.value)}
                   />
                   <button className="iconBtn" aria-label={`Remove region ${i + 1}`} data-testid={`region-remove-${i + 1}`} onClick={() => removeMark(m.id)}>{Icon.x}</button>

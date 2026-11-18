@@ -2750,6 +2750,8 @@ async function shot(): Promise<void> {
   win.focus();
   await new Promise((r) => setTimeout(r, 400));
   const silMarks = await win.webContents.executeJavaScript(`(async () => {
+    // SL-4 first-use hint must show on a fresh profile BEFORE any mark exists
+    const hint = Boolean(document.querySelector('[data-testid="loop-first-hint"]'));
     const boxBtn = document.querySelector('[data-testid="tool-box"]');
     if (!boxBtn) return { ok: false, why: "no box tool" };
     boxBtn.click();
@@ -2784,7 +2786,8 @@ async function shot(): Promise<void> {
     const d = t.getContext("2d").getImageData(0, 0, t.width, t.height).data;
     let red = 0;
     for (let i = 0; i < d.length; i += 4) { if (d[i] > 180 && d[i + 1] < 90 && d[i + 2] < 90) red++; }
-    return { ok: rows.length === 2 && chip1 === "1" && chip2 === "2", rows, chip1, chip2, red, err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ") };
+    const hintGone = !document.querySelector('[data-testid="loop-first-hint"]');
+    return { ok: rows.length === 2 && chip1 === "1" && chip2 === "2" && hint && hintGone, rows, chip1, chip2, red, hint, hintGone, err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ") };
   })()`, true);
   if (!silMarks || silMarks.ok !== true || silMarks.red < 3) {
     console.error(`DESKTOP_SHOT SIL FAILED, mark drawing did not land (${JSON.stringify(silMarks)})`);
@@ -2858,6 +2861,53 @@ async function shot(): Promise<void> {
     return;
   }
   console.log(`[shot] SIL history nav OK (undo→"${silNav.afterUndo}" latest→"${silNav.afterLatest}" compare badge=${silNav.badge})`);
+
+  // SL-4 polish: keyboard tools (2/3/1), row selection + Delete, and 12 marks
+  // on the overlay at once (perf sanity, pixel truth stays red).
+  const silPolish = await win.webContents.executeJavaScript(`(async () => {
+    const key = (k) => window.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+    const pressed = (id) => document.querySelector('[data-testid="' + id + '"]')?.getAttribute("aria-pressed");
+    key("2");
+    await new Promise((r) => setTimeout(r, 120));
+    if (pressed("tool-box") !== "true") return { ok: false, why: "key 2 did not pick the box tool" };
+    const ov = document.querySelector('[data-testid="loop-overlay"]');
+    const r = ov.getBoundingClientRect();
+    const base = { bubbles: true, cancelable: true, pointerId: 12, isPrimary: true, pointerType: "mouse" };
+    const drag = async (x0, y0, x1, y1) => {
+      ov.dispatchEvent(new PointerEvent("pointerdown", { ...base, clientX: x0, clientY: y0 }));
+      ov.dispatchEvent(new PointerEvent("pointermove", { ...base, clientX: x1, clientY: y1 }));
+      ov.dispatchEvent(new PointerEvent("pointerup", { ...base, clientX: x1, clientY: y1 }));
+      await new Promise((res) => setTimeout(res, 90));
+    };
+    await drag(r.left + 60, r.top + 60, r.left + 90, r.top + 90); // keyboard-drawn box → 1 region (the edit round cleared old marks)
+    if (document.querySelectorAll(".loopRegion").length !== 1) return { ok: false, why: "keyboard tool did not draw", rows: document.querySelectorAll(".loopRegion").length };
+    // a fresh mark arrives SELECTED (Delete targets it); a row click toggles it
+    const sel = document.querySelector('[data-testid="region-1"]')?.classList.contains("selected");
+    key("Delete");
+    await new Promise((res) => setTimeout(res, 120));
+    const rowsAfterDel = document.querySelectorAll(".loopRegion").length;
+    if (!sel || rowsAfterDel !== 0) return { ok: false, why: "selection or Delete failed", sel, rowsAfterDel };
+    // 12 small boxes at once, overlay must stay painted (perf sanity)
+    for (let i = 0; i < 12; i++) await drag(r.left + 40 + i * 22, r.top + 120, r.left + 58 + i * 22, r.top + 150);
+    await new Promise((res) => setTimeout(res, 300));
+    const rows = document.querySelectorAll(".loopRegion").length;
+    const dpr = ov.width / Math.max(1, r.width);
+    const t = document.createElement("canvas");
+    t.width = Math.round(r.width * dpr); t.height = Math.round(r.height * dpr);
+    t.getContext("2d").drawImage(ov, 0, 0, t.width, t.height);
+    const dd = t.getContext("2d").getImageData(0, 0, t.width, t.height).data;
+    let red = 0;
+    for (let i = 0; i < dd.length; i += 4) { if (dd[i] > 180 && dd[i + 1] < 90 && dd[i + 2] < 90) red++; }
+    const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
+    return { ok: rows === 12 && red > 200 && !err, rows, red, err };
+  })()`, true);
+  if (!silPolish || silPolish.ok !== true) {
+    console.error(`DESKTOP_SHOT SIL FAILED, polish lane (${JSON.stringify(silPolish)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL polish OK (keyboard tools, Delete selection, ${silPolish.rows} regions, red=${silPolish.red}px)`);
+  await snap(win, "desktop-loop-many.png");
   await snap(win, "desktop-loop-edit.png");
   await win.webContents.executeJavaScript(`document.querySelector('[data-testid="loop-reset"]').click()`, true);
   await new Promise((r) => setTimeout(r, 300));
