@@ -241,6 +241,8 @@ async function dispatch(req: UtilityRequest): Promise<unknown> {
     }
     case "files.read":
       return await requireCtx().files.read(req.key);
+    case "files.list":
+      return await requireCtx().files.listUploads();
 
     // ---- SIL: one loop session, crash-safe (TP.7 atomic write) ----
     case "loop.session.save": {

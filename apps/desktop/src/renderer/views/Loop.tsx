@@ -57,6 +57,7 @@ const Icon = {
   upload: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>,
   paperclip: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>,
   sparkle: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z" /></svg>,
+  grid: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
@@ -92,6 +93,8 @@ export function Loop() {
    * then flip the intent to dress the scene around it. */
   const [attachMode, setAttachMode] = useState<"edit" | "new">("edit");
   const attachInputRef = useRef<HTMLInputElement>(null);
+  const [assetsOpen, setAssetsOpen] = useState(false);
+  const [assets, setAssets] = useState<{ key: string; mtimeMs: number }[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [mockMode, setMockMode] = useState(false);
   const [markupCapable, setMarkupCapable] = useState(false);
@@ -386,6 +389,44 @@ export function Loop() {
       setImportedNote(r.scaled ? `Imported at ${r.width} × ${r.height} (capped at ${IMPORT_MAX_EDGE}px long edge).` : "");
     } catch {
       setError("That image could not be imported. Please try another file.");
+    }
+  }
+
+  /** The Assets popover lists the app's stored uploads over the privileged
+   * oia:// scheme (no bytes through the renderer until one is picked). */
+  async function openAssets(): Promise<void> {
+    setAssetsOpen((v) => !v);
+    if (!assets.length) {
+      try {
+        const all = await oia().filesList();
+        setAssets(all.filter((a) => /\.(png|jpe?g|webp)$/i.test(a.key)).sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, 24));
+      } catch {
+        setError("Your saved images could not be listed. Please try again.");
+      }
+    }
+  }
+
+  /** Pick one stored upload into the attach slot (fetch bytes → dataUrl). */
+  async function pickAsset(key: string): Promise<void> {
+    setAssetsOpen(false);
+    try {
+      const blob = await (await fetch(`oia://files/${key}`)).blob();
+      const dataUrl = await new Promise<string>((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result));
+        fr.onerror = () => rej(fr.error ?? new Error("read failed"));
+        fr.readAsDataURL(blob);
+      });
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const el = new Image();
+        el.onload = () => res(el);
+        el.onerror = () => rej(new Error("decode failed"));
+        el.src = dataUrl;
+      });
+      const plan = importPlan(img.naturalWidth, img.naturalHeight);
+      setAttach({ dataUrl, width: plan.keep ? img.naturalWidth : plan.width, height: plan.keep ? img.naturalHeight : plan.height });
+    } catch {
+      setError("That image could not be attached. Please try another.");
     }
   }
 
@@ -1031,7 +1072,7 @@ export function Loop() {
           aria-label="Image idea"
           data-testid="loop-idea"
           value={prompt}
-          placeholder={attach || current ? (attachMode === "new" ? "Describe the new image around this product… (e.g. a warm wooden table, morning light)" : attach ? "Describe what to change in this photo…" : "Ask for a change, or mark regions above…") : "What would you like to generate?"}
+          placeholder={attach || current ? (attachMode === "new" ? "Describe the new image around this product… (e.g. a warm wooden table, morning light)" : attach ? "Describe what to change in this photo…" : "Ask for a change, or mark regions above…") : "Describe an idea, or upload a photo to edit…"}
           rows={current || attach ? 1 : 2}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
@@ -1044,7 +1085,20 @@ export function Loop() {
         <div className="composerControls">
           {!current && (
             <>
-              <button className="iconBtn labeledIcon" aria-label="Attach an image to edit" data-testid="loop-attach" title="Attach a PNG/JPEG/WebP to edit it" onClick={() => attachInputRef.current?.click()}>{Icon.paperclip}<span>Image</span></button>
+              {assetsOpen && (
+                <div className="loopAssetsPop" role="dialog" aria-label="Your images">
+                  {assets.length === 0 && <p className="loopAssetsEmpty">Nothing here yet - generated and uploaded images land in this library.</p>}
+                  <div className="loopAssetsGrid">
+                    {assets.map((a) => (
+                      <button key={a.key} className="loopAssetThumb" title={a.key} onClick={() => void pickAsset(a.key)}>
+                        <img src={`oia://files/${a.key}`} alt="" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <button className="iconBtn labeledIcon" aria-label="Upload an image to edit" data-testid="loop-attach" title="Upload a PNG/JPEG/WebP from this computer" onClick={() => attachInputRef.current?.click()}>{Icon.upload}<span>Upload</span></button>
+              <button className={`iconBtn labeledIcon ${assetsOpen ? "active" : ""}`} aria-label="Pick one of your saved images" aria-expanded={assetsOpen} data-testid="loop-assets" title="Pick from the images this app already has" onClick={() => void openAssets()}>{Icon.grid}<span>Assets</span></button>
               <input ref={attachInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickAttach(f); e.target.value = ""; }} />
             </>
           )}

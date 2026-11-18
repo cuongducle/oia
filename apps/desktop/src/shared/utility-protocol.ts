@@ -43,6 +43,7 @@ export type UtilityCommand =
   | { cmd: "sessions.get"; id: number }
   | { cmd: "files.put"; name: string; bytes: Uint8Array }
   | { cmd: "files.read"; key: string }
+  | { cmd: "files.list" }
   | { cmd: "loop.session.save"; session: LoopSession }
   | { cmd: "loop.session.load" }
   /** reorg step 4c, the quick-tools task lane (renderer IPC, NOT the loopback API).

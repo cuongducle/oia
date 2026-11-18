@@ -103,6 +103,8 @@ export interface OiaBridge {
   uploadAsset: (name: string, bytes: Uint8Array) => Promise<{ url: string; size: number }>;
   /** Native save dialog + write, the desktop replacement for the browser download anchor. */
   saveExport: (fileName: string, bytes: Uint8Array) => Promise<{ saved: boolean; path: string | null }>;
+  /** Stored uploads (mtime desc order is the caller's job), for asset pickers. */
+  filesList: () => Promise<{ key: string; mtimeMs: number }[]>;
   /** SIL: the single edit-loop session (versions + prompt + marks), crash-safe on disk. */
   loopSessionLoad: () => Promise<LoopSession | null>;
   loopSessionSave: (session: LoopSession) => Promise<{ ok: boolean }>;

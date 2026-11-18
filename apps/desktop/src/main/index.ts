@@ -314,6 +314,10 @@ function registerIpc(): void {
       ipcError(err);
     }
   });
+  handle(IPC.filesList, async () => {
+    await ensureUtility();
+    return await utility.call({ cmd: "files.list" });
+  });
   // ---- SIL: the single loop session, load on mount / save debounced ----
   handle(IPC.loopSessionLoad, async () => {
     await ensureUtility();

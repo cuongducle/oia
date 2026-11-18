@@ -28,6 +28,7 @@ const api: OiaBridge = {
   getSession: (id) => ipcRenderer.invoke(IPC.sessionsGet, { id }),
   uploadAsset: (name, bytes) => ipcRenderer.invoke(IPC.filesUpload, { name, bytes }),
   saveExport: (fileName, bytes) => ipcRenderer.invoke(IPC.exportSave, { fileName, bytes }),
+  filesList: () => ipcRenderer.invoke(IPC.filesList),
   loopSessionLoad: () => ipcRenderer.invoke(IPC.loopSessionLoad),
   loopSessionSave: (session) => ipcRenderer.invoke(IPC.loopSessionSave, { session }),
   submitTask: (type, params) => ipcRenderer.invoke(IPC.taskSubmit, { type, params }),

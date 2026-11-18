@@ -1009,3 +1009,12 @@ input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outlin
 .loopAttachModes { display: inline-flex; gap: 6px; margin-left: 4px; }
 .loopModePill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d8d6e2; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #55516a; cursor: pointer; }
 .loopModePill.active { border-color: var(--ink); color: var(--ink); font-weight: 600; box-shadow: 0 1px 6px rgba(20,18,30,.10); }
+
+/* the saved-images popover over the bar */
+.loopAssetsPop { position: absolute; bottom: calc(100% + 10px); left: 0; right: 0; background: #fff; border: 1px solid #d8d6e2; border-radius: 12px; box-shadow: 0 14px 40px -14px rgba(20,18,30,.35); padding: 12px; z-index: 30; }
+.loopAssetsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; max-height: 264px; overflow-y: auto; }
+.loopAssetThumb { border: 1px solid #e2e0ea; border-radius: 8px; overflow: hidden; background: #f6f5f9; cursor: pointer; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 0; }
+.loopAssetThumb:hover { border-color: var(--ink); }
+.loopAssetThumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.loopAssetsEmpty { margin: 4px 2px 8px; font-size: 12px; color: var(--muted); }
+.iconBtn.labeledIcon.active { background: rgba(20,18,30,.07); }
