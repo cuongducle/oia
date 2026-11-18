@@ -55,6 +55,7 @@ const Icon = {
   highlight: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18l9-9 4 4-9 9H5v-4z" /><path d="M13 5l2-2 6 6-2 2" /></svg>,
   textType: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2" /><path d="M9 5v14" /><path d="M7 19h4" /><path d="M14 12h6" /><path d="M17 12v7" /><path d="M15 19h4" /></svg>,
   upload: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M17 8l-5-5-5 5" /><path d="M12 3v12" /></svg>,
+  paperclip: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
@@ -82,6 +83,9 @@ export function Loop() {
   const [narrative, setNarrative] = useState("");
   const [error, setError] = useState("");
   const [importedNote, setImportedNote] = useState("");
+  /** ChatGPT-style: an attached photo waiting in the bar, becomes the base on send. */
+  const [attach, setAttach] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [mockMode, setMockMode] = useState(false);
   const [markupCapable, setMarkupCapable] = useState(false);
@@ -212,7 +216,25 @@ export function Loop() {
   }
 
   async function submit() {
-    if (!prompt.trim() || busy) return;
+    if (busy) return;
+    // attached photo becomes the base; text (if any) immediately edits it
+    if (attach) {
+      const base = attach;
+      setAttach(null);
+      pushImported(base);
+      if (!prompt.trim()) return; // just the base, no quota spent
+      await runEditRound(base, marks, prompt.trim());
+      setPrompt("");
+      return;
+    }
+    // an image is on stage: the bar is a chat turn, not a new generate
+    if (current) {
+      if (!prompt.trim() && !marks.length) return;
+      await runEditRound(current, marks, prompt.trim() || globalNote);
+      setPrompt("");
+      return;
+    }
+    if (!prompt.trim()) return;
     setBusy(true);
     setNotesOpen(true);
     markRunStart(Date.now());
@@ -247,9 +269,16 @@ export function Loop() {
   }
 
   /** SL-3: ONE edit per round carries every marked region (flatten channel). */
+  /** The panel button keeps its own gate (marks + notes/global); the bar
+   * chat turn calls runEditRound directly. One path, metered once. */
   async function sendEdit() {
-    const cur = current;
-    if (!cur || busy || !marks.length || (marks.some((m) => m.kind !== "text" && !m.note.trim()) && !globalNote.trim())) return;
+    if (!current || busy || !marks.length) return;
+    if (marks.some((m) => m.kind !== "text" && !m.note.trim()) && !globalNote.trim()) return;
+    await runEditRound(current, marks, globalNote);
+  }
+
+  async function runEditRound(base: { dataUrl: string; width: number; height: number }, roundMarks: LoopMark[], globalNote: string): Promise<void> {
+    if (busy) return;
     setBusy(true);
     setNotesOpen(true);
     markRunStart(Date.now());
@@ -262,9 +291,9 @@ export function Loop() {
     setTimeline([]);
     setNarrative("");
     try {
-      const composite = await regionComposite(cur.dataUrl, marks, cur.width, cur.height);
+      const composite = await regionComposite(base.dataUrl, roundMarks, base.width, base.height);
       const res = await oia().chatRun({
-        prompt: `${EDIT_HEAD}\n${marksPrompt(marks, globalNote)}`,
+        prompt: `${EDIT_HEAD}\n${marksPrompt(roundMarks, globalNote)}`,
         ...(sessionId ? { sessionId } : {}),
         referenceImages: [composite],
         editMode: { markup: "flatten", targetName: "loop image" },
@@ -288,49 +317,60 @@ export function Loop() {
     if (jobId) await oia().cancelChat(jobId).catch(() => {});
   }
 
-  /** Start (or restart) the loop from the seller's own photo: decode, cap the
-   * long edge at IMPORT_MAX_EDGE (quota honesty: the edit round sends the
-   * image, oversized pixels waste it), then push an Imported version slot. */
+  /** Decode a dropped/attached image, cap the long edge at IMPORT_MAX_EDGE
+   * (quota honesty: the edit round sends the image, oversized pixels waste
+   * it). Returns the dataUrl the loop can use as a base. */
+  async function readImageFile(file: File): Promise<{ dataUrl: string; width: number; height: number; scaled: boolean }> {
+    if (busy) throw new Error("busy");
+    if (!importableFile(file)) throw new Error("type");
+    const dataUrl = await new Promise<string>((res, rej) => {
+      const fr = new FileReader();
+      fr.onload = () => res(String(fr.result));
+      fr.onerror = () => rej(fr.error ?? new Error("read failed"));
+      fr.readAsDataURL(file);
+    });
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const el = new Image();
+      el.onload = () => res(el);
+      el.onerror = () => rej(new Error("decode failed"));
+      el.src = dataUrl;
+    });
+    const plan = importPlan(img.naturalWidth, img.naturalHeight);
+    if (plan.keep) return { dataUrl, width: img.naturalWidth, height: img.naturalHeight, scaled: false };
+    const c = document.createElement("canvas");
+    c.width = plan.width;
+    c.height = plan.height;
+    c.getContext("2d")!.drawImage(img, 0, 0, plan.width, plan.height);
+    return { dataUrl: c.toDataURL("image/png"), width: plan.width, height: plan.height, scaled: true };
+  }
+
+  function pushImported(base: { dataUrl: string; width: number; height: number }): void {
+    setVersions((v) => capVersions(mergeVersion(v, base, null, "import")));
+    setCursor(null);
+    setCompareOn(false);
+    setMarks([]);
+    setError("");
+  }
+
+  /** Drag-drop lands straight on the canvas: it becomes the base at once. */
   async function importImageFile(file: File): Promise<void> {
-    if (busy) return;
-    if (!importableFile(file)) {
-      setError("Only PNG, JPEG or WebP images can be imported.");
-      return;
-    }
     try {
-      const dataUrl = await new Promise<string>((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(String(fr.result));
-        fr.onerror = () => rej(fr.error ?? new Error("read failed"));
-        fr.readAsDataURL(file);
-      });
-      const img = await new Promise<HTMLImageElement>((res, rej) => {
-        const el = new Image();
-        el.onload = () => res(el);
-        el.onerror = () => rej(new Error("decode failed"));
-        el.src = dataUrl;
-      });
-      const plan = importPlan(img.naturalWidth, img.naturalHeight);
-      let out = dataUrl;
-      let w = img.naturalWidth;
-      let h = img.naturalHeight;
-      if (!plan.keep && plan.width > 0) {
-        const c = document.createElement("canvas");
-        c.width = plan.width;
-        c.height = plan.height;
-        c.getContext("2d")!.drawImage(img, 0, 0, plan.width, plan.height);
-        out = c.toDataURL("image/png");
-        w = plan.width;
-        h = plan.height;
-      }
-      setVersions((v) => capVersions(mergeVersion(v, { dataUrl: out, width: w, height: h }, null, "import")));
-      setCursor(null);
-      setCompareOn(false);
-      setMarks([]);
-      setError("");
-      setImportedNote(w === img.naturalWidth ? "" : `Imported at ${w} × ${h} (capped at ${IMPORT_MAX_EDGE}px long edge).`);
+      const r = await readImageFile(file);
+      pushImported(r);
+      setImportedNote(r.scaled ? `Imported at ${r.width} × ${r.height} (capped at ${IMPORT_MAX_EDGE}px long edge).` : "");
     } catch {
       setError("That image could not be imported. Please try another file.");
+    }
+  }
+
+  /** The bar's attach slot: hold the photo in the composer until send. */
+  async function pickAttach(file: File): Promise<void> {
+    try {
+      const r = await readImageFile(file);
+      setAttach({ dataUrl: r.dataUrl, width: r.width, height: r.height });
+      setError("");
+    } catch {
+      setError("Only PNG, JPEG or WebP images can be attached.");
     }
   }
 
@@ -778,29 +818,13 @@ export function Loop() {
 
   return (
     <main className="studioPage loopView loopCanvasFirst" aria-label="Edit loop">
-      {!current && !displayed && (
-        <section className="loopStage loopEmptyStage" data-testid="loop-empty" aria-label="Canvas" onDragOver={(e) => e.preventDefault()} onDrop={onImportDrop}>
-          {busy ? (
+      {!current && !displayed && busy && (
+          <section className="loopStage loopEmptyBare" aria-label="Canvas">
             <div className="loopEmptyRun">
               <RunPanel busy={busy} steps={stepsFromTimeline(timeline)} narrative={narrative} notesOpen={notesOpen} onToggleNotes={setNotesOpen} startedAt={startedAt} summarySeconds={genSeconds} />
             </div>
-          ) : (
-            <div className="loopEmptyInner">
-              <div className="loopChipRow" aria-label="Try a starter idea">
-                {SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" className="loopSuggestChip" onClick={() => setPrompt(s)}>{s}</button>
-                ))}
-              </div>
-              <div className="loopImportRow">
-                <button className="loopImportBtn" data-testid="loop-import" onClick={() => importInputRef.current?.click()}>{Icon.upload}<span>Open an image</span></button>
-                <span className="loopImportAlt">PNG · JPEG · WebP — or just drop it anywhere on the canvas</span>
-                <input ref={importInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importImageFile(f); e.target.value = ""; }} />
-              </div>
-              {importedNote && <p className="loopImportNote">{importedNote}</p>}
-            </div>
-          )}
-        </section>
-      )}
+          </section>
+        )}
 
       {(error || flattenFailed) && (
         <div className="notice error" role="alert">{error || flattenFailed}</div>
@@ -945,12 +969,19 @@ export function Loop() {
       )}
 
       <section className="promptCard loopBar" aria-label="Generate one image">
+        {attach && (
+          <div className="loopAttachRow" data-testid="loop-attach-preview">
+            <img src={attach.dataUrl} alt="Attached image" />
+            <span className="mono">{attach.width} × {attach.height}</span>
+            <button className="iconBtn" aria-label="Remove the attached image" onClick={() => setAttach(null)}>{Icon.x}</button>
+          </div>
+        )}
         <textarea
           aria-label="Image idea"
           data-testid="loop-idea"
           value={prompt}
-          placeholder={current ? "Describe the next image…" : "What would you like to generate?"}
-          rows={current ? 1 : 2}
+          placeholder={attach ? "Describe what to change in this image…" : current ? "Ask for a change, or mark regions above…" : "What would you like to generate?"}
+          rows={current || attach ? 1 : 2}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -960,6 +991,12 @@ export function Loop() {
           }}
         />
         <div className="composerControls">
+          {!current && (
+            <>
+              <button className="iconBtn labeledIcon" aria-label="Attach an image to edit" data-testid="loop-attach" title="Attach a PNG/JPEG/WebP to edit it" onClick={() => attachInputRef.current?.click()}>{Icon.paperclip}<span>Image</span></button>
+              <input ref={attachInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickAttach(f); e.target.value = ""; }} />
+            </>
+          )}
           <select aria-label="Aspect ratio" value={aspect} onChange={(e) => setAspect(e.target.value)}>
             <option value="auto">Auto ratio</option>
             {Object.keys(LOOP_ASPECTS).filter((a) => a !== "auto").map((a) => <option key={a} value={a}>{a}</option>)}
@@ -978,7 +1015,7 @@ export function Loop() {
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
-            <button className="generateBtn labeled" aria-label="Generate image" data-testid="loop-generate" disabled={!prompt.trim()} onClick={() => void submit()}>Generate{Icon.arrow}</button>
+            <button className="generateBtn labeled" aria-label={attach || current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach || current ? "Edit" : "Generate"}{Icon.arrow}</button>
           )}
         </div>
       </section>

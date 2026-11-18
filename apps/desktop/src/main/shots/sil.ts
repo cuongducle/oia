@@ -28,7 +28,7 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
   }
   // canvas-first (owner 18/11): with NO image yet the stage is the empty
   // canvas (Krea/Midjourney layout), not a composer card
-  const loopEmpty = await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="loop-empty"] .loopSuggestChip'))`, true);
+  const loopEmpty = await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="loop-attach"]'))`, true);
   if (!loopReady || !loopEmpty) {
     console.error("DESKTOP_SHOT SIL FAILED, loop view did not mount");
     app.exit(31);
