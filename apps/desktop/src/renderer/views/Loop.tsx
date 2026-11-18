@@ -655,6 +655,9 @@ export function Loop() {
             ) : (
               <p className="loopEmpty">Region edits need a provider that supports markup edits.</p>
             )}
+            {!editing && marks.length > 0 && notesMissing && (
+              <p className="loopEmpty loopDisabledWhy">Describe every region to enable the edit.</p>
+            )}
           </aside>
         </section>
       )}
