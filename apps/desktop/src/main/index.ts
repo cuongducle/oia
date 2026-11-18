@@ -2688,11 +2688,16 @@ async function shot(): Promise<void> {
     if (loopReady) break;
     await new Promise((r) => setTimeout(r, 150));
   }
-  if (!loopReady) {
+  // canvas-first (owner 18/11): with NO image yet the stage is the empty
+  // canvas (Krea/Midjourney layout), not a composer card
+  const loopEmpty = await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="loop-empty"] h1'))`, true);
+  if (!loopReady || !loopEmpty) {
     console.error("DESKTOP_SHOT SIL FAILED, loop view did not mount");
     app.exit(31);
     return;
   }
+  // artifact: the canvas-first empty state (pre-generate) before the run mutates the view
+  await snap(win, "desktop-loop-empty.png");
   const silSubmitted = await win.webContents.executeJavaScript(`(() => {
     const ta = document.querySelector('[data-testid="loop-idea"]');
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;

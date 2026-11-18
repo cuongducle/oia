@@ -119,3 +119,14 @@ Research pattern 4 nhóm tool (Photoshop Generative Fill + Contextual Task Bar, 
 - **Chip màu #b91c1c** thay đỏ thuần (audit: đỏ chói đọc là error; marker ĐỎ trên composite giữ #ff0000 vì probe P3 prove màu đó cho model).
 
 Gates: tsc + 328 test (3 test layoutChips mới) + shot trọn vòng xanh; vision verify artboard/zoom/kbd/count pass từng mục. Đợt sau chờ nhu cầu: leader-line chip, version filmstrip thumbnail, segmented After/Before (đổi testid compare sẽ phá lane, làm cùng filmstrip).
+
+## Canvas-first layout 18/11 tối (owner duyệt mô hình B)
+
+Research 3 mô hình placement prompt sau gen: (A) chat feed (ChatGPT/Gemini), (B) canvas-first + prompt bar đáy (Krea, Midjourney "creative memory", Ideogram), (C) side panel (Whisk/Figma/OpenArt). Owner duyệt B kèm chỉ đạo riêng: "chưa có ảnh thì ko cần hiện composer card đâu" - tức KHÔNG phải morphing 2 trạng thái mà LUÔN canvas-first ngay từ đầu:
+
+- Chưa có ảnh: canvas rỗng (dashed placeholder + icon + "Describe the image below, then Generate") chiếm phần lớn màn; prompt bar 1 card nhỏ PIN đáy; KHÔNG còn header "Edit loop" lớn, không composer card trên.
+- Gen xong: ảnh chiếm canvas (stage + tools + Regions panel như cũ), prompt bar vẫn pin đáy, prompt cũ giữ trong ô (Midjourney remix memory), rows co từ 2 về 1 khi đã có ảnh; cost label chỉ hiện khi chưa có ảnh (luật cũ giữ).
+- RunPanel lúc gen đầu: hiển thị TRONG canvas rỗng (loop-empty chuyển thành vùng chạy), không còn floating cuối trang.
+- Lane shot pin layout mới: assert [data-testid=loop-empty] h1 trước khi submit + artifact mới out/desktop-loop-empty.png; artifact cũ desktop-loop.png (stale từ layout cũ) đã xóa. Vision verify: empty canvas ~70% chiều cao + bar đáy + disabled Generate đúng state, không artifact cũ.
+
+Gates: tsc + 328 test + shot trọn vòng xanh. Câu mở còn lại từ đợt research: version filmstrip + segmented After/Before vẫn đỗ lại chờ nhu cầu.

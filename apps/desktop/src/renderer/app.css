@@ -952,3 +952,15 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .loopZoomPct { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
 .loopProgressVeil { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,.62); backdrop-filter: blur(1.5px); font-size: 13.5px; color: var(--ink); pointer-events: none; }
 .spin.big { font-size: 20px; color: var(--ink); }
+
+/* ---- SIL canvas-first layout: empty stage up top, prompt bar pinned bottom ---- */
+.loopCanvasFirst { display: flex; flex-direction: column; gap: 14px; min-height: calc(100vh - 180px); }
+.loopEmptyStage { border-style: dashed; background: #fff; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 300px; }
+.loopEmptyInner { text-align: center; color: var(--muted); max-width: 460px; padding: 28px; }
+.loopEmptyInner h1 { font-size: 17px; letter-spacing: -0.01em; margin: 14px 0 6px; color: var(--ink); }
+.loopEmptyInner p { margin: 0; font-size: 13px; line-height: 1.55; }
+.loopEmptyGlyph { color: #b7b4c2; }
+.loopEmptyRun { width: 100%; max-width: 640px; padding: 24px; }
+.loopBar { margin-top: auto; position: sticky; bottom: 12px; z-index: 6; box-shadow: 0 12px 32px -16px rgba(20,18,30,.28); }
+.loopBar textarea { min-height: 44px; }
+.loopWork { flex: 1; }

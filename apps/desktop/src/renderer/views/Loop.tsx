@@ -527,50 +527,24 @@ export function Loop() {
   }
 
   return (
-    <main className="studioPage loopView" aria-label="Edit loop">
-      <header className="loopHead">
-        <h1>Edit loop</h1>
-        <p>{HOW_IT_WORKS}</p>
-      </header>
-
-      <section className="promptCard loopComposer" aria-label="Generate one image">
-        <textarea
-          aria-label="Image idea"
-          data-testid="loop-idea"
-          value={prompt}
-          placeholder={current ? "Describe the next image…" : "What would you like to generate?"}
-          rows={2}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-        />
-        <div className="composerControls">
-          <select aria-label="Aspect ratio" value={aspect} onChange={(e) => setAspect(e.target.value)}>
-            <option value="auto">Auto ratio</option>
-            {Object.keys(LOOP_ASPECTS).filter((a) => a !== "auto").map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-          <select aria-label="Style preset" data-testid="loop-style" value={stylePreset} onChange={(e) => { const v = e.target.value as StylePresetId | ""; setStylePreset(v); writeStylePref(v); }}>
-            <option value="">Auto style</option>
-            {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-          </select>
-          <span className="composerSpacer" />
-          {!busy && !current && (
-            <CostHint
-              testId="loop-cost"
-              text={costHintText({ images: 1, isMock: mockMode, autoRefineRounds: autoRefinePref ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
-            />
-          )}
+    <main className="studioPage loopView loopCanvasFirst" aria-label="Edit loop">
+      {!current && !displayed && (
+        <section className="loopStage loopEmptyStage" data-testid="loop-empty" aria-label="Canvas">
           {busy ? (
-            <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
+            <div className="loopEmptyRun">
+              <RunPanel busy={busy} steps={stepsFromTimeline(timeline)} narrative={narrative} notesOpen={notesOpen} onToggleNotes={setNotesOpen} startedAt={startedAt} summarySeconds={genSeconds} />
+            </div>
           ) : (
-            <button className="generateBtn labeled" aria-label="Generate image" data-testid="loop-generate" disabled={!prompt.trim()} onClick={() => void submit()}>Generate{Icon.arrow}</button>
+            <div className="loopEmptyInner">
+              <span className="loopEmptyGlyph" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="5" width="16" height="14" rx="2.5" /><circle cx="9.2" cy="10" r="1.6" /><path d="m5 17 4.2-4.2a1.6 1.6 0 0 1 2.3 0L16 17" /></svg>
+              </span>
+              <h1>Describe the image below, then Generate</h1>
+              <p>{HOW_IT_WORKS}</p>
+            </div>
           )}
-        </div>
-      </section>
+        </section>
+      )}
 
       {(error || flattenFailed) && (
         <div className="notice error" role="alert">{error || flattenFailed}</div>
@@ -685,7 +659,44 @@ export function Loop() {
         </section>
       )}
 
-      {busy && !current && <RunPanel busy={busy} steps={stepsFromTimeline(timeline)} narrative={narrative} notesOpen={notesOpen} onToggleNotes={setNotesOpen} startedAt={startedAt} summarySeconds={genSeconds} />}
+      <section className="promptCard loopBar" aria-label="Generate one image">
+        <textarea
+          aria-label="Image idea"
+          data-testid="loop-idea"
+          value={prompt}
+          placeholder={current ? "Describe the next image…" : "What would you like to generate?"}
+          rows={current ? 1 : 2}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+        />
+        <div className="composerControls">
+          <select aria-label="Aspect ratio" value={aspect} onChange={(e) => setAspect(e.target.value)}>
+            <option value="auto">Auto ratio</option>
+            {Object.keys(LOOP_ASPECTS).filter((a) => a !== "auto").map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select aria-label="Style preset" data-testid="loop-style" value={stylePreset} onChange={(e) => { const v = e.target.value as StylePresetId | ""; setStylePreset(v); writeStylePref(v); }}>
+            <option value="">Auto style</option>
+            {STYLE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          <span className="composerSpacer" />
+          {!busy && !current && (
+            <CostHint
+              testId="loop-cost"
+              text={costHintText({ images: 1, isMock: mockMode, autoRefineRounds: autoRefinePref ? AUTO_REFINE_MAX_ROUNDS_DEFAULT : 0 })}
+            />
+          )}
+          {busy ? (
+            <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
+          ) : (
+            <button className="generateBtn labeled" aria-label="Generate image" data-testid="loop-generate" disabled={!prompt.trim()} onClick={() => void submit()}>Generate{Icon.arrow}</button>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
