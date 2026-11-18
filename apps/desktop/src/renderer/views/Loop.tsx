@@ -1070,26 +1070,6 @@ export function Loop() {
             <button className="iconBtn" aria-label="Remove the attached image" onClick={() => setAttach(null)}>{Icon.x}</button>
           </div>
         )}
-        <div className="loopBarBody">
-          {!current && (
-            <div className="loopAttachCol">
-              <button className="loopAttachTile" aria-label="Upload an image to edit" data-testid="loop-attach" title="Upload a PNG/JPEG/WebP from this computer" onClick={() => attachInputRef.current?.click()}>{Icon.upload}<span>Upload</span></button>
-              <button className={`loopAttachTile ${assetsOpen ? "active" : ""}`} aria-label="Pick one of your saved images" aria-expanded={assetsOpen} data-testid="loop-assets" title="Pick from the images this app already has" onClick={() => void openAssets()}>{Icon.gallery}<span>Assets</span></button>
-              <input ref={attachInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickAttach(f); e.target.value = ""; }} />
-              {assetsOpen && (
-                <div className="loopAssetsPop" role="dialog" aria-label="Your images">
-                  {assets.length === 0 && <p className="loopAssetsEmpty">Nothing here yet - generated and uploaded images land in this library.</p>}
-                  <div className="loopAssetsGrid">
-                    {assets.map((a) => (
-                      <button key={a.key} className="loopAssetThumb" title={a.key} onClick={() => void pickAsset(a.key)}>
-                        <img src={`oia://files/${a.key}`} alt="" loading="lazy" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         <textarea
           aria-label="Image idea"
           data-testid="loop-idea"
@@ -1104,8 +1084,26 @@ export function Loop() {
             }
           }}
         />
-        </div>
         <div className="composerControls">
+          {!current && (
+            <>
+              <button className="composerIconBtn" aria-label="Upload an image to edit" data-testid="loop-attach" title="Upload a PNG/JPEG/WebP from this computer" onClick={() => attachInputRef.current?.click()}>{Icon.upload}</button>
+              <button className={`composerIconBtn ${assetsOpen ? "active" : ""}`} aria-label="Pick one of your saved images" aria-expanded={assetsOpen} data-testid="loop-assets" title="Your images in this app" onClick={() => void openAssets()}>{Icon.gallery}</button>
+              <input ref={attachInputRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void pickAttach(f); e.target.value = ""; }} />
+              {assetsOpen && (
+                <div className="loopAssetsPop" role="dialog" aria-label="Your images">
+                  {assets.length === 0 && <p className="loopAssetsEmpty">Nothing here yet - generated and uploaded images land in this library.</p>}
+                  <div className="loopAssetsGrid">
+                    {assets.map((a) => (
+                      <button key={a.key} className="loopAssetThumb" title={a.key} onClick={() => void pickAsset(a.key)}>
+                        <img src={`oia://files/${a.key}`} alt="" loading="lazy" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           <select aria-label="Aspect ratio" value={aspect} onChange={(e) => setAspect(e.target.value)}>
             <option value="auto">Auto ratio</option>
             {Object.keys(LOOP_ASPECTS).filter((a) => a !== "auto").map((a) => <option key={a} value={a}>{a}</option>)}
