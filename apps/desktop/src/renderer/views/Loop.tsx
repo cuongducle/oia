@@ -374,6 +374,14 @@ export function Loop() {
     }
   }
 
+  /** Dropping a photo onto the quiet empty view parks it in the composer
+   * (same gesture as the paperclip); it becomes the base on send. */
+  function onAttachDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (f) void pickAttach(f);
+  }
+
   function onImportDrop(e: React.DragEvent) {
     e.preventDefault();
     const f = e.dataTransfer?.files?.[0];
@@ -817,7 +825,12 @@ export function Loop() {
   }
 
   return (
-    <main className="studioPage loopView loopCanvasFirst" aria-label="Edit loop">
+    <main
+      className="studioPage loopView loopCanvasFirst"
+      aria-label="Edit loop"
+      onDragOver={current ? undefined : (e) => e.preventDefault()}
+      onDrop={current ? undefined : onAttachDrop}
+    >
       {!current && !displayed && busy && (
           <section className="loopStage loopEmptyBare" aria-label="Canvas">
             <div className="loopEmptyRun">
@@ -1015,7 +1028,7 @@ export function Loop() {
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
-            <button className="generateBtn labeled" aria-label={attach || current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach || current ? "Edit" : "Generate"}{Icon.arrow}</button>
+            <button className="generateBtn labeled" aria-label={attach ? (prompt.trim() ? "Edit the attached image" : "Add the attached image to the canvas") : current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach ? (prompt.trim() ? "Edit" : "Add") : current ? "Edit" : "Generate"}{Icon.arrow}</button>
           )}
         </div>
       </section>
