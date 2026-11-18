@@ -30,7 +30,12 @@ type Object = import("fabric").Object;
 
 /** Interactive object for one mark: shape + numbered chip in a Group, so
  * handles and dragging act on the whole region. Scene coords = natural px. */
-export function markToObject(fabric: FabricNS, mark: LoopMark, index: number, naturalW: number, naturalH: number): Group {
+export function markToObject(fabric: FabricNS, mark: LoopMark, index: number, naturalW: number, naturalH: number): Group | import("fabric").IText {
+  if (mark.kind === "text") {
+    const it = buildShape(fabric, mark, markStrokeWidth(naturalW, naturalH)) as import("fabric").IText;
+    it.set({ markId: mark.id, markKind: "text", hoverCursor: "text" });
+    return it;
+  }
   const sw = markStrokeWidth(naturalW, naturalH);
   const shape = buildShape(fabric, mark, sw);
   const s = MARK_UI.chipSize;
@@ -81,6 +86,18 @@ function buildShape(fabric: FabricNS, mark: LoopMark, sw: number): Object {
     const d = mark.pts.map((q, i) => `${i === 0 ? "M" : "L"} ${q.x} ${q.y}`).join(" ");
     return new fabric.Path(d, { stroke: MARK_UI.stroke, strokeWidth: mark.thick ? sw * 3 : sw, fill: undefined, strokeUniform: true, opacity: mark.thick ? 0.55 : 1, strokeLineCap: "round", strokeLineJoin: "round" });
   }
+  if (mark.kind === "text") {
+    return new fabric.IText(mark.text, {
+      left: mark.x,
+      top: mark.y,
+      fill: MARK_UI.stroke,
+      fontFamily: "system-ui",
+      fontSize: Math.max(20, sw * 7),
+      fontWeight: "700",
+      editingBorderColor: "#f59e0b",
+      objectCaching: false,
+    });
+  }
   // arrow: shaft + solid head
   const size = sw * 4 + 6;
   const { dx, dy } = unit(mark.from, mark.to);
@@ -115,6 +132,10 @@ export function objectToMark(prev: LoopMark, obj: Object, fabric: FabricNS, natu
     const bw = clamp((obj.width ?? 0) * sx, MIN_BOX_PX, W - x);
     const bh = clamp((obj.height ?? 0) * sy, MIN_BOX_PX, H - y);
     return prev.kind === "box" ? { ...prev, x, y, w: bw, h: bh } : { ...prev, cx: x + bw / 2, cy: y + bh / 2, rx: bw / 2, ry: bh / 2 };
+  }
+  if (prev.kind === "text") {
+    const it = obj as unknown as { text?: string };
+    return { ...prev, text: String(it.text ?? prev.text).slice(0, 200), x: clamp(obj.left ?? 0, 0, W), y: clamp(obj.top ?? 0, 0, H) };
   }
   if (prev.kind === "arrow") {
     // move-only: shift both endpoints by the group's own delta

@@ -25,6 +25,9 @@ if (!inputArg || !outDirArg || !variant) {
   process.exit(64);
 }
 const VARIANTS = {
+  "no-marker": { css: "", lw: 0, fill: null, label: "no marker" },
+  "scribble": { css: "#ff0000", lw: 4, fill: null, label: "red scribble" },
+  "scribble-text": { css: "#ff0000", lw: 4, fill: null, label: "red scribble with a handwritten note" },
   "red-solid": { css: "#ff0000", lw: 4, fill: null, label: "red box" },
   "red-thin": { css: "#ff0000", lw: 2, fill: null, label: "red box" },
   "red-fill8": { css: "#ff0000", lw: 4, fill: "rgba(255,0,0,0.08)", label: "red box" },
@@ -46,6 +49,7 @@ const note = "repaint the marked balloon to solid purple (#7C3AED), keep its exa
 // ---- phase 1: composite the variant marker in a real Chromium --------------
 const tmp = mkdtempSync(path.join(tmpdir(), "oia-marker-probe-"));
 const pngB64 = (await readFile(input)).toString("base64");
+if (variant === "no-marker") await writeFile(path.join(outDir, "composite.png"), Buffer.from(pngB64, "base64"));
 const html = `<!doctype html><html><body><canvas id="c"></canvas><script>
 const img = new Image();
 img.onload = async () => {
@@ -55,6 +59,35 @@ img.onload = async () => {
   x.drawImage(img, 0, 0);
   const v = ${JSON.stringify(v)};
   const box = { x: ${mx}, y: ${my}, w: ${mw}, h: ${mh} };
+  const variant = ${JSON.stringify(variant)};
+  if (variant === "scribble" || variant === "scribble-text") {
+    // a hand-drawn-looking ellipse: 70 jittered points, open stroke, no chip
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const rx = box.w / 2 + 14, ry = box.h / 2 + 14;
+    x.strokeStyle = v.css;
+    x.lineWidth = v.lw;
+    x.lineJoin = "round";
+    x.lineCap = "round";
+    x.beginPath();
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed / 2147483647) * 2 - 1; };
+    for (let i = 0; i <= 70; i++) {
+      const t = (i / 70) * Math.PI * 2 - 0.4;
+      const px2 = cx + Math.cos(t) * (rx + rnd() * 9);
+      const py2 = cy + Math.sin(t) * (ry + rnd() * 9);
+      if (i === 0) x.moveTo(px2, py2); else x.lineTo(px2, py2);
+    }
+    x.stroke();
+    if (variant === "scribble-text") {
+      x.fillStyle = v.css;
+      x.font = "italic 700 40px Marker Felt, Chalkboard SE, system-ui, sans-serif";
+      x.textAlign = "left";
+      x.textBaseline = "middle";
+      x.fillText("\u2192 PAINT PURPLE", cx - 60, cy - ry - 44);
+    }
+    window.__done = c.toDataURL("image/png");
+    return;
+  }
   if (v.fill) { x.fillStyle = v.fill; x.fillRect(box.x, box.y, box.w, box.h); }
   x.strokeStyle = v.css;
   x.lineWidth = v.lw;
@@ -74,6 +107,7 @@ img.src = "data:image/png;base64,${pngB64}";
 </script></body></html>`;
 await writeFile(path.join(tmp, "probe.html"), html);
 const runCjs = path.join(tmp, "probe.cjs");
+if (variant === "no-marker") { console.log("[probe] no-marker composite = input"); }
 await writeFile(runCjs, `const { app, BrowserWindow } = require("electron");
 const path = require("node:path");
 const { writeFileSync } = require("node:fs");
@@ -85,10 +119,12 @@ app.whenReady().then(async () => {
   writeFileSync(path.join(${JSON.stringify(outDir)}, "composite.png"), Buffer.from(dataUrl.split(",")[1], "base64"));
   app.exit(0);
 });`);
-const ph = spawnSync("npx", ["electron", runCjs], { cwd: DESKTOP, encoding: "utf8", timeout: 120_000 });
-if (ph.status !== 0) {
-  console.error("[probe] composite phase failed", ph.stdout, ph.stderr);
-  process.exit(1);
+if (variant !== "no-marker") {
+  const ph = spawnSync("npx", ["electron", runCjs], { cwd: DESKTOP, encoding: "utf8", timeout: 120_000 });
+  if (ph.status !== 0) {
+    console.error("[probe] composite phase failed", ph.stdout, ph.stderr);
+    process.exit(1);
+  }
 }
 console.log(`[probe] ${variant} composite drawn`);
 
@@ -97,7 +133,14 @@ const { runChat } = await import("@oia/services");
 const { makeRealCtx } = await import("./real-lib.mjs");
 const ctx = await makeRealCtx(outDir, { CODEX_IMAGE_TIMEOUT_MS: "300000" });
 const composite = "data:image/png;base64," + (await readFile(path.join(outDir, "composite.png"))).toString("base64");
-const prompt = `Edit this image following the numbered marked regions.\nRegion 1 (${v.label}): ${note}. Also remove every marker from the image.`;
+const prompt =
+  variant === "no-marker"
+    ? `Edit this image. ${note}.`
+    : variant === "scribble"
+      ? `Edit this image. Repaint the balloon I circled with red scribble to solid purple (#7C3AED), keep everything else unchanged, and remove my scribble.`
+      : variant === "scribble-text"
+        ? `Edit this image. Follow the red handwritten note on the image, keep everything else unchanged, and remove every annotation.`
+        : `Edit this image following the numbered marked regions.\nRegion 1 (${v.label}): ${note}. Also remove every marker from the image.`;
 await writeFile(path.join(outDir, "prompt.txt"), prompt);
 const events = [];
 const t0 = Date.now();

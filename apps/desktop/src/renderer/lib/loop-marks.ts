@@ -49,7 +49,19 @@ export interface PathMark {
   pts: Point[];
 }
 
-export type LoopMark = BoxMark | ArrowMark | OvalMark | PathMark;
+/** Owner directive 18/11 (draw directly on the image): freeform feedback.
+ * The text IS the instruction, written at the spot (probe P7 proved the model
+ * reads at-spot notes placed next to the mark). */
+export interface TextMark {
+  id: string;
+  kind: "text";
+  note: "";
+  text: string;
+  x: number;
+  y: number;
+}
+
+export type LoopMark = BoxMark | ArrowMark | OvalMark | PathMark | TextMark;
 
 /** Freehand commit filter: keep the first point, every point at least
  * `minDist` natural px from the last KEPT one, and the last point. Without
@@ -135,6 +147,7 @@ export function chipAnchor(mark: LoopMark): Point {
     const mid = mark.pts[Math.floor(mark.pts.length / 2)] ?? mark.pts[0];
     return { x: mid.x, y: mid.y };
   }
+  if (mark.kind === "text") return { x: mark.x, y: mark.y };
   const dx = mark.to.x - mark.from.x;
   const dy = mark.to.y - mark.from.y;
   const len = Math.hypot(dx, dy) || 1;
@@ -205,6 +218,14 @@ export function drawMark(
     ctx.stroke();
     ctx.globalAlpha = 1;
     ctx.lineWidth = lw;
+  } else if (mark.kind === "text") {
+    // the note lives ON the image (probe P7: at-spot text is read when it
+    // sits next to the marked spot, not covering another subject)
+    ctx.font = `700 ${Math.max(18, lw * 7)}px system-ui, sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(mark.text, mark.x, mark.y);
+    return;
   } else {
     ctx.beginPath();
     ctx.moveTo(mark.from.x, mark.from.y);
@@ -295,8 +316,16 @@ export function regionComposite(src: string, marks: LoopMark[], naturalWidth: nu
  * array order, exactly what the chips on the composite show. Empty notes are
  * the caller's gate (the button stays disabled), the builder stays total.
  */
-export function marksPrompt(marks: LoopMark[]): string {
-  return marks
-    .map((m, i) => `Region ${i + 1} (red ${m.kind === "path" ? (m.thick ? "highlighter stroke" : "freehand path") : m.kind}): ${m.note.trim()}`)
-    .join("\n");
+export function marksPrompt(marks: LoopMark[], globalNote = ""): string {
+  const global = globalNote.trim() ? `Overall instruction: ${globalNote.trim()}\n` : "";
+  return (
+    global +
+    marks
+      .map((m, i) => {
+        const shape = m.kind === "path" ? (m.thick ? "highlighter stroke" : "freehand path") : m.kind;
+        const body = m.kind === "text" ? `"${m.text.trim()}"` : m.note.trim() || "(no specific note: apply the overall instruction)";
+        return `Region ${i + 1} (red ${shape}): ${body}`;
+      })
+      .join("\n")
+  );
 }

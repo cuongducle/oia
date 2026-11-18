@@ -981,3 +981,6 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 /* fabric marking layer: the library wraps the canvas in .canvas-container */
 .loopStage .canvas-container { position: absolute; inset: 0; z-index: 2; touch-action: none; }
 .loopStage.loopCompare .canvas-container { pointer-events: none; }
+.regionTextNote { flex: 1; font-size: 12.5px; color: #b91c1c; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+input[data-testid="loop-global-note"] { width: 100%; margin: 8px 0; padding: 7px 10px; border: 1px solid #d8d6e2; border-radius: 8px; font-size: 12.5px; }
+input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outline-offset: -1px; border-color: transparent; }

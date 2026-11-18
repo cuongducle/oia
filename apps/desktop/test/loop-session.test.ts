@@ -37,6 +37,12 @@ describe("SIL session schema, the corrupt-file gate", () => {
     expect(() => loopSessionSchema.parse({ ...base, cursor: 9 })).toThrow();
   });
 
+  it("accepts an on-image text mark and defaults the global note", () => {
+    const s = loopSessionSchema.parse({ ...base, marks: [{ id: "t", kind: "text", note: "", text: "PAINT PURPLE", x: 5, y: 5 }] });
+    expect(s.globalNote).toBe("");
+    expect(s.marks[0].kind).toBe("text");
+  });
+
   it("rejects unknown mark kinds", () => {
     const bad = structuredClone(base);
     // SAFETY: probing the discriminated union with a bogus kind is the test

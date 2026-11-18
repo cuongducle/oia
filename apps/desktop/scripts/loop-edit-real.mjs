@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 const inputArg = process.argv[2];
 const outDirArg = process.argv[3];
 const marksArg = process.argv[4];
+const globalNote = process.argv[5] ?? "";
 if (!inputArg || !outDirArg || !marksArg) {
   console.error("usage: node scripts/loop-edit-real.mjs <input.png> <outDir> <marksJson>");
   process.exit(64);
@@ -29,14 +30,14 @@ const outDir = path.resolve(outDirArg);
 await mkdir(outDir, { recursive: true });
 const input = path.resolve(inputArg);
 const marks = JSON.parse(marksArg).map((m) =>
-  m.kind === "arrow" ? { id: m.note, kind: "arrow", note: m.note, from: { x: m.from[0], y: m.from[1] }, to: { x: m.to[0], y: m.to[1] } } : { id: m.note, kind: "box", note: m.note, x: m.x, y: m.y, w: m.w, h: m.h },
+  m.kind === "arrow" ? { id: m.note, kind: "arrow", note: m.note, from: { x: m.from[0], y: m.from[1] }, to: { x: m.to[0], y: m.to[1] } } : m.kind === "text" ? { id: m.text, kind: "text", note: "", text: m.text, x: m.x, y: m.y } : { id: m.note, kind: "box", note: m.note, x: m.x, y: m.y, w: m.w, h: m.h },
 );
 
 // ---- phase 1: composite (production regionComposite, real Chromium) -------
 const tmp = mkdtempSync(path.join(tmpdir(), "oia-sil-real-"));
 const entry = path.join(tmp, "sil-entry.mjs");
 await writeFile(entry, `import { regionComposite, marksPrompt } from ${JSON.stringify(path.join(DESKTOP, "../src/renderer/lib/loop-marks.ts"))};
-window.__silComposite = async (b64, ms, w, h) => ({ composite: await regionComposite("data:image/png;base64," + b64, ms, w, h), prompt: marksPrompt(ms) });
+window.__silComposite = async (b64, ms, w, h, globalNote) => ({ composite: await regionComposite("data:image/png;base64," + b64, ms, w, h), prompt: marksPrompt(ms, globalNote) });
 `);
 const bundle = path.join(tmp, "sil-bundle.js");
 const es = spawnSync("npx", ["esbuild", entry, "--bundle", "--format=iife", `--outfile=${bundle}`], { cwd: DESKTOP, encoding: "utf8" });
@@ -49,10 +50,11 @@ const tmp = ${JSON.stringify(tmp)}; const outDir = ${JSON.stringify(outDir)}; co
 const marks = ${JSON.stringify(marks)};
 app.whenReady().then(async () => {
   const win = new BrowserWindow({ show: false });
+  win.webContents.on("console-message", (_e, _lvl, msg) => console.log("[phase1-page]", msg));
   await win.loadFile(path.join(tmp, "sil.html"));
   const pngB64 = readFileSync(input).toString("base64");
   const { w, h } = await win.webContents.executeJavaScript('new Promise(r => { const i = new Image(); i.onload = () => r({w: i.naturalWidth, h: i.naturalHeight}); i.src = "data:image/png;base64,' + pngB64 + '"; })');
-  const out = await win.webContents.executeJavaScript('window.__silComposite(' + JSON.stringify(pngB64) + ', ' + JSON.stringify(marks) + ', ' + w + ', ' + h + ')');
+  const out = await win.webContents.executeJavaScript('window.__silComposite(' + JSON.stringify(pngB64) + ', ' + JSON.stringify(marks) + ', ' + w + ', ' + h + ', ' + ${JSON.stringify(JSON.stringify(globalNote))} + ')').catch((e) => { console.log('[phase1-js-error]', String(e && e.message ? e.message : e)); throw e; });
   writeFileSync(path.join(outDir, "composite.png"), Buffer.from(out.composite.split(",")[1], "base64"));
   writeFileSync(path.join(outDir, "prompt.txt"), out.prompt);
   console.log("[sil-real] composite " + w + "x" + h);
@@ -70,7 +72,7 @@ const { makeRealCtx } = await import("./real-lib.mjs");
 const ctx = await makeRealCtx(outDir, { CODEX_IMAGE_TIMEOUT_MS: "300000" });
 const composite = "data:image/png;base64," + (await readFile(path.join(outDir, "composite.png"))).toString("base64");
 const promptBody = (await readFile(path.join(outDir, "prompt.txt"), "utf8")).trim();
-const prompt = "Edit this image following the numbered red regions.\n" + promptBody;
+const prompt = `Edit this image following the red annotations.\n${promptBody}`;
 const events = [];
 const t0 = Date.now();
 console.log("[sil-real] runChat dispatching (regions=" + marks.length + ", markup flatten, real pair)…");

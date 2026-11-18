@@ -314,6 +314,19 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
       const i = (y * tc.width + x) * 4;
       if (dd2[i] > 190 && dd2[i + 1] < 90 && dd2[i + 2] < 90) redOutside++;
     }
+    // freeform feedback gate: notes missing + NO global note = disabled;
+    // typing one sentence for the whole image must unlock the edit
+    const editBtn = document.querySelector('[data-testid="loop-edit"]');
+    const lockedBefore = editBtn ? editBtn.disabled : null;
+    const gn = document.querySelector('[data-testid="loop-global-note"]');
+    let unlockedByGlobal = false;
+    if (gn) {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(gn, "one sentence for the whole image");
+      gn.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 120));
+      unlockedByGlobal = editBtn ? !editBtn.disabled : false;
+    }
     const kinds = [...document.querySelectorAll(".loopRegion .regionKind")].map((n) => n.innerHTML);
     const hasOval = kinds.some((k) => k.includes("ellipse"));
     const hasPath = kinds.some((k) => k.includes("path"));
@@ -328,7 +341,7 @@ export async function shotSil(win: BrowserWindow, snap: (win: BrowserWindow, nam
     let red = 0;
     for (let i = 0; i < dd.length; i += 4) { if (dd[i] > 180 && dd[i + 1] < 90 && dd[i + 2] < 90) red++; }
     const err = [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ");
-    return { ok: rows === rowsBefore + 14 && afterNewTools === rowsAfterBoxes + 2 && hasOval && hasPath && redOutside === 0 && red > 200 && !err, rows, rowsBefore, rowsAfterBoxes, afterNewTools, hasOval, hasPath, redOutside, red, err };
+    return { ok: rows === rowsBefore + 14 && afterNewTools === rowsAfterBoxes + 2 && hasOval && hasPath && lockedBefore === true && unlockedByGlobal && redOutside === 0 && red > 200 && !err, rows, rowsBefore, rowsAfterBoxes, afterNewTools, hasOval, hasPath, lockedBefore, unlockedByGlobal, redOutside, red, err };
   })()`, true);
   if (!silPolish || silPolish.ok !== true) {
     console.error(`DESKTOP_SHOT SIL FAILED, polish lane (${JSON.stringify(silPolish)})`);

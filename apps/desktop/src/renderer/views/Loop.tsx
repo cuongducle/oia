@@ -37,7 +37,7 @@ const LOOP_ASPECTS: Record<string, [number, number] | null> = {
 const HOW_IT_WORKS = "One image at a time: describe it, generate, then mark what to change next.";
 const STOP_LABEL = "Stop";
 const MARK_HINT = "Drag on the image to mark a region";
-const EDIT_HEAD = "Edit this image following the numbered red regions.";
+const EDIT_HEAD = "Edit this image following the red annotations.";
 const EVERY_REGION_NEEDS_A_NOTE = "Every region needs an instruction";
 
 const Icon = {
@@ -49,12 +49,13 @@ const Icon = {
   oval: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><ellipse cx="12" cy="12" rx="8" ry="7" strokeDasharray="3.4 2.6" /></svg>,
   pen: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /><circle cx="11" cy="11" r="2" /></svg>,
   highlight: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18l9-9 4 4-9 9H5v-4z" /><path d="M13 5l2-2 6 6-2 2" /></svg>,
+  textType: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2" /><path d="M9 5v14" /><path d="M7 19h4" /><path d="M14 12h6" /><path d="M17 12v7" /><path d="M15 19h4" /></svg>,
   arrowUp: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 19 19 5" /><path d="M9 5h10v10" /></svg>,
   x: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>,
   undo: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
 };
 
-type Tool = "pan" | "box" | "arrow" | "oval" | "path" | "highlight";
+type Tool = "pan" | "box" | "arrow" | "oval" | "path" | "highlight" | "text";
 
 /** One flat image in the session history; only real jobs push entries (B7). */
 interface LoopVersion {
@@ -67,6 +68,7 @@ interface LoopVersion {
 
 export function Loop() {
   const [prompt, setPrompt] = useState("");
+  const [globalNote, setGlobalNote] = useState("");
   const [aspect, setAspect] = useState("auto");
   const [stylePreset, setStylePreset] = useState(() => readStylePref());
   const [busy, setBusy] = useState(false);
@@ -155,6 +157,7 @@ export function Loop() {
         setVersions(s.versions);
         setCursor(cursor);
         setPrompt(s.prompt);
+        setGlobalNote(s.globalNote ?? "");
         setMarks(s.marks);
       })
       .catch(() => {});
@@ -241,7 +244,7 @@ export function Loop() {
   /** SL-3: ONE edit per round carries every marked region (flatten channel). */
   async function sendEdit() {
     const cur = current;
-    if (!cur || busy || !marks.length || marks.some((m) => !m.note.trim())) return;
+    if (!cur || busy || !marks.length || (marks.some((m) => m.kind !== "text" && !m.note.trim()) && !globalNote.trim())) return;
     setBusy(true);
     setNotesOpen(true);
     markRunStart(Date.now());
@@ -256,7 +259,7 @@ export function Loop() {
     try {
       const composite = await regionComposite(cur.dataUrl, marks, cur.width, cur.height);
       const res = await oia().chatRun({
-        prompt: `${EDIT_HEAD}\n${marksPrompt(marks)}`,
+        prompt: `${EDIT_HEAD}\n${marksPrompt(marks, globalNote)}`,
         ...(sessionId ? { sessionId } : {}),
         referenceImages: [composite],
         editMode: { markup: "flatten", targetName: "loop image" },
@@ -356,13 +359,13 @@ export function Loop() {
     }
     if (sessionTimerRef.current !== null) window.clearTimeout(sessionTimerRef.current);
     sessionTimerRef.current = window.setTimeout(() => {
-      void oia().loopSessionSave({ versions, cursor, prompt, marks }).catch(() => {});
+      void oia().loopSessionSave({ versions, cursor, prompt, globalNote, marks }).catch(() => {});
     }, 800);
     return () => {
       if (sessionTimerRef.current !== null) window.clearTimeout(sessionTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [versions, cursor, prompt, marks]);
+  }, [versions, cursor, prompt, globalNote, marks]);
 
   function startOver() {
     setVersions([]);
@@ -371,6 +374,7 @@ export function Loop() {
     setMarks([]);
     setFit(null);
     setPrompt("");
+    setGlobalNote("");
     setSessionId(null);
     setNarrative("");
     setTimeline([]);
@@ -386,7 +390,7 @@ export function Loop() {
   const showBefore = compareOn && idx > 0;
   const displayed = showBefore ? versions[idx - 1] : current;
   const [autoRefinePref] = useState(() => readAutoRefinePref());
-  const notesMissing = marks.some((m) => !m.note.trim());
+  const notesMissing = marks.some((m) => m.kind !== "text" && !m.note.trim()) && !globalNote.trim();
   const editDisabled = busy || !marks.length || notesMissing;
   const editing = busy && jobKind === "edit";
 
@@ -525,6 +529,19 @@ export function Loop() {
         if (compareOnRef.current) return;
         const t = toolRef.current;
         if (t === "path" || t === "highlight") return; // brush mode owns the gesture
+        if (t === "text") {
+          const p = scenePt(fc, opt);
+          const it = new fabric.IText("", { left: Math.max(0, p.x), top: Math.max(0, p.y), fill: MARK_UI.stroke, fontFamily: "system-ui", fontSize: markStrokeWidth(current?.width ?? 1000, current?.height ?? 1000) * 7, fontWeight: "700", editingBorderColor: "#f59e0b", objectCaching: false });
+          fc.add(it);
+          fc.setActiveObject(it);
+          void it.enterEditing();
+          it.on("editing:exited", () => {
+            const txt = (it.text ?? "").trim();
+            fc.remove(it); // the marks sync redraws it through markToObject
+            if (txt && current) pushMark({ id: newMarkId(), kind: "text", note: "", text: txt.slice(0, 200), x: Math.max(0, it.left ?? 0), y: Math.max(0, it.top ?? 0) });
+          });
+          return;
+        }
         if (t === "pan") {
           if (!opt.target) panRef.current = { x: (opt.e as PointerEvent).clientX, y: (opt.e as PointerEvent).clientY, tx: viewRef.current.tx, ty: viewRef.current.ty };
           return; // target hit: fabric starts the move itself
@@ -583,6 +600,13 @@ export function Loop() {
       fc.on("selection:created", fromFabric);
       fc.on("selection:updated", fromFabric);
       fc.on("selection:cleared", () => { if (!syncingRef.current) setSelectedId(null); });
+      fc.on("text:changed", (opt) => {
+        if (syncingRef.current || !current) return;
+        const t = opt.target as unknown as { markId?: string; text?: string };
+        const id = String(t.markId ?? "");
+        if (!id || !t.text) return;
+        setMarks((ms) => ms.map((m) => (m.id === id && m.kind === "text" ? { ...m, text: (t.text ?? "").trim().slice(0, 200) || m.text } : m)));
+      });
       fc.on("object:modified", (opt) => {
         if (syncingRef.current || !current || !opt.target) return;
         const id = String((opt.target as unknown as { markId?: string }).markId ?? "");
@@ -626,13 +650,13 @@ export function Loop() {
     fc.remove(...fc.getObjects());
     if (!compareOn && current) {
       marks.forEach((m, i) => {
-        const g = markToObject(fabric, m, i, current.width, current.height);
-        const g2 = g as unknown as { prevLeft?: number; prevTop?: number };
-        g2.prevLeft = g.left;
-        g2.prevTop = g.top;
-        if (m.id === hoveredId) g.set({ opacity: 0.65 });
-        fc.add(g);
-        if (m.id === selectedId) fc.setActiveObject(g);
+        const o = markToObject(fabric, m, i, current.width, current.height);
+        const o2 = o as unknown as { prevLeft?: number; prevTop?: number };
+        o2.prevLeft = o.left;
+        o2.prevTop = o.top;
+        if (m.id === hoveredId) o.set({ opacity: 0.65 });
+        fc.add(o);
+        if (m.id === selectedId) fc.setActiveObject(o);
       });
     }
     fc.requestRenderAll();
@@ -655,8 +679,8 @@ export function Loop() {
       fc.freeDrawingBrush = brush;
     }
     fc.selection = tool === "pan" && !compareOn;
-    fc.skipTargetFind = tool !== "pan" || compareOn;
-    fc.defaultCursor = compareOn ? "default" : tool === "pan" ? "grab" : "crosshair";
+    fc.skipTargetFind = (tool !== "pan" && tool !== "text") || compareOn;
+    fc.defaultCursor = compareOn ? "default" : tool === "pan" ? "grab" : tool === "text" ? "text" : "crosshair";
     fc.requestRenderAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, compareOn, current, syncTick]);
@@ -716,6 +740,9 @@ export function Loop() {
         setCompareOn(false);
       } else if (e.key === "6") {
         setTool("highlight");
+        setCompareOn(false);
+      } else if (e.key === "7") {
+        setTool("text");
         setCompareOn(false);
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
         e.preventDefault();
@@ -784,6 +811,7 @@ export function Loop() {
               <button className={`loopTool ${tool === "oval" && !compareOn ? "active" : ""}`} data-testid="tool-oval" aria-pressed={tool === "oval"} title="Circle a round region (4)" onClick={() => { setTool("oval"); setCompareOn(false); }}>{Icon.oval}<span>Oval</span><kbd>4</kbd></button>
               <button className={`loopTool ${tool === "path" && !compareOn ? "active" : ""}`} data-testid="tool-path" aria-pressed={tool === "path"} title="Draw freely around a detail (5)" onClick={() => { setTool("path"); setCompareOn(false); }}>{Icon.pen}<span>Draw</span><kbd>5</kbd></button>
               <button className={`loopTool ${tool === "highlight" && !compareOn ? "active" : ""}`} data-testid="tool-highlight" aria-pressed={tool === "highlight"} title="Highlight a broad area with a wide stroke (6)" onClick={() => { setTool("highlight"); setCompareOn(false); }}>{Icon.highlight}<span>Highlight</span><kbd>6</kbd></button>
+              <button className={`loopTool ${tool === "text" && !compareOn ? "active" : ""}`} data-testid="tool-text" aria-pressed={tool === "text"} title="Write a note right on the image (7)" onClick={() => { setTool("text"); setCompareOn(false); }}>{Icon.textType}<span>Note</span><kbd>7</kbd></button>
               {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
               {busy && current && (
                 <span className="loopRunBar" data-testid="loop-runbar" role="status">
@@ -852,22 +880,35 @@ export function Loop() {
                 <span style={{ width: `${(marks.filter((m) => m.note.trim()).length / marks.length) * 100}%` }} />
               </div>
             )}
+            {marks.length > 0 && (
+              <input
+                aria-label="Overall instruction for the whole image"
+                data-testid="loop-global-note"
+                placeholder="Overall (optional): one sentence for everything marked"
+                value={globalNote}
+                onChange={(e) => setGlobalNote(e.target.value)}
+              />
+            )}
             {marks.length === 0 && <p className="loopEmpty">Pick Box or Arrow and drag on the image. Each region gets its own instruction.</p>}
             {marks.length > 0 && <p className="loopEmpty loopKeyHint">Click a region to select it, Delete removes it. Keys 1, 2, 3 switch tools.</p>}
             <ol className="loopRegions">
               {marks.map((m, i) => (
                 <li key={m.id} className={`loopRegion ${m.id === selectedId ? "selected" : ""}`} data-testid={`region-${i + 1}`} onClick={() => setSelectedId((cur) => (cur === m.id ? null : m.id))} onMouseEnter={() => setHoveredId(m.id)} onMouseLeave={() => setHoveredId(null)}>
                   <span className="regionChip" aria-hidden="true">{i + 1}</span>
-                  <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : m.kind === "oval" ? Icon.oval : m.kind === "path" ? (m.thick ? Icon.highlight : Icon.pen) : Icon.arrowUp}</span>
-                  <input
-                    aria-label={`Region ${i + 1} instruction`}
-                    data-testid={`region-note-${i + 1}`}
-                    className={!m.note.trim() && marks.length && notesMissing ? "invalid" : ""}
-                    value={m.note}
-                    placeholder="What should change here?"
-                    onFocus={() => setSelectedId(m.id)}
-                    onChange={(e) => updateNote(m.id, e.target.value)}
-                  />
+                  <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : m.kind === "oval" ? Icon.oval : m.kind === "path" ? (m.thick ? Icon.highlight : Icon.pen) : m.kind === "text" ? Icon.textType : Icon.arrowUp}</span>
+                  {m.kind === "text" ? (
+                    <span className="regionTextNote" title="Written on the image">“{m.text}”</span>
+                  ) : (
+                    <input
+                      aria-label={`Region ${i + 1} instruction`}
+                      data-testid={`region-note-${i + 1}`}
+                      className={!m.note.trim() && marks.length && notesMissing ? "invalid" : ""}
+                      value={m.note}
+                      placeholder="What should change here?"
+                      onFocus={() => setSelectedId(m.id)}
+                      onChange={(e) => updateNote(m.id, e.target.value)}
+                    />
+                  )}
                   <button className="iconBtn" aria-label={`Remove region ${i + 1}`} data-testid={`region-remove-${i + 1}`} onClick={() => removeMark(m.id)}>{Icon.x}</button>
                 </li>
               ))}

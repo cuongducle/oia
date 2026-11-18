@@ -143,6 +143,14 @@ export const loopSessionMarkSchema = z.discriminatedUnion("kind", [
     thick: z.boolean(),
     pts: z.array(z.object({ x: z.number(), y: z.number() })).max(400),
   }),
+  z.object({
+    id: z.string().min(1).max(64),
+    kind: z.literal("text"),
+    note: z.literal(""),
+    text: z.string().min(1).max(200),
+    x: z.number().min(0),
+    y: z.number().min(0),
+  }),
 ]);
 export type LoopSessionMark = z.infer<typeof loopSessionMarkSchema>;
 
@@ -161,6 +169,7 @@ export const loopSessionSchema = z
       .max(10),
     cursor: z.number().int().min(0).nullable(),
     prompt: z.string().max(8000),
+    globalNote: z.string().max(2000).default(""),
     marks: z.array(loopSessionMarkSchema).max(40),
   })
   .superRefine((s, ctx) => {

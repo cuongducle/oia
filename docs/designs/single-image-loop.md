@@ -204,3 +204,23 @@ Kết luận:
 3. Nếu cần đổi màu composite sau này (ảnh có chủ thể đỏ), có nền tảng bằng chứng ở probe này để mở việc.
 
 Vận hành ghi nhận: 1 lần gen đầu im lặng fail (Image Generator status 0, không files, loop-real exit!=0 dù session ghi "completed") - chạy lại là được; kênh đôi khi vậy.
+
+## Vòng 7: vẽ để sửa - freeform feedback (18/11 tối, owner "user vẽ hẳn lên ảnh")
+
+Owner ý tưởng: user feedback linh hoạt bằng cách VẼ TRỰC TIẾP lên ảnh cho model sửa. Probe trước khi làm (P6 + P7, evidence `2026-11-18-sil-marker-color-probe/`):
+
+- **P6 word-only FAIL**: chỉ nói chữ không đánh dấu ("repaint the red balloon on the left") → model sơn NHẦM bóng giữa thành tím. Suy ra: model cần DẤU VỊ TRÍ trên ảnh.
+- **P7 scribble PASS**: khoanh nguệch ngoạc tay (70 điểm jitter, không chip số) + 1 câu chung → sửa đúng bóng trái, sạch nét vẽ, không đụng bóng khác.
+- **P7 scribble+text**: khoanh + chữ "→ PAINT PURPLE" viết cạnh vòng → PASS (65.124px tím đúng chỗ); nhưng chữ đặt ĐÈ lên balloon khác → model KHÔNG làm gì cả (FAIL). Bài học UX: note-on-image phải cạnh vùng, không đè vật khác.
+
+Sản phẩm hóa (3 phần):
+
+1. **Global note** (`loop-global-note`): 1 câu cho cả ảnh trong Regions panel. Có global → KHÔNG bắt note từng vùng (editDisabled mở), marksPrompt dựng "Overall instruction: ..." + region thiếu note ghi "(apply the overall instruction)".
+2. **Note tool (phím 7, TextMark)**: bấm tool → click canvas → fabric IText gõ chữ ngay tại chỗ (đỏ, đậm); chữ chính là instruction (panel hiển thị text dạng quote, không input). `text:changed` sync live; composite vẽ chữ đỏ đậm marker-scale; marksPrompt liệt kê `Region N (red text): "..."`.
+3. **EDIT_HEAD** đổi "following the red annotations" (không còn "numbered" cố định vì text mark không chip).
+
+LoopMark union + session schema (text + globalNote default "") + fabric IText wiring (enterEditing lúc tạo, editing:exited commit/cleanup). Shot polish lane thêm gate freeform: 14 vùng thiếu note + KHÔNG global → nút khóa; gõ 1 câu → mở.
+
+E2E real run (loop-edit-real.mjs mở rộng globalNote + text mark): box không note + text "PAINT PURPLE" + global "repaint every circled balloon in solid purple" → PASS pixel (65.496px tím đúng bóng, 0 sót, 2 bóng khác nguyên, dims giữ).
+
+Gates: tsc + 344 test (4 mới) + shot 6 lane + smoke.

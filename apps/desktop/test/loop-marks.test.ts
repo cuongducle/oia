@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
+import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark, type TextMark } from "../src/renderer/lib/loop-marks.js";
 
 describe("SIL chipAnchor, pure math", () => {
   it("box: the chip sits on the box's top-left corner", () => {
@@ -134,5 +134,27 @@ describe("SIL minimum drag sizes exist as constants (UI gate uses them)", () => 
   it("box and arrow thresholds are sane natural-pixel values", () => {
     expect(MIN_BOX_PX).toBeGreaterThan(0);
     expect(MIN_ARROW_PX).toBeGreaterThan(0);
+  });
+});
+
+describe("SIL marksPrompt, freeform feedback (global note + on-image text)", () => {
+  const box: LoopMark = { id: "b", kind: "box", note: "", x: 0, y: 0, w: 10, h: 10 };
+  const txt: TextMark = { id: "t", kind: "text", note: "", text: "PAINT PURPLE", x: 5, y: 5 };
+
+  it("a global note leads the list and covers note-less shapes", () => {
+    const out = marksPrompt([box], "make it cleaner");
+    expect(out).toContain("Overall instruction: make it cleaner");
+    expect(out).toContain("(no specific note: apply the overall instruction)");
+  });
+
+  it("a text mark quotes its own words instead of asking for a note", () => {
+    const out = marksPrompt([txt], "");
+    expect(out).toContain('Region 1 (red text): "PAINT PURPLE"');
+    expect(out).not.toContain("Overall instruction");
+  });
+
+  it("without a global note the old per-region contract stays", () => {
+    const out = marksPrompt([{ id: "b", kind: "box", note: "greener", x: 0, y: 0, w: 1, h: 1 }], "");
+    expect(out).toBe("Region 1 (red box): greener");
   });
 });
