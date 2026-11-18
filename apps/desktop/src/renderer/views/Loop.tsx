@@ -86,8 +86,10 @@ export function Loop() {
   const [importedNote, setImportedNote] = useState("");
   /** ChatGPT-style: an attached photo waiting in the bar, becomes the base on send. */
   const [attach, setAttach] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
-  /** The two intents behind one attached photo: fix it, or build a new image
-   * around it (the seller's product as the reference). */
+  /** The two intents behind ONE image (attached, or already on canvas): fix
+   * it, or build a new image around it (the product as the reference). Not
+   * everyone starts with a photo: generate the product from words first,
+   * then flip the intent to dress the scene around it. */
   const [attachMode, setAttachMode] = useState<"edit" | "new">("edit");
   const attachInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -244,7 +246,17 @@ export function Loop() {
     // an image is on stage: the bar is a chat turn, not a new generate
     if (current) {
       if (!prompt.trim() && !marks.length) return;
-      await runEditRound(current, marks, prompt.trim() || globalNote);
+      if (attachMode === "new" && prompt.trim()) {
+        const base = current;
+        setAttachMode("edit");
+        await runEditRound(
+          base,
+          [],
+          `Using the attached photo as the product reference, create a NEW image: ${prompt.trim()}. Keep the product itself exactly the same shape, colors and details; freely change everything else around it.`,
+        );
+      } else {
+        await runEditRound(current, marks, prompt.trim() || globalNote);
+      }
       setPrompt("");
       return;
     }
@@ -996,6 +1008,14 @@ export function Loop() {
       )}
 
       <section className="promptCard loopBar" aria-label="Generate one image">
+        {current && !compareOn && (
+          <div className="loopAttachRow" data-testid="loop-intent">
+            <div className="loopAttachModes" role="radiogroup" aria-label="What to do with this image">
+              <button type="button" className={`loopModePill ${attachMode === "edit" ? "active" : ""}`} role="radio" aria-checked={attachMode === "edit"} data-testid="loop-mode-edit" onClick={() => setAttachMode("edit")}>{Icon.pen}<span>Edit this image</span></button>
+              <button type="button" className={`loopModePill ${attachMode === "new" ? "active" : ""}`} role="radio" aria-checked={attachMode === "new"} data-testid="loop-mode-new" onClick={() => setAttachMode("new")}>{Icon.sparkle}<span>New image with it</span></button>
+            </div>
+          </div>
+        )}
         {attach && (
           <div className="loopAttachRow" data-testid="loop-attach-preview">
             <img src={attach.dataUrl} alt="Attached image" />
@@ -1011,7 +1031,7 @@ export function Loop() {
           aria-label="Image idea"
           data-testid="loop-idea"
           value={prompt}
-          placeholder={attach ? (attachMode === "new" ? "Describe the new image around this product… (e.g. a warm wooden table, morning light)" : "Describe what to change in this photo…") : current ? "Ask for a change, or mark regions above…" : "What would you like to generate?"}
+          placeholder={attach || current ? (attachMode === "new" ? "Describe the new image around this product… (e.g. a warm wooden table, morning light)" : attach ? "Describe what to change in this photo…" : "Ask for a change, or mark regions above…") : "What would you like to generate?"}
           rows={current || attach ? 1 : 2}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
@@ -1046,7 +1066,7 @@ export function Loop() {
           {busy ? (
             <button className="generateBtn labeled stop" aria-label={STOP_LABEL} title={STOP_LABEL} onClick={() => void stop()}>{Icon.stop}Stop</button>
           ) : (
-            <button className="generateBtn labeled" aria-label={attach ? (prompt.trim() ? "Edit the attached image" : "Add the attached image to the canvas") : current ? "Edit image" : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach ? (prompt.trim() ? (attachMode === "new" ? "Create" : "Edit") : "Add") : current ? "Edit" : "Generate"}{Icon.arrow}</button>
+            <button className="generateBtn labeled" aria-label={attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create a new image with it" : "Edit image") : "Add the attached image to the canvas") : "Generate image"} data-testid="loop-generate" disabled={!prompt.trim() && !attach} onClick={() => void submit()}>{attach || current ? (prompt.trim() ? (attachMode === "new" ? "Create" : "Edit") : attach ? "Add" : "Edit") : "Generate"}{Icon.arrow}</button>
           )}
         </div>
       </section>
