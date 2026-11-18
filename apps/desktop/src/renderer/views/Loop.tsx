@@ -356,7 +356,7 @@ export function Loop() {
       ctx.scale(k, k);
       const chips = layoutChips(marks, cur.width, cur.height);
       marks.forEach((m, i) => {
-        drawMark(ctx, m, i, cur.width, cur.height, chips[i]);
+        drawMark(ctx, m, i, cur.width, cur.height, chips[i], "canvas");
         const highlight = m.id === selectedId ? "#ffffff" : m.id === hoveredId ? "#f59e0b" : null;
         if (highlight) {
           // selection ring (white) / hover ring (amber): dashed over the mark
@@ -380,7 +380,7 @@ export function Loop() {
           d.kind === "box"
             ? { id: "draft", kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w: Math.abs(d.to.x - d.from.x), h: Math.abs(d.to.y - d.from.y) }
             : { id: "draft", kind: "arrow", note: "", from: d.from, to: d.to };
-        drawMark(ctx, draftMark, marks.length, cur.width, cur.height);
+        drawMark(ctx, draftMark, marks.length, cur.width, cur.height, undefined, "canvas");
       }
     };
     rafRef.current = requestAnimationFrame(draw);
@@ -473,18 +473,28 @@ export function Loop() {
     }
     const d = draftRef.current;
     draftRef.current = null;
-    if (!d) return;
+    if (!d || !current) return;
+    const W = current.width;
+    const H = current.height;
     if (d.kind === "box") {
-      const w = Math.abs(d.to.x - d.from.x);
-      const h = Math.abs(d.to.y - d.from.y);
+      // clamp the committed box INTO the image: the overlay spans the whole
+      // stage, a drag started on the gray apron must not pin a region outside
+      // the artwork (the model reads image-space coordinates)
+      const x0 = Math.max(0, Math.min(d.from.x, d.to.x));
+      const y0 = Math.max(0, Math.min(d.from.y, d.to.y));
+      const x1 = Math.min(W, Math.max(d.from.x, d.to.x));
+      const y1 = Math.min(H, Math.max(d.from.y, d.to.y));
+      const w = x1 - x0;
+      const h = y1 - y0;
       // BOTH sides must clear the minimum, a 1000×1 sliver is not a region
       if (w >= MIN_BOX_PX && h >= MIN_BOX_PX) {
-        pushMark({ id: newMarkId(), kind: "box", note: "", x: Math.min(d.from.x, d.to.x), y: Math.min(d.from.y, d.to.y), w, h });
+        pushMark({ id: newMarkId(), kind: "box", note: "", x: x0, y: y0, w, h });
       }
       return;
     }
+    const pin = (p: { x: number; y: number }) => ({ x: Math.max(0, Math.min(W, p.x)), y: Math.max(0, Math.min(H, p.y)) });
     if (Math.hypot(d.to.x - d.from.x, d.to.y - d.from.y) >= MIN_ARROW_PX) {
-      pushMark({ id: newMarkId(), kind: "arrow", note: "", from: d.from, to: d.to });
+      pushMark({ id: newMarkId(), kind: "arrow", note: "", from: pin(d.from), to: pin(d.to) });
     }
   }
 
@@ -623,17 +633,35 @@ export function Loop() {
               />
             </div>
             <div className="loopToolbar">
-              <button className="iconBtn labeledIcon" aria-label="Undo to the previous version" data-testid="loop-undo" disabled={idx < 1} onClick={() => { setCursor(Math.max(0, idx - 1)); setCompareOn(false); }}>{Icon.undo}Undo</button>
-              {cursor !== null && (
-                <button className="iconBtn labeledIcon" aria-label="Back to the latest version" data-testid="loop-latest" onClick={() => { setCursor(null); setCompareOn(false); }}>Latest</button>
-              )}
-              <span className="loopMeta mono">{current.width}×{current.height} · {current.label}{versions.length > 1 ? ` · ${idx + 1}/${versions.length}` : ""}{genSeconds ? ` · ${genSeconds}s` : ""}</span>
+              <span className="loopMeta mono">{current.width} × {current.height} · Version {idx + 1} of {versions.length} · {current.label}{genSeconds ? ` · ${genSeconds}s` : ""}</span>
               <button className="iconBtn labeledIcon" aria-label="Save PNG" data-testid="loop-save" onClick={() => void savePng()}>{Icon.download}Save PNG</button>
               <button className="iconBtn labeledIcon" aria-label="Start over" data-testid="loop-reset" onClick={startOver}>Start over</button>
             </div>
+            {versions.length > 1 && (
+              <div className="loopFilmstrip" role="listbox" aria-label="Versions">
+                {versions.map((ver, i) => (
+                  <button
+                    key={`${i}-${ver.jobId ?? "none"}`}
+                    data-testid={`loop-version-${i + 1}`}
+                    className={`loopThumb ${i === idx ? "active" : ""}`}
+                    role="option"
+                    aria-selected={i === idx}
+                    title={`${ver.label} (version ${i + 1} of ${versions.length})`}
+                    onClick={() => { setCursor(i); setCompareOn(false); }}
+                  >
+                    <img src={ver.dataUrl} alt={`${ver.label}, version ${i + 1}`} draggable={false} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <aside className="loopSide" aria-label="Regions">
             <h2>Regions{marks.length > 0 ? ` · ${marks.filter((m) => m.note.trim()).length}/${marks.length} described` : ""}</h2>
+            {marks.length > 0 && (
+              <div className="loopProgressTrack" role="progressbar" aria-label="Regions described" aria-valuenow={marks.filter((m) => m.note.trim()).length} aria-valuemin={0} aria-valuemax={marks.length}>
+                <span style={{ width: `${(marks.filter((m) => m.note.trim()).length / marks.length) * 100}%` }} />
+              </div>
+            )}
             {marks.length === 0 && <p className="loopEmpty">Pick Box or Arrow and drag on the image. Each region gets its own instruction.</p>}
             {marks.length > 0 && <p className="loopEmpty loopKeyHint">Click a region to select it, Delete removes it. Keys 1, 2, 3 switch tools.</p>}
             <ol className="loopRegions">

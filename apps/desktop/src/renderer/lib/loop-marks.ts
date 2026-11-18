@@ -112,14 +112,34 @@ export function arrowHead(from: Point, to: Point, size: number): [Point, Point, 
   ];
 }
 
-export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: number, naturalWidth: number, naturalHeight: number, chipPos?: { x: number; y: number }): void {
-  const lw = markerWidthFor(naturalWidth, naturalHeight);
+/** Display mode for drawMark: the ON-CANVAS overlay wants thin strokes + a
+ * translucent fill so the artwork stays readable under the marks (pro-tool
+ * language); the COMPOSITE sent to the model keeps the probe-verified solid
+ * red, no fill (P3). One draw function, two visual registers. */
+export type MarkDisplay = "canvas" | "composite";
+
+export function drawMark(
+  ctx: CanvasRenderingContext2D,
+  mark: LoopMark,
+  index: number,
+  naturalWidth: number,
+  naturalHeight: number,
+  chipPos?: { x: number; y: number },
+  display: MarkDisplay = "composite",
+): void {
+  const base = markerWidthFor(naturalWidth, naturalHeight);
+  const lw = display === "canvas" ? base * 0.6 : base;
   ctx.strokeStyle = "#ff0000";
   ctx.fillStyle = "#ff0000";
   ctx.lineWidth = lw;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   if (mark.kind === "box") {
+    if (display === "canvas") {
+      ctx.fillStyle = "rgba(255, 0, 0, 0.08)";
+      ctx.fillRect(mark.x, mark.y, mark.w, mark.h);
+      ctx.fillStyle = "#ff0000";
+    }
     ctx.strokeRect(mark.x, mark.y, mark.w, mark.h);
   } else {
     ctx.beginPath();
@@ -134,8 +154,8 @@ export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: n
     ctx.closePath();
     ctx.fill();
   }
-  const at = chipPos ?? clampChipAnchor(chipAnchor(mark), naturalWidth, naturalHeight, Math.max(18, lw * 4));
-  drawChip(ctx, index + 1, at, lw);
+  const at = chipPos ?? clampChipAnchor(chipAnchor(mark), naturalWidth, naturalHeight, Math.max(18, base * 4));
+  drawChip(ctx, index + 1, at, base);
 }
 
 /** Collision-aware chip placement (one anchor per mark, array order). Overlapping

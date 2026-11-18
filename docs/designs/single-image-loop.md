@@ -140,3 +140,18 @@ Ba việc kỹ thuật đỗ lại sau teardown, tất cả đóng:
 3. **Tách shot lane SIL:** toàn bộ lane SIL (SL-1 đến polish, 251 dòng) chuyển sang `src/main/shots/sil.ts` (`shotSil(win, snap)`, pattern shots/), index.ts còn lại gọi 1 dòng; 8 chỗ app.exit(31) giờ sống trong file riêng cùng lane chúng validate. index.ts: 3234 → 2985 dòng.
 
 Gates: tsc + 330 test (2 capVersions mới) + shot trọn vòng xanh (marks red 8.940px, polish 12 vùng 30.238px).
+
+## UI polish vòng 4 (18/11 khuya, "mài lại cho đẹp chuyên nghiệp")
+
+Bốn item từ danh sách đỗ lại, đóng:
+
+1. **Overlay register tách đôi:** `drawMark` nhận `display: "canvas" | "composite"`. Canvas hiển thị stroke 60% + fill đỏ 8% (thấy tác phẩm bên dưới, ngôn ngữ pro tool); composite gửi model giữ nguyên đỏ đặc #ff0000 không fill (probe P3 không đụng).
+2. **Version filmstrip:** dải thumbnail dưới toolbar (`loop-version-N`, active viền đậm), click nhảy version, thay hẳn nút Undo/Latest. Eye Before giữ nguyên vai compare.
+3. **Meta humanize:** `1360 × 2048 · Version 2 of 2 · Edit 1 · 1s` thay `1360×2048 · Edit 1 · 2/2 · 1s`; lane asserts sửa theo (sil.ts).
+4. **Progress bar n/m:** thanh mỏng dưới header Regions panel, đỏ tiến theo số vùng đã mô tả (aria progressbar).
+
+Vision audit vòng này phát hiện + fix luôn: **box kéo từ nền xám ngoài ảnh vẫn được commit** (3/12 box nằm ngoài tác phẩm). Fix: clamp box vào trong ảnh khi thả (x/y/edge đều kẹp, arrow 2 đầu cũng kẹp); lane shot đổi kéo theo bbox ảnh thật (`loop-image` rect) thay vì overlay rect.
+
+Vision verify cuối: 12/12 box trong tác phẩm, không cắt mép, chip đọc rõ. Còn ghi nhận: cluster box sát nhau (10-12) outline gần chạm nhau - đã có selected dashed phân biệt, chấp nhận.
+
+Gates: tsc + 330 test + shot trọn vòng xanh.
