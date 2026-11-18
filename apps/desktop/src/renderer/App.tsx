@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, Component, type ReactNode } from "react";
 import { Home } from "./views/Home.js";
+import { Loop } from "./views/Loop.js";
 import { Editor, EditorErrorBoundary } from "./views/Editor.js";
 import { Workspace } from "./views/Workspace.js";
 import { Tools } from "./views/Tools.js";
@@ -23,6 +24,7 @@ import { CreateSheet } from "./components/CreateSheet.js";
 
 type View =
   | { name: "home"; resumeSession?: number | null; focusComposer?: number; prompt?: string }
+  | { name: "loop" }
   | { name: "workspace"; deconFile?: File }
   | { name: "products" }
   | { name: "tools"; tool?: string }
@@ -84,6 +86,9 @@ export default function App() {
 
   let body: ReactNode;
   switch (view.name) {
+    case "loop":
+      body = <Loop key="loop" />;
+      break;
     case "workspace":
       body = <Workspace key={`ws-${view.deconFile?.name ?? ""}`} onOpenProject={openProject} onOpenSession={openSession} onNew={newDesign} initialDeconFile={view.deconFile} />;
       break;

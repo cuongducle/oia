@@ -2671,6 +2671,79 @@ async function shot(): Promise<void> {
   }
   await snap(win, "desktop-products-import.png");
 
+  // ---- SIL (single-image-loop.md) SL-1: the Edit loop view generates ONE image
+  // through the real composer path (pages=1, no outline gate), flattens the
+  // canvas answer to a single <img>, and offers Save PNG. Mock pair, like Home. ----
+  console.log("[shot] opening Edit loop…");
+  await win.webContents.executeJavaScript(`(() => {
+    const pills = [...document.querySelectorAll(".viewNav .navPill")];
+    const loop = pills.find((p) => p.textContent.trim() === "Edit loop");
+    if (!loop) return false;
+    loop.click();
+    return true;
+  })()`, true);
+  let loopReady = false;
+  for (let i = 0; i < 20; i++) {
+    loopReady = await win.webContents.executeJavaScript(`Boolean(document.querySelector('[data-testid="loop-idea"]'))`, true);
+    if (loopReady) break;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  if (!loopReady) {
+    console.error("DESKTOP_SHOT SIL FAILED, loop view did not mount");
+    app.exit(31);
+    return;
+  }
+  const silSubmitted = await win.webContents.executeJavaScript(`(() => {
+    const ta = document.querySelector('[data-testid="loop-idea"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+    setter.call(ta, 'loop smoke one image banner trà sữa');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    const btn = document.querySelector('[data-testid="loop-generate"]');
+    if (!btn || btn.disabled) return 'generate missing/disabled';
+    btn.click();
+    return 'submitted';
+  })()`, true);
+  if (silSubmitted !== "submitted") {
+    console.error(`DESKTOP_SHOT SIL FAILED, could not submit (${silSubmitted})`);
+    app.exit(31);
+    return;
+  }
+  let silImg: { src: string; w: number; h: number; save: boolean; reset: boolean; meta: string; err: string } | null = null;
+  for (let i = 0; i < 60; i++) {
+    silImg = await win.webContents.executeJavaScript(`(() => {
+      const img = document.querySelector('[data-testid="loop-image"]');
+      if (!img) return null;
+      return {
+        src: img.src.slice(0, 22),
+        w: img.naturalWidth,
+        h: img.naturalHeight,
+        save: Boolean(document.querySelector('[data-testid="loop-save"]')),
+        reset: Boolean(document.querySelector('[data-testid="loop-reset"]')),
+        meta: document.querySelector('.loopMeta')?.textContent ?? '',
+        err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(' '),
+      };
+    })()`, true);
+    if (silImg) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  if (!silImg || !silImg.src.startsWith("data:image/png") || silImg.w < 1 || !silImg.save || !silImg.reset || silImg.err) {
+    console.error(`DESKTOP_SHOT SIL FAILED, the loop image never landed (${JSON.stringify(silImg)})`);
+    app.exit(31);
+    return;
+  }
+  // one job ⇒ one version: auto-refine re-yields canvases, later candidates
+  // must REPLACE the job's slot, never stack ("Edit 3" on a first generate
+  // was the live bug this pins)
+  if (!silImg.meta.includes("Generated") || /Edit \d/.test(silImg.meta)) {
+    console.error(`DESKTOP_SHOT SIL FAILED, version meta wrong for a single job (${JSON.stringify(silImg.meta)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL generate OK (${silImg.w}x${silImg.h} flat PNG on the stage, meta "${silImg.meta}")`);
+  await snap(win, "desktop-loop.png");
+  await win.webContents.executeJavaScript(`document.querySelector('[data-testid="loop-reset"]').click()`, true);
+  await new Promise((r) => setTimeout(r, 300));
+
   // ---- reorg 4d: For Agents, keys form + live loopback base URL ----------------
   console.log("[shot] opening For agents…");
   await win.webContents.executeJavaScript(`(() => {

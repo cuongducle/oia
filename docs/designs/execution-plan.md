@@ -7,6 +7,14 @@ generated: { by: agent, at: 2026-11-13T00:00:00Z }
 
 # Kế hoạch thực thi tổng hợp
 
+## Thay đổi trọng tâm 18/11/2026 (owner): luồng SIL là việc ĐANG LÀM
+
+Owner chốt 18/11: bỏ tạm độ phức tạp, làm MỘT luồng thật xuất sắc: gen 1 ảnh → vẽ box/mũi tên từng vùng kèm prompt riêng ("vùng này sửa thế nào") → gửi codex edit → lặp trên kết quả. Thiết kế đầy đủ tại [single-image-loop.md](single-image-loop.md) (slices SL-1..SL-4). Hệ quả trên bảng việc:
+
+- Mọi việc W1.3 trở đi, W2, W3, W4 và các rãnh P **đỗ lại** (không hủy, không mở), cho tới khi SIL đạt chất lượng owner chấp nhận.
+- W1.1/W1.2 đã xong giữ nguyên; nợ real run ảnh nhãn mỹ phẩm của W1.2 không chặn SIL.
+- Không việc nào trong danh sách đỗ lại được tự mở lại: chờ owner nói chuyện.
+
 ## Nguồn tổng hợp
 
 Tất cả nghiệp vụ dưới đây rút từ các doc đã có, không phát sinh yêu cầu mới trong file này:
@@ -31,6 +39,7 @@ Tất cả nghiệp vụ dưới đây rút từ các doc đã có, không phát
 
 | Nhóm | Việc | Phụ thuộc | Trạng thái nền |
 | --- | --- | --- | --- |
+| **SIL** | **SL-1..SL-4 Luồng 1 ảnh: gen → khoanh vùng → codex edit → lặp** | Không (nền ME + DA có sẵn) | **ĐANG LÀM từ 18/11 (owner)**, mọi việc dưới đây đỗ lại |
 | Pha 0 | W0.1 Ma trận trạng thái/giấy phép thành phần | Không | Mở, không chặn (Lens bỏ được khỏi bản tính phí, 13/11) |
 | Pha 0 | W0.2 Benchmark luồng mẫu trên profile sạch | Không | Đóng 17/11: canvas là hướng đi (owner) |
 | Pha 0 | W0.3 Sửa ma sát tái hiện từ W0.2 | W0.2 | Đóng theo W0.2 |
@@ -272,6 +281,8 @@ Watermark pass (0 AI, qua brand kit); destination checks (dữ liệu quy tắc 
 Đồng bộ tồn kho/giá đa sàn, spy dữ liệu bán/đơn hàng, biến thể adversarial đánh lừa bộ dò, gỡ watermark nguồn người khác, web/mobile, share/collab, gallery cộng đồng, nhận dạng mọi phông làm mũi nhọn.
 
 ## Trạng thái khi đóng file
+
+Cập nhật 18/11/2026 (owner đổi trọng tâm): SIL (single-image-loop.md) mở làm việc đang chạy, SL-1 là slice đầu; toàn bộ W1.3+, W2-W4, P đỗ lại theo mục "Thay đổi trọng tâm" đầu file.
 
 13/11: chỉ tổng hợp kế hoạch, chưa bắt đầu việc nào. Bước tiếp theo lúc đó: W0.1 và W0.2.
 

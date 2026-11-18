@@ -16,4 +16,5 @@ export const Icons = {
   sparkle: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z" /></svg>,
   code: <svg width="20" height="20" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="M8 9l-3 3 3 3M16 9l3 3-3 3M13.5 6l-3 12" /></svg>,
   check: <svg width="14" height="14" viewBox="0 0 24 24" {...s} strokeWidth={2.2} aria-hidden="true"><path d="M5 12.5 10 17l9-10" /></svg>,
+  loop: <svg width="18" height="18" viewBox="0 0 24 24" {...s} aria-hidden="true"><path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></svg>,
 };
