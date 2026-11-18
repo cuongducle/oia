@@ -29,7 +29,9 @@ for (const a of Object.values(advisories)) {
   if (adv.severity !== "high" && adv.severity !== "critical") continue;
   const projects = new Set();
   for (const finding of adv.findings ?? []) {
-    for (const p of finding.paths ?? []) projects.add(p.split(">")[0]);
+    // pnpm audit JSON names workspace roots "apps__site" ("/" is not legal in
+    // dependency paths); normalize back before comparing with NON_SHIPPED
+    for (const p of finding.paths ?? []) projects.add(p.split(">")[0].replace(/__/g, "/"));
   }
   const shipped = [...projects].filter((p) => !NON_SHIPPED.has(p));
   if (shipped.length === 0) continue;
@@ -51,7 +53,7 @@ for (const a of Object.values(advisories)) {
   if (a.severity !== "high" && a.severity !== "critical") continue;
   const projects = new Set();
   for (const finding of a.findings ?? []) {
-    for (const p of finding.paths ?? []) projects.add(p.split(">")[0]);
+    for (const p of finding.paths ?? []) projects.add(p.split(">")[0].replace(/__/g, "/"));
   }
   const nonShippedOnly = [...projects].length > 0 && [...projects].every((p) => NON_SHIPPED.has(p));
   if (nonShippedOnly) console.log(`  (site-only, not shipped) ${a.module_name} ${a.github_advisory_id}`);
