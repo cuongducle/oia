@@ -105,3 +105,17 @@ Teardown chủ động (owner yêu cầu mổ sẻ) tìm 6 lỗi P0 + #8, sửa 
 Gates sau đợt: tsc + 321 test + shot trọn vòng xanh (lane edit ghi nhận runbar OBSERVATIONAL, không fail: mock xong nhanh hơn poll tick, đúng race teardown đã báo; bar kiểm tra bằng mắt lúc dev/real run). Lane marks red 8.598px, polish 12 vùng 27.043px. Bug bắt thêm: chuỗi JSON lớn bị đứt giữa các edit khi qua tool (tái hiện được, sửa bằng cắt đợt nhỏ).
 
 Còn đỗ lại CÓ CHỦ ĐÍCH (từ teardown, không phải bỏ sót): rAF chạy liên tục ở idle (dirty-flag là slice riêng), versions dataUrl không cap, không cap số vùng + note xuống dòng, shot lane phình (index.ts ~3.000 dòng), script real scrape URL bằng regex, session mất khi đóng cửa sổ không cảnh báo, "Start over" xóa sạch history không hỏi.
+
+## Đợt polish UI 18/11 tối (research-driven)
+
+Research pattern 4 nhóm tool (Photoshop Generative Fill + Contextual Task Bar, Canva Magic Edit, FLUX Kontext playgrounds, Figma AI; nguồn URL trong commit) + machine-vision audit khắt khe UI cũ. Bài học áp dụng:
+
+- **Artboard contract** (PS): bỏ checkerboard (ảnh opaque không cần), nền stage flat #e9e7e1, ảnh có border + shadow 2 tầng. Trước đây ảnh "nổi" trên checker vô định hướng document.
+- **Zoom cluster** (PS/Figma): "− / n% / + / Fit" góc dưới-phải stage, % click để fit, wheel vẫn pin con trỏ; zoomPct mirror state để label re-render; tâm zoom = tâm stage.
+- **kbd badges** (Figma V/H/K): Pan/Box/Arrow hiện số 1/2/3 ngay trên nút.
+- **Chip collision** (audit phơi qua shot 12 vùng): `layoutChips` (loop-marks.ts) nudge chip chồng xuống 1,3-chip/bước (tối đa 3, clamp trong ảnh), dùng chung rAF overlay VÀ regionComposite (màn hình và ảnh gửi nhất quán), 3 unit test. Giới hạn ghi trung thực: dày đặc CỰC ĐOAN (12 vùng cạnh nhau vài chục px) vẫn chồng ngang vì chip phải đủ to để model đọc; người thật vẽ vùng riêng biệt thì ổn, leader-line là đợt sau nếu có nhu cầu thật.
+- **Hover sync** (Figma): hover row panel → vòng amber trên marker ảnh (selected vẫn trắng). Header panel "Regions · n/m described".
+- **Progress trên canvas** (Canva overlays): veil mờ + spinner + "Editing… ns" giữa ảnh khi job chạy (bù cho RunBar nằm ngoài canvas).
+- **Chip màu #b91c1c** thay đỏ thuần (audit: đỏ chói đọc là error; marker ĐỎ trên composite giữ #ff0000 vì probe P3 prove màu đó cho model).
+
+Gates: tsc + 328 test (3 test layoutChips mới) + shot trọn vòng xanh; vision verify artboard/zoom/kbd/count pass từng mục. Đợt sau chờ nhu cầu: leader-line chip, version filmstrip thumbnail, segmented After/Before (đổi testid compare sẽ phá lane, làm cùng filmstrip).

@@ -11,7 +11,7 @@ import { oia } from "../lib/bridge.js";
 import { flattenScenePng } from "../lib/scene-flatten.js";
 import { presentErrorEn, resetAtLabel } from "../lib/errors.js";
 import { viewportToNatural, markerWidthFor } from "../lib/markup-annotate.js";
-import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
+import { drawMark, marksPrompt, newMarkId, regionComposite, zoomAt, clampPan, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../lib/loop-marks.js";
 import { mergeVersion } from "../lib/loop-versions.js";
 import type { ChatRequest } from "@oia/services";
 
@@ -94,6 +94,10 @@ export function Loop() {
   const [marks, setMarks] = useState<LoopMark[]>([]);
   /** SL-4: the selected region row (Delete removes it, highlighted on overlay) */
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** panel row hover mirrors onto the canvas marker (amber ring) */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  /** zoom percent for the stage cluster; mirrors viewRef.s so the label re-renders */
+  const [zoomPct, setZoomPct] = useState(100);
   /** SL-4: first-use hint until the user draws their very first mark (OC-6 localStorage) */
   const [hintDone, setHintDone] = useState(() => globalThis.localStorage?.getItem("oia.loopMarkHintDone") === "1");
   /** fitted display size of the current image inside the stage (css px, zoom 1) */
@@ -295,6 +299,7 @@ export function Loop() {
     const h = Math.max(1, Math.round(current.height * k));
     baseRef.current = { tx: Math.round((cw - w) / 2), ty: Math.round((ch - h) / 2) };
     viewRef.current = { s: 1, ...baseRef.current };
+    setZoomPct(100);
     setFit({ w, h });
   }, [current, fit]);
 
@@ -340,12 +345,14 @@ export function Loop() {
       ctx.translate(tx, ty);
       ctx.scale(s, s);
       ctx.scale(k, k);
+      const chips = layoutChips(marks, cur.width, cur.height);
       marks.forEach((m, i) => {
-        drawMark(ctx, m, i, cur.width, cur.height);
-        if (m.id === selectedId) {
-          // SL-4 selection ring: dashed white over the selected mark
+        drawMark(ctx, m, i, cur.width, cur.height, chips[i]);
+        const highlight = m.id === selectedId ? "#ffffff" : m.id === hoveredId ? "#f59e0b" : null;
+        if (highlight) {
+          // selection ring (white) / hover ring (amber): dashed over the mark
           ctx.save();
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle = highlight;
           ctx.lineWidth = markerWidthFor(cur.width, cur.height) * 0.5;
           ctx.setLineDash([markerWidthFor(cur.width, cur.height), markerWidthFor(cur.width, cur.height) * 0.8]);
           if (m.kind === "box") ctx.strokeRect(m.x, m.y, m.w, m.h);
@@ -369,7 +376,7 @@ export function Loop() {
     };
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [current, fit, marks, compareOn, selectedId]);
+  }, [current, fit, marks, compareOn, selectedId, hoveredId]);
 
   function onOverlayPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!current || !fit || compareOn) return;
@@ -390,7 +397,9 @@ export function Loop() {
     const onWheelNative = (e: WheelEvent) => {
       e.preventDefault();
       const r = ov.getBoundingClientRect();
-      viewRef.current = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+      const v = zoomAt(viewRef.current, e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+      viewRef.current = v;
+      setZoomPct(Math.round(v.s * 100));
     };
     ov.addEventListener("wheel", onWheelNative, { passive: false });
     return () => ov.removeEventListener("wheel", onWheelNative);
@@ -420,6 +429,22 @@ export function Loop() {
   function onOverlayDoubleClick() {
     if (compareOn) return;
     viewRef.current = { s: 1, ...baseRef.current };
+    setZoomPct(100);
+  }
+
+  /** zoom cluster helpers: zoom keeps the STAGE CENTER pinned (cursor pinning
+   * stays on the wheel); % resets, Fit returns to the centered base view. */
+  function stageZoom(factor: number) {
+    const stage = stageRef.current;
+    const cx = stage ? stage.clientWidth / 2 : 0;
+    const cy = stage ? stage.clientHeight / 2 : 0;
+    const v = zoomAt(viewRef.current, cx, cy, factor);
+    viewRef.current = v;
+    setZoomPct(Math.round(v.s * 100));
+  }
+  function fitView() {
+    viewRef.current = { s: 1, ...baseRef.current };
+    setZoomPct(100);
   }
 
   function onOverlayPointerUp() {
@@ -555,9 +580,9 @@ export function Loop() {
         <section className="loopWork" aria-label="Mark and edit">
           <div className="loopStageCol">
             <div className="loopTools" role="toolbar" aria-label="Marking tools">
-              <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom (1)" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span></button>
-              <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region (2)" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span></button>
-              <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow (3)" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span></button>
+              <button className={`loopTool ${tool === "pan" && !compareOn ? "active" : ""}`} data-testid="tool-pan" aria-pressed={tool === "pan"} title="Pan and zoom (1)" onClick={() => { setTool("pan"); setCompareOn(false); }}>{Icon.pan}<span>Pan</span><kbd>1</kbd></button>
+              <button className={`loopTool ${tool === "box" && !compareOn ? "active" : ""}`} data-testid="tool-box" aria-pressed={tool === "box"} title="Draw a box around a region (2)" onClick={() => { setTool("box"); setCompareOn(false); }}>{Icon.box}<span>Box</span><kbd>2</kbd></button>
+              <button className={`loopTool ${tool === "arrow" && !compareOn ? "active" : ""}`} data-testid="tool-arrow" aria-pressed={tool === "arrow"} title="Point at a spot with an arrow (3)" onClick={() => { setTool("arrow"); setCompareOn(false); }}>{Icon.arrowUp}<span>Arrow</span><kbd>3</kbd></button>
               {tool !== "pan" && !compareOn && <span className="loopHint">{MARK_HINT}</span>}
               {busy && current && (
                 <span className="loopRunBar" data-testid="loop-runbar" role="status">
@@ -582,6 +607,18 @@ export function Loop() {
                   <img data-testid="loop-image" src={displayed.dataUrl} alt={showBefore ? "The previous loop image" : "The current loop image"} width={fit.w} height={fit.h} draggable={false} />
                 </div>
               )}
+              {busy && current && (
+                <div className="loopProgressVeil" data-testid="loop-progress">
+                  <span className="spin big" aria-hidden="true">◌</span>
+                  <span>{jobKind === "edit" ? "Editing" : "Generating"}…{elapsedS !== null ? ` ${elapsedS}s` : ""}</span>
+                </div>
+              )}
+              <div className="loopZoom" role="group" aria-label="Zoom">
+                <button aria-label="Zoom out" title="Zoom out" onClick={() => stageZoom(1 / 1.25)}>−</button>
+                <button className="loopZoomPct" data-testid="loop-zoom" title="Reset view (or double-click the image)" onClick={fitView}>{zoomPct}%</button>
+                <button aria-label="Zoom in" title="Zoom in" onClick={() => stageZoom(1.25)}>+</button>
+                <button title="Fit to screen" onClick={fitView}>Fit</button>
+              </div>
               <canvas
                 ref={overlayRef}
                 className="loopOverlay"
@@ -591,7 +628,6 @@ export function Loop() {
                 onPointerMove={onOverlayPointerMove}
                 onPointerUp={onOverlayPointerUp}
                 onPointerCancel={onOverlayPointerUp}
-                onWheel={onWheel}
               />
             </div>
             <div className="loopToolbar">
@@ -605,12 +641,12 @@ export function Loop() {
             </div>
           </div>
           <aside className="loopSide" aria-label="Regions">
-            <h2>Regions</h2>
+            <h2>Regions{marks.length > 0 ? ` · ${marks.filter((m) => m.note.trim()).length}/${marks.length} described` : ""}</h2>
             {marks.length === 0 && <p className="loopEmpty">Pick Box or Arrow and drag on the image. Each region gets its own instruction.</p>}
             {marks.length > 0 && <p className="loopEmpty loopKeyHint">Click a region to select it, Delete removes it. Keys 1, 2, 3 switch tools.</p>}
             <ol className="loopRegions">
               {marks.map((m, i) => (
-                <li key={m.id} className={`loopRegion ${m.id === selectedId ? "selected" : ""}`} data-testid={`region-${i + 1}`} onClick={() => setSelectedId((cur) => (cur === m.id ? null : m.id))}>
+                <li key={m.id} className={`loopRegion ${m.id === selectedId ? "selected" : ""}`} data-testid={`region-${i + 1}`} onClick={() => setSelectedId((cur) => (cur === m.id ? null : m.id))} onMouseEnter={() => setHoveredId(m.id)} onMouseLeave={() => setHoveredId(null)}>
                   <span className="regionChip" aria-hidden="true">{i + 1}</span>
                   <span className="regionKind" aria-hidden="true">{m.kind === "box" ? Icon.box : Icon.arrowUp}</span>
                   <input

@@ -112,7 +112,7 @@ export function arrowHead(from: Point, to: Point, size: number): [Point, Point, 
   ];
 }
 
-export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: number, naturalWidth: number, naturalHeight: number): void {
+export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: number, naturalWidth: number, naturalHeight: number, chipPos?: { x: number; y: number }): void {
   const lw = markerWidthFor(naturalWidth, naturalHeight);
   ctx.strokeStyle = "#ff0000";
   ctx.fillStyle = "#ff0000";
@@ -134,7 +134,28 @@ export function drawMark(ctx: CanvasRenderingContext2D, mark: LoopMark, index: n
     ctx.closePath();
     ctx.fill();
   }
-  drawChip(ctx, index + 1, clampChipAnchor(chipAnchor(mark), naturalWidth, naturalHeight, Math.max(18, lw * 4)), lw);
+  const at = chipPos ?? clampChipAnchor(chipAnchor(mark), naturalWidth, naturalHeight, Math.max(18, lw * 4));
+  drawChip(ctx, index + 1, at, lw);
+}
+
+/** Collision-aware chip placement (one anchor per mark, array order). Overlapping
+ * chips are nudged down in 1.3-chip steps (max 3 tries), then clamped into the
+ * image. The 12-region shot exposed badges stacking into an unreadable strip;
+ * this keeps every number visible. Pure, unit-tested. */
+export function layoutChips(marks: LoopMark[], naturalWidth: number, naturalHeight: number): { x: number; y: number }[] {
+  const size = Math.max(18, markerWidthFor(naturalWidth, naturalHeight) * 4);
+  const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  return marks.map((m) => {
+    let p = clampChipAnchor(chipAnchor(m), naturalWidth, naturalHeight, size);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const box = { x1: p.x - size / 2, y1: p.y - size / 2, x2: p.x + size / 2, y2: p.y + size / 2 };
+      const hit = placed.find((q) => box.x1 < q.x2 && box.x2 > q.x1 && box.y1 < q.y2 && box.y2 > q.y1);
+      if (!hit) break;
+      p = clampChipAnchor({ x: p.x, y: p.y + size * 1.3 }, naturalWidth, naturalHeight, size);
+    }
+    placed.push({ x1: p.x - size / 2, y1: p.y - size / 2, x2: p.x + size / 2, y2: p.y + size / 2 });
+    return p;
+  });
 }
 
 /** Numbered chip: red rounded square with the white region number. */
@@ -173,7 +194,8 @@ export function regionComposite(src: string, marks: LoopMark[], naturalWidth: nu
           return;
         }
         ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
-        marks.forEach((m, i) => drawMark(ctx, m, i, naturalWidth, naturalHeight));
+        const chips = layoutChips(marks, naturalWidth, naturalHeight);
+        marks.forEach((m, i) => drawMark(ctx, m, i, naturalWidth, naturalHeight, chips[i]));
         resolve(canvas.toDataURL("image/png"));
       } catch (err) {
         reject(err instanceof Error ? err : new Error("region composite: export failed"));

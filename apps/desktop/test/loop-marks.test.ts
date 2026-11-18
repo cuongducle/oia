@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
+import { chipAnchor, arrowHead, marksPrompt, zoomAt, clampPan, clampChipAnchor, layoutChips, MIN_ARROW_PX, MIN_BOX_PX, type LoopMark } from "../src/renderer/lib/loop-marks.js";
 
 describe("SIL chipAnchor, pure math", () => {
   it("box: the chip sits on the box's top-left corner", () => {
@@ -105,6 +105,28 @@ describe("SIL clampChipAnchor, numbers never clip away", () => {
   it("a negative anchor slides to the half-size edge", () => {
     expect(clampChipAnchor({ x: -5, y: -5 }, 1024, 1536, 22)).toEqual({ x: 11, y: 11 });
     expect(clampChipAnchor({ x: 2000, y: 2000 }, 1024, 1536, 22)).toEqual({ x: 1013, y: 1525 });
+  });
+});
+
+describe("SIL layoutChips, overlapping badges get nudged apart", () => {
+  const box = (x: number, y: number): LoopMark => ({ id: `m${x}-${y}`, kind: "box", note: "", x, y, w: 40, h: 40 });
+
+  it("far-apart marks keep their own anchors", () => {
+    const out = layoutChips([box(100, 100), box(600, 400)], 1024, 1536);
+    expect(out[0]).toEqual({ x: 100, y: 100 });
+    expect(out[1]).toEqual({ x: 600, y: 400 });
+  });
+
+  it("two chips on the same spot: the second moves DOWN out of overlap", () => {
+    const out = layoutChips([box(100, 100), box(104, 104)], 1024, 1536);
+    const dy = out[1].y - out[0].y;
+    expect(dy).toBeGreaterThanOrEqual(18); // no longer stacked on the same badge
+    expect(Math.abs(out[1].x - out[0].x)).toBeLessThanOrEqual(6); // stays at its own anchor
+  });
+
+  it("a nudge never pushes a chip out of the image (clamped at the bottom)", () => {
+    const out = layoutChips([box(100, 1490), box(104, 1494)], 1024, 1536);
+    expect(out[1].y).toBeLessThanOrEqual(1536 - 9);
   });
 });
 

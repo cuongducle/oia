@@ -936,3 +936,19 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .loopRunBar .loopStep.done { color: var(--ink); }
 .spin { display: inline-block; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- SIL pro polish round: artboard contract, zoom cluster, hover sync ---- */
+.loopStage { background: #e9e7e1; }
+.loopWorld img { box-shadow: 0 10px 32px -12px rgba(20,18,30,.35), 0 2px 8px rgba(20,18,30,.12); outline: 1px solid #d0cec8; }
+.loopTool kbd { margin-left: 2px; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 4px; border: 1px solid currentColor; opacity: .55; font-family: inherit; }
+.loopTool.active kbd { border-color: rgba(255,255,255,.7); }
+.regionChip { background: #b91c1c; }
+.loopRegion:hover { background: #f4f2f7; }
+.loopRegion:hover .regionChip { background: #991b1b; }
+.loopZoom { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: inline-flex; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,18,30,.12); }
+.loopZoom button { border: none; background: none; padding: 5px 9px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.loopZoom button + button { border-left: 1px solid var(--line); }
+.loopZoom button:hover { background: #f4f2f7; }
+.loopZoomPct { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+.loopProgressVeil { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,.62); backdrop-filter: blur(1.5px); font-size: 13.5px; color: var(--ink); pointer-events: none; }
+.spin.big { font-size: 20px; color: var(--ink); }
