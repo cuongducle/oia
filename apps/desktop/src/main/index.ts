@@ -2740,7 +2740,59 @@ async function shot(): Promise<void> {
     return;
   }
   console.log(`[shot] SIL generate OK (${silImg.w}x${silImg.h} flat PNG on the stage, meta "${silImg.meta}")`);
-  await snap(win, "desktop-loop.png");
+
+  // SL-2: draw one box + one arrow with the REAL pointer path, then verify the
+  // overlay painted red AND the region panel numbered them. rAF throttle needs
+  // a foreground window (the ME lane found a covered window paints nothing).
+  if (process.platform === "darwin") app.focus({ steal: true });
+  win.restore();
+  win.moveTop();
+  win.focus();
+  await new Promise((r) => setTimeout(r, 400));
+  const silMarks = await win.webContents.executeJavaScript(`(async () => {
+    const boxBtn = document.querySelector('[data-testid="tool-box"]');
+    if (!boxBtn) return { ok: false, why: "no box tool" };
+    boxBtn.click();
+    await new Promise((r) => setTimeout(r, 150));
+    const ov = document.querySelector('[data-testid="loop-overlay"]');
+    if (!ov) return { ok: false, why: "no overlay" };
+    const img = document.querySelector('[data-testid="loop-image"]');
+    if (!img || !img.getAttribute("width")) return { ok: false, why: "image not fitted yet" };
+    const r = ov.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const base = { bubbles: true, cancelable: true, pointerId: 11, isPrimary: true, pointerType: "mouse" };
+    const drag = async (x0, y0, x1, y1) => {
+      ov.dispatchEvent(new PointerEvent("pointerdown", { ...base, clientX: x0, clientY: y0 }));
+      for (let i = 1; i <= 8; i++) ov.dispatchEvent(new PointerEvent("pointermove", { ...base, clientX: x0 + (x1 - x0) * i / 8, clientY: y0 + (y1 - y0) * i / 8 }));
+      ov.dispatchEvent(new PointerEvent("pointerup", { ...base, clientX: x1, clientY: y1 }));
+      await new Promise((res) => setTimeout(res, 120));
+    };
+    await drag(cx - 70, cy - 50, cx + 50, cy + 40);
+    document.querySelector('[data-testid="tool-arrow"]').click();
+    await new Promise((r) => setTimeout(r, 150));
+    await drag(cx - 130, cy + 90, cx - 40, cy + 60);
+    await new Promise((res) => setTimeout(res, 250));
+    const rows = [...document.querySelectorAll(".loopRegion")].map((n) => n.dataset.testid);
+    const chip1 = document.querySelector('[data-testid="region-1"] .regionChip')?.textContent;
+    const chip2 = document.querySelector('[data-testid="region-2"] .regionChip')?.textContent;
+    // pixel truth: red marker pixels in a crop around the box path (native res, DPR-aware)
+    const dpr = ov.width / Math.max(1, r.width);
+    const t = document.createElement("canvas");
+    const wCss = 130, hCss = 100, x0css = cx - r.left - 72, y0css = cy - r.top - 52;
+    t.width = Math.round(wCss * dpr); t.height = Math.round(hCss * dpr);
+    t.getContext("2d").drawImage(ov, Math.round(x0css * dpr), Math.round(y0css * dpr), t.width, t.height, 0, 0, t.width, t.height);
+    const d = t.getContext("2d").getImageData(0, 0, t.width, t.height).data;
+    let red = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i] > 180 && d[i + 1] < 90 && d[i + 2] < 90) red++; }
+    return { ok: rows.length === 2 && chip1 === "1" && chip2 === "2", rows, chip1, chip2, red, err: [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent).join(" ") };
+  })()`, true);
+  if (!silMarks || silMarks.ok !== true || silMarks.red < 3) {
+    console.error(`DESKTOP_SHOT SIL FAILED, mark drawing did not land (${JSON.stringify(silMarks)})`);
+    app.exit(31);
+    return;
+  }
+  console.log(`[shot] SIL marks OK (rows=${silMarks.rows.join(",")} red=${silMarks.red}px)`);
+  await snap(win, "desktop-loop-marks.png");
   await win.webContents.executeJavaScript(`document.querySelector('[data-testid="loop-reset"]').click()`, true);
   await new Promise((r) => setTimeout(r, 300));
 

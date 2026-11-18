@@ -900,10 +900,25 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .loopHead p { margin: 0; color: var(--muted); font-size: 13.5px; }
 .loopComposer { margin-bottom: 16px; }
 .loopComposer textarea { min-height: 58px; }
-.loopStageWrap { border: 1px solid #d8d6e2; border-radius: 16px; background: #fff; box-shadow: var(--shadow); padding: 14px; }
-.loopStage { display: flex; justify-content: center; background:
+.loopWork { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+.loopStageCol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.loopTools { display: flex; align-items: center; gap: 8px; }
+.loopTool { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.loopTool.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+.loopHint { font-size: 12px; color: var(--muted); }
+.loopStage { position: relative; overflow: hidden; border: 1px solid #d8d6e2; border-radius: 12px; background:
   conic-gradient(#f3f2f7 0 25%, #fff 0 50%, #f3f2f7 0 75%, #fff 0) 0 0/22px 22px;
-  border-radius: 10px; overflow: hidden; }
-.loopStage img { max-width: 100%; max-height: min(64vh, 720px); object-fit: contain; display: block; }
-.loopToolbar { display: flex; align-items: center; gap: 10px; padding-top: 10px; }
+  height: min(64vh, 720px); display: flex; align-items: center; justify-content: center; }
+.loopWorld { position: absolute; inset: 0; transform-origin: 0 0; }
+.loopWorld img { display: block; position: absolute; top: 0; left: 0; user-select: none; -webkit-user-drag: none; }
+.loopOverlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; z-index: 2; }
+.loopToolbar { display: flex; align-items: center; gap: 10px; }
 .loopMeta { font-size: 12px; color: var(--muted); margin-right: auto; }
+.loopSide { border: 1px solid #d8d6e2; border-radius: 12px; background: #fff; box-shadow: var(--shadow); padding: 14px; }
+.loopSide h2 { font-size: 13px; margin: 0 0 8px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.loopEmpty { font-size: 12.5px; color: var(--muted); margin: 0; }
+.loopRegions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.loopRegion { display: flex; align-items: center; gap: 8px; }
+.regionChip { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #ff0000; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.regionKind { flex: none; color: var(--muted); display: inline-flex; }
+.loopRegion input { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
