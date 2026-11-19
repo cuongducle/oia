@@ -1,0 +1,96 @@
+/**
+ * Edit loop (SIL) styles, co-located with the view. Split from app.css
+ * (owner 18/11: the 40-section global sheet had become a dumping ground).
+ * Loaded after app.css, shared tokens still resolve.
+ */
+
+.loopWork { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+.loopStageCol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.loopTools { display: flex; align-items: center; gap: 8px; }
+.loopTool { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+.loopTool.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+.loopHint { font-size: 12px; color: var(--muted); white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.loopWorld { position: absolute; inset: 0; transform-origin: 0 0; }
+.loopWorld img { display: block; position: absolute; top: 0; left: 0; user-select: none; -webkit-user-drag: none; }
+.loopOverlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; z-index: 2; }
+.loopToolbar { display: flex; align-items: center; gap: 10px; }
+.loopMeta { font-size: 12px; color: var(--muted); margin-right: auto; }
+.loopSide { border: 1px solid #d8d6e2; border-radius: 12px; background: #fff; box-shadow: var(--shadow); padding: 14px; }
+.loopSide h2 { font-size: 13px; margin: 0 0 8px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.loopEmpty { font-size: 12.5px; color: var(--muted); margin: 0; }
+.loopRegions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.loopRegion { display: flex; align-items: center; gap: 8px; }
+.regionChip { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #ff0000; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.regionKind { flex: none; color: var(--muted); display: inline-flex; }
+.loopRegion input { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.loopTool:disabled { opacity: 0.45; cursor: default; }
+.loopEditBtn { width: 100%; justify-content: center; margin-top: 10px; gap: 8px; }
+.loopEditBtn .costHint { color: #ffffffb0; }
+.loopRegion input.invalid { border-color: var(--danger); }
+.stageBadge { position: absolute; top: 10px; left: 10px; z-index: 3; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px; }
+.loopFirstHint { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 3; margin: 0; background: #18181bee; color: #fff; font-size: 12.5px; padding: 8px 14px; border-radius: 999px; pointer-events: none; }
+.loopRegion { cursor: pointer; border: 1px solid transparent; border-radius: 10px; padding: 4px 6px; margin: -4px -6px; }
+.loopRegion.selected { border-color: var(--ink); background: #f4f3f8; }
+.loopKeyHint { font-size: 11.5px; margin: 8px 0 0; }
+.loopRunBar { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-left: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; }
+.loopRunBar .loopStep { white-space: nowrap; }
+.loopRunBar .loopStep.done { color: var(--ink); }
+.loopStage { background: #e9e7e1; }
+.loopWorld img { box-shadow: 0 10px 32px -12px rgba(20,18,30,.35), 0 2px 8px rgba(20,18,30,.12); outline: 1px solid #d0cec8; }
+.loopTool kbd { margin-left: 2px; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 4px; border: 1px solid currentColor; opacity: .55; font-family: inherit; }
+.loopTool.active kbd { border-color: rgba(255,255,255,.7); }
+.regionChip { background: #b91c1c; }
+.loopRegion:hover { background: #f4f2f7; }
+.loopRegion:hover .regionChip { background: #991b1b; }
+.loopZoom { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: inline-flex; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,18,30,.12); }
+.loopZoom button { border: none; background: none; padding: 5px 9px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.loopZoom button + button { border-left: 1px solid var(--line); }
+.loopZoom button:hover { background: #f4f2f7; }
+.loopZoomPct { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+.loopProgressVeil { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,.62); backdrop-filter: blur(1.5px); font-size: 13.5px; color: var(--ink); pointer-events: none; }
+.loopCanvasFirst { display: flex; flex-direction: column; gap: 14px; min-height: calc(100vh - 180px); }
+.loopEmptyRun { width: 100%; max-width: 640px; padding: 24px; }
+.loopBar { margin-top: auto; position: sticky; bottom: 12px; z-index: 6; box-shadow: 0 12px 32px -16px rgba(20,18,30,.28); }
+.loopBar textarea { min-height: 44px; }
+.loopWork { flex: 1; }
+.loopDisabledWhy { margin-top: 8px; font-size: 11.5px; color: #b45309; }
+.loopFilmstrip { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
+.loopThumb { flex: none; height: 48px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(20,18,30,.14); }
+.loopThumb img { height: 44px; width: auto; display: block; }
+.loopThumb.active { border-color: var(--ink); }
+.loopThumb:hover:not(.active) { border-color: #b7b4c2; }
+.loopProgressTrack { height: 4px; border-radius: 999px; background: #e8e6f0; overflow: hidden; margin: 8px 0; }
+.loopProgressTrack span { display: block; height: 100%; background: #b91c1c; border-radius: 999px; transition: width .18s ease; }
+.loopStage .canvas-container { position: absolute; inset: 0; z-index: 2; touch-action: none; }
+.loopStage.loopCompare .canvas-container { pointer-events: none; }
+.regionTextNote { flex: 1; font-size: 12.5px; color: #b91c1c; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loopEmptyBare { border: none; background: transparent; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 300px; }
+.loopAttachRow { display: flex; align-items: center; gap: 10px; padding: 8px 4px 2px; }
+.loopAttachRow img { height: 52px; width: auto; border-radius: 8px; box-shadow: 0 1px 6px rgba(20,18,30,.18); outline: 1px solid #d0cec8; }
+.loopAttachRow .mono { font-size: 11.5px; color: var(--muted); }
+.loopAttachModes { display: inline-flex; gap: 6px; margin-left: 4px; }
+.loopModePill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d8d6e2; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #55516a; cursor: pointer; }
+.loopModePill.active { border-color: var(--ink); color: var(--ink); font-weight: 600; box-shadow: 0 1px 6px rgba(20,18,30,.10); }
+.promptCard.loopBar { border: 1px solid #dedbe6; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px -4px rgba(20,18,30,.10); padding: 10px 12px 8px; }
+.promptCard.loopBar:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(20,18,30,.07), 0 2px 12px -4px rgba(20,18,30,.10); }
+.promptCard.loopBar textarea { width: 100%; border: none; outline: none; background: transparent; font-size: 14.5px; line-height: 1.5; color: var(--ink); resize: none; min-height: 52px; padding: 6px 4px 8px; }
+.promptCard.loopBar textarea::placeholder { color: #8a8698; }
+.promptCard.loopBar .composerControls { margin-top: 2px; gap: 6px; position: relative; }
+.composerIconBtn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; border-radius: 999px; color: #55516a; cursor: pointer; }
+.composerIconBtn:hover { background: rgba(20,18,30,.07); color: var(--ink); }
+.composerIconBtn.active { background: rgba(20,18,30,.08); color: var(--ink); }
+.composerIconBtn svg { width: 17px; height: 17px; }
+.promptCard.loopBar .composerControls select { height: 34px; border-radius: 9px; border: 1px solid transparent; font-size: 12.5px; color: #55516a; padding: 0 22px 0 8px; min-width: 108px; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2355516a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; cursor: pointer; }
+.promptCard.loopBar .composerControls select:hover { border-color: #dedbe6; background-color: #fff; }
+.promptCard.loopBar .composerControls { gap: 8px; }
+.promptCard.loopBar .generateBtn { height: 34px; padding: 0 16px; border-radius: 9px; background: var(--ink); color: #fff; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.promptCard.loopBar .generateBtn:hover:not(:disabled) { background: #000; }
+.promptCard.loopBar .generateBtn:disabled { opacity: .35; }
+.loopAssetsPop { position: absolute; bottom: calc(100% + 8px); left: 0; right: auto; width: min(560px, 62vw); background: #fff; border: 1px solid #d8d6e2; border-radius: 12px; box-shadow: 0 14px 40px -14px rgba(20,18,30,.35); padding: 12px; z-index: 30; }
+.loopAssetsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; max-height: 264px; overflow-y: auto; }
+.loopAssetThumb { border: 1px solid #e2e0ea; border-radius: 8px; overflow: hidden; background: #f6f5f9; cursor: pointer; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 0; }
+.loopAssetThumb:hover { border-color: var(--ink); }
+.loopAssetThumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.loopAssetsEmpty { margin: 4px 2px 8px; font-size: 12px; color: var(--muted); }
+.loopBarCaption { margin: 8px 2px 0; font-size: 11.5px; color: #9894a8; }
+.loopBarCaption .costHint { color: #9894a8; }

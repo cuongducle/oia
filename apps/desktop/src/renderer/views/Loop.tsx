@@ -3,6 +3,7 @@ import type { CanvasMsgMeta, SceneCanvas, StylePresetId } from "@oia/schema";
 import { AUTO_REFINE_MAX_ROUNDS_DEFAULT, STYLE_PRESETS } from "@oia/schema";
 import { stripMarkers } from "@oia/protocol";
 import { CostHint } from "../components/RunSteps.js";
+import "./loop.css";
 import { RunPanel } from "../components/RunPanel.js";
 import { costHintText, stepsFromTimeline, type TimelineEntry } from "../lib/run-steps.js";
 import { sizeDims } from "../lib/composer-sizes.js";

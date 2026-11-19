@@ -166,9 +166,6 @@ html[data-platform="darwin"] .edTop select { -webkit-app-region: no-drag; }
 /* ---------- Home (studio refresh, docs/design-direction.md) ---------- */
 .appShell { max-width: 1232px; margin: 0 auto; padding: 24px 40px 64px; width: 100%; }
 .studioPage { max-width: 1232px; margin: 0 auto; padding: 24px 40px 64px; width: 100%; }
-.studioTopline { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 40px; min-height: 24px; }
-.privateNote { display: flex; align-items: center; gap: 7px; font-size: 11px; }
-.studioTopline > span:first-child { font-size: 23px; font-weight: 600; letter-spacing: -0.05em; color: var(--ink); }
 .studioHero { text-align: center; }
 .studioHero h1 { font-family: var(--font-display); font-size: clamp(40px, 4.2vw, 62px); font-weight: 400; letter-spacing: -0.035em; margin-bottom: 14px; line-height: 1.1; }
 .studioHero p { margin: 0 auto 29px; max-width: 680px; color: var(--muted); font-size: 14px; }
@@ -179,7 +176,6 @@ html[data-platform="darwin"] .edTop select { -webkit-app-region: no-drag; }
 .promptCard textarea:focus-visible { outline: none; }
 .composerControls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .composerControls select { font-size: 12px; padding: 6px 8px; height: 34px; background: #fff; }
-.composerDivider { height: 20px; width: 1px; background: var(--line); margin-inline: 2px; }
 .advancedToggle { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; border: none; background: none; color: var(--muted); padding: 7px; border-radius: 7px; }
 .advancedToggle:hover { background: #f7f6fb; }
 .generateBtn { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--primary); color: #fff; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px #7050e51c; }
@@ -223,7 +219,6 @@ html[data-platform="darwin"] .edTop select { -webkit-app-region: no-drag; }
 .tabs { display: flex; align-items: center; gap: 18px; }
 .tabBtn { white-space: nowrap; border: none; background: none; border-bottom: 2px solid transparent; padding: 10px 2px; color: var(--muted); font-size: 12px; }
 .tabBtn.active { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
-.gallerySection { margin-top: 48px; }
 .galleryGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
 .galleryCard { display: block; padding: 0; border: none; background: transparent; text-align: left; min-width: 0; color: var(--ink); }
 .galleryCard:hover .galleryThumb { transform: translateY(-3px); box-shadow: 0 10px 24px #23212e15; }
@@ -895,148 +890,33 @@ article:hover .projectMetaActions, .projectMetaActions:focus-within { opacity: 1
 .shareMenu span { font-size: 11.5px; color: var(--muted); }
 
 /* ---- SIL single-image edit loop (single-image-loop.md) ---- */
-.loopHead { padding: 8px 0 14px; }
-.loopHead h1 { font-size: 22px; letter-spacing: -0.01em; margin: 0 0 4px; }
-.loopHead p { margin: 0; color: var(--muted); font-size: 13.5px; }
-.loopComposer { margin-bottom: 16px; }
-.loopComposer textarea { min-height: 58px; }
-.loopWork { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
-.loopStageCol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.loopTools { display: flex; align-items: center; gap: 8px; }
-.loopTool { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
-.loopTool.active { border-color: var(--ink); background: var(--ink); color: #fff; }
-.loopHint { font-size: 12px; color: var(--muted); white-space: nowrap; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .loopStage { position: relative; overflow: hidden; border: 1px solid #d8d6e2; border-radius: 12px; background:
   conic-gradient(#f3f2f7 0 25%, #fff 0 50%, #f3f2f7 0 75%, #fff 0) 0 0/22px 22px;
   height: min(64vh, 720px); display: flex; align-items: center; justify-content: center; }
-.loopWorld { position: absolute; inset: 0; transform-origin: 0 0; }
-.loopWorld img { display: block; position: absolute; top: 0; left: 0; user-select: none; -webkit-user-drag: none; }
-.loopOverlay { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; z-index: 2; }
-.loopToolbar { display: flex; align-items: center; gap: 10px; }
-.loopMeta { font-size: 12px; color: var(--muted); margin-right: auto; }
-.loopSide { border: 1px solid #d8d6e2; border-radius: 12px; background: #fff; box-shadow: var(--shadow); padding: 14px; }
-.loopSide h2 { font-size: 13px; margin: 0 0 8px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
-.loopEmpty { font-size: 12.5px; color: var(--muted); margin: 0; }
-.loopRegions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.loopRegion { display: flex; align-items: center; gap: 8px; }
-.regionChip { flex: none; width: 22px; height: 22px; border-radius: 6px; background: #ff0000; color: #fff; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
-.regionKind { flex: none; color: var(--muted); display: inline-flex; }
-.loopRegion input { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
-.loopTool:disabled { opacity: 0.45; cursor: default; }
-.loopEditBtn { width: 100%; justify-content: center; margin-top: 10px; gap: 8px; }
-.loopEditBtn .costHint { color: #ffffffb0; }
-.loopRegion input.invalid { border-color: var(--danger); }
-.stageBadge { position: absolute; top: 10px; left: 10px; z-index: 3; background: var(--ink); color: #fff; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px; }
-.loopFirstHint { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 3; margin: 0; background: #18181bee; color: #fff; font-size: 12.5px; padding: 8px 14px; border-radius: 999px; pointer-events: none; }
-.loopRegion { cursor: pointer; border: 1px solid transparent; border-radius: 10px; padding: 4px 6px; margin: -4px -6px; }
-.loopRegion.selected { border-color: var(--ink); background: #f4f3f8; }
-.loopKeyHint { font-size: 11.5px; margin: 8px 0 0; }
-.loopRunBar { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-left: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; }
-.loopRunBar .loopStep { white-space: nowrap; }
-.loopRunBar .loopStep.done { color: var(--ink); }
 .spin { display: inline-block; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---- SIL pro polish round: artboard contract, zoom cluster, hover sync ---- */
-.loopStage { background: #e9e7e1; }
-.loopWorld img { box-shadow: 0 10px 32px -12px rgba(20,18,30,.35), 0 2px 8px rgba(20,18,30,.12); outline: 1px solid #d0cec8; }
-.loopTool kbd { margin-left: 2px; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 4px; border: 1px solid currentColor; opacity: .55; font-family: inherit; }
-.loopTool.active kbd { border-color: rgba(255,255,255,.7); }
-.regionChip { background: #b91c1c; }
-.loopRegion:hover { background: #f4f2f7; }
-.loopRegion:hover .regionChip { background: #991b1b; }
-.loopZoom { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: inline-flex; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,18,30,.12); }
-.loopZoom button { border: none; background: none; padding: 5px 9px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
-.loopZoom button + button { border-left: 1px solid var(--line); }
-.loopZoom button:hover { background: #f4f2f7; }
-.loopZoomPct { min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
-.loopProgressVeil { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,.62); backdrop-filter: blur(1.5px); font-size: 13.5px; color: var(--ink); pointer-events: none; }
 .spin.big { font-size: 20px; color: var(--ink); }
 
 /* ---- SIL canvas-first layout: empty stage up top, prompt bar pinned bottom ---- */
-.loopCanvasFirst { display: flex; flex-direction: column; gap: 14px; min-height: calc(100vh - 180px); }
-.loopEmptyStage { border-style: dashed; background: #fff; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 300px; }
-.loopEmptyInner { text-align: center; color: var(--muted); max-width: 460px; padding: 28px; }
-.loopEmptyInner h1 { font-size: 17px; letter-spacing: -0.01em; margin: 14px 0 6px; color: var(--ink); }
-.loopEmptyInner p { margin: 0; font-size: 13px; line-height: 1.55; }
-.loopEmptyGlyph { color: #b7b4c2; }
-.loopEmptyRun { width: 100%; max-width: 640px; padding: 24px; }
-.loopBar { margin-top: auto; position: sticky; bottom: 12px; z-index: 6; box-shadow: 0 12px 32px -16px rgba(20,18,30,.28); }
-.loopBar textarea { min-height: 44px; }
-.loopWork { flex: 1; }
-.loopDisabledWhy { margin-top: 8px; font-size: 11.5px; color: #b45309; }
 
 /* ---- SIL pro polish round 2: filmstrip, progress, canvas-register marks ---- */
-.loopFilmstrip { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
-.loopThumb { flex: none; height: 48px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; box-shadow: 0 1px 4px rgba(20,18,30,.14); }
-.loopThumb img { height: 44px; width: auto; display: block; }
-.loopThumb.active { border-color: var(--ink); }
-.loopThumb:hover:not(.active) { border-color: #b7b4c2; }
-.loopProgressTrack { height: 4px; border-radius: 999px; background: #e8e6f0; overflow: hidden; margin: 8px 0; }
-.loopProgressTrack span { display: block; height: 100%; background: #b91c1c; border-radius: 999px; transition: width .18s ease; }
-.loopImportRow { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 18px; }
-.loopImportAlt { font-size: 12.5px; color: #6e6a7c; }
-.loopImportNote { margin-top: 10px; font-size: 11.5px; color: #6e6a7c; }
 
 /* fabric marking layer: the library wraps the canvas in .canvas-container */
-.loopStage .canvas-container { position: absolute; inset: 0; z-index: 2; touch-action: none; }
-.loopStage.loopCompare .canvas-container { pointer-events: none; }
-.regionTextNote { flex: 1; font-size: 12.5px; color: #b91c1c; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 input[data-testid="loop-global-note"] { width: 100%; margin: 8px 0; padding: 7px 10px; border: 1px solid #d8d6e2; border-radius: 8px; font-size: 12.5px; }
 input[data-testid="loop-global-note"]:focus { outline: 2px solid #f59e0b; outline-offset: -1px; border-color: transparent; }
 
 /* empty canvas, pro-editor register (Figma/Krea-style start state) */
-.loopEmptyInner h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink); margin: 0 0 8px; }
-.loopEmptyInner > p { margin: 0 0 18px; font-size: 13.5px; color: #6e6a7c; }
-.loopChipRow { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 22px; }
-.loopSuggestChip { border: 1px solid #d8d6e2; background: #fff; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; color: #3f3b4d; cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease; }
-.loopSuggestChip:hover { border-color: var(--ink); box-shadow: 0 1px 6px rgba(20,18,30,.10); }
-.loopImportBtn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--ink); background: transparent; color: var(--ink); border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.loopImportBtn:hover { background: rgba(20,18,30,.05); }
 
 /* empty canvas: quiet like ChatGPT/Krea, the prompt bar IS the interface */
-.loopEmptyInner { gap: 14px; display: flex; flex-direction: column; align-items: center; }
-.loopEmptyInner .loopChipRow { margin-bottom: 10px; }
-.loopEmptyInner .loopSuggestChip { font-size: 12px; padding: 6px 13px; color: #55516a; }
-.loopEmptyInner .loopImportBtn { padding: 6px 13px; font-size: 12px; border-color: #cfccdb; color: #55516a; font-weight: 500; }
-.loopEmptyInner .loopImportAlt { font-size: 11.5px; color: #9894a8; }
 
 /* chat-first empty: no canvas frame at all until there is an image */
-.loopEmptyBare { border: none; background: transparent; display: flex; align-items: center; justify-content: center; flex: 1; min-height: 300px; }
-.loopAttachRow { display: flex; align-items: center; gap: 10px; padding: 8px 4px 2px; }
-.loopAttachRow img { height: 52px; width: auto; border-radius: 8px; box-shadow: 0 1px 6px rgba(20,18,30,.18); outline: 1px solid #d0cec8; }
-.loopAttachRow .mono { font-size: 11.5px; color: var(--muted); }
-.loopAttachModes { display: inline-flex; gap: 6px; margin-left: 4px; }
-.loopModePill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d8d6e2; background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #55516a; cursor: pointer; }
-.loopModePill.active { border-color: var(--ink); color: var(--ink); font-weight: 600; box-shadow: 0 1px 6px rgba(20,18,30,.10); }
 
 /* entry bar v3: the ChatGPT composer - one card IS the input, actions are
  * small round icons inside the card, no side tiles */
-.promptCard.loopBar { border: 1px solid #dedbe6; border-radius: 14px; background: #fff; box-shadow: 0 2px 12px -4px rgba(20,18,30,.10); padding: 10px 12px 8px; }
-.promptCard.loopBar:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(20,18,30,.07), 0 2px 12px -4px rgba(20,18,30,.10); }
-.promptCard.loopBar textarea { width: 100%; border: none; outline: none; background: transparent; font-size: 14.5px; line-height: 1.5; color: var(--ink); resize: none; min-height: 52px; padding: 6px 4px 8px; }
-.promptCard.loopBar textarea::placeholder { color: #8a8698; }
-.promptCard.loopBar .composerControls { margin-top: 2px; gap: 6px; position: relative; }
-.composerIconBtn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; border-radius: 999px; color: #55516a; cursor: pointer; }
-.composerIconBtn:hover { background: rgba(20,18,30,.07); color: var(--ink); }
-.composerIconBtn.active { background: rgba(20,18,30,.08); color: var(--ink); }
-.composerIconBtn svg { width: 17px; height: 17px; }
-.promptCard.loopBar .composerControls select { height: 34px; border-radius: 9px; border: 1px solid transparent; font-size: 12.5px; color: #55516a; padding: 0 22px 0 8px; min-width: 108px; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2355516a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; cursor: pointer; }
-.promptCard.loopBar .composerControls select:hover { border-color: #dedbe6; background-color: #fff; }
-.promptCard.loopBar .composerControls { gap: 8px; }
-.promptCard.loopBar .generateBtn { height: 34px; padding: 0 16px; border-radius: 9px; background: var(--ink); color: #fff; display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
-.promptCard.loopBar .generateBtn:hover:not(:disabled) { background: #000; }
-.promptCard.loopBar .generateBtn:disabled { opacity: .35; }
 
 /* the saved-images popover over the bar */
-.loopAssetsPop { position: absolute; bottom: calc(100% + 8px); left: 0; right: auto; width: min(560px, 62vw); background: #fff; border: 1px solid #d8d6e2; border-radius: 12px; box-shadow: 0 14px 40px -14px rgba(20,18,30,.35); padding: 12px; z-index: 30; }
-.loopAssetsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; max-height: 264px; overflow-y: auto; }
-.loopAssetThumb { border: 1px solid #e2e0ea; border-radius: 8px; overflow: hidden; background: #f6f5f9; cursor: pointer; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 0; }
-.loopAssetThumb:hover { border-color: var(--ink); }
-.loopAssetThumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
-.loopAssetsEmpty { margin: 4px 2px 8px; font-size: 12px; color: var(--muted); }
 .iconBtn.labeledIcon.active { background: rgba(20,18,30,.07); }
 
 /* the quota/refine status is a caption under the row, not a chip look-alike */
-.loopBarCaption { margin: 8px 2px 0; font-size: 11.5px; color: #9894a8; }
-.loopBarCaption .costHint { color: #9894a8; }
