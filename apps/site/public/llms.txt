@@ -1,0 +1,34 @@
+# Oia
+> Free, open-source desktop app (macOS & Windows) that makes sale banners, livestream overlays and presentation decks for Shopee, Lazada and TikTok Shop sellers, from your own product photo. 35 editable templates included; AI image generation uses your own ChatGPT plan. Vietnamese content available too.
+
+Site: https://oia.solutions/
+Repo: https://github.com/cuongducle/oia
+Full content dump: https://oia.solutions/llms-full.txt
+
+## Overviews (markdown)
+- [English overview & FAQ](https://oia.solutions/index.md): key facts, price, platforms, license, exports, sizes, FAQ.
+- [Tổng quan & FAQ tiếng Việt](https://oia.solutions/vi/index.md): thông tin chính bằng tiếng Việt.
+
+## Use cases (markdown)
+- [Flash-sale banner maker](https://oia.solutions/use-cases/flash-sale-banners.md): Shopee/Lazada/TikTok Shop sale banners, one-prompt repricing.
+- [Livestream overlay maker](https://oia.solutions/use-cases/livestream-overlays.md): transparent 1080×1920 overlays for TikTok/Shopee Live with safe zones.
+- [Presentation generator](https://oia.solutions/use-cases/presentations.md): outline-first multi-page decks, PDF/PPTX export.
+- Bản tiếng Việt: [banner flash sale](https://oia.solutions/vi/use-cases/flash-sale-banners.md) · [khung livestream](https://oia.solutions/vi/use-cases/livestream-overlays.md) · [slide](https://oia.solutions/vi/use-cases/presentations.md).
+
+## Blog (markdown, English)
+- [Tết sale banners: a small checklist before you post](https://oia.solutions/blog/tet-sale-banner-checklist.md)
+- [Livestream overlay safe zones](https://oia.solutions/blog/livestream-overlay-safe-zones.md)
+- [Change a sale price without redesigning](https://oia.solutions/blog/change-sale-price-without-redesigning.md)
+
+## Blog (markdown, tiếng Việt)
+- [Checklist banner sale Tết](https://oia.solutions/vi/blog/tet-sale-banner-checklist.md)
+- [Vùng an toàn khung livestream](https://oia.solutions/vi/blog/livestream-overlay-safe-zones.md)
+- [Đổi giá sale không cần làm lại](https://oia.solutions/vi/blog/change-sale-price-without-redesigning.md)
+
+## HTML pages
+- Home: https://oia.solutions/ · Tiếng Việt: https://oia.solutions/vi/
+- Templates (35 bundled): https://oia.solutions/templates/
+- Prompt library: https://oia.solutions/prompts/
+- Install guide: https://oia.solutions/install/
+
+Facts as of November 2026, app version 0.8.0.

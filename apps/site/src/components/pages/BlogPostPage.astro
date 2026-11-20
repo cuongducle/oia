@@ -33,7 +33,7 @@ const schema = {
   ogTitle={post.title}
   ogDescription={post.description}
   canonical={canonical}
-  base={base} locale={locale} route={`blog/${post.id}/`}
+  base={base} locale={locale} route={`blog/${post.id}/`} jsonLd={schema}
 >
 <main>
 <article class="post">
@@ -54,4 +54,4 @@ const schema = {
 </article>
 </main>
 </Page>
-<script slot="head" is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+</Page>

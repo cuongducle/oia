@@ -11,10 +11,11 @@ interface Props {
   base?: string
   locale?: 'en' | 'vi'
   route?: string
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[]
 }
 const {
   title, description, ogTitle, ogDescription, canonical,
-  base = '../', locale = 'en', route = '',
+  base = '../', locale = 'en', route = '', jsonLd,
 } = Astro.props
 const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
@@ -45,6 +46,7 @@ const navProps = {
 <head>
 <BaseHead title={title} description={description} canonical={canonical} base={base} ogTitle={ogTitle} ogDescription={ogDescription}>
   <link rel="stylesheet" href={`${base}pages.css`}>
+  {jsonLd && (Array.isArray(jsonLd) ? jsonLd : [jsonLd]).map((node) => <script type="application/ld+json" set:html={JSON.stringify(node)} />)}
   <link rel="alternate" hreflang="en" href={enCanonical}>
   <link rel="alternate" hreflang="vi" href={viCanonical}>
   <link rel="alternate" hreflang="x-default" href={enCanonical}>
