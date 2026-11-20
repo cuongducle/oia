@@ -282,6 +282,14 @@ Watermark pass (0 AI, qua brand kit); destination checks (dữ liệu quy tắc 
 
 ## Trạng thái khi đóng file
 
+Cập nhật 20/11/2026 (release công khai v0.8.0, owner chỉ đạo "làm nốt" bản để đăng Unikorn):
+
+- **v0.8.0 là bản public đầu tiên kể từ v0.6.1 (12/11)**, gói SIL vòng 1-8 (single-image-loop.md: gen → đánh dấu 6 công cụ → 1 lượt edit mọi vùng → lặp, import ảnh, giữ vùng giữa các vòng, session persist, attach 2 ý định) + W1.1 (product profiles) + W1.2 (assisted fill) + D24 (make text editable theo vùng).
+- Quy trình: gates local full trên đúng HEAD phát hành (build 9/9, test xanh toàn workspace, typecheck, smoke, crash-smoke, packaged-smoke 3/3 trên dmg 0.8.0 build local) → push main, CI xanh 4 job thật → bump 0.8.0 → tag → CI tag build installer thật trên runner macOS + Windows → release kèm checksums → README + site (releases.json, softwareVersion) trỏ bản mới, Pages tự deploy.
+- **P.4 số đo installer (SG-14, phần đo đã có)**: dmg CI 414 MiB, exe 400 MiB; app macOS giải nén 1,1 GB trong đó codex pair 439 MB, app.asar.unpacked (onnxruntime) 205 MB, app.asar 157 MB, segment sidecar 45 MB, lens 45 MB, textdet 5,1 MB. Phần "giảm" (đổi pin, bỏ lens khỏi bản nào) chưa làm, chờ quyết định riêng.
+- **Dọn tag v0.7.0 mồ côi** (18/11, run cancelled, chưa từng release, đã lỗi thời 15 commit): xóa cả remote + local, ghi trong commit bump 0.8.0 để không còn tag trỏ commit không phát hành.
+- Việc còn chờ owner cho mục tiêu Unikorn: ký số + notarization (P.2, cần duyệt chi phí Apple Developer), Windows máy vật lý (P.5), nội dung đăng (ảnh/video demo, mô tả). SIL "đạt chất lượng owner chấp nhận" để mở lại các việc đỗ lại vẫn chờ owner xem bản dựng, không tự chốt ở đây.
+
 Cập nhật 18/11/2026 (owner đổi trọng tâm): SIL (single-image-loop.md) mở làm việc đang chạy, SL-1 là slice đầu; toàn bộ W1.3+, W2-W4, P đỗ lại theo mục "Thay đổi trọng tâm" đầu file.
 
 13/11: chỉ tổng hợp kế hoạch, chưa bắt đầu việc nào. Bước tiếp theo lúc đó: W0.1 và W0.2.
