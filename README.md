@@ -18,12 +18,12 @@
 
 ## Download
 
-**Current release: [v0.6.1](https://github.com/cuongducle/oia/releases/tag/v0.6.1).** Ready-made installers and SHA-256 checksums are on the release page, no account, no signup.
+**Current release: [v0.8.0](https://github.com/cuongducle/oia/releases/tag/v0.8.0).** Ready-made installers and SHA-256 checksums are on the release page, no account, no signup.
 
 | Build | File | For |
 | :--- | :--- | :--- |
-| macOS | [`Oia-0.6.1-arm64.dmg`](https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg) (~413 MiB) | Apple Silicon (M1 and newer), macOS 13+ |
-| Windows | [`Oia-0.6.1-win-x64.exe`](https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe) (~400 MiB) | Windows 10/11 64-bit, per-user install (no admin) |
+| macOS | [`Oia-0.8.0-arm64.dmg`](https://github.com/cuongducle/oia/releases/download/v0.8.0/Oia-0.8.0-arm64.dmg) (~414 MiB) | Apple Silicon (M1 and newer), macOS 13+ |
+| Windows | [`Oia-0.8.0-win-x64.exe`](https://github.com/cuongducle/oia/releases/download/v0.8.0/Oia-0.8.0-win-x64.exe) (~400 MiB) | Windows 10/11 64-bit, per-user install (no admin) |
 
 Intel Mac: no build yet; [build from source](#build-from-source) works today.
 
@@ -68,7 +68,7 @@ Step-by-step with screenshots-level detail: **[oia.solutions/install](https://oi
   <a href="apps/site/public/assets/templates/studio-swiss-flashsale.webp"><img src="apps/site/public/assets/templates/studio-swiss-flashsale.webp" width="32%" alt="Actual bundled Clearance 50% Swiss template with sneaker photography and editable sale typography."></a>
   <a href="apps/site/public/assets/templates/studio-ed-menu.webp"><img src="apps/site/public/assets/templates/studio-ed-menu.webp" width="32%" alt="Actual bundled Morning Rituals editorial café menu, with native menu text, a pastry and a flat white."></a>
   <a href="apps/site/public/assets/templates/studio-tet-swiss.webp"><img src="apps/site/public/assets/templates/studio-tet-swiss.webp" width="32%" alt="Actual bundled Tết sale 50% Swiss template, with red silk, gift-box photography and editable Vietnamese offer text."></a>
-  <br><sub>Actual v0.6.1 scenes, rendered with the desktop canvas engine. AI-generated photography and native text layers, not promotional mockups. Click a preview for the full composition.</sub>
+  <br><sub>Actual Oia scenes, rendered with the desktop canvas engine. AI-generated photography and native text layers, not promotional mockups. Click a preview for the full composition.</sub>
 </p>
 
 [Browse all 35 templates](https://oia.solutions/templates/) · [Café pack](https://oia.solutions/templates/packs/cafe-restaurant/) · [Product-launch pack](https://oia.solutions/templates/packs/product-launch/) · [Tết pack](https://oia.solutions/templates/packs/tet-sale/)
