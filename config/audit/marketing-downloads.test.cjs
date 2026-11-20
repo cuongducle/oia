@@ -59,12 +59,12 @@ test('platform emphasis survives GitHub outage without hiding either download', 
   }
 });
 
-test('GitHub outage keeps both platform buttons on exact v0.6.1 fallback files', async () => {
+test('GitHub outage keeps both platform buttons on exact v0.8.0 fallback files', async () => {
   const { mac, win } = await resolveDownloads(null);
-  assert.equal(mac.href, 'https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-arm64.dmg');
-  assert.equal(mac.note, 'macOS (Apple Silicon) · 413 MiB · v0.6.1');
-  assert.equal(win.href, 'https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe');
-  assert.equal(win.note, 'Windows 64-bit · 400 MiB · v0.6.1');
+  assert.equal(mac.href, 'https://github.com/cuongducle/oia/releases/download/v0.8.0/Oia-0.8.0-arm64.dmg');
+  assert.equal(mac.note, 'macOS (Apple Silicon) · 414 MiB · v0.8.0');
+  assert.equal(win.href, 'https://github.com/cuongducle/oia/releases/download/v0.8.0/Oia-0.8.0-win-x64.exe');
+  assert.equal(win.note, 'Windows 64-bit · 400 MiB · v0.8.0');
 });
 
 test('a complete newer release moves both buttons to its real assets', async () => {
@@ -91,6 +91,6 @@ test('a newer release missing one platform never mixes its tag into that fallbac
   };
   const { mac, win } = await resolveDownloads(release);
   assert.equal(mac.href, 'https://github.com/cuongducle/oia/releases/download/v9.9.9/Oia-9.9.9-arm64.dmg');
-  assert.equal(win.href, 'https://github.com/cuongducle/oia/releases/download/v0.6.1/Oia-0.6.1-win-x64.exe');
-  assert.match(win.note, /v0\.6\.1$/);
+  assert.equal(win.href, 'https://github.com/cuongducle/oia/releases/download/v0.8.0/Oia-0.8.0-win-x64.exe');
+  assert.match(win.note, /v0\.8\.0$/);
 });
