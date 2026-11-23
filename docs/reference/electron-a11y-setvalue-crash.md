@@ -53,7 +53,6 @@ macOS runners (TCC). When an upstream fix lands, re-test manually with:
 
 ## Follow-ups
 
-- Draft upstream issue prepared (see repo history / `docs/private`) for
-  electron/electron with the full stack and repro steps.
+- Upstream report filed: https://github.com/electron/electron/issues/56008
 - Re-check on the next Electron upgrade (39.x patch or 40) using the manual
   procedure above; bump when fixed upstream.
