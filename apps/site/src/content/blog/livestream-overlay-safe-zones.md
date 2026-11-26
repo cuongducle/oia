@@ -1,6 +1,6 @@
 ---
-title: 'Livestream overlays: keep your price visible where the buttons are'
-description: Transparent 1080x1920 overlays put your price and free-shipping badge where TikTok's buttons and comments cannot cover them. How the presets work, and the honest limits of safe zones.
+title: 'Livestream overlays that keep your price visible'
+description: Transparent 1080×1920 overlays keep your price and free-shipping badge where TikTok's buttons and comments cannot cover them. With honest limits.
 pubDate: 2026-11-12
 ---
 

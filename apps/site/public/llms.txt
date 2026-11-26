@@ -1,5 +1,5 @@
 # Oia
-> Free, open-source desktop app (macOS & Windows) that makes sale banners, livestream overlays and presentation decks for Shopee, Lazada and TikTok Shop sellers, from your own product photo. 35 editable templates included; AI image generation uses your own ChatGPT plan. Vietnamese content available too.
+> Free, open-source AI banner maker: a desktop app (macOS & Windows) that makes sale banners, livestream overlays and presentation decks for Shopee, Lazada and TikTok Shop sellers, from your own product photo. 35 editable templates included; AI image generation uses your own ChatGPT plan. Vietnamese content available too.
 
 Site: https://oia.solutions/
 Repo: https://github.com/cuongducle/oia

@@ -1,6 +1,6 @@
 ---
 title: 'Tết sale banners: a small checklist before you post'
-description: Plan seasonal artwork early, keep Vietnamese diacritics crisp, check what AI changed, and reuse templates so repricing stays free. A practical Tết checklist for marketplace sellers.
+description: Plan seasonal artwork early, keep Vietnamese diacritics crisp, check what AI changed, and reuse templates so repricing stays free. A Tết checklist.
 pubDate: 2026-11-12
 ---
 

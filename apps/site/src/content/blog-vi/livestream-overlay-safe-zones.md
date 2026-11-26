@@ -1,6 +1,6 @@
 ---
 title: 'Khung livestream: giữ giá ở chỗ nút bấm không che được'
-description: 'Khung trong suốt 1080x1920 đặt giá và nhãn freeship ở vị trí nút bấm, bình luận của TikTok không che được. Cách mẫu hoạt động và giới hạn thật của vùng an toàn.'
+description: 'Khung trong suốt 1080×1920 đặt giá và nhãn freeship ở chỗ nút bấm, bình luận TikTok không che được. Cách mẫu hoạt động và giới hạn vùng an toàn.'
 pubDate: 2026-11-12
 ---
 

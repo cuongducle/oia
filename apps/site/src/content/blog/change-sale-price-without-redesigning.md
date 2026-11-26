@@ -1,6 +1,6 @@
 ---
-title: Change the price on a sale banner without redesigning it
-description: 'Three honest paths to update a price on a banner: free text edits in templates, an AI repaint, or rebuilding baked lettering as editable layers. Costs and limits of each.'
+title: Reprice a sale banner without redesigning it
+description: 'Three honest ways to change a price on a banner: free text edits in templates, an AI repaint, or rebuilding baked lettering as editable layers.'
 pubDate: 2026-11-12
 ---
 

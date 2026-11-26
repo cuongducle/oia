@@ -7,16 +7,27 @@ const { locale = 'en', base } = Astro.props
 const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
 const vbase = vi ? (base.replace('../', '') || './') : base
+const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}install/`
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: t('Install Oia: macOS & Windows, step by step | Oia', 'Cài Oia: macOS và Windows, từng bước | Oia'),
+  description: t('How to install Oia on macOS and Windows: download the right build, pass Gatekeeper or SmartScreen, sign in with ChatGPT, start generating.', 'Cài Oia trên macOS và Windows: tải đúng bản, vượt Gatekeeper hoặc SmartScreen, đăng nhập ChatGPT, bắt đầu tạo ảnh.'),
+  url: canonical,
+  inLanguage: vi ? 'vi' : 'en',
+  isPartOf: { '@type': 'WebSite', name: 'Oia', url: 'https://oia.solutions/' },
+  about: { '@type': 'SoftwareApplication', name: 'Oia', applicationCategory: 'DesignApplication', operatingSystem: 'macOS, Windows', url: 'https://oia.solutions/' },
+}
 ---
 <Page
   title={t('Install Oia: macOS &amp; Windows, step by step', 'Cài Oia: macOS và Windows, từng bước')}
   description={t(
-    'How to install Oia on macOS and Windows: download the right build, pass Gatekeeper / SmartScreen on the unsigned build, and sign in with ChatGPT to start generating.',
-    'Cài Oia trên macOS và Windows: tải đúng bản, vượt Gatekeeper / SmartScreen của bản chưa ký, đăng nhập ChatGPT để bắt đầu tạo ảnh.')}
+    'How to install Oia on macOS and Windows: download the right build, pass Gatekeeper or SmartScreen, sign in with ChatGPT, start generating.',
+    'Cài Oia trên macOS và Windows: tải đúng bản, vượt Gatekeeper hoặc SmartScreen, đăng nhập ChatGPT, bắt đầu tạo ảnh.')}
   ogTitle={t('Install Oia: macOS &amp; Windows', 'Cài Oia: macOS và Windows')}
   ogDescription={t('Download the right build, pass Gatekeeper / SmartScreen, sign in with ChatGPT.', 'Tải đúng bản, vượt cảnh báo Gatekeeper / SmartScreen, đăng nhập ChatGPT.')}
   canonical={`https://oia.solutions/${vi ? 'vi/' : ''}install/`}
-  base={base} locale={locale} route="install/"
+  base={base} locale={locale} route="install/" jsonLd={schema}
 >
 <header class="pageHero">
   <p class="kicker">{t('Install help', 'Hướng dẫn cài')}</p>

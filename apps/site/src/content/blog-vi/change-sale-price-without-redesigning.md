@@ -1,6 +1,6 @@
 ---
 title: Đổi giá trên banner sale mà không phải làm lại
-description: 'Ba đường đổi giá trên banner, nói thẳng chi phí: sửa lớp chữ trong mẫu là miễn phí, vẽ lại bằng AI dùng hạn mức, tách chữ trong ảnh tốn một lần.'
+description: 'Ba đường đổi giá trên banner, nói thẳng chi phí: sửa lớp chữ trong mẫu miễn phí, vẽ lại bằng AI dùng hạn mức, tách chữ trong ảnh tốn một lần.'
 pubDate: 2026-11-12
 ---
 

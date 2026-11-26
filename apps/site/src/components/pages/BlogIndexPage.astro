@@ -8,6 +8,22 @@ const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
 const vbase = vi ? (base.replace('../', '') || './') : base
 const dateFormat = (date: Date) => date.toLocaleDateString(vi ? 'vi-VN' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}blog/`
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: t('Oia blog', 'Blog Oia'),
+  description: t('Short, honest notes for Shopee, Lazada and TikTok Shop sellers: repricing banners without redesigns, livestream overlay safe zones, seasonal checklists.', 'Ghi chú ngắn, trung thực cho người bán Shopee, Lazada, TikTok Shop: đổi giá không cần làm lại banner, vùng an toàn khung livestream, checklist mùa vụ.'),
+  url: canonical,
+  inLanguage: vi ? 'vi' : 'en',
+  publisher: { '@type': 'Organization', name: 'Oia', url: 'https://oia.solutions/' },
+  blogPost: posts.map((post) => ({
+    '@type': 'BlogPosting',
+    headline: post.title,
+    url: `https://oia.solutions/${vi ? 'vi/' : ''}blog/${post.id}/`,
+    datePublished: post.pubDate.toISOString(),
+  })),
+}
 ---
 <Page
   title={t('Oia blog: practical banner notes for marketplace sellers', 'Blog Oia: ghi chú thực tế về banner cho người bán trên sàn')}
@@ -17,7 +33,7 @@ const dateFormat = (date: Date) => date.toLocaleDateString(vi ? 'vi-VN' : 'en-US
   ogTitle={t('Oia blog', 'Blog Oia')}
   ogDescription={t('Practical banner notes for marketplace sellers.', 'Ghi chú thực tế về banner cho người bán trên sàn.')}
   canonical={`https://oia.solutions/${vi ? 'vi/' : ''}blog/`}
-  base={base} locale={locale} route="blog/"
+  base={base} locale={locale} route="blog/" jsonLd={schema}
 >
 <header class="pageHero">
   <p class="kicker">Blog</p>

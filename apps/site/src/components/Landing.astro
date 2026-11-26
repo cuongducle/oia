@@ -12,7 +12,7 @@ const base = vi ? '../' : ''
 const content = vi ? './' : ''
 const t = (en: string, vn: string) => vi ? vn : en
 const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}`
-const description = t('Make sale banners for Shopee, Lazada and TikTok Shop from your product photo. Edit 35 included templates for free. Mac and Windows; AI uses your ChatGPT plan.', 'Làm banner Shopee, Lazada và TikTok Shop từ ảnh sản phẩm. Sửa miễn phí 35 mẫu có sẵn. Cho Mac và Windows; tạo ảnh AI dùng hạn mức ChatGPT của bạn.')
+const description = t('Make sale banners for Shopee, Lazada and TikTok Shop from your product photo. Edit 35 included templates free. Mac and Windows; AI uses your ChatGPT plan.', 'Làm banner Shopee, Lazada và TikTok Shop từ ảnh sản phẩm. Sửa miễn phí 35 mẫu có sẵn. Cho Mac và Windows; tạo ảnh AI dùng hạn mức ChatGPT của bạn.')
 const faq = landingFaq(locale)
 const schema = { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Oia', applicationCategory: 'DesignApplication', operatingSystem: 'macOS, Windows', description, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, license: 'https://opensource.org/licenses/MIT', softwareVersion: '0.8.0', isAccessibleForFree: true, repository: 'https://github.com/cuongducle/oia', url: canonical, inLanguage: locale }
 const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '  -H "Authorization: Bearer $OIA_API_KEY" \\', '  -d \'{"prompt":"matcha flash sale, 20% off today"}\''].join('\n')
@@ -20,7 +20,7 @@ const termCode = ['curl -X POST "$OIA_BASE_URL/api/tasks/generate-poster" \\', '
 <!doctype html>
 <html lang={locale}>
 <head>
-  <BaseHead title={t('Oia: sale banners for Shopee, Lazada and TikTok Shop', 'Oia: tự làm banner Shopee, Lazada và TikTok Shop')} description={description} canonical={canonical} base={base}>
+  <BaseHead title={t('Oia: free AI banner maker for Shopee, Lazada, TikTok Shop', 'Oia: làm banner AI cho Shopee, Lazada và TikTok Shop')} description={description} canonical={canonical} base={base}>
     <link rel="stylesheet" href={`${base}visual-landing.css`}>
     <link rel="alternate" hreflang="en" href="https://oia.solutions/">
     <link rel="alternate" hreflang="vi" href="https://oia.solutions/vi/">

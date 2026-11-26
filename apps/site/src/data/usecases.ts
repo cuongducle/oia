@@ -26,8 +26,8 @@ export function useCases(locale: 'en' | 'vi'): Record<UseCaseKey, UseCaseMeta> {
   return {
   'flash-sale': {
     route: 'use-cases/flash-sale-banners/',
-    title: t('Flash-Sale Banner Maker for Shopee & TikTok Shop: AI-generated, editable | Oia', 'Tạo banner flash sale cho Shopee và TikTok Shop: AI tạo, sửa được | Oia'),
-    description: t('Generate flash-sale banners for Shopee, Lazada and TikTok Shop with real AI typography. Change the price with one prompt, the style stays. Free, open source, bring your own provider.', 'Tạo banner flash sale cho Shopee, Lazada, TikTok Shop với typography AI thật. Đổi giá bằng một câu, phong cách giữ nguyên. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
+    title: t('AI flash-sale banner maker for Shopee and TikTok Shop | Oia', 'Tạo banner flash sale bằng AI cho Shopee, TikTok Shop | Oia'),
+    description: t('AI flash-sale banners for Shopee, Lazada and TikTok Shop. Change the price with one prompt, the style stays. Free and open source.', 'Tạo banner flash sale cho Shopee, Lazada, TikTok Shop bằng AI. Đổi giá bằng một câu, phong cách giữ nguyên. Miễn phí, mã nguồn mở.'),
     ogTitle: t('Flash-Sale Banner Maker | Oia', 'Tạo banner flash sale | Oia'),
     kicker: t('Use case, e-commerce', 'Tình huống, thương mại điện tử'),
     h1: t('Flash-sale banners that look designed, and change in one prompt.', 'Banner flash sale trưng như designer làm, đổi chỉ bằng một câu.'),
@@ -50,8 +50,8 @@ export function useCases(locale: 'en' | 'vi'): Record<UseCaseKey, UseCaseMeta> {
   },
   livestream: {
     route: 'use-cases/livestream-overlays/',
-    title: t('Livestream Overlay Maker: TikTok & Shopee Live overlays with safe zones | Oia', 'Tạo khung livestream TikTok và Shopee Live kèm vùng an toàn | Oia'),
-    description: t('Design 1080×1920 livestream overlays for TikTok and Shopee Live: price cards, freeship badges, countdown frames, transparent PNG, safe-zone guides built in. Free &amp; open source.', 'Thiết kế khung livestream 1080×1920 cho TikTok và Shopee Live: thẻ giá, nhãn freeship, khung đếm ngược, PNG trong suốt, vùng an toàn có sẵn. Miễn phí, mã nguồn mở.'),
+    title: t('Livestream overlay maker for TikTok and Shopee Live | Oia', 'Tạo khung livestream TikTok và Shopee Live kèm vùng an toàn | Oia'),
+    description: t('Transparent 1080×1920 livestream overlays for TikTok and Shopee Live: price cards, freeship badges, countdown frames, safe-zone guides. Free.', 'Khung livestream 1080×1920 trong suốt cho TikTok và Shopee Live: thẻ giá, nhãn freeship, khung đếm ngược, vùng an toàn. Miễn phí.'),
     ogTitle: t('Livestream Overlay Maker | Oia', 'Tạo khung livestream | Oia'),
     kicker: t('Use case, live commerce', 'Tình huống, bán qua livestream'),
     h1: t('Overlays that dodge the UI.<br>Prices that change mid-stream.', 'Khung né được giao diện sàn.<br>Giá đổi ngay giữa buổi live.'),
@@ -74,7 +74,7 @@ export function useCases(locale: 'en' | 'vi'): Record<UseCaseKey, UseCaseMeta> {
   presentations: {
     route: 'use-cases/presentations/',
     title: t('AI Presentation Generator: outline first, then paint | Oia', 'Tạo bài thuyết trình bằng AI: duyệt dàn ý trước, rồi mới vẽ | Oia'),
-    description: t('Generate multi-page presentations with AI: review the page outline before a single image is spent, export to PDF or PPTX. Free, open source, bring your own provider.', 'Tạo bài thuyết trình nhiều trang bằng AI: duyệt dàn ý trước khi tốn một ảnh nào, xuất PDF hoặc PPTX. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
+    description: t('Generate multi-page presentations with AI: review the outline before an image is spent, export to PDF or PPTX. Free, open source.', 'Tạo bài thuyết trình nhiều trang bằng AI: duyệt dàn ý trước khi tốn một ảnh nào, xuất PDF hoặc PPTX. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
     ogTitle: t('AI Presentation Generator: outline first | Oia', 'Tạo slide bằng AI: dàn ý trước | Oia'),
     kicker: t('Use case, decks', 'Tình huống, slide'),
     h1: t('Decks that plan themselves, and wait for your yes.', 'Slide tự lên khung, và chờ bạn gật đầu.'),

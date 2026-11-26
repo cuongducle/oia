@@ -1,6 +1,6 @@
 ---
 title: 'Banner sale Tết: checklist nhỏ trước khi bấm đăng'
-description: 'Chuẩn bị ảnh theo mùa sớm, giữ dấu tiếng Việt chuẩn, kiểm tra thứ AI đã thay đổi, dùng mẫu để đổi giá miễn phí. Checklist Tết thực tế cho người bán trên sàn.'
+description: 'Chuẩn bị ảnh theo mùa sớm, giữ dấu tiếng Việt chuẩn, kiểm tra thứ AI đổi, dùng mẫu để đổi giá miễn phí. Checklist Tết cho người bán trên sàn.'
 pubDate: 2026-11-12
 ---
 

@@ -9,9 +9,9 @@ export const SITE = 'https://oia.solutions'
 export function overviewMarkdown(locale: 'en' | 'vi'): string {
   const vi = locale === 'vi'
   if (vi) {
-    return `# Oia: tự làm banner Shopee, Lazada và TikTok Shop
+    return `# Oia: làm banner AI cho Shopee, Lazada và TikTok Shop
 
-Oia là ứng dụng desktop miễn phí, mã nguồn mở (MIT) giúp người bán trên Shopee, Lazada và TikTok Shop tự làm banner sale, khung livestream và slide thuyết trình từ ảnh sản phẩm của mình. Phiên bản ${OIA_VERSION} đi kèm 35 mẫu thật sửa chữ được; tạo ảnh AI dùng hạn mức gói ChatGPT của bạn, không cần API key.
+Oia là công cụ làm banner AI (AI banner maker) dạng ứng dụng desktop, miễn phí và mã nguồn mở (MIT), giúp người bán trên Shopee, Lazada và TikTok Shop tự làm banner sale, khung livestream và slide thuyết trình từ ảnh sản phẩm của mình. Phiên bản ${OIA_VERSION} đi kèm 35 mẫu thật sửa chữ được; tạo ảnh AI dùng hạn mức gói ChatGPT của bạn, không cần API key.
 
 ## Sự thật chính
 
@@ -33,9 +33,9 @@ Oia là ứng dụng desktop miễn phí, mã nguồn mở (MIT) giúp người 
 
 (Cập nhật tháng 11/2026, ứng dụng ${OIA_VERSION}.)`
   }
-  return `# Oia: sale banners for Shopee, Lazada and TikTok Shop
+  return `# Oia: free AI banner maker for Shopee, Lazada, TikTok Shop
 
-Oia is a free, open-source (MIT) desktop app that helps marketplace sellers make sale banners, livestream overlays and presentation decks from their own product photo. Version ${OIA_VERSION} ships with 35 real, text-editable templates; AI image generation uses your own ChatGPT plan, no API key required.
+Oia is a free, open-source (MIT) AI banner maker: a desktop app that helps marketplace sellers make sale banners, livestream overlays and presentation decks from their own product photo. Version ${OIA_VERSION} ships with 35 real, text-editable templates; AI image generation uses your own ChatGPT plan, no API key required.
 
 ## Key facts
 

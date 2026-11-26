@@ -7,16 +7,27 @@ const { locale = 'en', base } = Astro.props
 const vi = locale === 'vi'
 const t = (en: string, vn: string) => vi ? vn : en
 const vbase = vi ? (base.replace('../', '') || './') : base
+const canonical = `https://oia.solutions/${vi ? 'vi/' : ''}prompts/`
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: t('Prompt library for AI design | Oia', 'Gợi ý mô tả AI | Oia'),
+  description: t('Tested AI image prompts for e-commerce banners, livestream overlays, posters, menus and decks.', 'Thư viện prompt tạo ảnh AI cho banner, khung livestream, poster, thực đơn, slide.'),
+  url: canonical,
+  inLanguage: vi ? 'vi' : 'en',
+  isPartOf: { '@type': 'WebSite', name: 'Oia', url: 'https://oia.solutions/' },
+  about: { '@type': 'SoftwareApplication', name: 'Oia', applicationCategory: 'DesignApplication', operatingSystem: 'macOS, Windows', url: 'https://oia.solutions/' },
+}
 ---
 <Page
-  title={t('Prompt Library for AI Design: copy-paste prompts for banners, overlays &amp; decks | Oia', 'Gợi ý mô tả AI: prompt dùng sẵn cho banner, khung livestream và slide | Oia')}
+  title={t('Copy-paste AI prompts for banners, overlays and decks | Oia', 'Prompt AI dùng sẵn cho banner, livestream, slide | Oia')}
   description={t(
-    'A curated library of AI image prompts for e-commerce banners, livestream overlays, posters, menus and presentations, the prompts marked tested were verified against live Codex image generation. Copy, paste, generate.',
-    'Thư viện prompt tạo ảnh AI cho banner thương mại, khung livestream, poster, thực đơn và bài thuyết trình; các prompt gắn tested đã kiểm chứng qua Codex generation thật. Sao chép, dán, tạo ảnh.')}
+    'Tested AI image prompts for e-commerce banners, livestream overlays, posters, menus and decks. Copy, paste, generate.',
+    'Thư viện prompt tạo ảnh AI cho banner, khung livestream, poster, thực đơn, slide; prompt gắn tested đã kiểm chứng. Sao chép, dán, tạo ảnh.')}
   ogTitle={t('Prompt Library for AI Design | Oia', 'Gợi ý mô tả AI | Oia')}
   ogDescription={t('Copy-paste prompts for flash-sale banners, livestream overlays, posters, menus and decks, tested ones marked.', 'Prompt dùng sẵn cho banner sale, khung livestream, poster, thực đơn, slide; bản đã test được đánh dấu.')}
   canonical={`https://oia.solutions/${vi ? 'vi/' : ''}prompts/`}
-  base={base} locale={locale} route="prompts/"
+  base={base} locale={locale} route="prompts/" jsonLd={schema}
 >
 <header class="pageHero">
   <p class="kicker">{t('Prompt library', 'Gợi ý mô tả')}</p>
