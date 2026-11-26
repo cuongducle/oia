@@ -90,6 +90,15 @@ body.page{font-size:15.5px}
 .postBody th{color:var(--paper);font-weight:600}
 .postBody th:first-child,.postBody td:first-child{padding-left:0}
 @media(max-width:640px){.postBody table{display:block;overflow-x:auto;white-space:nowrap;font-size:13px}}
+.pageMain section{margin-bottom:30px}
+.pageMain section h2{font-size:22px;font-weight:600;margin:30px 0 8px;letter-spacing:-.02em}
+.aboutList{display:grid;grid-template-columns:minmax(150px,230px) 1fr);gap:10px 18px;margin:12px 0;font-size:15px}
+.aboutList dt{color:var(--paper);font-weight:600}
+.aboutList dd{color:var(--muted);margin:0;line-height:1.65}
+.aboutReviewed{color:var(--muted);font-size:13px;margin:6px 0}
+.pageMain section ul,.pageMain #faq p{color:var(--muted);font-size:15.5px;line-height:1.75;margin:12px 0}
+.pageMain #faq strong{color:var(--paper)}
+@media(max-width:640px){.aboutList{grid-template-columns:1fr;gap:2px}}
 .postCta{border:1px solid var(--hairline);border-radius:12px;padding:22px 24px;margin-top:40px;background:rgba(21,19,50,.35)}
 .postCta h2{font-size:18px}
 .postCta p{color:var(--muted);font-size:14px;margin:6px 0 4px}

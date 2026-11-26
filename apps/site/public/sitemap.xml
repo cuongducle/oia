@@ -21,6 +21,11 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://oia.solutions/about/</loc><lastmod>2026-11-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://oia.solutions/templates/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -54,6 +59,7 @@
   <url><loc>https://oia.solutions/vi/templates/</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://oia.solutions/vi/prompts/</loc><lastmod>2026-11-26</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://oia.solutions/vi/install/</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://oia.solutions/vi/about/</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://oia.solutions/vi/use-cases/flash-sale-banners/</loc><lastmod>2026-11-26</lastmod></url>
   <url><loc>https://oia.solutions/vi/use-cases/livestream-overlays/</loc><lastmod>2026-11-26</lastmod></url>
   <url><loc>https://oia.solutions/vi/use-cases/presentations/</loc><lastmod>2026-11-26</lastmod></url>

@@ -32,5 +32,6 @@ Full content dump: https://oia.solutions/llms-full.txt
 - Templates (35 bundled): https://oia.solutions/templates/
 - Prompt library: https://oia.solutions/prompts/
 - Install guide: https://oia.solutions/install/
+- About Oia (brand facts, reviewed 2026-11-26): https://oia.solutions/about/ · markdown: https://oia.solutions/about.md
 
 Facts as of November 2026, app version 0.8.0.

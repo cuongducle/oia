@@ -1,0 +1,71 @@
+---
+import Page from '../../layouts/Page.astro'
+import DownloadButtons from '../DownloadButtons.astro'
+import { about, aboutSchema, ABOUT_REVIEWED, ABOUT_REVIEWED_LONG } from '../../data/about'
+
+// Brand record page (one H1 = the entity name, a one-sentence definition,
+// stable facts, volatile facts with a review date, an is-NOT block and an FAQ).
+// The JSON-LD mirrors the same data module; no FAQPage type (Google retired
+// FAQ rich results in May 2026), the FAQ is plain HTML for machines and people.
+interface Props { locale?: 'en' | 'vi'; base: string }
+const { locale = 'en', base } = Astro.props
+const vi = locale === 'vi'
+const a = about(locale)
+const vbase = vi ? (base.replace('../', '') || './') : base
+---
+<Page
+  title={a.title}
+  description={a.description}
+  ogTitle={vi ? 'Giới thiệu Oia' : 'About Oia'}
+  ogDescription={a.description}
+  canonical={`https://oia.solutions/${vi ? 'vi/' : ''}about/`}
+  base={base} locale={locale} route="about/" jsonLd={aboutSchema(locale)}
+>
+<header class="pageHero">
+  <p class="kicker">{a.kicker}</p>
+  <h1>Oia</h1>
+  <p class="lede">{a.definition}</p>
+</header>
+
+<main class="pageMain">
+  <section id="core">
+    <h2>{a.coreTitle}</h2>
+    <dl class="aboutList">
+      {a.core.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+    </dl>
+  </section>
+
+  <section id="volatile">
+    <h2>{a.volatileTitle}</h2>
+    <p class="mono aboutReviewed">{a.reviewedLabel}: {ABOUT_REVIEWED} ({ABOUT_REVIEWED_LONG[locale]})</p>
+    <dl class="aboutList">
+      {a.volatile.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+    </dl>
+  </section>
+
+  <section id="is-not">
+    <h2>{a.notTitle}</h2>
+    <ul>
+      {a.not.map((x) => <li>{x}</li>)}
+    </ul>
+  </section>
+
+  <section id="faq">
+    <h2>{a.faqTitle}</h2>
+    {a.faq.map(([q, x]) => <p><strong>{q}</strong> {x}</p>)}
+  </section>
+
+  <section id="sources">
+    <h2>{a.sourcesTitle}</h2>
+    <ul>
+      {a.sources.map(([label, href]) => <li><a href={href} rel={href.startsWith('/') ? undefined : 'noopener'}>{label}</a></li>)}
+    </ul>
+  </section>
+
+  <div class="postCta" id="download">
+    <h2>{a.ctaTitle}</h2>
+    <p>{a.ctaText}</p>
+    <DownloadButtons rowClass="ctaRow" installHref={`${vbase}install/`} locale={locale} />
+  </div>
+</main>
+</Page>
