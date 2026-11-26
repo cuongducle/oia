@@ -26,7 +26,7 @@ export function useCases(locale: 'en' | 'vi'): Record<UseCaseKey, UseCaseMeta> {
   return {
   'flash-sale': {
     route: 'use-cases/flash-sale-banners/',
-    title: t('Flash-Sale Banner Maker for Shopee &amp; TikTok Shop: AI-generated, editable | Oia', 'Tạo banner flash sale cho Shopee và TikTok Shop: AI tạo, sửa được | Oia'),
+    title: t('Flash-Sale Banner Maker for Shopee & TikTok Shop: AI-generated, editable | Oia', 'Tạo banner flash sale cho Shopee và TikTok Shop: AI tạo, sửa được | Oia'),
     description: t('Generate flash-sale banners for Shopee, Lazada and TikTok Shop with real AI typography. Change the price with one prompt, the style stays. Free, open source, bring your own provider.', 'Tạo banner flash sale cho Shopee, Lazada, TikTok Shop với typography AI thật. Đổi giá bằng một câu, phong cách giữ nguyên. Miễn phí, mã nguồn mở, dùng provider của bạn.'),
     ogTitle: t('Flash-Sale Banner Maker | Oia', 'Tạo banner flash sale | Oia'),
     kicker: t('Use case, e-commerce', 'Tình huống, thương mại điện tử'),
@@ -50,7 +50,7 @@ export function useCases(locale: 'en' | 'vi'): Record<UseCaseKey, UseCaseMeta> {
   },
   livestream: {
     route: 'use-cases/livestream-overlays/',
-    title: t('Livestream Overlay Maker: TikTok &amp; Shopee Live overlays with safe zones | Oia', 'Tạo khung livestream TikTok và Shopee Live kèm vùng an toàn | Oia'),
+    title: t('Livestream Overlay Maker: TikTok & Shopee Live overlays with safe zones | Oia', 'Tạo khung livestream TikTok và Shopee Live kèm vùng an toàn | Oia'),
     description: t('Design 1080×1920 livestream overlays for TikTok and Shopee Live: price cards, freeship badges, countdown frames, transparent PNG, safe-zone guides built in. Free &amp; open source.', 'Thiết kế khung livestream 1080×1920 cho TikTok và Shopee Live: thẻ giá, nhãn freeship, khung đếm ngược, PNG trong suốt, vùng an toàn có sẵn. Miễn phí, mã nguồn mở.'),
     ogTitle: t('Livestream Overlay Maker | Oia', 'Tạo khung livestream | Oia'),
     kicker: t('Use case, live commerce', 'Tình huống, bán qua livestream'),

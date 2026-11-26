@@ -25,6 +25,9 @@ const vbase = vi ? base.replace('../', '') || './' : base
 const enCanonical = `https://oia.solutions/${route}`
 const viCanonical = `https://oia.solutions/vi/${route}`
 const footerLinks = [
+  { href: `${vi ? vbase : base}use-cases/flash-sale-banners/`, label: t('Flash-sale banners', 'Banner flash sale') },
+  { href: `${vi ? vbase : base}use-cases/livestream-overlays/`, label: t('Livestream overlays', 'Khung livestream') },
+  { href: `${vi ? vbase : base}use-cases/presentations/`, label: t('Presentations', 'Slide thuyết trình') },
   { href: `${vi ? vbase : base}templates/`, label: t('Templates', 'Thư viện') },
   { href: `${vi ? vbase : base}blog/`, label: 'Blog' },
   { href: `${vi ? vbase : base}prompts/`, label: t('Prompt library', 'Gợi ý mô tả') },
