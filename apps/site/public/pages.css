@@ -85,6 +85,11 @@ body.page{font-size:15.5px}
 .postBody img{border-radius:8px;border:1px solid var(--hairline);margin:18px 0}
 .postBody a{color:var(--accent-text);text-decoration:underline;text-underline-offset:3px}
 .postBody strong{color:var(--paper)}
+.postBody table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0;color:var(--muted)}
+.postBody th,.postBody td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--hairline);vertical-align:top}
+.postBody th{color:var(--paper);font-weight:600}
+.postBody th:first-child,.postBody td:first-child{padding-left:0}
+@media(max-width:640px){.postBody table{display:block;overflow-x:auto;white-space:nowrap;font-size:13px}}
 .postCta{border:1px solid var(--hairline);border-radius:12px;padding:22px 24px;margin-top:40px;background:rgba(21,19,50,.35)}
 .postCta h2{font-size:18px}
 .postCta p{color:var(--muted);font-size:14px;margin:6px 0 4px}

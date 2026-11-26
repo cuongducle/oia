@@ -19,11 +19,13 @@ Full content dump: https://oia.solutions/llms-full.txt
 - [Tết sale banners: a small checklist before you post](https://oia.solutions/blog/tet-sale-banner-checklist.md)
 - [Livestream overlay safe zones](https://oia.solutions/blog/livestream-overlay-safe-zones.md)
 - [Change a sale price without redesigning](https://oia.solutions/blog/change-sale-price-without-redesigning.md)
+- [Which banner tools do ChatGPT and Gemini recommend? Measured data](https://oia.solutions/blog/ai-banner-tool-visibility-report-2026-11.md): 4 runs, 10 Vietnamese prompts, 2 assistants, CSV download.
 
 ## Blog (markdown, tiếng Việt)
 - [Checklist banner sale Tết](https://oia.solutions/vi/blog/tet-sale-banner-checklist.md)
 - [Vùng an toàn khung livestream](https://oia.solutions/vi/blog/livestream-overlay-safe-zones.md)
 - [Đổi giá sale không cần làm lại](https://oia.solutions/vi/blog/change-sale-price-without-redesigning.md)
+- [ChatGPT và Gemini gợi ý công cụ làm banner nào? Số liệu đo thật](https://oia.solutions/vi/blog/ai-banner-tool-visibility-report-2026-11.md): 4 lần đo, 10 câu tiếng Việt, 2 trợ lý, có CSV tải về.
 
 ## HTML pages
 - Home: https://oia.solutions/ · Tiếng Việt: https://oia.solutions/vi/

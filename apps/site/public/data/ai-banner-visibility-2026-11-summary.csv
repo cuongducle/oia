@@ -1,0 +1,17 @@
+run,run_date,engine,group,answers,mentions_oia,mentions_canva,mentions_capcut,mentions_photoroom,mentions_pebblely,mentions_adobe-express,first_mention_canva,first_mention_oia,answers_naming_oia_website,answers_naming_unikorn,wilson95_canva,wilson95_oia
+R1,2026-11-20,chatgpt,unbranded,7,0,7,1,1,0,4,7,0,0,0,0.646-1.000,0.000-0.354
+R1,2026-11-20,chatgpt,branded,3,3,2,0,0,0,0,0,3,0,0,0.208-0.939,0.438-1.000
+R1,2026-11-20,gemini,unbranded,7,0,7,3,5,1,3,7,0,0,0,0.646-1.000,0.000-0.354
+R1,2026-11-20,gemini,branded,2,2,0,0,0,0,0,0,2,2,0,0.000-0.658,0.342-1.000
+R2,2026-11-20,chatgpt,unbranded,7,0,7,1,2,0,4,7,0,0,0,0.646-1.000,0.000-0.354
+R2,2026-11-20,chatgpt,branded,3,3,2,0,0,0,0,1,2,0,0,0.208-0.939,0.438-1.000
+R2,2026-11-20,gemini,unbranded,7,0,7,2,3,0,5,7,0,0,0,0.646-1.000,0.000-0.354
+R2,2026-11-20,gemini,branded,3,3,2,0,0,0,0,0,3,3,0,0.208-0.939,0.438-1.000
+R3,2026-11-23,chatgpt,unbranded,7,0,7,2,1,0,5,7,0,0,0,0.646-1.000,0.000-0.354
+R3,2026-11-23,chatgpt,branded,3,3,1,0,0,0,0,0,3,1,1,0.061-0.792,0.438-1.000
+R3,2026-11-23,gemini,unbranded,7,0,7,2,2,0,4,6,0,0,0,0.646-1.000,0.000-0.354
+R3,2026-11-23,gemini,branded,3,3,1,0,0,0,0,0,3,3,0,0.061-0.792,0.438-1.000
+R4,2026-11-26,chatgpt,unbranded,7,0,7,1,4,0,5,7,0,0,0,0.646-1.000,0.000-0.354
+R4,2026-11-26,chatgpt,branded,3,3,2,0,0,0,0,1,2,0,1,0.208-0.939,0.438-1.000
+R4,2026-11-26,gemini,unbranded,7,0,7,4,5,0,4,5,0,0,0,0.646-1.000,0.000-0.354
+R4,2026-11-26,gemini,branded,3,3,1,0,0,0,0,0,3,2,0,0.061-0.792,0.438-1.000
