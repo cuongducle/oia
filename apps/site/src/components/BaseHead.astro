@@ -26,6 +26,17 @@ const { title, description, canonical, base, ogTitle = title, ogDescription = de
 <meta name="msvalidate.01" content="068423ABF7218178C97F3CA9066255DC">
 <!-- Cloudflare Web Analytics: cookieless, no personal data. The site token is public by design. -->
 <script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "f06a0d4fd23440a19cfca9497cf20c8c"}'></script>
+<!-- Self-hosted Plausible CE at analytics.oia.solutions: cookieless, no cookies, no personal data. -->
+<script is:inline defer data-domain="oia.solutions" src="https://analytics.oia.solutions/js/script.js"></script>
+<script is:inline>
+  // Conversion goal "Download click": fires when a visitor clicks an app download button.
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[data-dl]') : null;
+    if (a && window.plausible) {
+      window.plausible('Download click', { props: { platform: a.getAttribute('data-dl') === 'macArm64' ? 'mac' : 'windows' } });
+    }
+  });
+</script>
 <link rel="stylesheet" href={`${base}fonts/fonts.css`}>
 <link rel="stylesheet" href={`${base}styles.css`}>
 <slot />

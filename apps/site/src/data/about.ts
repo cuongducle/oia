@@ -53,8 +53,8 @@ export function about(locale: 'en' | 'vi') {
         : ['License', 'MIT for the app code (copyright Oia contributors); the bundled Lens font recognizer is non-commercial.'],
       vi ? ['Phần AI chạy thế nào', 'Tạo ảnh dùng chính gói ChatGPT của bạn; Oia không có tài khoản, không cần API key.']
         : ['How the AI works', 'Image generation uses your own ChatGPT plan; Oia has no account system and needs no API key.'],
-      vi ? ['Thống kê của website', 'Website dùng Cloudflare Web Analytics: không cookie, không lưu dữ liệu cá nhân.']
-        : ['Website analytics', 'This website uses Cloudflare Web Analytics: no cookies, no personal data.'],
+      vi ? ['Thống kê của website', 'Website dùng Plausible tự host tại analytics.oia.solutions (dữ liệu nằm trên máy chủ của riêng Oia) và Cloudflare Web Analytics cho số đo tốc độ: không cookie, không lưu dữ liệu cá nhân.']
+        : ['Website analytics', 'This website uses self-hosted Plausible at analytics.oia.solutions (data stays on our own server) plus Cloudflare Web Analytics for speed metrics: no cookies, no personal data.'],
       vi ? ['Dữ liệu nằm ở đâu', 'Dự án, ảnh và lịch sử trò chuyện lưu trên máy của bạn; chỉ request AI mới được gửi tới nhà cung cấp.']
         : ['Where your work lives', 'Projects, assets and conversations are saved on your machine; only AI requests go to your provider.'],
     ] as [string, string][],
