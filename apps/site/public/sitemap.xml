@@ -1,90 +1,90 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://oia.solutions/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/vi/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/vi/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/prompts/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/prompts/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/install/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/install/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/templates/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/templates/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/use-cases/flash-sale-banners/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/use-cases/flash-sale-banners/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/use-cases/livestream-overlays/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/use-cases/livestream-overlays/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://oia.solutions/use-cases/presentations/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/use-cases/presentations/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
-    <loc>https://oia.solutions/blog/</loc><lastmod>2026-11-20</lastmod>
+    <loc>https://oia.solutions/blog/</loc><lastmod>2026-11-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
-  <url><loc>https://oia.solutions/blog/change-sale-price-without-redesigning/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/blog/livestream-overlay-safe-zones/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/blog/tet-sale-banner-checklist/</loc><lastmod>2026-11-20</lastmod></url>
+  <url><loc>https://oia.solutions/blog/change-sale-price-without-redesigning/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/blog/livestream-overlay-safe-zones/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/blog/tet-sale-banner-checklist/</loc><lastmod>2026-11-26</lastmod></url>
 
-  <url><loc>https://oia.solutions/vi/templates/</loc><lastmod>2026-11-20</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://oia.solutions/vi/prompts/</loc><lastmod>2026-11-20</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://oia.solutions/vi/install/</loc><lastmod>2026-11-20</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://oia.solutions/vi/use-cases/flash-sale-banners/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/use-cases/livestream-overlays/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/use-cases/presentations/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/blog/</loc><lastmod>2026-11-20</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://oia.solutions/vi/blog/change-sale-price-without-redesigning/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/blog/livestream-overlay-safe-zones/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/blog/tet-sale-banner-checklist/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/flash-sale/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/menu/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/social-post/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/new-product/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/poster/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/deck/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/livestream/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/overlay/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/styles/editorial/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/styles/swiss/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/packs/cafe-restaurant/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/packs/product-launch/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/vi/templates/packs/tet-sale/</loc><lastmod>2026-11-20</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://oia.solutions/vi/prompts/</loc><lastmod>2026-11-26</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://oia.solutions/vi/install/</loc><lastmod>2026-11-26</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://oia.solutions/vi/use-cases/flash-sale-banners/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/use-cases/livestream-overlays/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/use-cases/presentations/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/blog/</loc><lastmod>2026-11-26</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://oia.solutions/vi/blog/change-sale-price-without-redesigning/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/blog/livestream-overlay-safe-zones/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/blog/tet-sale-banner-checklist/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/flash-sale/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/menu/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/social-post/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/new-product/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/poster/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/deck/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/livestream/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/overlay/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/styles/editorial/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/styles/swiss/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/cafe-restaurant/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/product-launch/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/vi/templates/packs/tet-sale/</loc><lastmod>2026-11-26</lastmod></url>
 
-  <url><loc>https://oia.solutions/templates/flash-sale/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/menu/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/social-post/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/new-product/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/poster/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/deck/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/livestream/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/overlay/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/styles/editorial/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/styles/swiss/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/packs/cafe-restaurant/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/packs/product-launch/</loc><lastmod>2026-11-20</lastmod></url>
-  <url><loc>https://oia.solutions/templates/packs/tet-sale/</loc><lastmod>2026-11-20</lastmod></url>
+  <url><loc>https://oia.solutions/templates/flash-sale/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/menu/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/social-post/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/new-product/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/poster/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/deck/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/livestream/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/overlay/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/styles/editorial/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/styles/swiss/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/packs/cafe-restaurant/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/packs/product-launch/</loc><lastmod>2026-11-26</lastmod></url>
+  <url><loc>https://oia.solutions/templates/packs/tet-sale/</loc><lastmod>2026-11-26</lastmod></url>
 </urlset>
